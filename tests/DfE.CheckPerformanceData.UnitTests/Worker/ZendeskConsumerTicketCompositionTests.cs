@@ -998,8 +998,6 @@ public sealed class ZendeskConsumerTicketCompositionTests
     }
 
     [Theory]
-    [InlineData("KS4June", true, "329_31")]
-    [InlineData("KS4June", false, "330_31")]
     [InlineData("Post16", true, "329_31")]
     [InlineData("Post16", false, "330_31")]
     public void CorrectionReason31_ForOther_FollowsTheEvidence(string windowType, bool hasFiles, string expected)

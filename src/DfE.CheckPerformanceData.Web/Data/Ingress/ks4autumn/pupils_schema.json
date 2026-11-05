@@ -30,12 +30,31 @@
         "407": "Pupil admitted following permanent exclusion from a maintained school. Omitted from NOR and results data.",
         "408": "Pupil on roll. Pupil aged 15 admitted following permanent exclusion from a maintained school. Omitted from key stage 4.",
         "410": "Pupil on roll but dual-registered with another school and is published elsewhere.",
+        "411": "Pupil on roll but admitted from overseas with English not first language. Omitted from all data.",
         "412": "Pupil on roll but removed on request from school. Omitted from all data.",
         "413": "Year group adjusted to 12. Pupil previously reported as end of key stage 4. Omitted from all data.",
         "422": "Pupil assumed to be on your roll. Pupil is estimated not to be in year 11. Omitted from key stage 4.",
         "425": "Pupil not on roll and removed from all performance measures.",
+        "427": "Pupil on roll but admitted from overseas with English not first language. Omitted from all data.",
         "430": "Year group adjusted to 12. Pupil previously reported as end of key stage 4. Omitted from all data."
       }
+    },
+    "includable": {
+      "field": "P_INCL",
+      "codes": [
+        "402",
+        "404",
+        "407",
+        "408",
+        "410",
+        "411",
+        "412",
+        "413",
+        "422",
+        "425",
+        "427",
+        "430"
+      ]
     }
   },
   "x-download": {
@@ -63,7 +82,7 @@
     },
     "INCLUDABLE": {
       "type": "boolean",
-      "description": "Stamped by ingress: true when a school may ask to include this pupil, that is, the pupil is not included. Not a supplier column, so not downloaded or shown.",
+      "description": "Stamped by ingress from x-ingress.includable: true when P_INCL is a code a school may ask to include. Not a supplier column, so not downloaded or shown.",
       "x-csv": {
         "columns": {},
         "heading": "Includable"

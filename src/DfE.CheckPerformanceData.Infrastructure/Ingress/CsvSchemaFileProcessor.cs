@@ -327,14 +327,15 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                         record["INCLUDED"] = inclusion.IsIncluded(record);
                     }
 
-                    // #711: who may be asked to be included — not included, or a code the schema's
-                    // x-ingress.includable rule names (only the 16-19 included file has one). Derived
-                    // from INCLUDED, so it is stamped only when INCLUDED was, and only when the schema
-                    // declares it (AllowAdditionalProperties is false). Readers read the stamp.
+                    // #711: who may be asked to be included. A schema's x-ingress.includable rule
+                    // decides alone (the 16-19 included file, #711; KS4 Autumn, #750). Without a
+                    // rule, a record that is not included is includable. Stamped only when INCLUDED
+                    // was, and only when the schema declares it (AllowAdditionalProperties is
+                    // false). Readers read the stamp.
                     if (schema.Properties.ContainsKey("INCLUDABLE") &&
                         record["INCLUDED"] is { Type: JTokenType.Boolean } stampedIncluded)
                     {
-                        record["INCLUDABLE"] = !stampedIncluded.Value<bool>() || (includable?.Matches(record) ?? false);
+                        record["INCLUDABLE"] = includable?.Matches(record) ?? !stampedIncluded.Value<bool>();
                     }
 
                     // Provenance by file of origin, the exact analogue of INCLUDED above: the
@@ -848,10 +849,11 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
     }
 
     /// <summary>
-    /// Which records a school may ask to include although their file counts them as included:
+    /// Which records a school may ask to include:
     /// <c>"x-ingress": { "includable": { "field": "P_INCL", "codes": ["502"] } }</c> at the
-    /// schema's root. Codes are compared as trimmed text. A record that is not included is
-    /// includable without a rule; the rule only adds to that (#711).
+    /// schema's root. Codes are compared as trimmed text. When a schema has a rule, only the codes
+    /// it names are includable, whether the record is included or not (#711, #750). Without a
+    /// rule, a record that is not included is includable.
     /// </summary>
     private sealed record IncludableRule(string Field, IReadOnlySet<string> Codes)
     {
@@ -870,7 +872,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             string.IsNullOrWhiteSpace(Field) ? "x-ingress.includable names no field."
             : !schema.Properties.ContainsKey(Field) ? $"x-ingress.includable reads {Field}, which the schema does not declare."
             : !schema.Properties.ContainsKey("INCLUDABLE") ? "x-ingress.includable needs the schema to declare INCLUDABLE, the stamp it writes."
-            // A rule with no codes adds nobody, and a blank code would match every empty field.
+            // A rule with no codes makes nobody includable, and a blank code would match every empty field.
             : Codes.Count == 0 ? "x-ingress.includable names no codes."
             : Codes.Contains(string.Empty) ? "x-ingress.includable names a blank code."
             : null;

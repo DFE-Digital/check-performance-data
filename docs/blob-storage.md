@@ -45,9 +45,10 @@ schools see. Schools see the label, never the tag. A dataset's `SourceFile` is t
 by file of origin, `SourceFile` stamps provenance, and both are stamped by the processor before
 validation and guarded by the schema declaring the column (`INCLUDED` / `SOURCE`), because
 `AllowAdditionalProperties` is false. A third stamp, `INCLUDABLE` (#711), says whether a school may
-ask to include the pupil: true when the record is not included, or when its code is one the
-schema's `x-ingress.includable` rule names (the 16-19 included file names `P_INCL` 502). It is
-derived from `INCLUDED`, so it follows the same guard. The Include journey reads it. A rule with
+ask to include the pupil. When the schema has an `x-ingress.includable` rule, the rule decides
+alone: true when the record's code is one the rule names (the 16-19 included file names `P_INCL`
+502; the KS4 Autumn file names its 12 includable codes, #750). Without a rule, it is true when the
+record is not included. It is stamped only when `INCLUDED` is, so it follows the same guard. The Include journey reads it. A rule with
 no field, an undeclared field, no codes or a blank code fails the run by name before any row is
 read, and so does a schema that declares `INCLUDED` but not `INCLUDABLE`: it would otherwise
 offer nobody for inclusion. A pupil blob written before `INCLUDABLE` existed lacks it, on every

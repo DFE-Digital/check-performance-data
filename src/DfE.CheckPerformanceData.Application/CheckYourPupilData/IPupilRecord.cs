@@ -38,8 +38,9 @@ public interface IPupilRecord
 
     /// <summary>
     /// Whether a school may ask to include this pupil: the <c>INCLUDABLE</c> stamp ingress writes
-    /// (#711). Not included, or a code the schema's <c>x-ingress.includable</c> rule names — on
-    /// 16-19, a student in the included file who is not in the performance measures. Never a code
+    /// (#711). A code the schema's <c>x-ingress.includable</c> rule names, or not included where
+    /// there is no rule — on 16-19, a student in the included file who is not in the performance
+    /// measures; on KS4 Autumn, the not-included codes the rules allow (#750). Never a code
     /// here: see
     /// <see cref="PupilInclusion"/>.
     /// </summary>

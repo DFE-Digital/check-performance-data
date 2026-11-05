@@ -18,7 +18,9 @@ The schemas read the spec as the other supplier schemas do (see `../post16/READM
 
 ## Pupils
 
-`P_INCL` decides inclusion through `x-ingress.inclusion`. The included codes are the spec's annex: 401, 403, 414, 421 and 431. The descriptions also name the not-included codes, which add 412 and 425 to the KS4 June list. Every pupil who is not included is includable. `P_INCL_DESC` has no field reference in the spec; the name is the one the KS4 June file uses.
+`P_INCL` decides inclusion through `x-ingress.inclusion`. The included codes are the spec's annex: 401, 403, 414, 421 and 431. The descriptions also name the not-included codes, which add 411, 412, 425 and 427 to the KS4 June list. The words for 411 and 427 come from the 2026 KS4 Autumn amendment rules (#750).
+
+`x-ingress.includable` names the codes a school may ask to include (#750): 402, 404, 407, 408, 410, 411, 412, 413, 422, 425, 427 and 430. A pupil with another code does not show in the Include journey. The rules engine's `Inclusion` outcome decides each code: auto accept, auto reject or scrutiny. `P_INCL_DESC` has no field reference in the spec; the name is the one the KS4 June file uses.
 
 The spec gives dates (`DOB`, `ENTRYDAT`) as DD/MM/YYYY. The schema sets no date pattern, so YYYY-MM-DD is also read. The page shows both as DD/MM/YYYY.
 

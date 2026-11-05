@@ -7,26 +7,16 @@ import type {
     Response,
 } from "k6/http";
 
-/*
- * GOV.UK Frontend renders validation errors in this element.
- */
-function errorSummaryText(
-    response: Response
-): string {
-    return response
-        .html()
-        .find(".govuk-error-summary")
-        .text()
-        .replace(/\s+/g, " ")
-        .trim();
-}
-
 /**
  * Validates an HTML page response.
  *
  * Functional failures stop the current k6 iteration.
  * The response-time assertion is currently also treated
  * as fatal because it is included in the same check group.
+ *
+ * Failure messages never include rendered text. Headings and
+ * error summaries can contain pupil names, and k6 copies
+ * failure messages into the captured logs.
  */
 export function checkPage(
     response: Response,
@@ -69,9 +59,7 @@ export function checkPage(
             "Page check failed: " +
             `url=${response.url}, ` +
             `status=${response.status}, ` +
-            `heading=${JSON.stringify(heading)}, ` +
-            `expectedHeading=${JSON.stringify(expectedHeading)}, ` +
-            `errorSummary=${JSON.stringify(errorSummaryText(response))}`
+            `expectedHeading=${JSON.stringify(expectedHeading)}`
         );
     }
 }
@@ -137,8 +125,7 @@ export function checkRedirect(
             `url=${response.url}, ` +
             `status=${response.status}, ` +
             `location=${JSON.stringify(location)}, ` +
-            `expected=${JSON.stringify(expectedLocation)}, ` +
-            `errorSummary=${JSON.stringify(errorSummaryText(response))}`
+            `expected=${JSON.stringify(expectedLocation)}`
         );
     }
 

@@ -4,7 +4,8 @@ import type {
 
 import {
     enquiryResultKey,
-    isEnquiryPupil,
+    isRevisableEnquiryPupil,
+    revisedGradeFor,
 } from "./pupils.ts";
 
 export const post16ResultsEnquiryIncorrectGradeWholeCohort = {
@@ -24,7 +25,7 @@ export const post16ResultsEnquiryIncorrectGradeWholeCohort = {
     },
 
     pupilFilter:
-        isEnquiryPupil,
+        isRevisableEnquiryPupil,
 
     preSteps: [
         {
@@ -107,10 +108,10 @@ export const post16ResultsEnquiryIncorrectGradeWholeCohort = {
             expectedHeading:
                 "Incorrect grade details",
 
-            answers: {
+            answers: (_iteration, pupil) => ({
                 q_q_revised_grade:
-                    "1",
-            },
+                    revisedGradeFor(pupil),
+            }),
 
             expectedRedirect:
                 "/page/additional-info",

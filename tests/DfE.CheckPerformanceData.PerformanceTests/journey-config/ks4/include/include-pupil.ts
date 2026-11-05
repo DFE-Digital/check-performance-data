@@ -7,32 +7,9 @@ import type {
 } from "../../../types/pupil.ts";
 
 /*
- * P_INCL codes for which the live service accepts an
- * inclusion. Codes 401, 403, 414, 421 and 431 are
- * rejected with "This pupil is already included".
- * Confirmed by a read-only probe of each code.
- */
-const INCLUDABLE_INCLUSION_CODES: readonly string[] = [
-    "402",
-    "404",
-    "407",
-    "408",
-    "410",
-    "413",
-    "422",
-    "430",
-];
-
-function isIncludable(pupil: Pupil): boolean {
-    return INCLUDABLE_INCLUSION_CODES.includes(
-        pupil.inclusionCode
-    );
-}
-
-/*
  * Include a pupil who is not currently in the data.
  *
- * Only pupils with an includable P_INCL code are used.
+ * Only pupils that the INCLUDABLE stamp allows are used.
  * The pupil is selected by iteration from that list.
  */
 export const includePupil = {
@@ -50,7 +27,8 @@ export const includePupil = {
             "/page/evidence",
     },
 
-    pupilFilter: isIncludable,
+    pupilFilter: (pupil: Pupil): boolean =>
+        pupil.includable,
 
     completion: "submit",
 

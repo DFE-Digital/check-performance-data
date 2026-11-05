@@ -18,6 +18,13 @@ export interface Pupil {
     inclusionCode: string;
 
     /*
+     * Whether a school may ask to include this pupil. Set by
+     * ingress as the INCLUDABLE stamp, which the app's Include
+     * journey also searches.
+     */
+    includable: boolean;
+
+    /*
      * Label the application stores for the selected pupil,
      * in the format of its pupil-search suggestion.
      */
@@ -28,4 +35,10 @@ export interface Pupil {
      * result in the results file.
      */
     resultKey?: string;
+
+    /*
+     * QAN and current GRADE of the same result as resultKey.
+     */
+    resultQan?: string;
+    resultGrade?: string;
 }

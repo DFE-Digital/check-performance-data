@@ -18,8 +18,13 @@ import {
 } from "../lib/test-data.ts";
 
 import {
+    WINDOW_PROFILES,
     windowProfileFor,
 } from "../lib/windows.ts";
+
+import {
+    resolveWindowBlobs,
+} from "../lib/release-lookup.ts";
 
 import type {
     WindowKey,
@@ -121,13 +126,21 @@ export function setup(): TestData {
         ks4:
             loadPupils(
                 BASE_URL,
-                "ks4"
+                "ks4",
+                resolveWindowBlobs(
+                    BASE_URL,
+                    WINDOW_PROFILES.ks4
+                )
             ),
 
         post16:
             loadPupils(
                 BASE_URL,
-                "post16"
+                "post16",
+                resolveWindowBlobs(
+                    BASE_URL,
+                    WINDOW_PROFILES.post16
+                )
             ),
     };
 
@@ -178,94 +191,104 @@ export default function (
         windowOf(config);
 
     /*
-     * setup() authentication is not sufficient for
-     * journey VUs. Each VU establishes its own editor
-     * session before making journey requests.
+     * Set once a window is known and once runJourney
+     * returns a reference. The catch block uses them to
+     * clean up a request that a failed run left behind.
+     * If runJourney throws before it returns, no reference
+     * is known and nothing is cleaned up.
      */
-    authenticate(
-        BASE_URL,
-        "editor"
-    );
-
-    const profile =
-        windowProfileFor(
-            config.window
-        );
-
-    console.log(
-        `Journey: ${config.journeyType} - ${config.reason}`
-    );
-
-    /*
-     * Journeys may restrict the pupils they use. The
-     * filter is applied before choosing by iteration.
-     */
-    const windowPupils =
-        data.pupilsByWindow[profile.key];
-
-    const pupils =
-        config.pupilFilter
-            ? windowPupils.filter(
-                config.pupilFilter
-            )
-            : windowPupils;
-
-    /*
-     * Regression uses pupil index 0 for every journey,
-     * matching each journey's solo run.
-     */
-    const pupilIteration =
-        workload.pupilIterationFor(iteration);
-
-    /*
-     * Only journeys with a pupil search select a pupil.
-     */
-    const pupil =
-        config.pupilSearch
-            ? getPupilForCurrentIteration(
-                pupils,
-                pupilIteration
-            )
-            : undefined;
-
-    if (pupil) {
-        console.log(
-            "Using pupil " +
-            `${pupil.firstName} ` +
-            `${pupil.surname} ` +
-            `${pupil.dateOfBirth} ` +
-            `(${pupil.id})`
-        );
-    }
-
-    const secondPupil =
-        config.secondPupilSearch
-            ? getSecondPupilForCurrentIteration(
-                pupils,
-                pupilIteration
-            )
-            : undefined;
-
-    if (secondPupil) {
-        console.log(
-            "Using second pupil " +
-            `${secondPupil.firstName} ` +
-            `${secondPupil.surname} ` +
-            `${secondPupil.dateOfBirth} ` +
-            `(${secondPupil.id})`
-        );
-    }
-
-    /*
-     * Set once runJourney returns a reference. The catch
-     * block uses it to retry cleanup after a failed cleanup
-     * attempt. If runJourney throws before it returns, no
-     * reference is known and nothing is retried.
-     */
+    let windowId: string | undefined;
     let requestReference: string | undefined;
     let cleanedUp = false;
 
+    /*
+     * Authentication and pupil selection are inside the
+     * try block. A throw there must still record a failed
+     * journey, or an aborted iteration counts as a pass.
+     */
     try {
+        /*
+         * setup() authentication is not sufficient for
+         * journey VUs. Each VU establishes its own editor
+         * session before making journey requests.
+         */
+        authenticate(
+            BASE_URL,
+            "editor"
+        );
+
+        const profile =
+            windowProfileFor(
+                config.window
+            );
+
+        windowId =
+            profile.windowId;
+
+        console.log(
+            `Journey: ${config.journeyType} - ${config.reason}`
+        );
+
+        /*
+         * Journeys may restrict the pupils they use. The
+         * filter is applied before choosing by iteration.
+         */
+        const windowPupils =
+            data.pupilsByWindow[profile.key];
+
+        const pupils =
+            config.pupilFilter
+                ? windowPupils.filter(
+                    config.pupilFilter
+                )
+                : windowPupils;
+
+        /*
+         * Regression uses pupil index 0 for every journey,
+         * matching each journey's solo run.
+         */
+        const pupilIteration =
+            workload.pupilIterationFor(iteration);
+
+        /*
+         * Only journeys with a pupil search select a pupil.
+         */
+        const pupil =
+            config.pupilSearch
+                ? getPupilForCurrentIteration(
+                    pupils,
+                    pupilIteration
+                )
+                : undefined;
+
+        if (pupil) {
+            console.log(
+                "Using pupil " +
+                `${pupil.firstName} ` +
+                `${pupil.surname} ` +
+                `${pupil.dateOfBirth} ` +
+                `(${pupil.id})`
+            );
+        }
+
+        const secondPupil =
+            config.secondPupilSearch
+                ? getSecondPupilForCurrentIteration(
+                    pupils,
+                    pupilIteration
+                )
+                : undefined;
+
+        if (secondPupil) {
+            console.log(
+                "Using second pupil " +
+                `${secondPupil.firstName} ` +
+                `${secondPupil.surname} ` +
+                `${secondPupil.dateOfBirth} ` +
+                `(${secondPupil.id})`
+            );
+        }
+
         const result =
             runJourney({
                 baseUrl:
@@ -325,6 +348,7 @@ export default function (
          */
         if (
             requestReference !== undefined &&
+            windowId !== undefined &&
             !cleanedUp
         ) {
             try {
@@ -332,8 +356,7 @@ export default function (
                     baseUrl:
                         BASE_URL,
 
-                    windowId:
-                        profile.windowId,
+                    windowId,
 
                     requestReferenceNumber:
                         requestReference,

@@ -469,15 +469,13 @@ Each config uses `preSteps` where necessary to answer issue-type and cohort-scop
 
 ## Results Enquiry pupil pool
 
-Enquiry pupils are derived at load time from the 16 to 19 results blob, set by `resultsBlob` in `lib/windows.ts`:
+Enquiry pupils are derived at load time from the 16 to 19 results file. `setup()` finds the newest copy of that file (see `lib/release-lookup.ts` under [Shared libraries](#shared-libraries)).
 
-```text
-exercises/346ccd29-e9fb-4e33-a47a-da9210c8e305/releases/48b54c09-2bc0-4f61-8993-0d0474d2569c/data/8604070_results.json
-```
-
-`lib/test-data.ts` matches each results row to a pupil by `CYPMD_ID` and sets the pupil's `resultKey` to `QAN|SESSION|SOURCE` from the pupil's first result. Pupils with no result are not enquiry pupils.
+`lib/test-data.ts` matches each results row to a pupil by `CYPMD_ID`. It sets the pupil's `resultKey` to `QAN|SESSION|SOURCE`, and its `resultQan` and `resultGrade` to the `QAN` and `GRADE` of the pupil's first result. Pupils with no result are not enquiry pupils.
 
 Results Enquiry configurations use `isEnquiryPupil` (pupil has a `resultKey`) as the pupil filter, and `enquiryResultKey` to read the key.
+
+The two incorrect-grade journeys use `isRevisableEnquiryPupil` as the filter. It keeps only pupils whose QAN has a grade scale that offers a grade other than the current one. `revisedGradeFor` returns the first such grade, and it always differs from the current `GRADE`. The grade `1` is valid only for QANs `60146084` and `60148366`, so a fixed grade fails validation for other QANs.
 
 Selection is deterministic:
 
@@ -487,7 +485,7 @@ iteration % pupils.length
 
 Record IDs and result keys are regenerated when the data is seeded, so `CYPMD_ID` is used as the join key and nothing is hard-coded.
 
-> NOTE: The pool follows the results blob of the current release. Changing the release changes the pool.
+> NOTE: The pool follows the results file of the newest release in storage. Publishing a newer release changes the pool.
 
 ---
 
@@ -499,17 +497,19 @@ Window-specific behaviour is defined using `WindowProfile`.
 
 Each profile contains:
 
-- window ID
-- pupil/student data source
+- window ID (stable across reseeds)
+- file names of the pupil and, where used, results data
 - expected page headings
 - other window-specific configuration
 
 Current profiles:
 
-| Key | Window | Pupil data | Headings |
+| Key | Window | Data files | Headings |
 | --- | --- | --- | --- |
-| `ks4` | KS4 | `exercises/71e0ee21-3f3f-4ba6-945d-a1b1edc1bf3b/releases/1d8dba47-63e4-48f7-b029-039f50b58cd9/data/8604070_pupils.json` | "Check your pupil data" / "What pupil data would you like to change?" |
-| `post16` | 16 to 19 | `exercises/41476d6c-20b6-420b-887c-a531bea3c74c/releases/5ac44d35-81a3-490d-8e5f-424cec112335/data/8604070_pupils.json` | "Check your student data" / "What student data would you like to change?" |
+| `ks4` | KS4 | `8604070_pupils.json` | "Check your pupil data" / "What pupil data would you like to change?" |
+| `post16` | 16 to 19 | `8604070_pupils.json`, `8604070_results.json` | "Check your student data" / "What student data would you like to change?" |
+
+The profiles hold no release or exercise GUIDs. Seeding creates new GUIDs each time, so `setup()` resolves the file paths at run time. See `lib/release-lookup.ts` under [Shared libraries](#shared-libraries).
 
 A journey selects 16 to 19 using:
 
@@ -529,6 +529,8 @@ journey-config/post16/shared.ts
 
 to select included students.
 
+The KS4 Include journey (`include-pupil`) selects pupils with the `includable` flag. Ingress writes that flag from the `INCLUDABLE` value in the pupil file. The suite does not read supplier codes to decide eligibility.
+
 ---
 
 # Shared libraries
@@ -541,7 +543,21 @@ Provides common HTTP navigation and form-post functionality, including multi-val
 
 Provides shared response and page assertions.
 
-Failure diagnostics include GOV.UK error-summary information where available.
+Failure messages contain the URL, the HTTP status, the expected heading or redirect location, and the configured expectation. They do not contain rendered page text, because that text can hold pupil names and k6 writes failure messages to its logs.
+
+## `lib/release-lookup.ts`
+
+Finds the pupil and results files for each window before any journey runs. `setup()` calls `resolveWindowBlobs` for each window it loads.
+
+The lookup reads the admin storage browser for the window's container. It walks `exercises/`, then each `releases/` folder, then each `data/` folder. It takes the file with the latest Last modified time for each required file name. It fails when:
+
+- a required file is not in any release
+- two copies of the same file have the same Last modified time
+- a Last modified cell does not match `yyyy-MM-dd HH:mm`
+
+The lookup parses HTML from the storage browser. A change to that page can break it.
+
+> NOTE: The lookup takes the newest release folder. It does not check `CurrentReleaseId`. A newer release that failed or was not published can therefore supply the data. Remove old or failed release folders from storage if this matters.
 
 ## `lib/antiforgery.ts`
 
@@ -961,9 +977,9 @@ The framework does not retry the failure.
 
 ## Results Enquiry pupil pool
 
-The Results Enquiry pupil/result pool is read from the results blob of the post16 window's current release, so it follows that release.
+The Results Enquiry pupil/result pool is read from the results file of the newest release in the post16 window's storage, so it follows that release.
 
-Recheck the pool after the window's release changes.
+Recheck the pool after a new release is published.
 
 ## Workload distribution
 

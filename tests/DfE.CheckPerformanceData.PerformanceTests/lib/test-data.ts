@@ -9,6 +9,7 @@ import type {
 } from "../types/pupil.ts";
 
 import type {
+    WindowBlobs,
     WindowKey,
 } from "../types/window.ts";
 
@@ -24,6 +25,7 @@ interface Ks4PupilRecord {
     P_INCL: string | number;
     UPN: string;
     INCLUDED: boolean;
+    INCLUDABLE: boolean;
 }
 
 /*
@@ -36,6 +38,7 @@ interface Post16PupilRecord {
     SURNAME: string;
     DOB: string;
     INCLUDED: boolean;
+    INCLUDABLE: boolean;
     ULN: string;
 }
 
@@ -60,6 +63,9 @@ function mapKs4Record(
 
         inclusionCode:
             String(record.P_INCL),
+
+        includable:
+            record.INCLUDABLE,
 
         searchLabel:
             `${record.SURNAME}, ${record.FORENAME}, ` +
@@ -93,6 +99,9 @@ function mapPost16Record(
                 ? "INCLUDED"
                 : "NOT INCLUDED",
 
+        includable:
+            record.INCLUDABLE,
+
         searchLabel:
             `${record.FORENAMES}, ${record.SURNAME}, ` +
             `(CYPMD ID:${record.CYPMD_ID}, ULN:${record.ULN}, ` +
@@ -122,6 +131,7 @@ interface ResultRecord {
     QAN: string;
     SESSION: string;
     SOURCE: string;
+    GRADE: string;
 }
 
 /*
@@ -151,30 +161,37 @@ function downloadBlob(
     return response.body as string;
 }
 
-/*
- * Maps each CYPMD_ID to the key of its first result.
- * The key is the composite that the result search posts.
- */
-function resultKeysByCypmdId(
-    body: string
-): Map<string, string> {
+interface FirstResult {
+    key: string;
+    qan: string;
+    grade: string;
+}
 
-    const keys =
-        new Map<string, string>();
+/*
+ * Maps each CYPMD_ID to its first result. The key is the
+ * composite that the result search posts.
+ */
+function firstResultsByCypmdId(
+    body: string
+): Map<string, FirstResult> {
+
+    const results =
+        new Map<string, FirstResult>();
 
     for (const record of JSON.parse(body) as ResultRecord[]) {
         const cypmdId =
             String(record.CYPMD_ID);
 
-        if (!keys.has(cypmdId)) {
-            keys.set(
-                cypmdId,
-                `${record.QAN}|${record.SESSION}|${record.SOURCE}`
-            );
+        if (!results.has(cypmdId)) {
+            results.set(cypmdId, {
+                key: `${record.QAN}|${record.SESSION}|${record.SOURCE}`,
+                qan: String(record.QAN),
+                grade: String(record.GRADE)
+            });
         }
     }
 
-    return keys;
+    return results;
 }
 
 /*
@@ -184,7 +201,8 @@ function resultKeysByCypmdId(
  */
 export function loadPupils(
     baseUrl: string,
-    key: WindowKey
+    key: WindowKey,
+    blobs: WindowBlobs
 ): Pupil[] {
 
     const profile =
@@ -194,7 +212,7 @@ export function loadPupils(
         downloadBlob(
             baseUrl,
             profile.windowId,
-            profile.pupilBlob,
+            blobs.pupilBlob,
             key
         );
 
@@ -203,26 +221,31 @@ export function loadPupils(
             ? (JSON.parse(body) as Post16PupilRecord[]).map(mapPost16Record)
             : (JSON.parse(body) as Ks4PupilRecord[]).map(mapKs4Record);
 
-    if (!profile.resultsBlob) {
+    if (!blobs.resultsBlob) {
         return pupils;
     }
 
-    const resultKeys =
-        resultKeysByCypmdId(
+    const firstResults =
+        firstResultsByCypmdId(
             downloadBlob(
                 baseUrl,
                 profile.windowId,
-                profile.resultsBlob,
+                blobs.resultsBlob,
                 key
             )
         );
 
     return pupils.map((pupil) => {
-        const resultKey =
-            resultKeys.get(String(pupil.cypmdId));
+        const result =
+            firstResults.get(String(pupil.cypmdId));
 
-        return resultKey
-            ? { ...pupil, resultKey }
+        return result
+            ? {
+                ...pupil,
+                resultKey: result.key,
+                resultQan: result.qan,
+                resultGrade: result.grade
+            }
             : pupil;
     });
 }

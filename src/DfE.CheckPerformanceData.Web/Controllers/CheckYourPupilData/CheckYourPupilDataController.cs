@@ -311,8 +311,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             new()
             {
                 Key = "included",
-                TabLabel = $"Included {noun.Plural}",
-                Heading = $"{noun.SingularCapitalised} included",
+                TabLabel = $"{noun.PluralCapitalised} included",
+                Heading = $"{noun.PluralCapitalised} included",
                 DownloadAction = nameof(DownloadIncluded),
                 DownloadLinkText = $"{noun.Singular} included",
                 // The empty-state blocks are seeded once per key, so each window type needs its own
@@ -328,8 +328,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             new()
             {
                 Key = "nonIncluded",
-                TabLabel = $"Non-included {noun.Plural}",
-                Heading = $"{noun.SingularCapitalised} non-included",
+                TabLabel = $"{noun.PluralCapitalised} not included",
+                Heading = $"{noun.PluralCapitalised} not included",
                 DownloadAction = nameof(DownloadNonIncluded),
                 DownloadLinkText = $"{noun.Singular} non-included",
                 EmptyContentKey = WindowScopedContentKey.For("check-pupil-data-no-non-included-data-content", window.CheckingWindowType),

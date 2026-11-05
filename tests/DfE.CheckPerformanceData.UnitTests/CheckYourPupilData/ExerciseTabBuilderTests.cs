@@ -239,11 +239,13 @@ public sealed class ExerciseTabBuilderTests
 
         var tabs = await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default);
 
-        Assert.Equal(["Pupils Included", "Pupils Non Included"], tabs.Select(t => t.Label));
+        Assert.Equal("Pupils included", tabs[0].Label);
+        Assert.Equal("Pupils not included", tabs[1].Label);
         Assert.Equal([$"exercise-{exercise.Id}-included", $"exercise-{exercise.Id}-nonincluded"],
             tabs.Select(t => t.Key));
         Assert.Equal(["Adams", "Davis"], tabs[0].Table!.Rows.Select(r => r["SURNAME"]));
         Assert.Equal(["Brown", "Clark"], tabs[1].Table!.Rows.Select(r => r["SURNAME"]));
+        Assert.DoesNotContain(tabs.Select(t => t.Label), s => s.Contains("Non") || s.Contains("non"));
     }
 
     [Fact]
@@ -257,7 +259,8 @@ public sealed class ExerciseTabBuilderTests
         Assert.Equal(2, included.Rows.Count);
         Assert.Equal(2, nonIncluded.Rows.Count);
         Assert.NotEqual(included.FileName, nonIncluded.FileName);
-        Assert.Equal("Pupils Included", included.Label);
+        Assert.Equal("Pupils included", included.Label);
+        Assert.Equal("Pupils not included", nonIncluded.Label);
     }
 
     [Fact]
@@ -317,8 +320,10 @@ public sealed class ExerciseTabBuilderTests
 
         var tabs = await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default);
 
-        Assert.Equal(["Pupils Included", "Pupils Non Included"], tabs.Select(t => t.Label));
+        Assert.Equal("Pupils included", tabs[0].Label);
+        Assert.Equal("Pupils not included", tabs[1].Label);
         Assert.All(tabs, t => Assert.False(t.HasData));
+        Assert.DoesNotContain(tabs.Select(t => t.Label), s => s.Contains("Non") || s.Contains("non"));
     }
 
     [Theory]

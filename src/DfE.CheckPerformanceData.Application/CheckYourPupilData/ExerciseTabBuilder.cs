@@ -189,10 +189,10 @@ public sealed class ExerciseTabBuilder(ICheckingDataReader reader, IExerciseDisp
         layout == ExerciseLayout.InclusionTabs
             ?
             [
-                new TabShape($"exercise-{exercise.Id}-included", $"{exercise.TabName} Included",
-                    true, "Included", "include"),
-                new TabShape($"exercise-{exercise.Id}-nonincluded", $"{exercise.TabName} Non Included",
-                    false, "Non Included", "non-include")
+                new TabShape($"exercise-{exercise.Id}-included", $"{exercise.TabName} included",
+                    true, "included", "include"),
+                new TabShape($"exercise-{exercise.Id}-nonincluded", $"{exercise.TabName} not included",
+                    false, "not included", "non-include")
             ]
             : [new TabShape($"exercise-{exercise.Id}", exercise.TabName, null, "", "")];
 

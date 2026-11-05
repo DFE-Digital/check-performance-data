@@ -60,20 +60,19 @@ export function findDraftReference({
     const matchingRows =
         page
             .html()
-            .find("tr")
+            .find("form[action$='/AmendmentRequests/bulk-detailed'] tr")
             .filter(
                 (
                     _index: number,
                     row: Selection
                 ) =>
-                    row.text().includes(pupilName) &&
+                    row.find("td").eq(1).text().trim() === pupilName &&
                     row.find("a[href*='/delete']").size() > 0
             );
 
     if (matchingRows.size() !== 1) {
         throw new Error(
-            `Expected one draft request for ` +
-            `"${pupilName}" on ${page.url}, ` +
+            `Expected one draft request on ${page.url}, ` +
             `found ${matchingRows.size()}`
         );
     }

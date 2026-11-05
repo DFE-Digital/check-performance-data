@@ -91,6 +91,7 @@ function saveButtonSubmission(
         SAVE_FOR_LATER_LABEL;
 
     const action =
+        button.attr("formaction") ??
         button
             .closest("form")
             .attr("action") ??

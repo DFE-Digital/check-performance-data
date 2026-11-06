@@ -33,6 +33,26 @@ export function chooseRunId(): string {
 }
 
 /**
+ * Returns a file-safe run ID for a report. Uses the ID
+ * from setup() when it ran. If setup() failed, uses a
+ * valid RUN_ID, or a unique name that cannot overwrite
+ * another report.
+ */
+export function reportRunId(setupRunId: string | undefined): string {
+    if (setupRunId !== undefined) {
+        return setupRunId;
+    }
+
+    const supplied = __ENV.RUN_ID;
+
+    if (supplied !== undefined && RUN_ID_PATTERN.test(supplied)) {
+        return supplied;
+    }
+
+    return `unrecorded-${generateRunId().slice("auto-".length)}`;
+}
+
+/**
  * Stores the run ID for this VU.
  */
 export function setRunId(runId: string): void {

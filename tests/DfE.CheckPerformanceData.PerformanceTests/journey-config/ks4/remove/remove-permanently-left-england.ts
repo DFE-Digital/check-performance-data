@@ -3,7 +3,7 @@ import type {
 } from "../../../types/journey-config.ts";
 
 export const removePermanentlyLeftEngland = {
-    id: "remove-permanently-left-england",
+    id: "ks4-remove-permanently-left-england",
     journeyType: "Remove",
     reason: "Permanently left England",
 

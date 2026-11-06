@@ -5,7 +5,7 @@ import type {
 import { isNotAddBack } from "../shared.ts";
 
 export const removePermanentlyExcluded = {
-    id: "remove-permanently-excluded",
+    id: "ks4-remove-permanently-excluded",
     journeyType: "Remove",
     reason: "Permanently excluded from current school",
 

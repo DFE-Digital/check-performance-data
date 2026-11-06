@@ -3,7 +3,7 @@ import type {
 } from "../../../types/journey-config.ts";
 
 export const removeAdmittedFromAbroad = {
-    id: "remove-admitted-from-abroad",
+    id: "ks4-remove-admitted-from-abroad",
     journeyType: "Remove",
     reason: "Admitted from abroad with English not first language",
 

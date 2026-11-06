@@ -5,7 +5,7 @@ import type {
 import { isNotAddBack } from "../shared.ts";
 
 export const removeYearGroupChangeHigher = {
-    id: "remove-year-group-change-higher",
+    id: "ks4-remove-year-group-change-higher",
     journeyType: "Remove",
     reason: "Year group change (higher)",
 

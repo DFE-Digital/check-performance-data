@@ -1,4 +1,4 @@
-﻿# CYPMD Performance Tests
+# CYPMD Performance Tests
 
 This project contains a reusable k6 performance and journey-testing framework for validating CYPMD amendment and Results Enquiry journeys.
 
@@ -9,8 +9,6 @@ The suite currently contains 25 registered journeys covering:
 - 16 to 19 Results Enquiries
 
 Journeys are configuration-driven rather than being implemented as individual k6 scripts. Shared behaviour such as authentication, pupil selection, navigation, question handling, evidence upload, submission and cleanup is implemented once and reused by journey configurations.
-
-> IMPORTANT: Concurrent load can fail until a known application defect involving duplicate request reference numbers is fixed. See "Known application defect: duplicate reference numbers".
 
 ---
 
@@ -41,7 +39,7 @@ k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=smoke tests/journey.ts
 For example:
 
 ```bash
-k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=remove-pupil-died tests/journey.ts
+k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=ks4-remove-pupil-died tests/journey.ts
 ```
 
 ## Run Add Pupil
@@ -49,7 +47,7 @@ k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=remove-pup
 Add Pupil generates pupil data from the run ID. Set `RUN_ID` to reuse a run ID. Leave it unset to generate one, which is printed at the start of the run:
 
 ```bash
-k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=add-pupil tests/journey.ts
+k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=ks4-add-pupil tests/journey.ts
 ```
 
 ## Full regression
@@ -88,7 +86,7 @@ Five execution profiles are supported.
 
 | PROFILE | Journeys | Execution | Purpose |
 | --- | --- | --- | --- |
-| `smoke` | `remove-pupil-died` | 1 VU, 1 iteration | Check that the framework and target environment are working |
+| `smoke` | `ks4-remove-pupil-died` | 1 VU, 1 iteration | Check that the framework and target environment are working |
 | `single` | Journey specified by `JOURNEY` | 1 VU, 1 iteration | Run and debug one journey |
 | `regression` | All 25 registered journeys | Sequential, each journey once | Full functional regression of the performance-test journeys |
 | `sequential` | Repeating weighted journey schedule | 1 VU, configured iteration count and pause | Repeated journeys without overlap within this test instance |
@@ -103,22 +101,6 @@ If `PROFILE` is not supplied:
 ---
 
 # Safety and known limitations
-
-## Known application defect: duplicate reference numbers
-
-Concurrent amendment submissions can fail because the application can attempt to persist duplicate `ReferenceNumber` values.
-
-The observed failure is:
-
-```text
-PostgreSQL: 23505
-IX_ChangeRequests_ReferenceNumber
-HTTP 500
-```
-
-This was reproduced with overlapping submissions.
-
-The performance framework deliberately does not retry the failed submission or otherwise hide this behaviour. If the defect occurs, the performance test reports a failure.
 
 ## Request cleanup
 
@@ -409,21 +391,21 @@ The registry contains every journey available to the test runner.
 ## KS4 journeys
 
 ```text
-add-pupil
-include-pupil
-merge-duplicate-pupils
-remove-admitted-following-exclusion
-remove-admitted-from-abroad
-remove-child-missing-education
-remove-dual-registered-moved
-remove-elective-home-education
-remove-life-limiting-illness
-remove-permanently-excluded
-remove-permanently-left-england
-remove-pupil-died
-remove-social-care-involvement
-remove-year-group-change-higher
-remove-year-group-change-lower
+ks4-add-pupil
+ks4-include-pupil
+ks4-merge-duplicate-pupils
+ks4-remove-admitted-following-exclusion
+ks4-remove-admitted-from-abroad
+ks4-remove-child-missing-education
+ks4-remove-dual-registered-moved
+ks4-remove-elective-home-education
+ks4-remove-life-limiting-illness
+ks4-remove-permanently-excluded
+ks4-remove-permanently-left-england
+ks4-remove-pupil-died
+ks4-remove-social-care-involvement
+ks4-remove-year-group-change-higher
+ks4-remove-year-group-change-lower
 ```
 
 ## 16 to 19 journeys
@@ -529,7 +511,7 @@ journey-config/post16/shared.ts
 
 to select included students.
 
-The KS4 Include journey (`include-pupil`) selects pupils with the `includable` flag. Ingress writes that flag from the `INCLUDABLE` value in the pupil file. The suite does not read supplier codes to decide eligibility.
+The KS4 Include journey (`ks4-include-pupil`) selects pupils with the `includable` flag. Ingress writes that flag from the `INCLUDABLE` value in the pupil file. The suite does not read supplier codes to decide eligibility.
 
 ---
 
@@ -617,6 +599,16 @@ journey_completion
 journeys_completed
 ```
 
+Business metrics show the journey outcome and timing. The HTML report shows them at the top. They do not change pass or fail.
+
+```text
+journey_duration
+pupil_search_duration
+evidence_upload_duration
+submission_duration
+submissions
+```
+
 ---
 
 # Configuration-driven testing
@@ -627,7 +619,7 @@ Example:
 
 ```typescript
 {
-    id: "remove-pupil-died",
+    id: "ks4-remove-pupil-died",
     journeyType: "Remove",
     reason: "Pupil died",
     pupilSearch: {
@@ -675,7 +667,7 @@ Profile-specific variables are rejected under other profiles. `JOURNEY_WEIGHTS` 
 
 # RUN_ID and Add Pupil
 
-`add-pupil` generates deterministic test data from the run ID. `setup()` uses `RUN_ID` when it is set. Otherwise it generates one, such as `auto-mw0sccon-qw5p`. Every VU in the run uses the same run ID.
+`ks4-add-pupil` generates deterministic test data from the run ID. `setup()` uses `RUN_ID` when it is set. Otherwise it generates one, such as `auto-mw0sccon-qw5p`. Every VU in the run uses the same run ID.
 
 The generated surname is:
 
@@ -707,7 +699,7 @@ Missing or invalid configuration fails before application requests are sent. An 
 Example, to reuse a run ID:
 
 ```bash
-k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=add-pupil -e RUN_ID=run-01 tests/journey.ts
+k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=ks4-add-pupil -e RUN_ID=run-01 tests/journey.ts
 ```
 
 ---
@@ -722,8 +714,8 @@ Example:
 
 ```json
 {
-  "remove-pupil-died": 2,
-  "include-pupil": 1
+  "ks4-remove-pupil-died": 2,
+  "ks4-include-pupil": 1
 }
 ```
 
@@ -820,17 +812,9 @@ Current correctness thresholds include:
 | `journey_completion rate==1` | Every journey must reach its expected completion point |
 | `journeys_completed count==N` | Expected number of completed journeys |
 
-For `smoke` and `single`, `N` is:
+For smoke and single profiles, `N` is `1`.
 
-```text
-1
-```
-
-For `regression`, `N` is:
-
-```text
-25
-```
+For the regression profile, `N` is `25`.
 
 A journey-count threshold is not used for the load profile.
 
@@ -880,16 +864,6 @@ Current expected journey count:
 25
 ```
 
-A regression run includes:
-
-- KS4 Remove journeys
-- KS4 Merge
-- KS4 Include
-- KS4 Add
-- 16 to 19 Remove journeys
-- 16 to 19 Merge
-- 16 to 19 Results Enquiry journeys
-
 Regression generates a run ID when `RUN_ID` is unset. Set `RUN_ID` to reuse one.
 
 Example:
@@ -898,37 +872,80 @@ Example:
 k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=regression -e RUN_ID=reg-01 tests/journey.ts
 ```
 
-Do not add:
-
-```text
---vus
-```
-
-or:
-
-```text
---iterations
-```
-
-to this command.
+Do not add `--vus` or `--iterations` to this command.
 
 Regression controls its own sequential execution.
 
 ---
 
-# Capturing output
+# HTML reports
 
-## PowerShell
+There are two types of reporting available within this framework:
 
-```powershell
-k6 run <options> tests/journey.ts *> "$env:TEMP\run.txt"
-```
+- Custom HTML Report
+- K6 Built-in Web Dashboard
 
-## Bash
+The Custom HTML report is most useful for sharing with stakeholders as it contains configured business-level metrics.
+
+## Custom HTML Report
+
+Each run writes two files to `reports/`, named after the run ID:
+
+- `reports/<RUN_ID>-summary.html`: a readable report with the result, business metrics, run settings, thresholds, checks and technical metrics.
+- `reports/<RUN_ID>-summary.json`: the same metrics as JSON.
+
+The business metrics section shows:
+
+- the journey success rate, and the number of journeys completed of those attempted
+- the number of submissions
+- the number of samples, median and 95th percentile for four durations:
+  - journey duration: from the start of the journey to submission. 
+    - It excludes authentication and cleanup. It records successful journeys only.
+  - pupil search duration: each pupil search, including the second search for journeys that need one
+  - evidence upload duration: each evidence file upload
+  - submission duration: each submission request
+
+A measure with no samples shows "not recorded".
+
+The console prints the result and the two paths. 
+
+The report is written when the test ends, including when a threshold fails. 
+
+If `setup()` fails, for example a failed sign-in, the report still uses the run ID from `RUN_ID`. 
+
+Without `RUN_ID`, the name starts with `unrecorded-`. Check the console output for the cause.
 
 ```bash
-k6 run <options> tests/journey.ts > "${TMPDIR:-/tmp}/run.txt" 2>&1
+k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=ks4-remove-pupil-died -e RUN_ID=report-01 tests/journey.ts
 ```
+
+## Web dashboard export
+
+k6 will write its built-in dashboard to a standalone HTML file which can be accessed and shared:
+
+```powershell
+k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=sequential -e SEQUENTIAL_ITERATIONS=3 -e SEQUENTIAL_PAUSE_SECONDS=10 -e K6_WEB_DASHBOARD=true -e K6_WEB_DASHBOARD_EXPORT=reports/dashboard-01.html tests/journey.ts
+```
+
+```bash
+k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=sequential -e SEQUENTIAL_ITERATIONS=3 -e SEQUENTIAL_PAUSE_SECONDS=10 K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=reports/dashboard-01.html tests/journey.ts
+```
+
+- The dashboard graphs will only be generated during a run longer than 30 seconds. 
+  - The default period is 10 seconds, and graphs need 3 periods. A shorter run writes no export file.
+- The dashboard serves a live page at `localhost:5665` during the run. 
+  - Set `K6_WEB_DASHBOARD_PORT=-1`.
+- Review the exported file before you share it.
+
+## Report storage location
+
+The reports are saved to `reports/`.
+
+If `reports/` is missing, create it before the run as k6 does not create folders. 
+
+The `reports/` folder is kept in git with a `.gitkeep` file. Report files are git-ignored. 
+
+Review a report before you share it.
 
 ---
 
@@ -963,17 +980,6 @@ Use appropriate non-production environments for executions that write test data.
 ---
 
 # Known limitations
-
-## Application concurrency
-
-Concurrent amendment submissions can fail with:
-
-```text
-PostgreSQL 23505
-IX_ChangeRequests_ReferenceNumber
-```
-
-The framework does not retry the failure.
 
 ## Results Enquiry pupil pool
 
@@ -1010,7 +1016,7 @@ The current full sequential regression baseline is:
 
 This baseline was established using sequential execution, with one regression run.
 
-It does not demonstrate successful concurrent load behaviour because concurrent execution is currently constrained by the known application duplicate-reference defect.
+It does not demonstrate concurrent load behaviour. Run a `load` profile execution to measure that behaviour.
 
 Changes to the number of configured checks may legitimately change the expected `1792` total. Journey completion and threshold results remain the primary regression criteria.
 

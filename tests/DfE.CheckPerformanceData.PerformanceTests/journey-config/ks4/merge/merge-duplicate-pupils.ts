@@ -10,7 +10,7 @@ import type {
  * each iteration merges two different pupils.
  */
 export const mergeDuplicatePupils = {
-    id: "merge-duplicate-pupils",
+    id: "ks4-merge-duplicate-pupils",
     journeyType: "Merge",
     reason: "Duplicate pupil records",
 

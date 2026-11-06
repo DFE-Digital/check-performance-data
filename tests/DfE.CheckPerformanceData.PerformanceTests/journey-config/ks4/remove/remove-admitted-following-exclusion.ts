@@ -5,7 +5,7 @@ import type {
 import { isNotAddBack } from "../shared.ts";
 
 export const removeAdmittedFollowingExclusion = {
-    id: "remove-admitted-following-exclusion",
+    id: "ks4-remove-admitted-following-exclusion",
     journeyType: "Remove",
     reason: "Admitted following permanent exclusion",
 

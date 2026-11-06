@@ -43,7 +43,7 @@
           "id": "evidence",
           "type": "FileUpload",
           "title": "Upload files",
-          "hint": "Evidence must be in a PDF format",
+          "hint": "Evidence must be provided in a PDF format (either as 1 or multiple files). We will only review the first 6 pages.",
           "optional": true
         },
         {

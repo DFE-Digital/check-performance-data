@@ -16,6 +16,12 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 // which would have been the hint they could already see. See docs/accessibility.md.
 public class QuestionPartialModelDescribedByTests
 {
+    // The evidence hint that the flow files give since #798. Any text works here: these tests
+    // check which ids the description names, not the words of the hint.
+    private const string Hint =
+        "Evidence must be provided in a PDF format (either as 1 or multiple files). " +
+        "We will only review the first 6 pages.";
+
     private static QuestionPartialModel Build(string? hint, string? error = null, string? uploadError = null) =>
         new()
         {
@@ -29,7 +35,7 @@ public class QuestionPartialModelDescribedByTests
     public void DescribedBy_WithHintAndNoError_NamesOnlyTheCount()
     {
         // #389: the hint is on the page for everyone to read; it is not the input's description.
-        Assert.Equal("fileUpload-count", Build(hint: "Evidence must be in a PDF format").DescribedBy);
+        Assert.Equal("fileUpload-count", Build(hint: Hint).DescribedBy);
     }
 
     [Fact]
@@ -48,14 +54,14 @@ public class QuestionPartialModelDescribedByTests
     public void DescribedBy_WithHintAndError_NamesTheCountAndTheErrorInReadingOrder()
     {
         Assert.Equal("fileUpload-count fileUpload-error",
-            Build(hint: "Evidence must be in a PDF format", error: "Select a file").DescribedBy);
+            Build(hint: Hint, error: "Select a file").DescribedBy);
     }
 
     [Fact]
     public void DescribedBy_WithHintAndUploadError_NamesTheCountAndTheError()
     {
         Assert.Equal("fileUpload-count fileUpload-error",
-            Build(hint: "Evidence must be in a PDF format", uploadError: "The file must be a PDF").DescribedBy);
+            Build(hint: Hint, uploadError: "The file must be a PDF").DescribedBy);
     }
 
     [Fact]
@@ -63,7 +69,7 @@ public class QuestionPartialModelDescribedByTests
     {
         // #389, belt and braces over every combination: no state of the model may bring the
         // hint back into the description without reopening the ticket.
-        var hint = "Evidence must be in a PDF format";
+        var hint = Hint;
         foreach (var model in new[]
                  {
                      Build(hint),

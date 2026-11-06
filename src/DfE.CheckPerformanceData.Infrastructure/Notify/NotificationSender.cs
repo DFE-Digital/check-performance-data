@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Notify;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Notify;
 
@@ -10,7 +11,8 @@ namespace DfE.CheckPerformanceData.Infrastructure.Notify;
 /// </summary>
 public sealed class NotificationSender(
     INotifyService notifyService,
-    IDfESignInApiClient dfESignInApiClient) : INotificationSender
+    IDfESignInApiClient dfESignInApiClient,
+    ILogger<NotificationSender> logger) : INotificationSender
 {
     public async Task SendAsync(EmailNotification notification, CancellationToken cancellationToken = default)
     {
@@ -21,13 +23,9 @@ public sealed class NotificationSender(
 
         if (notification.IncludeOrganisationUsers)
         {
-            var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(notification.Ukprn);
-            if (orgUsers?.Users is { Count: > 0 })
+            foreach (var email in await GetOrganisationUserEmailsAsync(notification))
             {
-                foreach (var user in orgUsers.Users)
-                {
-                    recipients.Add(user.Email);
-                }
+                recipients.Add(email);
             }
         }
 
@@ -42,5 +40,32 @@ public sealed class NotificationSender(
                 notification.TurnaroundCommitment),
             notification.LinkUrl,
             notification.ReferenceNumbers);
+    }
+
+    // DfE Sign-in finds an organisation's users by UKPRN or UPIN only. Many maintained primary
+    // schools have neither. A failed lookup must not stop the email to the submitter.
+    private async Task<IEnumerable<string>> GetOrganisationUserEmailsAsync(EmailNotification notification)
+    {
+        if (string.IsNullOrWhiteSpace(notification.Ukprn))
+        {
+            logger.LogWarning(
+                "Notification {ReferenceNumber}: the organisation has no UKPRN. The email goes to the submitter only.",
+                notification.ReferenceNumber);
+            return [];
+        }
+
+        try
+        {
+            var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(notification.Ukprn);
+            return orgUsers?.Users.Select(u => u.Email) ?? [];
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex,
+                "Notification {ReferenceNumber}: the DfE Sign-in organisation users lookup failed. " +
+                "The email goes to the submitter only.",
+                notification.ReferenceNumber);
+            return [];
+        }
     }
 }

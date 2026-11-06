@@ -76,6 +76,7 @@ public sealed class DevDataSeedingOrchestrator(
             InOwnScopeAsync(async (db, ingress) =>
             {
                 await SeedKs2Summary.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+                await SeedKs2Summary.WriteSamplesAsync(blobClients, environment.ContentRootPath, logger);
                 await SeedKs2PupilData.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
             }));
 

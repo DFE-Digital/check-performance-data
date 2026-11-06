@@ -163,8 +163,8 @@ Session readiness for the journey requires only `SelectedWhatToChange` and `Chec
 - **A table sorts its rows by its visible columns, in the schema's display order**
   (`ExerciseDisplayService.BuildTable`), so the page and its CSV download share one order and the
   code names no field.
-- **`ExerciseLayout.InclusionTabs` splits one exercise into two tabs**, "{TabName} Included" and
-  "{TabName} Non Included", by `PupilInclusion.IsIncluded` (the `INCLUDED` stamp only). It is
+- **`ExerciseLayout.InclusionTabs` splits one exercise into two tabs**, "{TabName} included" and
+  "{TabName} not included", by `PupilInclusion.IsIncluded` (the `INCLUDED` stamp only). It is
   for pupil data whose one supplier file carries each pupil's own code (KS4); Post16 stays `Table`. KS2's file carries the code
   too, but schools see one Pupils tab and one CSV, so KS2 is `Table`: the code still stamps `INCLUDED`, which is what limits
   removal to included pupils. A KS4 June pupil-data exercise created by the wizard starts with it

@@ -455,7 +455,10 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         // Both sections' wording is built from the same noun, so no table can disagree with the
         // heading above it.
         Assert.All(model.Sections, s => Assert.Equal("student", s.LearnerNoun.Singular));
-        Assert.Contains(model.Sections, s => s.TabLabel == "Included students");
+        Assert.Equal("Students included", Assert.Single(model.Sections, s => s.Key == "included").TabLabel);
+        Assert.Equal("Students not included", Assert.Single(model.Sections, s => s.Key == "nonIncluded").TabLabel);
+        Assert.All(model.Sections, s => Assert.Equal(s.Heading, s.TabLabel));
+        Assert.DoesNotContain(model.Sections.Select(s => s.TabLabel), s => s.Contains("Non") || s.Contains("non"));
     }
 
     [Fact]
@@ -467,7 +470,10 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
 
         Assert.Equal("pupil", model.LearnerNoun.Singular);
         Assert.Equal("Check your pupil data", model.Title);
-        Assert.Contains(model.Sections, s => s.TabLabel == "Included pupils");
+        Assert.Equal("Pupils included", Assert.Single(model.Sections, s => s.Key == "included").TabLabel);
+        Assert.Equal("Pupils not included", Assert.Single(model.Sections, s => s.Key == "nonIncluded").TabLabel);
+        Assert.All(model.Sections, s => Assert.Equal(s.Heading, s.TabLabel));
+        Assert.DoesNotContain(model.Sections.Select(s => s.TabLabel), s => s.Contains("Non") || s.Contains("non"));
     }
 
     [Fact]

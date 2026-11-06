@@ -1,7 +1,9 @@
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Infrastructure.Notify;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Notify;
 
@@ -17,12 +19,13 @@ public sealed class NotificationSenderTests
 
     public NotificationSenderTests()
     {
-        _sut = new NotificationSender(_notifyService, _dfESignInApiClient);
+        _sut = new NotificationSender(_notifyService, _dfESignInApiClient, NullLogger<NotificationSender>.Instance);
     }
 
     private static EmailNotification Message(
         NotificationType type = NotificationType.SubmissionConfirmed,
         bool includeOrganisationUsers = true,
+        string ukprn = Ukprn,
         string deadline = "5pm on Friday 26 June 2026",
         string? linkUrl = null,
         string ceName = "KS4 June",
@@ -34,7 +37,7 @@ public sealed class NotificationSenderTests
             ReferenceNumber = ReferenceNumber,
             Deadline = deadline,
             LinkUrl = linkUrl,
-            Ukprn = Ukprn,
+            Ukprn = ukprn,
             OriginatorEmail = OriginatorEmail,
             IncludeOrganisationUsers = includeOrganisationUsers,
             CeName = ceName,
@@ -138,6 +141,42 @@ public sealed class NotificationSenderTests
             Arg.Is<EmailSubstitutions>(s =>
                 s.CeName == "16 to 19" && s.LearnerNoun == "Student" &&
                 s.TurnaroundCommitment == "updated in the Spring"),
+            Arg.Any<string?>(),
+            Arg.Any<IReadOnlyCollection<string>?>());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task SendAsync_WhenUkprnIsEmpty_SendsToOriginatorOnlyAndSkipsLookup(string ukprn)
+    {
+        await _sut.SendAsync(Message(ukprn: ukprn));
+
+        await _dfESignInApiClient.DidNotReceive().GetOrganisationUsersAsync(Arg.Any<string>());
+        await _notifyService.Received(1).SendNotificationsAsync(
+            ReferenceNumber,
+            Arg.Any<string>(),
+            Arg.Is<IReadOnlyCollection<string>>(r => r.Count == 1 && r.Contains(OriginatorEmail)),
+            Arg.Any<NotificationType>(),
+            Arg.Any<EmailSubstitutions>(),
+            Arg.Any<string?>(),
+            Arg.Any<IReadOnlyCollection<string>?>());
+    }
+
+    [Fact]
+    public async Task SendAsync_WhenOrgUsersLookupThrows_StillSendsToOriginator()
+    {
+        _dfESignInApiClient.GetOrganisationUsersAsync(Ukprn)
+            .ThrowsAsync(new HttpRequestException("Not found"));
+
+        await _sut.SendAsync(Message());
+
+        await _notifyService.Received(1).SendNotificationsAsync(
+            ReferenceNumber,
+            Arg.Any<string>(),
+            Arg.Is<IReadOnlyCollection<string>>(r => r.Count == 1 && r.Contains(OriginatorEmail)),
+            Arg.Any<NotificationType>(),
+            Arg.Any<EmailSubstitutions>(),
             Arg.Any<string?>(),
             Arg.Any<IReadOnlyCollection<string>?>());
     }

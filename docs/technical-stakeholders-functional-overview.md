@@ -276,7 +276,7 @@ Two storage accounts: **app** (`ConnectionStrings:AzureStorage`) and **private i
 
 ## 12. Notifications (GOV.UK Notify)
 
-Producer/consumer split so requests never wait on Notify: `RequestNotificationService` builds an `EmailNotification` → in-process channel (`ChannelNotificationDispatcher`) → `NotificationBackgroundService` drains off-thread → `NotificationSender` resolves recipients (originator, plus all DfE Sign-In org users when `IncludeOrganisationUsers`) → `NotifyService` maps `NotificationType` → template id (`NotifySettings`) via the Notify .NET SDK with Polly resilience. Failures are logged and swallowed; undelivered messages are lost on ungraceful shutdown (accepted until a durable-queue migration). `DevConsoleNotifyService` is the config-gated dev fake.
+Producer/consumer split so requests never wait on Notify: `RequestNotificationService` builds an `EmailNotification` → in-process channel (`ChannelNotificationDispatcher`) → `NotificationBackgroundService` drains off-thread → `NotificationSender` resolves recipients (originator, plus all DfE Sign-In org users when `IncludeOrganisationUsers`; DfE Sign-In finds org users by UKPRN only, so with no UKPRN or a failed lookup the email goes to the originator only, with a log entry) → `NotifyService` maps `NotificationType` → template id (`NotifySettings`) via the Notify .NET SDK with Polly resilience. Failures are logged and swallowed; undelivered messages are lost on ungraceful shutdown (accepted until a durable-queue migration). `DevConsoleNotifyService` is the config-gated dev fake.
 
 | NotificationType | Trigger | Recipients |
 |---|---|---|

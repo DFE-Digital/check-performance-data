@@ -56,7 +56,7 @@ The journey feature (pupil change requests) is driven by JSON config files that 
 | `FreeText` | `"FreeText"` | Single-line text input |
 | `TextArea` | `"TextArea"` | Multi-line text; optional `charLimit` |
 | `Date` | `"Date"` | Day/month/year fields; stored as `DateAnswer`. Every format failure (blank or part-filled, year not 4 digits, not a real date) shows the question's `validationFailure` + " in the format dd mm yyyy" (#544), so every Date question must set a `validationFailure` that does not spell out the format itself (`QuestionFlowValidatorAlignmentTests` pins this) |
-| `FileUpload` | `"FileUpload"` | PDF upload; max 6 pages total across all uploads |
+| `FileUpload` | `"FileUpload"` | PDF upload; at most 6 files for each question (`EvidenceUploadLimits.MaxFiles`); no page limit |
 | `Checkbox` | `"Checkbox"` | Multi-select list. Options are shaped exactly like a `Radio`'s (and `visibleWhen` filters them the same way), but an option's `nextPageId` is **ignored** — several boxes may be ticked, so only the page's own `nextPageId` decides. The answer is `QuestionAnswer.SelectedValues` (the ticked values, `TextValue` stays null); "at least one must be ticked" is the ordinary required rule, so `optional: true` still allows an empty list. Displayed by `CheckboxAnswerDisplay.Join` (labels, config order) with `JoinValues` as the request document's raw value |
 | `Autocomplete` | `"Autocomplete"` | Accessible-autocomplete dropdown backed by a server suggestions endpoint. Requires a `"dataSource"` field (e.g. `"countries"`) that maps to the URL prefix `/{dataSource}/suggestions`. The selected display name is stored in `QuestionAnswer.TextValue`; the selected code is submitted as `{fieldName}_code` but not currently stored in the answer model. |
 

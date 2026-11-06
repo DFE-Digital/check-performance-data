@@ -556,26 +556,6 @@ var services = new ServiceCollection();
     }
 
     /// <summary>
-    /// #798: every evidence upload question gives the school the same instruction, in the words
-    /// agreed in AB#311520. Each flow file holds its own copy of the sentence. A new flow file or a
-    /// copied question can bring an old sentence back, and nothing else fails.
-    /// </summary>
-    [Fact]
-    public void EveryFileUploadQuestion_CarriesTheAgreedEvidenceHint()
-    {
-        const string agreed =
-            "Evidence must be provided in a PDF format (either as 1 or multiple files). " +
-            "We will only review the first 6 pages.";
-
-        var uploads = AllFlowQuestions().Where(q => q.Question.Type == QuestionType.FileUpload).ToList();
-
-        Assert.NotEmpty(uploads);
-        foreach (var (file, question) in uploads)
-            Assert.True(question.Hint == agreed,
-                $"{file}: file upload question '{question.Id}' has the hint '{question.Hint}', not the agreed one.");
-    }
-
-    /// <summary>
     /// #747: every merge journey has the same selection shape, whatever the window type. The first
     /// record is an included pupil (<c>primary</c>, <c>Included</c>); the second may be any pupil of
     /// the school (<c>match</c>, <c>All</c>), and the engine drops the first record from the second

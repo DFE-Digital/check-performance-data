@@ -154,6 +154,31 @@ public static class CmsSeedHelpers
         }
     }
 
+    // Presses the content editor's Save button: a draft save with no edit (#475).
+    public static async Task SaveDraftAsync(TestHttpClient client, Guid pageId)
+    {
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"/admin/pages/{pageId}/content/save-draft")
+        {
+            Content = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("__RequestVerificationToken", token),
+            }),
+        };
+        req.Headers.Add("Cookie", cookie);
+        req.RequestUri = new Uri(client.BaseAddress!, req.RequestUri!);
+
+        var response = await client.SendAsync(req);
+        if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.Redirect)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            throw new InvalidOperationException(
+                $"POST /admin/pages/{pageId}/content/save-draft returned {(int)response.StatusCode}. Body head: "
+                + body[..Math.Min(400, body.Length)]);
+        }
+    }
+
     // Publishes the working draft immediately (from=UtcNow, open-ended). Idempotent —
     // republishes the same draft if called twice.
     public static async Task PublishDraftAsync(TestHttpClient client, Guid pageId)

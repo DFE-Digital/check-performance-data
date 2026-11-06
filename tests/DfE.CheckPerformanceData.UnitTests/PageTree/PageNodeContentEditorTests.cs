@@ -165,6 +165,153 @@ public class PageNodeContentEditorTests
         Assert.Equal("important-section", widget.Anchor);
     }
 
+    // ── SaveDraft (#475) ─────────────────────────────────────────────────────
+    //
+    // The editor's Save button. A save with no edit must write the same content and the same
+    // plain-text body as a widget edit. The old action wrote an empty body, and the published
+    // page then lost its body from site search.
+
+    private static readonly string[] TypesWithText = ["heading", "richtext", "card", "published"];
+    private static readonly string[] TypesWithNoText = ["divider", "summarylist", "search", "results", "pagenav"];
+
+    private PageNodeContentEditor SutWithRealRenderer() => new(_service, new HtmlRenderingService());
+
+    private static WidgetNode Widget(string type, string propsJson) =>
+        new() { Type = type, Props = JsonNode.Parse(propsJson)!.AsObject() };
+
+    private void SeedTree(Guid nodeId, params ContentNode[] nodes) =>
+        _service.Seed(nodeId, ContentPageJson.Serialize(nodes));
+
+    [Fact]
+    public async Task SaveDraft_DerivesTheBodyFromTheWidgetTree()
+    {
+        SeedTree(_nodeId,
+            Widget("heading", """{"level":2,"text":"Key dates"}"""),
+            Widget("richtext", """{"html":"<p>Check your data by 5pm.</p>"}"""));
+
+        await SutWithRealRenderer().SaveDraftAsync(_nodeId, null);
+
+        Assert.Equal("Key dates Check your data by 5pm.", _service.ReadBody(_nodeId));
+    }
+
+    [Fact]
+    public async Task SaveDraft_GivesTheBodyAndTheContentThatAWidgetEditGives()
+    {
+        var saved = Guid.NewGuid();
+        var edited = Guid.NewGuid();
+        foreach (var node in new[] { saved, edited })
+        {
+            SeedTree(node,
+                Widget("heading", """{"level":2,"text":"Key dates"}"""),
+                Widget("card", """{"title":"Evidence","body":"Send one PDF file.","href":"/guidance"}"""));
+        }
+
+        await Sut().SaveDraftAsync(saved, null);
+        // A widget edit that changes nothing: the heading is saved again with the same props.
+        await Sut().UpdateWidgetAsync(edited, [new TreeStep(0, 0)],
+            new JsonObject { ["level"] = 2, ["text"] = "Key dates" }, null);
+
+        Assert.Equal("Key dates Evidence Send one PDF file.", _service.ReadBody(saved));
+        Assert.Equal(_service.ReadBody(edited), _service.ReadBody(saved));
+        Assert.Equal(_service.ReadContent(edited), _service.ReadContent(saved));
+    }
+
+    [Theory]
+    [InlineData("heading", """{"level":2,"text":"Alpha heading"}""", "Alpha heading")]
+    [InlineData("richtext", """{"html":"<p>Bravo <strong>paragraph</strong></p>"}""", "Bravo paragraph")]
+    [InlineData("card", """{"title":"Charlie title","body":"Charlie body","href":"/x"}""", "Charlie title Charlie body")]
+    [InlineData("published", """{"text":"Delta callout"}""", "Delta callout")]
+    public async Task SaveDraft_IndexesTheTextOfEachWidgetTypeThatHasText(
+        string type, string propsJson, string expectedBody)
+    {
+        Assert.Contains(type, TypesWithText);
+        SeedTree(_nodeId, Widget(type, propsJson));
+
+        await SutWithRealRenderer().SaveDraftAsync(_nodeId, null);
+
+        Assert.Equal(expectedBody, _service.ReadBody(_nodeId));
+    }
+
+    [Theory]
+    [InlineData("divider")]
+    [InlineData("summarylist")]
+    [InlineData("search")]
+    [InlineData("results")]
+    [InlineData("pagenav")]
+    public async Task SaveDraft_IndexesNoTextForAWidgetTypeWithNoProse(string type)
+    {
+        Assert.Contains(type, TypesWithNoText);
+        SeedTree(_nodeId, new WidgetNode { Type = type, Props = WidgetRegistry.CreateDefaultProps(type) });
+
+        await Sut().SaveDraftAsync(_nodeId, null);
+
+        Assert.Equal(string.Empty, _service.ReadBody(_nodeId));
+    }
+
+    [Fact]
+    public async Task SaveDraft_IndexesNoTextForASummaryListThatHasRows()
+    {
+        // The default summary list has no rows, so the theory above cannot see this case. The rows
+        // hold text that a visitor reads, and today they are not in the search body. This test pins
+        // that. If rows become searchable, change this test and the docs in the same pull request.
+        SeedTree(_nodeId, Widget("summarylist", """{"rows":[{"key":"Deadline","value":"Friday"}]}"""));
+
+        await Sut().SaveDraftAsync(_nodeId, null);
+
+        Assert.Equal(string.Empty, _service.ReadBody(_nodeId));
+    }
+
+    [Fact]
+    public void EveryRegisteredWidgetType_IsListedAsWithTextOrWithNoText()
+    {
+        // A new widget type must be added to one list above, with a case in its theory. This
+        // makes "does its text go into site search?" a decision and not an accident.
+        var registered = WidgetRegistry.All.Select(w => w.Type).Order();
+
+        Assert.Equal(registered, TypesWithText.Concat(TypesWithNoText).Order());
+    }
+
+    [Fact]
+    public async Task SaveDraft_IndexesWidgetsInsideARegion()
+    {
+        SeedTree(_nodeId, new RegionNode
+        {
+            Layout = RegionLayout.Halves,
+            Columns =
+            [
+                [Widget("heading", """{"level":3,"text":"Left column"}""")],
+                [Widget("published", """{"text":"Right column"}""")]
+            ]
+        });
+
+        await Sut().SaveDraftAsync(_nodeId, null);
+
+        Assert.Equal("Left column Right column", _service.ReadBody(_nodeId));
+    }
+
+    [Fact]
+    public async Task SaveDraft_OnAPageWithNoContent_SavesAnEmptyTreeAndAnEmptyBody()
+    {
+        await Sut().SaveDraftAsync(_nodeId, null);
+
+        Assert.Empty(CurrentTree());
+        Assert.Equal(string.Empty, _service.ReadBody(_nodeId));   // not null: a save happened
+    }
+
+    [Fact]
+    public async Task SaveDraft_OnADraftTheEditorWrote_ChangesNothing()
+    {
+        await Sut().AddWidgetAsync(_nodeId, [new TreeStep(0, 0)], "heading", null);
+        await Sut().UpdateWidgetAsync(_nodeId, [new TreeStep(0, 0)],
+            new JsonObject { ["level"] = 2, ["text"] = "Important section" }, null);
+        var content = _service.ReadContent(_nodeId);
+
+        await Sut().SaveDraftAsync(_nodeId, null);
+
+        Assert.Equal(content, _service.ReadContent(_nodeId));
+        Assert.Equal("Important section", _service.ReadBody(_nodeId));
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Fakes
     // ═══════════════════════════════════════════════════════════════════════
@@ -176,6 +323,10 @@ public class PageNodeContentEditorTests
     private sealed class FakePageNodeService : IPageNodeService
     {
         private readonly Dictionary<Guid, string> _content = new();
+        private readonly Dictionary<Guid, string> _body = new();
+
+        /// <summary>The plain-text body of the last save, or null when nothing was saved.</summary>
+        public string? ReadBody(Guid nodeId) => _body.TryGetValue(nodeId, out var b) ? b : null;
 
         /// <summary>Seeds initial JSON for a node (optional — empty node starts as "[]").</summary>
         public void Seed(Guid nodeId, string json) => _content[nodeId] = json;
@@ -184,13 +335,15 @@ public class PageNodeContentEditorTests
         public string ReadContent(Guid nodeId) =>
             _content.TryGetValue(nodeId, out var c) ? c : "[]";
 
+        // Null when nothing is stored, as the real service returns for a node with no version.
         public Task<string?> GetWorkingOrLatestContentAsync(Guid nodeId) =>
-            Task.FromResult<string?>(ReadContent(nodeId));
+            Task.FromResult(_content.TryGetValue(nodeId, out var c) ? c : null);
 
         public Task SaveWorkingContentAsync(
             Guid nodeId, string content, string bodyPlainText, string? userId)
         {
             _content[nodeId] = content;
+            _body[nodeId] = bodyPlainText;
             return Task.CompletedTask;
         }
 

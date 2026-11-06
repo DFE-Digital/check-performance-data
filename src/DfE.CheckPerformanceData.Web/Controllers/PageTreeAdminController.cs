@@ -248,9 +248,10 @@ public sealed class PageTreeAdminController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ContentSaveDraft(Guid id)
     {
-        if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
-        var json = await pageNodeService.GetWorkingOrLatestContentAsync(id) ?? "[]";
-        await pageNodeService.SaveWorkingContentAsync(id, json, string.Empty, User?.Identity?.Name);
+        // Only a content page holds a widget tree. Refuse an unknown node and any other page type.
+        if (await pageNodeService.GetNodeByIdAsync(id) is not { PageType: "content" }) return NotFound();
+        // #475: the editor derives the plain-text search body. This action must not write the draft itself.
+        await nodeContentEditor.SaveDraftAsync(id, User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/edit");
     }
 

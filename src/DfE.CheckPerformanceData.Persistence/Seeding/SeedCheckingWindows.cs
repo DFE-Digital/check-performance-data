@@ -239,15 +239,15 @@ public static class SeedCheckingWindows
         return window;
     }
 
-    /// <summary>The name of the KS2 and KS4 Autumn summary share's exercise.</summary>
+    /// <summary>The name of the KS4 Autumn summary share's exercise.</summary>
     public const string OneFileSummaryExercise = "Summary";
 
-    /// <summary>The name of the KS2 and KS4 Autumn summary share's one dataset slot.</summary>
+    /// <summary>The name of the KS4 Autumn summary share's one dataset slot.</summary>
     public const string OneFileSummaryDataset = "summary";
 
-    // A display-only data share with no kind, in the KS2 and KS4 Autumn windows. Each school has
-    // one summary row, so it shows as label/value rows. The Web seed fills its one slot and
-    // validates it.
+    // A display-only data share with no kind, in the KS4 Autumn window. Each school has one
+    // summary row, so it shows as label/value rows. The Web seed fills its one slot and validates
+    // it.
     private static CheckingWindow WithOneFileSummaryDataShare(CheckingWindow window)
     {
         window.CheckingExercises.Add(new CheckingExercise
@@ -262,6 +262,40 @@ public static class SeedCheckingWindows
             StartDate = window.StartDate,
             EndDate = window.EndDate,
             Datasets = [new CheckingWindowDataset { Name = OneFileSummaryDataset, Included = null, FeedsJourney = false, SortOrder = 0 }]
+        });
+        return window;
+    }
+
+    /// <summary>The name of the KS2 summary share's exercise.</summary>
+    public const string Ks2SummaryExercise = "Summary";
+
+    /// <summary>The KS2 summary share's slots, in the order the year fills them. The December
+    /// file replaces the September one.</summary>
+    public static readonly IReadOnlyList<string> Ks2SummaryDatasets = ["Summary", "Summary (December)"];
+
+    // A display-only data share with no kind, in the KS2 window. Each school has one summary row,
+    // so it shows as label/value rows. Only the September slot is required: the December slot
+    // waits empty, because a required empty slot would stop the September run. In December an
+    // admin fills the December slot, retires the September slot and validates. A filled optional
+    // slot is validated too. The Web seed fills the September slot and validates it
+    // (SeedKs2Summary).
+    private static CheckingWindow WithKs2SummaryDataShare(CheckingWindow window)
+    {
+        window.CheckingExercises.Add(new CheckingExercise
+        {
+            ExerciseType = null,
+            DisplayOnly = true,
+            Name = Ks2SummaryExercise,
+            TabName = "Summary",
+            TabOrder = 100,
+            IsEnabled = true,
+            Layout = ExerciseLayout.Vertical,
+            StartDate = window.StartDate,
+            EndDate = window.EndDate,
+            Datasets = Ks2SummaryDatasets.Select((name, index) => new CheckingWindowDataset
+            {
+                Name = name, Included = null, FeedsJourney = false, Required = index == 0, SortOrder = index
+            }).ToList()
         });
         return window;
     }
@@ -472,7 +506,7 @@ public static class SeedCheckingWindows
                 PlaceholderWindow(ks4AutumnWindowId, CheckingWindowType.KS4Autumn, "Key Stage 4 Autumn", today)))),
             // Key Stage 2 starts from the wizard's defaults, then gets the summary share and a
             // pupil data slot. The Web seed fills both (SeedKs2Summary, SeedKs2PupilData).
-            WithKs2PupilData(WithOneFileSummaryDataShare(PlaceholderWindow(ks2WindowId, CheckingWindowType.KS2, "Key Stage 2", today)))
+            WithKs2PupilData(WithKs2SummaryDataShare(PlaceholderWindow(ks2WindowId, CheckingWindowType.KS2, "Key Stage 2", today)))
         );
 
 

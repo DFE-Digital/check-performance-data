@@ -45,17 +45,29 @@ import {
 
 import {
     journeyCompletion,
+    journeyDuration,
     journeysCompleted,
 } from "../lib/metrics.ts";
 
 import {
     chooseRunId,
+    reportRunId,
     setRunId,
 } from "../lib/run-id.ts";
 
 import {
     resolveWorkload,
 } from "../lib/workload.ts";
+
+import {
+    buildConsoleSummary,
+    buildHtmlReport,
+} from "../lib/report.ts";
+
+import type {
+    ReportContext,
+    SummaryData,
+} from "../lib/report.ts";
 
 import type {
     Pupil,
@@ -85,7 +97,22 @@ const evidenceFile = {
  */
 const workload = resolveWorkload();
 
-export const options = workload.options;
+/*
+ * "count" is needed for the business-metric sample counts in
+ * the HTML report. k6 omits it from trend summaries by default.
+ */
+export const options = {
+    ...workload.options,
+    summaryTrendStats: [
+        "avg",
+        "min",
+        "med",
+        "max",
+        "p(90)",
+        "p(95)",
+        "count",
+    ],
+};
 
 interface TestData {
     pupilsByWindow: Record<WindowKey, Pupil[]>;
@@ -289,6 +316,8 @@ export default function (
             );
         }
 
+        const journeyStarted = Date.now();
+
         const result =
             runJourney({
                 baseUrl:
@@ -309,6 +338,9 @@ export default function (
 
         requestReference =
             result.referenceNumber;
+
+        const journeyElapsedMs =
+            Date.now() - journeyStarted;
 
         console.log(
             `Completed (${result.completion}): ` +
@@ -337,6 +369,7 @@ export default function (
             `Cleaned up request ${result.referenceNumber}`
         );
 
+        journeyDuration.add(journeyElapsedMs);
         journeysCompleted.add(1);
         journeyCompletion.add(true);
     } catch (error) {
@@ -381,4 +414,48 @@ export default function (
     }
 
     sleep(workload.pauseSeconds);
+}
+
+/*
+ * setup_data holds the pupil lists, which are personal
+ * data. The report copies only the run ID and the metrics.
+ */
+export function handleSummary(
+    data: SummaryData & {
+        setup_data?: { runId?: string };
+    }
+): Record<string, string> {
+    const runId = reportRunId(data.setup_data?.runId);
+
+    const htmlPath = `reports/${runId}-summary.html`;
+    const jsonPath = `reports/${runId}-summary.json`;
+
+    const context: ReportContext = {
+        runId,
+        generatedAt: new Date().toISOString(),
+        settings: workload.describe(),
+        summary: {
+            metrics: data.metrics,
+            root_group: data.root_group,
+        },
+    };
+
+    const json = JSON.stringify(
+        {
+            runId,
+            profile: workload.profile,
+            generatedAt: context.generatedAt,
+            settings: context.settings,
+            metrics: data.metrics,
+            rootGroup: data.root_group,
+        },
+        null,
+        2
+    );
+
+    return {
+        [htmlPath]: buildHtmlReport(context),
+        [jsonPath]: json,
+        stdout: buildConsoleSummary(context, htmlPath, jsonPath),
+    };
 }

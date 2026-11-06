@@ -37,6 +37,13 @@ import {
     pupilFullName,
 } from "../lib/pupil-selection.ts";
 
+import {
+    pupilSearchDuration,
+    submissionDuration,
+    submissions,
+    timed,
+} from "../lib/metrics.ts";
+
 import type {
     JourneyConfig,
 } from "../types/journey-config.ts";
@@ -112,28 +119,33 @@ export function runJourney({
             );
         }
 
-        const search =
-            openPupilSearch({
-                baseUrl,
-                amendmentType:
-                    config.journeyType,
-                location,
-                config:
-                    config.pupilSearch,
-            });
+        const searchConfig =
+            config.pupilSearch;
 
         location =
-            selectPupil({
-                baseUrl,
-                amendmentType:
-                    config.journeyType,
-                location:
-                    search.location,
-                antiforgeryToken:
-                    search.antiforgeryToken,
-                pupil,
-                config:
-                    config.pupilSearch,
+            timed(pupilSearchDuration, () => {
+                const search =
+                    openPupilSearch({
+                        baseUrl,
+                        amendmentType:
+                            config.journeyType,
+                        location,
+                        config:
+                            searchConfig,
+                    });
+
+                return selectPupil({
+                    baseUrl,
+                    amendmentType:
+                        config.journeyType,
+                    location:
+                        search.location,
+                    antiforgeryToken:
+                        search.antiforgeryToken,
+                    pupil,
+                    config:
+                        searchConfig,
+                });
             });
 
         if (config.secondPupilSearch) {
@@ -143,16 +155,21 @@ export function runJourney({
                 );
             }
 
+            const secondSearchConfig =
+                config.secondPupilSearch;
+
             location =
-                selectSecondPupil({
-                    baseUrl,
-                    amendmentType:
-                        config.journeyType,
-                    location,
-                    pupil: secondPupil,
-                    config:
-                        config.secondPupilSearch,
-                });
+                timed(pupilSearchDuration, () =>
+                    selectSecondPupil({
+                        baseUrl,
+                        amendmentType:
+                            config.journeyType,
+                        location,
+                        pupil: secondPupil,
+                        config:
+                            secondSearchConfig,
+                    })
+                );
         }
     }
 
@@ -234,14 +251,18 @@ function complete({
 
         case "submit": {
             const submitted =
-                submitRequest({
-                    baseUrl,
-                    summaryLocation,
-                    headings:
-                        config.journeyType === "ResultsEnquiry"
-                            ? RESULTS_ENQUIRY_SUBMIT_HEADINGS
-                            : AMENDMENT_SUBMIT_HEADINGS,
-                });
+                timed(submissionDuration, () =>
+                    submitRequest({
+                        baseUrl,
+                        summaryLocation,
+                        headings:
+                            config.journeyType === "ResultsEnquiry"
+                                ? RESULTS_ENQUIRY_SUBMIT_HEADINGS
+                                : AMENDMENT_SUBMIT_HEADINGS,
+                    })
+                );
+
+            submissions.add(1);
 
             return {
                 referenceNumber:

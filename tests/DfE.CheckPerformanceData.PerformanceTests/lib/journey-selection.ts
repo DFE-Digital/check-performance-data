@@ -104,7 +104,7 @@ export function parseJourneyWeights(
     } catch {
         throw new Error(
             "JOURNEY_WEIGHTS must be a JSON object, for example " +
-            '{"remove-pupil-died":2,"include-pupil":1}'
+            '{"ks4-remove-pupil-died":2,"ks4-include-pupil":1}'
         );
     }
 

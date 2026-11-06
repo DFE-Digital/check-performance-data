@@ -16,6 +16,11 @@ import {
     uploadEvidenceFile,
 } from "./upload-evidence.ts";
 
+import {
+    evidenceUploadDuration,
+    timed,
+} from "../lib/metrics.ts";
+
 import type {
     JourneyStep,
 } from "../types/journey-step.ts";
@@ -75,12 +80,14 @@ export function answerQuestionPage({
         }
 
         token =
-            uploadEvidenceFile({
-                baseUrl,
-                location,
-                antiforgeryToken: token,
-                evidenceFile,
-            }).antiforgeryToken;
+            timed(evidenceUploadDuration, () =>
+                uploadEvidenceFile({
+                    baseUrl,
+                    location,
+                    antiforgeryToken: token,
+                    evidenceFile,
+                })
+            ).antiforgeryToken;
     }
 
     const response =

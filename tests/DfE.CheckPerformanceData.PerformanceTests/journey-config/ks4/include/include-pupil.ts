@@ -13,7 +13,7 @@ import type {
  * The pupil is selected by iteration from that list.
  */
 export const includePupil = {
-    id: "include-pupil",
+    id: "ks4-include-pupil",
     journeyType: "Include",
     reason: "Include a pupil in data",
 

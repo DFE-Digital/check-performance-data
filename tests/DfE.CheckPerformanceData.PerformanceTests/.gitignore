@@ -1,0 +1,4 @@
+﻿# Reports written by handleSummary(). k6 does not create folders,
+# so reports/ is kept with .gitkeep.
+reports/*
+!reports/.gitkeep

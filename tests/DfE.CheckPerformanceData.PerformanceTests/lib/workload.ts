@@ -45,7 +45,7 @@ type FixedProfile =
     "smoke" | "regression" | "single";
 
 /* Journey run by PROFILE=smoke. */
-const SMOKE_JOURNEY_ID = "remove-pupil-died";
+const SMOKE_JOURNEY_ID = "ks4-remove-pupil-died";
 
 /*
  * PROVISIONAL response-time threshold, p(95) in ms, for
@@ -175,7 +175,7 @@ function checkJourneyVariable(
         if (journey === undefined) {
             throw new Error(
                 "PROFILE=single requires JOURNEY=<id>. " +
-                "Example: -e PROFILE=single -e JOURNEY=remove-pupil-died"
+                "Example: -e PROFILE=single -e JOURNEY=ks4-remove-pupil-died"
             );
         }
 
@@ -612,7 +612,7 @@ function loadWorkload(): Workload {
         throw new Error(
             `The run would start about ${expectedIterations} iterations, ` +
             `but Add Pupil surnames allow ${ADD_PUPIL_ITERATIONS_PER_RUN} per RUN_ID. ` +
-            "Lower the rate or duration, or remove add-pupil from the mix."
+            "Lower the rate or duration, or remove ks4-add-pupil from the mix."
         );
     }
 
@@ -677,7 +677,7 @@ function loadWorkload(): Workload {
                 `Virtual users: pre-allocated ${preAllocatedVUs}, max ${maxVUs}`,
                 `Journey mix (${schedule.length} schedule slots):`,
                 ...mixLines,
-                `Expected add-pupil iterations: about ${Math.round(expectedIterations * addPupilShare)}`,
+                `Expected ks4-add-pupil iterations: about ${Math.round(expectedIterations * addPupilShare)}`,
                 `Expected results enquiry iterations: about ${Math.round(expectedIterations * resultsEnquiryShare)}`,
                 "Default mix is PROVISIONAL unless JOURNEY_WEIGHTS is set.",
             ];

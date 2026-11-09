@@ -141,7 +141,7 @@ public sealed class Ks4AutumnRemoveJourneyTests(PlaywrightFixture fixture) : See
         // The established "(optional)" marker (lowercase, leading space) on both questions.
         await Expect(Page.GetByText("Upload files (optional)", new() { Exact = true })).ToBeVisibleAsync();
         await Expect(Page.GetByText(
-            "How does the evidence demonstrate why the pupil should be removed? (optional)",
+            $"Explain how the evidence supports removing {PupilFirstName} {PupilSurname} (optional)",
             new() { Exact = true })).ToBeVisibleAsync();
 
         // Neither field filled: the journey continues to the review screen, zero validation errors.

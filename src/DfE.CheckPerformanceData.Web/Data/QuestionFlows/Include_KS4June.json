@@ -28,7 +28,7 @@
           "id": "how-evidence-supports",
           "type": "TextArea",
           "title": "Explain how the evidence supports including this pupil",
-          "summaryTitle": "How evidence supports pupil inclusion",
+          "summaryTitle": "How evidence supports pupil inclusion (optional)",
           "characterLimit": 500,
           "optional": true
         }

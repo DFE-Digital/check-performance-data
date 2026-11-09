@@ -784,7 +784,7 @@ PupilFilter = PupilFilter.All,
 
         var view = Assert.IsType<ViewResult>(result);
         var vm = Assert.IsType<SummaryViewModel>(view.Model);
-        Assert.Equal("Jane Smith 1 January 2010 (CYPMD123)", vm.FirstRecordDisplay);
+        Assert.Equal("Jane Smith (CYPMD ID: CYPMD123, UPN: UPN001, date of birth: 1 January 2010)", vm.FirstRecordDisplay);
     }
 
     [Fact]
@@ -802,7 +802,7 @@ PupilFilter = PupilFilter.All,
 
         var view = Assert.IsType<ViewResult>(result);
         var vm = Assert.IsType<SummaryViewModel>(view.Model);
-        Assert.Equal("John Doe 2 February 2010 (CYPMD456)", vm.SecondRecordDisplay);
+        Assert.Equal("John Doe (CYPMD ID: CYPMD456, UPN: UPN002, date of birth: 2 February 2010)", vm.SecondRecordDisplay);
     }
 
     [Fact]

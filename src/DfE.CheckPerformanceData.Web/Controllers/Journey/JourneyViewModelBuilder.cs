@@ -55,8 +55,9 @@ public sealed class JourneyViewModelBuilder(
         // read-only submitted view too, which is built from this same method.
         if (matchPupilPage is not null && journey.MatchedPupil is { } mp && journey.SelectedPupil is { } sp)
         {
-            firstRecordDisplay = MergeRecordDisplays.First(sp);
-            secondRecordDisplay = MergeRecordDisplays.Second(mp);
+            var windowType = journey.CheckingWindow?.CheckingWindowType;
+            firstRecordDisplay = MergeRecordDisplays.First(sp, windowType);
+            secondRecordDisplay = MergeRecordDisplays.Second(mp, windowType);
         }
 
         return new SummaryViewModel

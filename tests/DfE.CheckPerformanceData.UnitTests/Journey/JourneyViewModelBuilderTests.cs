@@ -162,8 +162,11 @@ public class JourneyViewModelBuilderTests
         Assert.Null(vm.FirstRecordDisplay);
     }
 
-    [Fact]
-    public void BuildSummaryVm_WhenMatchedPupil_PopulatesRecordDisplays()
+    // #800: the window type reaches the format, so a 16-19 window labels the identifier "ULN".
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June, "UPN")]
+    [InlineData(CheckingWindowType.Post16, "ULN")]
+    public void BuildSummaryVm_WhenMatchedPupil_PopulatesRecordDisplays(CheckingWindowType windowType, string identifierLabel)
     {
         var matchPupil = new PupilDto
         {
@@ -184,14 +187,18 @@ public class JourneyViewModelBuilderTests
         _flowService.GetPage(mergeConfig, "select-match").Returns(matchPage);
         _flowService.GetPage(mergeConfig, "q1").Returns(QuestionPage1);
 
-        var journey = JourneyWithHistory(["select-pupil", "select-match"]);
+        var journey = JourneyWithHistory(["select-pupil", "select-match"], windowType);
         journey.SelectedPupil = Pupil;
         journey.MatchedPupil = matchPupil;
 
         var vm = _sut.BuildSummaryVm(WindowId, journey, mergeConfig);
 
-        Assert.Equal("Jane Smith 27 July 2010 (CYPMD123)", vm.FirstRecordDisplay);
-        Assert.Equal("John Doe 2 February 2010 (CYPMD456)", vm.SecondRecordDisplay);
+        Assert.Equal(
+            $"Jane Smith (CYPMD ID: CYPMD123, {identifierLabel}: UPN001, date of birth: 27 July 2010)",
+            vm.FirstRecordDisplay);
+        Assert.Equal(
+            $"John Doe (CYPMD ID: CYPMD456, {identifierLabel}: UPN002, date of birth: 2 February 2010)",
+            vm.SecondRecordDisplay);
     }
 
     // AB#297310: the merge rows were keyed on a matched pupil being in session, not on the flow
@@ -708,13 +715,14 @@ public class JourneyViewModelBuilderTests
     private static IReadOnlySet<string> ConditionallyOptional(params string[] ids) =>
         new HashSet<string>(ids, StringComparer.Ordinal);
 
-    private static RequestState JourneyWithHistory(List<string> history) => new()
+    private static RequestState JourneyWithHistory(
+        List<string> history, CheckingWindowType windowType = CheckingWindowType.KS4June) => new()
     {
         SelectedWhatToChange = WhatToChange.Remove,
         CheckingWindow = new CheckingWindowDto
         {
             Id = Guid.NewGuid(), Title = "Test Window", KeyStage = KeyStages.KS4,
-            CheckingWindowType = CheckingWindowType.KS4June,
+            CheckingWindowType = windowType,
             StartDate = DateTime.UtcNow.AddDays(-1), EndDate = DateTime.UtcNow.AddDays(13)
         },
         QuestionHistory = history,

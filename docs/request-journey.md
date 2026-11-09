@@ -306,8 +306,10 @@ The summary page renders a GOV.UK summary list of all answers. It can only be re
 
 - **Remove / Include** — a single "Pupil name" row shows `SelectedPupil` with a Change link to the primary `PupilSearch` page.
 - **Merge** — two rows replace the single "Pupil name" row:
-  - **"First record to merge"** — `"{Firstname} {Surname}, {d MMMM yyyy}"` (e.g. `"Jane Smith, 27 July 2010"`) with a Change link to the primary `PupilSearch` page.
-  - **"Second record to merge"** — `"{Firstname} {Surname} {d MMMM yyyy} ({Cypmd_Id})"` (e.g. `"John Doe 2 February 2010 (CYPMD456)"`) with a Change link to the match `PupilSearch` page. If the DOB cannot be parsed the raw stored value is shown; if it is missing entirely the DOB segment is omitted (`"{name} ({id})"`).
+  - **"First record to merge"** has a Change link to the primary `PupilSearch` page.
+  - **"Second record to merge"** has a Change link to the match `PupilSearch` page.
+  - Both rows have one format (#800): `"{Firstname} {Surname} (CYPMD ID: {Cypmd_Id}, UPN: {Identifier}, date of birth: {d MMMM yyyy})"`, for example `"John Doe (CYPMD ID: CYPMD456, UPN: UPN002, date of birth: 2 February 2010)"`. On a 16-19 window the label is `ULN`, because a 16-19 student has a ULN and no UPN.
+  - A detail with no value is left out. If the date of birth cannot be parsed, the row shows the stored value. `MergeRecordDisplays` builds both rows, for the summary page and for the submitted request pages.
   
   Change links for `PupilSearch` pages use the `PupilSearchPage` action rather than the `Page` action. The back link on the summary page also uses `PupilSearchPage` when the last page in `QuestionHistory` is a `PupilSearch` page.
 

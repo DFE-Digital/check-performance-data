@@ -36,6 +36,11 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
     private const string FirstRecordCypmdId = "800001";   // Pincl-included
     private const string SecondRecordCypmdId = "800002";  // not included
 
+    // #800: the summary shows each record's UPN and the date of birth the two records share.
+    private const string FirstRecordUpn = "A8604078001B";
+    private const string SecondRecordUpn = "A8604078002B";
+    private const string SharedDateOfBirth = "15 March 2010";
+
     // ── The full merge journey, end to end ──────────────────────────────────
 
     [RetryTheory]
@@ -64,11 +69,11 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         Assert.Contains("Merge", summary);
 
         var firstRecord = Page.Locator(".govuk-summary-list__row", new() { HasText = "First record to merge" });
-        await Expect(firstRecord).ToContainTextAsync($"{SharedName} {SharedSurname}");
-        await Expect(firstRecord).ToContainTextAsync($"({FirstRecordCypmdId})");
+        await Expect(firstRecord).ToContainTextAsync(
+            $"{SharedName} {SharedSurname} (CYPMD ID: {FirstRecordCypmdId}, UPN: {FirstRecordUpn}, date of birth: {SharedDateOfBirth})");
         var secondRecord = Page.Locator(".govuk-summary-list__row", new() { HasText = "Second record to merge" });
-        await Expect(secondRecord).ToContainTextAsync($"{SharedName} {SharedSurname}");
-        await Expect(secondRecord).ToContainTextAsync($"({SecondRecordCypmdId})");
+        await Expect(secondRecord).ToContainTextAsync(
+            $"{SharedName} {SharedSurname} (CYPMD ID: {SecondRecordCypmdId}, UPN: {SecondRecordUpn}, date of birth: {SharedDateOfBirth})");
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Submit request" }).ClickAsync();
 

@@ -23,8 +23,11 @@ public sealed class EvidenceOptionalLabelTests(PlaywrightFixture fixture) : Seed
     private const string CountryInput = "#q_country_originally_from-input";
 
     private const string EvidenceTitle = "Upload files (optional)";
-    private const string ExplanationTitle =
-        "How does the evidence demonstrate why the pupil should be removed? (optional)";
+
+    // #801: the label names the pupil.
+    private const string MandatoryExplanationTitle =
+        $"Explain how the evidence supports removing {PupilFirstName} {PupilSurname}";
+    private const string ExplanationTitle = $"{MandatoryExplanationTitle} (optional)";
 
     [RetryFact]
     public async Task RemoveFlow_OtherFirstLanguage_ShowsOptionalOnBothEvidenceLabels_AndSubmitsEmpty()
@@ -54,9 +57,7 @@ public sealed class EvidenceOptionalLabelTests(PlaywrightFixture fixture) : Seed
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/page/evidence");
 
         await Expect(Page.GetByText("Upload files", new() { Exact = true })).ToBeVisibleAsync();
-        await Expect(Page.GetByText(
-            "How does the evidence demonstrate why the pupil should be removed?",
-            new() { Exact = true })).ToBeVisibleAsync();
+        await Expect(Page.GetByText(MandatoryExplanationTitle, new() { Exact = true })).ToBeVisibleAsync();
         Assert.Equal(0, await Page.GetByText(EvidenceTitle, new() { Exact = true }).CountAsync());
         Assert.Equal(0, await Page.GetByText(ExplanationTitle, new() { Exact = true }).CountAsync());
 

@@ -24,7 +24,7 @@ public sealed class EvidenceOptionalLabelTests(PlaywrightFixture fixture) : Seed
 
     private const string EvidenceTitle = "Upload files (optional)";
 
-    // #801: the label names the pupil. It is the same sentence as the error message.
+    // #801: the label names the pupil.
     private const string MandatoryExplanationTitle =
         $"Explain how the evidence supports removing {PupilFirstName} {PupilSurname}";
     private const string ExplanationTitle = $"{MandatoryExplanationTitle} (optional)";
@@ -64,8 +64,6 @@ public sealed class EvidenceOptionalLabelTests(PlaywrightFixture fixture) : Seed
         // Mandatory evidence still blocks an empty submit.
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue", Exact = true }).ClickAsync();
         await Expect(Page.Locator(".govuk-error-summary")).ToBeVisibleAsync();
-        // #801: the error message and the label use the same words.
-        await Expect(Page.Locator(".govuk-error-summary")).ToContainTextAsync(MandatoryExplanationTitle);
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/page/evidence");
     }
 

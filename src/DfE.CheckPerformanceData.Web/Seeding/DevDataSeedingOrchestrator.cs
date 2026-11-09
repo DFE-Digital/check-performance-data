@@ -78,6 +78,7 @@ public sealed class DevDataSeedingOrchestrator(
                 await SeedKs2Summary.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
                 await SeedKs2Summary.WriteSamplesAsync(blobClients, environment.ContentRootPath, logger);
                 await SeedKs2PupilData.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+                await SeedKs2PupilData.WriteSamplesAsync(blobClients, environment.ContentRootPath, logger);
             }));
 
         try

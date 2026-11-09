@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "pupils_schema.json",
   "title": "KS2 pupils",
-  "description": "One row of the supplier's (LDS) KS2 September pupil file, transcribed from the KS2 field specification. This is the pupil data checking exercise's file: it feeds the journeys. The December file is a separate data share (pupils-december_schema.json). Field references are the CSV headers, and the download's headings. MATCHREF is in the file but not in the download. Four supplier columns are read under the names the journeys read (x-ingress.source): P_INCL <- PINCL_Flag, SEX <- Sex, SENF <- SEN, ETHNIC <- ETHNICITY.",
+  "description": "One row of the supplier's (LDS) KS2 September pupil file, transcribed from the KS2 field specification. This is the pupil data checking exercise's file: it feeds the journeys. The December file replaces it in the same exercise, but does not feed the journeys (pupils-december_schema.json). Field references are the CSV headers, and the download's headings. MATCHREF is in the file but not in the download. Four supplier columns are read under the names the journeys read (x-ingress.source): P_INCL <- PINCL_Flag, SEX <- Sex, SENF <- SEN, ETHNIC <- ETHNICITY.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {

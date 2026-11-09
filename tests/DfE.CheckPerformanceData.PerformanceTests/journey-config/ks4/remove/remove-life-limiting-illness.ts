@@ -5,7 +5,7 @@ import type {
 import { isNotAddBack } from "../shared.ts";
 
 export const removeLifeLimitingIllness = {
-    id: "remove-life-limiting-illness",
+    id: "ks4-remove-life-limiting-illness",
     journeyType: "Remove",
     reason: "Life-limiting or critical illness",
 

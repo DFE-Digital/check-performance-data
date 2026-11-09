@@ -54,7 +54,7 @@ function surnameFor(
 ): string {
     if (iteration >= ITERATIONS_PER_RUN) {
         throw new Error(
-            `add-pupil supports ${ITERATIONS_PER_RUN} iterations per run`
+            `ks4-add-pupil supports ${ITERATIONS_PER_RUN} iterations per run`
         );
     }
 
@@ -70,7 +70,7 @@ function surnameFor(
  * are created per iteration. The UPN is left empty.
  */
 export const addPupil = {
-    id: "add-pupil",
+    id: "ks4-add-pupil",
     journeyType: "Add",
     reason: "Add a pupil to data",
 

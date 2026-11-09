@@ -5,7 +5,7 @@ import type {
 import { isNotAddBack } from "../shared.ts";
 
 export const removeSocialCareInvolvement = {
-    id: "remove-social-care-involvement",
+    id: "ks4-remove-social-care-involvement",
     journeyType: "Remove",
     reason: "Social care involvement",
 

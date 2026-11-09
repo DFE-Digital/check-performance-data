@@ -1,9 +1,9 @@
-﻿import type {
+import type {
     JourneyConfig,
 } from "../../../types/journey-config.ts";
 
 export const removePupilDied = {
-    id: "remove-pupil-died",
+    id: "ks4-remove-pupil-died",
     journeyType: "Remove",
     reason: "Pupil died",
 

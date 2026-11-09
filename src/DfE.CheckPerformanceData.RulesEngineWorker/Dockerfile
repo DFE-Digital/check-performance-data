@@ -1,5 +1,5 @@
 # Each base image is pinned by digest, which Dependabot keeps current (docs/dependabot.md#pins).
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:de0ee358cdd672f7017a003bed21e9ac9ed48a27c922a59b18175b6e82fa7fee AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:1a48394b6f29d3a32c79d9edecd4abda0ecbe8776d567dbfc4590ed6979c740c AS base
 # `apt-get upgrade` applies Ubuntu security updates the base image has not yet
 # been rebuilt with (see the Web Dockerfile for the CVE-2026-84782 example).
 # curl is used by the container orchestrator's exec probe to query the HTTP health surface.

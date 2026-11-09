@@ -311,10 +311,13 @@ public class SubmittedRequestServiceTests
         Assert.Equal(Reference, result.ReferenceNumber);
     }
 
-    [Fact]
-    public async Task GetAsync_MergeJourney_PopulatesRecordDisplays()
+    // #800: the window type reaches the format, so a 16-19 window labels the identifier "ULN".
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June, "UPN")]
+    [InlineData(CheckingWindowType.Post16, "ULN")]
+    public async Task GetAsync_MergeJourney_PopulatesRecordDisplays(CheckingWindowType windowType, string identifierLabel)
     {
-        var journey = Journey();
+        var journey = Journey(windowType: windowType);
         journey.MatchedPupil = new PupilDto
         {
             Id = Guid.NewGuid(),
@@ -336,8 +339,12 @@ public class SubmittedRequestServiceTests
         var result = await _sut.GetAsync(WindowId, Reference);
 
         Assert.NotNull(result);
-        Assert.Equal("Jane Smith 1 January 2010 (CYPMD123)", result!.FirstRecordDisplay);
-        Assert.Equal("John Doe 2 February 2010 (CYPMD456)", result.SecondRecordDisplay);
+        Assert.Equal(
+            $"Jane Smith (CYPMD ID: CYPMD123, {identifierLabel}: 123123, date of birth: 1 January 2010)",
+            result!.FirstRecordDisplay);
+        Assert.Equal(
+            $"John Doe (CYPMD ID: CYPMD456, {identifierLabel}: 456456, date of birth: 2 February 2010)",
+            result.SecondRecordDisplay);
     }
 
     private void Setup(RequestState journey, JourneyPage page)
@@ -353,7 +360,8 @@ public class SubmittedRequestServiceTests
     private static QuestionFlowConfig Config(JourneyPage page) =>
         new() { FirstPageId = page.Id, Pages = [page] };
 
-    private static RequestState Journey(List<string>? history = null) => new()
+    private static RequestState Journey(
+        List<string>? history = null, CheckingWindowType windowType = CheckingWindowType.KS4June) => new()
     {
         SelectedWhatToChange = WhatToChange.Remove,
         CheckingWindow = new CheckingWindowDto
@@ -361,7 +369,7 @@ public class SubmittedRequestServiceTests
             Id = WindowId,
             Title = "KS4 June",
             KeyStage = KeyStages.KS4,
-            CheckingWindowType = CheckingWindowType.KS4June,
+            CheckingWindowType = windowType,
             StartDate = DateTime.UtcNow.AddDays(-10),
             EndDate = DateTime.UtcNow.AddDays(20)
         },

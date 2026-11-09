@@ -138,6 +138,7 @@ public sealed class SubmittedRequestService(
         if (journey.MatchedPupil is not { } mp || journey.SelectedPupil is not { } sp)
             return (null, null);
 
-        return (MergeRecordDisplays.First(sp), MergeRecordDisplays.Second(mp));
+        var windowType = journey.CheckingWindow?.CheckingWindowType;
+        return (MergeRecordDisplays.First(sp, windowType), MergeRecordDisplays.Second(mp, windowType));
     }
 }

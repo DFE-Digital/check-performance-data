@@ -97,4 +97,23 @@ public class MergeRecordDisplaysTests
 
         Assert.Equal("John Doe", result);
     }
+
+    // A value that is only spaces is no value.
+    [Fact]
+    public void WhitespaceOnlyDetail_IsLeftOut()
+    {
+        var result = MergeRecordDisplays.Second(Pupil(identifier: "   "), CheckingWindowType.KS4June);
+
+        Assert.Equal("John Doe (CYPMD ID: CYPMD456, date of birth: 2 February 2010)", result);
+    }
+
+    // A supplier value can have a space at either end. The row does not show it.
+    [Fact]
+    public void DetailWithSpacesAround_IsTrimmed()
+    {
+        var result = MergeRecordDisplays.Second(
+            Pupil(cypmdId: " CYPMD456 ", identifier: " UPN002 "), CheckingWindowType.KS4June);
+
+        Assert.Equal("John Doe (CYPMD ID: CYPMD456, UPN: UPN002, date of birth: 2 February 2010)", result);
+    }
 }

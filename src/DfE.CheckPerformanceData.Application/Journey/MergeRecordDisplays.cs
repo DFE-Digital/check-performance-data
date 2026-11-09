@@ -38,7 +38,7 @@ public static class MergeRecordDisplays
         windowType == CheckingWindowType.Post16 ? "ULN" : "UPN";
 
     private static string Detail(string label, string? value) =>
-        string.IsNullOrWhiteSpace(value) ? string.Empty : $"{label}: {value}";
+        string.IsNullOrWhiteSpace(value) ? string.Empty : $"{label}: {value.Trim()}";
 
     private static string FormatDob(string raw)
     {

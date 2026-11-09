@@ -15,8 +15,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 public class JourneyViewModelBuilderOptionalLabelTests
 {
     private const string EvidenceTitle = "Upload files";
-    private const string ExplanationTitle =
-        "How does the evidence demonstrate why the pupil should be removed?";
+    private const string ExplanationTitle = "Explain how the evidence supports removing Jane Smith";
 
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
     private readonly IJourneyValidationService _journeyService = Substitute.For<IJourneyValidationService>();

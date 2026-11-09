@@ -10,12 +10,22 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
-/// Dev-only: the pupil data exercise of the Key Stage 2 window. Links <c>pupils.csv</c> to its one
-/// slot (<see cref="SeedCheckingWindows.Ks2PupilsDataset"/>) with <c>ks2/pupils_schema.json</c> and
-/// validates the exercise, so it has one release.
+/// Dev-only: the pupil data exercise of the Key Stage 2 window
+/// (<see cref="SeedCheckingWindows.Ks2PupilsDatasets"/>). Links <c>pupils/pupils.csv</c> to the
+/// September slot with <c>ks2/pupils_schema.json</c> and validates the exercise, so it has one
+/// release. The December slot stays empty, as at the start of the window.
 /// </summary>
 /// <remarks>
-/// The file has the supplier's column names, taken from the schema: a property read through
+/// The seed also writes both samples to the ingress storage account, container
+/// <see cref="SeedKs2Summary.Container"/>, for an admin to do the December step by hand: fill the
+/// December slot, retire the September slot and validate.
+/// <list type="bullet">
+/// <item>September: <c>pupils/pupils.csv</c> → <c>pupils_schema.json</c></item>
+/// <item>December: <c>pupils/pupils-december.csv</c> → <c>pupils-december_schema.json</c>, the
+/// September columns plus <c>CLA_PP_1_DAY</c> and <c>FSM6CLA1A</c></item>
+/// </list>
+///
+/// Each file has the supplier's column names, taken from the schema: a property read through
 /// <c>x-ingress.source</c> is written under its source column (<c>PINCL_Flag</c>, <c>Sex</c>,
 /// <c>SEN</c>, <c>ETHNICITY</c>), so ingress does the same renaming it will do for the real file.
 /// <c>INCLUDED</c> and <c>P_INCL_DESC</c> are not written: ingress stamps them from the schema's
@@ -24,15 +34,18 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// Each KS2 school (<see cref="SeedKs2Summary.Schools"/>) has <see cref="SeedKs2Summary.Cohort"/> included pupils (201), of whom
 /// <see cref="SeedKs2Summary.Boys"/> are boys, so the pupil list agrees with the Summary tab. Each
 /// school also has <see cref="NonIncludedPerSchool"/> non-included pupils: 202 (not at the end of
-/// KS2, so no KS2 results) and 203 (excluded at the school's request, with results). The values are
+/// KS2, so no KS2 results). Only the December file has 203 (excluded at the school's request, with
+/// results): there every other non-included pupil is 203. The values are
 /// made up but stable, and agree with each other: an outcome follows its scaled score, and a
 /// progress score is the attainment score less the predicted score.
 /// </remarks>
 [ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedKs2PupilData
 {
-    public const string File = "pupils.csv";
-    public const string Schema = "pupils_schema.json";
+    public const string SeptemberFile = "pupils/pupils.csv";
+    public const string SeptemberSchema = "pupils_schema.json";
+    public const string DecemberFile = "pupils/pupils-december.csv";
+    public const string DecemberSchema = "pupils-december_schema.json";
 
     private const int NonIncludedPerSchool = 6;
 
@@ -45,15 +58,36 @@ public static class SeedKs2PupilData
         var window = await SeedExerciseFixtures.LoadAsync(dbContext, DevDataSeeder.KeyStage2CheckingWindowId);
         var pupils = SeedExerciseFixtures.Exercise(window, CheckingExerciseType.PupilData);
 
-        var schema = await System.IO.File.ReadAllTextAsync(Path.Combine(contentRootPath, "Data", "Ingress", "ks2", Schema));
+        var schema = ReadSchema(contentRootPath, SeptemberSchema);
         await SeedExerciseFixtures.LinkAsync(blobs, pupils,
-            pupils.Datasets.Single(d => d.Name == SeedCheckingWindows.Ks2PupilsDataset), File, Csv(schema), Schema, schema);
+            pupils.Datasets.Single(d => d.Name == SeedCheckingWindows.Ks2PupilsDatasets[0]),
+            Path.GetFileName(SeptemberFile), Csv(schema, december: false), SeptemberSchema, schema);
         await dbContext.SaveChangesAsync();
         await SeedExerciseFixtures.IngestAsync(blobs, ingress, pupils);
     }
 
+    /// <summary>The sample files, by their path in <see cref="SeedKs2Summary.Container"/>.</summary>
+    public static IReadOnlyDictionary<string, byte[]> Files(string contentRootPath) =>
+        new Dictionary<string, byte[]>
+        {
+            [SeptemberFile] = Csv(ReadSchema(contentRootPath, SeptemberSchema), december: false),
+            [DecemberFile] = Csv(ReadSchema(contentRootPath, DecemberSchema), december: true)
+        };
+
+    /// <summary>
+    /// Writes the sample files, replacing any from an earlier seed. Does nothing when no ingress
+    /// storage account is configured.
+    /// </summary>
+    public static Task WriteSamplesAsync(IReadOnlyDictionary<string, BlobServiceClient> blobClients,
+        string contentRootPath, ILogger logger) =>
+        SeedPost16OctoberSamples.WriteToIngressAsync(blobClients, SeedKs2Summary.Container, Files(contentRootPath),
+            "Key Stage 2", logger);
+
+    private static string ReadSchema(string contentRootPath, string schema) =>
+        File.ReadAllText(Path.Combine(contentRootPath, "Data", "Ingress", "ks2", schema));
+
     // One row per pupil, one column per supplier column of the schema, in schema order.
-    private static byte[] Csv(string schema)
+    private static byte[] Csv(string schema, bool december)
     {
         using var doc = JsonDocument.Parse(schema);
         var columns = doc.RootElement.GetProperty("properties").EnumerateObject()
@@ -61,7 +95,7 @@ public static class SeedKs2PupilData
             .Select(p => (Property: p.Name, Header: SourceColumn(p.Value) ?? p.Name))
             .ToList();
 
-        var rows = SeedKs2Summary.Schools.SelectMany((school, index) => Pupils(school.Urn, school.Laestab, index));
+        var rows = SeedKs2Summary.Schools.SelectMany((school, index) => Pupils(school.Urn, school.Laestab, index, december));
         return SeedExerciseFixtures.WriteCsv(rows.Select(values =>
             (IReadOnlyDictionary<string, string>)columns.ToDictionary(c => c.Header, c => values.TryGetValue(c.Property, out var value)
                 ? value
@@ -74,14 +108,15 @@ public static class SeedKs2PupilData
             ? source.GetString()
             : null;
 
-    private static IEnumerable<Dictionary<string, string>> Pupils(string urn, string laestab, int school)
+    private static IEnumerable<Dictionary<string, string>> Pupils(string urn, string laestab, int school, bool december)
     {
         var cohort = SeedKs2Summary.Cohort(school);
         var boys = SeedKs2Summary.Boys(school);
         for (var i = 0; i < cohort; i++)
             yield return Pupil(urn, laestab, school, i, "201", i < boys ? "M" : "F", cohort);
         for (var i = 0; i < NonIncludedPerSchool; i++)
-            yield return Pupil(urn, laestab, school, cohort + i, i % 2 == 0 ? "202" : "203", i % 2 == 0 ? "F" : "M", cohort);
+            yield return Pupil(urn, laestab, school, cohort + i, december && i % 2 == 1 ? "203" : "202",
+                i % 2 == 0 ? "F" : "M", cohort);
     }
 
     private static readonly string[] Ethnicities = ["WBRI", "WBRI", "WBRI", "WIRI", "WOTH", "MWBC", "AIND", "APKN", "BAFR", "BCRB", "CHNE"];
@@ -130,7 +165,10 @@ public static class SeedKs2PupilData
             ["FSM"] = disadvantaged && i % 3 != 0 ? "1" : "0",
             ["FSM6_P"] = disadvantaged ? "1" : "0",
             ["YOUNGCARER"] = i % 23 == 9 ? "1" : "0",
-            ["NEWMOBILE"] = mobile ? "1" : "0"
+            ["NEWMOBILE"] = mobile ? "1" : "0",
+            // December file only.
+            ["CLA_PP_1_DAY"] = i % 31 == 12 ? "1" : "0",
+            ["FSM6CLA1A"] = disadvantaged || i % 31 == 12 ? "1" : "0"
         };
 
         // A pupil not at the end of KS2 (202) has no KS1 or KS2 results.

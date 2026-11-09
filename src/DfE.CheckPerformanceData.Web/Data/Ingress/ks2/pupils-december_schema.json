@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "pupils-december_schema.json",
   "title": "KS2 pupils (December)",
-  "description": "One row of the supplier's (LDS) KS2 December pupil file, transcribed from the KS2 field specification. A display-only data share: it does not feed the journeys, which read the September file (pupils_schema.json). It has the September fields plus CLA_PP_1_DAY and FSM6CLA1A after NEWMOBILE, so later columns are two letters along. Field references are the CSV headers, and the download's headings. MATCHREF is in the file but not in the download; nothing reads it here, so it may be blank. The inclusion rule writes P_INCL_DESC, shown in the download. Four supplier columns are read under the same names as in the September file (x-ingress.source).",
+  "description": "One row of the supplier's (LDS) KS2 December pupil file, transcribed from the KS2 field specification. It replaces the September file (pupils_schema.json) in the pupil data checking exercise, but it does not feed the journeys: the exercise has closed by December. It has the September fields plus CLA_PP_1_DAY and FSM6CLA1A after NEWMOBILE, so later columns are two letters along. PINCL_Flag can also be 203. Field references are the CSV headers, and the download's headings. MATCHREF is in the file but not in the download; nothing reads it here, so it may be blank. The inclusion rule writes P_INCL_DESC, shown in the download. Four supplier columns are read under the same names as in the September file (x-ingress.source).",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {

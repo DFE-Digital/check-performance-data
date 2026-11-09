@@ -300,19 +300,28 @@ public static class SeedCheckingWindows
         return window;
     }
 
-    /// <summary>The name of the KS2 pupil data exercise's one dataset slot.</summary>
-    public const string Ks2PupilsDataset = "pupils";
+    /// <summary>The KS2 pupil data exercise's slots, in the order the year fills them. The December
+    /// file replaces the September one.</summary>
+    public static readonly IReadOnlyList<string> Ks2PupilsDatasets = ["pupils", "Pupils (December)"];
 
     // The KS2 window's pupil data exercise, as an admin leaves it after adding the supplier's pupil
-    // file: one slot that feeds the journey, and enabled. Each pupil carries their own inclusion
-    // code, which the KS2 schema reads, so the slot stamps no inclusion. It comes after the summary
-    // share's tab. The Web seed fills the slot and validates it (SeedKs2PupilData).
+    // files, and enabled. Each pupil carries their own inclusion code, which the KS2 schema reads,
+    // so a slot stamps no inclusion. Only the September slot feeds the journey and is required:
+    // the December slot waits empty, because a required empty slot would stop the September run.
+    // In December an admin fills the December slot, retires the September slot and validates.
+    // Schools then view and download the December file. It does not feed the journey, because the
+    // exercise has closed by December. It comes after the summary share's tab.
+    // The Web seed fills the September slot and validates it (SeedKs2PupilData).
     private static CheckingWindow WithKs2PupilData(CheckingWindow window)
     {
         var pupils = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
         pupils.IsEnabled = true;
         pupils.TabOrder = 200;
-        pupils.Datasets.Add(new CheckingWindowDataset { Name = Ks2PupilsDataset, Included = null, FeedsJourney = true, SortOrder = 0 });
+        foreach (var (name, index) in Ks2PupilsDatasets.Select((name, index) => (name, index)))
+            pupils.Datasets.Add(new CheckingWindowDataset
+            {
+                Name = name, Included = null, FeedsJourney = index == 0, Required = index == 0, SortOrder = index
+            });
         return window;
     }
 

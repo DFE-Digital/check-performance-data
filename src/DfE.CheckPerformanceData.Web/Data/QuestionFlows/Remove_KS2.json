@@ -331,18 +331,18 @@
     },
     {
       "id": "added-after-summer-term",
-      "pageTitle": "Date arrived at your school",
+      "pageTitle": "Date added to roll",
       "nextPageId": "evidence-with-comments",
       "questions": [
         {
           "id": "date-added-to-roll",
           "type": "Date",
-          "title": "When did {pupilName} arrive at your school?",
+          "title": "When was {pupilName} added to your roll?",
           "hint": "For example, 27 3 2027",
-          "summaryTitle": "Date arrived at your school",
-          "validationFailure": "Enter the date {pupilName} arrived at your school",
+          "summaryTitle": "Date added to roll",
+          "validationFailure": "Enter the date {pupilName} was added to your roll",
           "dateRules": [
-            { "check": "notInFuture", "message": "Date {pupilName} arrived at your school must be in the past" }
+            { "check": "notInFuture", "message": "Date {pupilName} was added to your roll must be in the past" }
           ]
         }
       ]

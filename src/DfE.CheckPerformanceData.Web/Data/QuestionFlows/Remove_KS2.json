@@ -47,7 +47,7 @@
             {
               "value": "assessments-deferred",
               "label": "One or more end-of-key-stage assessments deferred by a year",
-              "nextPageId": "evidence-with-comments"
+              "nextPageId": "deferred-assessments"
             },
             {
               "value": "permanently-excluded",
@@ -249,6 +249,24 @@
           "validationFailure": "Enter the date {pupilName} was removed from your school roll",
           "dateRules": [
             { "check": "notInFuture", "message": "Date {pupilName} was removed from your school roll must be in the past" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deferred-assessments",
+      "pageTitle": "Continuing with KS2 studies",
+      "nextPageId": "evidence-with-comments",
+      "questions": [
+        {
+          "id": "continuing-ks2-studies",
+          "type": "Radio",
+          "title": "Is {pupilName} continuing with KS2 studies?",
+          "summaryTitle": "Continuing with KS2 studies",
+          "validationFailure": "Select yes if {pupilName} is continuing with KS2 studies",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
           ]
         }
       ]

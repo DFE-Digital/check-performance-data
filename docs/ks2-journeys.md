@@ -69,6 +69,11 @@ shared `evidence` page.
 
 `evidence-with-comments` asks for a file and "Additional comments", both mandatory.
 
+`assessments-deferred` goes to page `deferred-assessments` first. It asks "Is {pupilName}
+continuing with KS2 studies?" (Yes or No, question `continuing-ks2-studies`). The rules engine
+does not read this answer. The request goes to Scrutiny, and the answer shows on the summary
+and in the request.
+
 KS4 June reasons that KS2 does not have: dual registered or moved school, not on roll, year
 group change, completed KS4 elsewhere, Other (add-back).
 

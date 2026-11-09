@@ -65,7 +65,7 @@ shared `evidence` page.
 | 8 | Permanently left England | `permanently-left-england` | Evidence | `PLE-KS2`: reject if removed on or after 10 May 2027 |
 | 9 | Social care involvement including police | `social-care-involvement` | Evidence | `SCI-KS2-REJ` if tests sat |
 | 10 | End-of-key-stage assessments deferred by a year | `assessments-deferred` | `evidence-with-comments` | None: Scrutiny only (`ASD-DEF`) |
-| 11 | Pupil added to school roll after start of summer term | `added-after-summer-term` | `evidence-with-comments` | `PAS-REJ`: reject if arrived before 1 April 2027 |
+| 11 | Pupil added to school roll after start of summer term | `added-after-summer-term` | `evidence-with-comments` | `PAS-REJ`: reject if added to roll before 1 April 2027 |
 
 `evidence-with-comments` asks for a file and "Additional comments", both mandatory.
 
@@ -87,7 +87,7 @@ now limited to `KS4June`. The two reject rules stay shared.
 
 The KS2 rule dates are written into `rules.json` for the 2027 exercise. Before then:
 
-- `PAS-REJ` rejects every request, because the arrival date must be in the past and so is
+- `PAS-REJ` rejects every request, because the date added to roll must be in the past and so is
   before 1 April 2027.
 - `EHE-KS2`, `PEX-KS2` and `PLE-KS2` never reject, because no past date is on or after
   10 May 2027.

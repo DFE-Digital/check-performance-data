@@ -444,7 +444,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         await context.ExecuteInTransactionAsync(async () =>
         {
             // #757: the retry strategy can run this delegate again. FindAsync would then return
-            // the node that the failed attempt changed, EF would see no change, and the update
+            // the node that the failed attempt changed. EF would see no change, so the update
             // would be lost. Start from what the database holds.
             context.ChangeTracker.Clear();
             foreach (var (id, sortOrder) in orders)
@@ -461,8 +461,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         context.ExecuteInTransactionAsync(async () =>
         {
             // #757: the retry strategy runs this delegate again with the same context. Forget
-            // what the failed attempt tracked, or the retry saves it a second time or skips an
-            // update that the database rolled back. Forget it after a failure too.
+            // what the failed attempt tracked. Otherwise the retry saves it a second time. It can
+            // also skip an update that the database rolled back. Forget it after a failure too.
             context.ChangeTracker.Clear();
             try
             {
@@ -481,7 +481,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         await context.ExecuteInTransactionAsync(async () =>
         {
             // #757: the retry strategy can run this delegate again. FindAsync would then return
-            // the node that the failed attempt changed, EF would see no change, and the update
+            // the node that the failed attempt changed. EF would see no change, so the update
             // would be lost. Start from what the database holds.
             context.ChangeTracker.Clear();
             var node = await context.PageNodes.FindAsync(id)
@@ -523,7 +523,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         await context.ExecuteInTransactionAsync(async () =>
         {
             // #757: the retry strategy can run this delegate again. FindAsync would then return
-            // the node that the failed attempt changed, EF would see no change, and the update
+            // the node that the failed attempt changed. EF would see no change, so the update
             // would be lost. Start from what the database holds.
             context.ChangeTracker.Clear();
             var node = await context.PageNodes.FindAsync(id)

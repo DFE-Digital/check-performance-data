@@ -97,13 +97,14 @@ public sealed class PortalDbContext(
         return result;
     }
 
-    // The delegate can run more than once. EnableRetryOnFailure runs it again from the start
-    // after a transient fault, with this same context, so the change tracker still holds what
-    // the failed attempt did. A delegate that adds, changes or removes tracked entities must
-    // start with ChangeTracker.Clear() (#753, #757). If it does not, the retry saves the failed
-    // attempt's rows and audit entries a second time, or it loses an update that the database
-    // rolled back. A delegate must also read what it needs inside itself: an entity that the
-    // caller tracked before the call is detached by that clear.
+    // The delegate can run more than once. After a transient fault, EnableRetryOnFailure runs it
+    // again from the start with this same context. The change tracker still holds what the
+    // failed attempt did. A delegate that adds, changes or removes tracked entities must start
+    // with ChangeTracker.Clear() (#753, #757). Without it, the retry saves the failed attempt's
+    // rows and audit entries a second time. It can also lose an update that the database rolled
+    // back. Read what the delegate needs inside the delegate: the clear detaches every entity
+    // that the caller tracked before the call. A delegate that can also run inside a caller's
+    // transaction clears only when it starts the transaction (PostgresQueueService.RedriveAsync).
     public async Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default)
     {
         // Re-entrant: when a transaction is already open (for example an audited admin action

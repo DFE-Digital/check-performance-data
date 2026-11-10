@@ -289,18 +289,24 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
         var now = DateTime.UtcNow;
         var requeued = new List<QueueMessageEntity>();
 
+        // True when no transaction is open. Then this call starts one, and the retry strategy can
+        // run the delegate below again. False when an admin action calls this inside its own
+        // transaction. Then that caller owns the retry and clears its own change tracker.
+        var ownsRetry = _dbContext is DbContext { Database.CurrentTransaction: null };
+
         // The whole read-modify-write runs in one transaction so a concurrent redrive (or the
         // reaper) cannot interleave between the existence check and the save and leave the
         // tables inconsistent.
         await _dbContext.ExecuteInTransactionAsync(async () =>
         {
-            // #757: the retry strategy can run this delegate again. Forget the messages that the
-            // failed attempt added, or adding them again with the same id fails. No
-            // ChangeTracker.Clear() here: an admin action can call this inside its own
-            // transaction, and a clear would also forget what that caller tracks.
-            foreach (var stale in requeued)
+            // #757: the delegate can run again after a transient fault. Forget what the failed
+            // attempt tracked: its messages, and the audit rows that SaveChangesAsync queued.
+            // Without this the retry fails on a second message with the same id. It can also
+            // save the audit rows twice. Not when the caller owns the transaction: a clear
+            // there would also forget what the caller tracks.
+            if (ownsRetry)
             {
-                Detach(stale);
+                _dbContext.ChangeTracker.Clear();
             }
             requeued.Clear();
 

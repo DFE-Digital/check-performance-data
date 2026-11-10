@@ -274,8 +274,8 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
             // #757: the retry strategy runs this delegate again after a transient fault, with the
             // same context. Entities from the failed attempt are still tracked. They would be
             // saved a second time, or they would hide an update that the database rolled back.
-            // Forget them. After a failure, forget them too, so that a later save on this context
-            // does not write what this transaction rolled back.
+            // Forget them. Forget them after a failure too. A later save on this context must not
+            // write what this transaction rolled back.
             context.ChangeTracker.Clear();
             try
             {

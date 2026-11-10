@@ -6,7 +6,8 @@ using Microsoft.EntityFrameworkCore;
 namespace DfE.CheckPerformanceData.IntegrationTests.RetriedTransactions;
 
 // #757: each page tree delegate finds a node with FindAsync or a tracked query. After a failed
-// commit the tracker still holds the new values, so a retry sees no change and the update is lost.
+// commit the tracker still holds the new values. A retry then sees no change, and the update is
+// lost.
 [Collection(nameof(PostgresCollection))]
 public sealed class PageNodeRetryTests(PostgresFixture fixture)
 {

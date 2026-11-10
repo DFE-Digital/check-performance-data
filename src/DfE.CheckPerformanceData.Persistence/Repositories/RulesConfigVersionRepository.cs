@@ -68,8 +68,8 @@ public sealed class RulesConfigVersionRepository(IPortalDbContext context) : IRu
         context.ExecuteInTransactionAsync(async () =>
         {
             // #757: the retry strategy runs this delegate again with the same context. Forget
-            // what the failed attempt tracked, or the retry saves the version and the audit row a
-            // second time. Forget it after a failure too.
+            // what the failed attempt tracked. Otherwise the retry saves the version and the audit
+            // row a second time. Forget it after a failure too.
             context.ChangeTracker.Clear();
             try
             {

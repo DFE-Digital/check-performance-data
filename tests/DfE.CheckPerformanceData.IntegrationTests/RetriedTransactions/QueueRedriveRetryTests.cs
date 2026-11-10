@@ -9,9 +9,15 @@ namespace DfE.CheckPerformanceData.IntegrationTests.RetriedTransactions;
 // #757: RedriveAsync adds a queue message with the id of the dead letter. A retry that keeps the
 // failed attempt's message tracked would add a second one with the same id, and EF refuses.
 [Collection(nameof(PostgresCollection))]
-public sealed class QueueRedriveRetryTests(PostgresFixture fixture)
+public sealed class QueueRedriveRetryTests(PostgresFixture fixture) : IAsyncLifetime
 {
     private readonly PostgresFixture _fixture = fixture;
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    // The requeued message stays in the rules engine queue. Other tests dequeue from that queue
+    // without a reset, so this class leaves the queue tables empty.
+    public Task DisposeAsync() => QueueTestData.ResetAsync(_fixture);
 
     private async Task<Guid> SeedDeadLetterAsync()
     {

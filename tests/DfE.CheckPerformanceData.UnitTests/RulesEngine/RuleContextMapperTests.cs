@@ -392,6 +392,55 @@ public sealed class RuleContextMapperTests
         Assert.IsType<FieldValue.Unknown>(ctx.GetField("hasBeenDetainedInPrison"));
     }
 
+    // --- hasSupportingEvidence: read by answer type (#813) ---
+
+    [Fact]
+    public void SupportingEvidence_IsTrue_WhenAFileIsUploaded()
+    {
+        var msg = NewMessage("Remove - english-not-first-language", "KS2", new[]
+        {
+            FileAnswer(files: 1),
+            TypedAnswer("TextArea", ""),
+        });
+
+        Assert.Equal(new FieldValue.Bool(true), _sut.Map(msg).GetField("hasSupportingEvidence"));
+    }
+
+    [Fact]
+    public void SupportingEvidence_IsTrue_WhenSupportingTextIsWritten()
+    {
+        var msg = NewMessage("Remove - english-not-first-language", "KS2", new[]
+        {
+            FileAnswer(files: 0),
+            TypedAnswer("TextArea", "Letter from previous school"),
+        });
+
+        Assert.Equal(new FieldValue.Bool(true), _sut.Map(msg).GetField("hasSupportingEvidence"));
+    }
+
+    [Fact]
+    public void SupportingEvidence_IsFalse_WhenNoFileAndNoText()
+    {
+        var msg = NewMessage("Remove - english-not-first-language", "KS2", new[]
+        {
+            FileAnswer(files: 0),
+            TypedAnswer("TextArea", "   "),
+        });
+
+        Assert.Equal(new FieldValue.Bool(false), _sut.Map(msg).GetField("hasSupportingEvidence"));
+    }
+
+    [Fact]
+    public void SupportingEvidence_IsUnknown_WhenNoEvidenceUploadAnswer()
+    {
+        var msg = NewMessage("Remove - english-not-first-language", "KS2", new[]
+        {
+            TypedAnswer("TextArea", "Some text"),
+        });
+
+        Assert.IsType<FieldValue.Unknown>(_sut.Map(msg).GetField("hasSupportingEvidence"));
+    }
+
     // --- Field projection: sat-exams resolves by checking window type ---
 
     [Theory]
@@ -544,4 +593,17 @@ public sealed class RuleContextMapperTests
 
     private static AnswerRecord Answer(string id, string value) =>
         new() { QuestionId = id, QuestionTitle = id, Type = "text", Value = value, RawValue = value };
+
+    private static AnswerRecord TypedAnswer(string type, string value) =>
+        new() { QuestionId = "q-" + type, QuestionTitle = type, Type = type, Value = value, RawValue = value };
+
+    private static AnswerRecord FileAnswer(int files) => new()
+    {
+        QuestionId = "q-upload",
+        QuestionTitle = "Upload files",
+        Type = "FileUpload",
+        Files = Enumerable.Range(0, files)
+            .Select(i => new FileRecord { OriginalFileName = $"f{i}.pdf", StoredFileName = $"s{i}", PageCount = 1, FileSizeBytes = 1 })
+            .ToList(),
+    };
 }

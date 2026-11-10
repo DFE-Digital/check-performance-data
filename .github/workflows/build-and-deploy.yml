@@ -172,7 +172,8 @@ jobs:
 
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: "10.0.x"
+          # The SDK version is in global.json, so a new SDK arrives as a pull request (#662).
+          global-json-file: global.json
 
       - uses: actions/cache@v6
         id: playwright-cache

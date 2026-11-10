@@ -5,6 +5,9 @@
 # playwright/dotnet, which is built on mcr.microsoft.com/dotnet/sdk:10.0
 # (v1.64.1 carries SDK 10.0.402). The digest below fixes the SDK version, and
 # it changes only when this line does (#663).
+# The working directory is / (see WORKDIR below, and docker-compose.e2e.yml), not the
+# repository at /work. So `dotnet` does not read the repository's global.json, which can
+# name a later SDK than this image has (#662).
 #
 # Base image tag MUST track Microsoft.Playwright NuGet version in
 # tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ETests.csproj
@@ -22,4 +25,5 @@ ENV NUGET_PACKAGES=/root/.nuget/packages
 RUN dotnet --list-sdks | grep -E '^10\.' \
     && dotnet --list-runtimes | grep -E 'Microsoft\.NETCore\.App 10\.'
 
-WORKDIR /work
+# Not /work: `dotnet` looks for global.json from the working directory upwards (#662).
+WORKDIR /

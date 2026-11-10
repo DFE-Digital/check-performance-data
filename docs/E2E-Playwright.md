@@ -12,7 +12,7 @@ All E2E-facing versions in one place. Source of truth for NuGet pins is the test
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| .NET SDK | 10.0.x | Test project targets `net10.0`. |
+| .NET SDK | The version in `global.json`, or a later patch of the same feature band (for 10.0.403, a later 10.0.4xx) | Test project targets `net10.0`. CI installs the version in `global.json` ([dependabot.md](dependabot.md#net-sdk)). |
 | PowerShell (pwsh or Windows PowerShell) | 5.1+ / Core 7+ | Only needed once, to run `playwright.ps1 install chromium`. |
 | Docker | any recent | Required for `make test-e2e` (canonical container path) and for the compose stack the host run hits. |
 
@@ -22,7 +22,7 @@ All E2E-facing versions in one place. Source of truth for NuGet pins is the test
 |------|---------|-------|
 | Docker + Compose v2 | any recent | Compose profile `e2e` builds and runs the test image. |
 | Image: `mcr.microsoft.com/playwright/dotnet` | `v1.64.1-noble` | Pinned, with its digest, in `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile` ([dependabot.md](dependabot.md#pins)). **Must move in lockstep with the `Microsoft.Playwright` NuGet version.** Drift detection: `bash scripts/check-playwright-pin.sh`, which the **Build** workflow runs on every push and pull request. Dependabot raises the NuGet package only, so its pull request fails until this tag is changed to match ([dependabot.md](dependabot.md#playwright)). |
-| .NET SDK (inside image) | 10.0.x | Comes with the Playwright image, which is built on `mcr.microsoft.com/dotnet/sdk:10.0` (v1.64.1 has SDK 10.0.402). The image digest fixes the version. The Dockerfile fails the build if the image does not have a .NET 10 SDK. |
+| .NET SDK (inside image) | 10.0.x | Comes with the Playwright image, which is built on `mcr.microsoft.com/dotnet/sdk:10.0` (v1.64.1 has SDK 10.0.402). The image digest fixes the version. The Dockerfile fails the build if the image does not have a .NET 10 SDK. The container does not read `global.json`: it runs `dotnet test` from `/`, outside the mounted repository ([dependabot.md](dependabot.md#net-sdk)). |
 
 ### NuGet packages
 
@@ -96,7 +96,7 @@ Other containers in compose, NOT started by the e2e profile:
 | `cypd_web` | `cypd_web:latest` (built from `src/DfE.CheckPerformanceData.Web/Dockerfile`) | The system under test. Listens on `:8080`. The PlaywrightFixture polls `/healthcheck` here for readiness before any test runs. |
 | `cypd_db` | `postgres:18.1-alpine` | Real Postgres on `:5432`. Web app's `ConnectionStrings__Postgres` points here. Persistent volume `postgres_data`. |
 | `cypd_azurite` | `mcr.microsoft.com/azure-storage/azurite:latest` | Azure Blob + Queue emulator on `:10000` / `:10001`. Web app's `ConnectionStrings__AzureStorage` points here. Persistent volume `azurite_data`. |
-| `cypd_e2e_tests` | `cypd_e2e_tests:latest` (built from `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`) | The runner. Mounts the repo at `/work`, restores into the named volume `cpd-nuget-cache`, executes `dotnet test`. Chromium ships pre-installed in the upstream Playwright base image. |
+| `cypd_e2e_tests` | `cypd_e2e_tests:latest` (built from `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`) | The runner. Mounts the repo at `/work`, restores into the named volume `cpd-nuget-cache`, executes `dotnet test` from `/` (so that it does not read `global.json`). Chromium ships pre-installed in the upstream Playwright base image. |
 
 ### Volumes
 
@@ -247,7 +247,7 @@ The suite drives the *deployed* app over HTTP — `docker compose up` brings up 
 
 - **Realistic auth + cookies + CSRF.** Antiforgery tokens come from the real Razor-rendered form (scraped via `PlaywrightFixture.ScrapeAntiforgeryTokenAsync`); cookies flow through the real ASP.NET pipeline. An in-process harness would short-circuit half the middleware and miss configuration drift.
 - **Stack matches production.** Postgres is the real `postgres:18.1-alpine` image, not a SQLite shim. EF query translation, Postgres-specific operators (FTS, etc.), and migrations are exercised end to end.
-- **Same artefact across local + CI.** The container path (`make test-e2e`) builds the test runner against the same compose stack CI uses. No "works on my machine but breaks in CI" failure mode for harness setup.
+- **Same browser as CI.** The container path (`make test-e2e`) runs Linux Chromium, as CI does. CI runs the tests on a hosted runner against the review app, not in this container, with the SDK in `global.json`.
 
 The trade-off is speed: cold start (compose up + readiness probe + first Playwright launch) is ~30-40s. We accept that. Tight inner-loop runs use `make test-e2e-fast` natively on the host.
 

@@ -19,7 +19,8 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.x'
+        # The SDK version is in global.json, so a new SDK arrives as a pull request (#662).
+        global-json-file: global.json
 
     - name: Check the Playwright package and image versions match
       # Dependabot raises the Microsoft.Playwright package on its own. This fails its pull request
@@ -31,6 +32,13 @@ jobs:
       # commit SHA and base images to a digest (#617). Official GitHub, verified-publisher and DfE
       # actions are exempt, as the platform team advises. Dependabot keeps the pins current.
       run: bash scripts/check-pins.sh
+
+    - name: Check global.json and the sdk images name the same SDK
+      # Dependabot raises the SDK in global.json and the dotnet/sdk digest in each Dockerfile in
+      # separate pull requests. This fails each one until one of them has all the changes, so the
+      # tests and the images use the same SDK (#662). It reads the image configuration from the
+      # registry without a pull.
+      run: bash scripts/check-sdk-pin.sh
 
     - name: Restore dependencies
       env:

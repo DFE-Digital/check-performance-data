@@ -1,5 +1,5 @@
-# Version updates for NuGet, Docker and GitHub Actions (#616). Security alerts and security updates
-# are repository settings, not part of this file. See docs/dependabot.md.
+# Version updates for NuGet, Docker, the .NET SDK and GitHub Actions (#616, #662). Security alerts
+# and security updates are repository settings, not part of this file. See docs/dependabot.md.
 version: 2
 
 updates:
@@ -85,6 +85,21 @@ updates:
         update-types: ["version-update:semver-major"]
       # This tag follows the Microsoft.Playwright NuGet package (see the playwright group above).
       - dependency-name: "*playwright/dotnet"
+
+  - package-ecosystem: dotnet-sdk
+    # The SDK version in /global.json, which the workflows install (#662). See docs/dependabot.md.
+    # There is no cooldown. The dotnet/sdk image digest is not held back either, and the three
+    # pull requests (global.json and one for each Dockerfile) should come in the same week.
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/London
+    ignore:
+      # Version 11 is a .NET upgrade.
+      - dependency-name: "dotnet-sdk"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     # / is the workflows in .github/workflows. Each composite action is listed by its own directory.

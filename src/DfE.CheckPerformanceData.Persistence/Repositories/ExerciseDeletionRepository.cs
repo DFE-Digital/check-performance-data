@@ -26,6 +26,10 @@ public sealed class ExerciseDeletionRepository(PortalDbContext dbContext) : IExe
     public Task<DeletedExercise?> DeleteAsync(Guid windowId, Guid exerciseId, CancellationToken cancellationToken) =>
         dbContext.ExecuteInTransactionAsync(async () =>
         {
+            // #757: the retry strategy can run this delegate again. The audit row that the failed
+            // attempt queued is still tracked and would be saved twice. Forget it.
+            dbContext.ChangeTracker.Clear();
+
             if (!await dbContext.CheckingExercises.AnyAsync(
                     e => e.Id == exerciseId && e.CheckingWindowId == windowId, cancellationToken))
                 return null;

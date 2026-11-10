@@ -443,6 +443,10 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     {
         await context.ExecuteInTransactionAsync(async () =>
         {
+            // #757: the retry strategy can run this delegate again. FindAsync would then return
+            // the node that the failed attempt changed, EF would see no change, and the update
+            // would be lost. Start from what the database holds.
+            context.ChangeTracker.Clear();
             foreach (var (id, sortOrder) in orders)
             {
                 var node = await context.PageNodes.FindAsync(id)
@@ -454,13 +458,32 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     }
 
     public Task ExecuteInTransactionAsync(Func<Task> work) =>
-        context.ExecuteInTransactionAsync(work);
+        context.ExecuteInTransactionAsync(async () =>
+        {
+            // #757: the retry strategy runs this delegate again with the same context. Forget
+            // what the failed attempt tracked, or the retry saves it a second time or skips an
+            // update that the database rolled back. Forget it after a failure too.
+            context.ChangeTracker.Clear();
+            try
+            {
+                await work();
+            }
+            catch
+            {
+                context.ChangeTracker.Clear();
+                throw;
+            }
+        });
 
     public async Task RenameNodeAndCascadeAsync(
         Guid id, string newSegment, string newPath, string newTitle, string? newSubtitle, string? newPageName, string? userId)
     {
         await context.ExecuteInTransactionAsync(async () =>
         {
+            // #757: the retry strategy can run this delegate again. FindAsync would then return
+            // the node that the failed attempt changed, EF would see no change, and the update
+            // would be lost. Start from what the database holds.
+            context.ChangeTracker.Clear();
             var node = await context.PageNodes.FindAsync(id)
                 ?? throw new InvalidOperationException($"Page node {id} not found.");
 
@@ -499,6 +522,10 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     {
         await context.ExecuteInTransactionAsync(async () =>
         {
+            // #757: the retry strategy can run this delegate again. FindAsync would then return
+            // the node that the failed attempt changed, EF would see no change, and the update
+            // would be lost. Start from what the database holds.
+            context.ChangeTracker.Clear();
             var node = await context.PageNodes.FindAsync(id)
                 ?? throw new InvalidOperationException($"Page node {id} not found.");
 

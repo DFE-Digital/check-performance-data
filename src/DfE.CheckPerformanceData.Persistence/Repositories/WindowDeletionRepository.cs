@@ -29,6 +29,10 @@ public sealed class WindowDeletionRepository(PortalDbContext dbContext) : IWindo
     public Task<bool> DeleteAsync(Guid windowId, CancellationToken cancellationToken) =>
         dbContext.ExecuteInTransactionAsync(async () =>
         {
+            // #757: the retry strategy can run this delegate again. The audit row that the failed
+            // attempt queued is still tracked and would be saved twice. Forget it.
+            dbContext.ChangeTracker.Clear();
+
             var window = await dbContext.CheckingWindows
                 .SingleOrDefaultAsync(w => w.Id == windowId, cancellationToken);
             if (window is null)

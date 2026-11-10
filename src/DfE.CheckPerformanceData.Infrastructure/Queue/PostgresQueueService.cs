@@ -286,15 +286,6 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
         }
 
         var idSet = messageIds.ToHashSet();
-        var deadLetters = await _dbContext.DeadLetters
-            .Where(d => idSet.Contains(d.Id))
-            .ToListAsync(cancellationToken);
-
-        if (deadLetters.Count == 0)
-        {
-            return;
-        }
-
         var now = DateTime.UtcNow;
         var requeued = new List<QueueMessageEntity>();
 
@@ -303,6 +294,21 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
         // tables inconsistent.
         await _dbContext.ExecuteInTransactionAsync(async () =>
         {
+            // #757: the retry strategy can run this delegate again. Forget the messages that the
+            // failed attempt added, or adding them again with the same id fails. No
+            // ChangeTracker.Clear() here: an admin action can call this inside its own
+            // transaction, and a clear would also forget what that caller tracks.
+            foreach (var stale in requeued)
+            {
+                Detach(stale);
+            }
+            requeued.Clear();
+
+            // Read inside the delegate, so each attempt works on rows that are in the database.
+            var deadLetters = await _dbContext.DeadLetters
+                .Where(d => idSet.Contains(d.Id))
+                .ToListAsync(cancellationToken);
+
             foreach (var dead in deadLetters)
             {
                 // Re-enqueue with the dead letter's original id so replaying the same redrive

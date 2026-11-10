@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
@@ -406,6 +407,12 @@ public sealed class QueueAdminControllerTests
         var audits = Substitute.For<Microsoft.EntityFrameworkCore.DbSet<AuditEntry>>();
         dbContext.AuditEntries.Returns(audits);
         dbContext.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
+        // The audited action clears the change tracker first (#757). A substituted context has no
+        // tracker, so a real one from a context that never opens a connection stands in.
+        dbContext.ChangeTracker.Returns(new PortalDbContext(
+            new DbContextOptionsBuilder<PortalDbContext>()
+                .UseNpgsql("Host=unused").Options,
+            Substitute.For<ICurrentUserService>()).ChangeTracker);
         // The transaction wrapper runs the supplied work inline so the audit write and the
         // queue mutation it encloses actually execute under test.
         dbContext.ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>())

@@ -629,6 +629,10 @@ public sealed class SearchAnalyticsController : Controller
 
         await _dbContext.ExecuteInTransactionAsync(async () =>
         {
+            // #757: the retry strategy can run this delegate again. The audit row from the failed
+            // attempt is still tracked and would be saved twice. Forget it.
+            _dbContext.ChangeTracker.Clear();
+
             // Pre-count the child rows first — Postgres does not surface CASCADE child
             // counts from the parent DELETE, so we count them explicitly before the
             // parent delete so the audit payload carries an accurate resultsDeleted

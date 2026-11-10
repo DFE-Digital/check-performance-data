@@ -302,8 +302,8 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
             // #757: the delegate can run again after a transient fault. Forget what the failed
             // attempt tracked: its messages, and the audit rows that SaveChangesAsync queued.
             // Without this the retry fails on a second message with the same id. It can also
-            // save the audit rows twice. Not when the caller owns the transaction: a clear
-            // there would also forget what the caller tracks.
+            // save the audit rows twice. Do not clear when the caller owns the transaction. A
+            // clear there also forgets what the caller tracks.
             if (ownsRetry)
             {
                 _dbContext.ChangeTracker.Clear();

@@ -103,8 +103,9 @@ public sealed class PortalDbContext(
     // with ChangeTracker.Clear() (#753, #757). Without it, the retry saves the failed attempt's
     // rows and audit entries a second time. It can also lose an update that the database rolled
     // back. Read what the delegate needs inside the delegate: the clear detaches every entity
-    // that the caller tracked before the call. A delegate that can also run inside a caller's
-    // transaction clears only when it starts the transaction (PostgresQueueService.RedriveAsync).
+    // that the caller tracked before the call. A clear inside a caller's transaction is safe
+    // only after the caller has saved. PostgresQueueService.RedriveAsync can run inside a
+    // caller's transaction, so it clears only when it starts the transaction.
     public async Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default)
     {
         // Re-entrant: when a transaction is already open (for example an audited admin action

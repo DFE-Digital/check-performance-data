@@ -12,7 +12,7 @@ All E2E-facing versions in one place. Source of truth for NuGet pins is the test
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| .NET SDK | The version in `global.json`, or a later patch of the same feature band | Test project targets `net10.0`. CI installs the version in `global.json` ([dependabot.md](dependabot.md#net-sdk)). |
+| .NET SDK | The version in `global.json`, or a later patch of the same feature band (for 10.0.403, a later 10.0.4xx) | Test project targets `net10.0`. CI installs the version in `global.json` ([dependabot.md](dependabot.md#net-sdk)). |
 | PowerShell (pwsh or Windows PowerShell) | 5.1+ / Core 7+ | Only needed once, to run `playwright.ps1 install chromium`. |
 | Docker | any recent | Required for `make test-e2e` (canonical container path) and for the compose stack the host run hits. |
 
@@ -247,7 +247,7 @@ The suite drives the *deployed* app over HTTP — `docker compose up` brings up 
 
 - **Realistic auth + cookies + CSRF.** Antiforgery tokens come from the real Razor-rendered form (scraped via `PlaywrightFixture.ScrapeAntiforgeryTokenAsync`); cookies flow through the real ASP.NET pipeline. An in-process harness would short-circuit half the middleware and miss configuration drift.
 - **Stack matches production.** Postgres is the real `postgres:18.1-alpine` image, not a SQLite shim. EF query translation, Postgres-specific operators (FTS, etc.), and migrations are exercised end to end.
-- **Same artefact across local + CI.** The container path (`make test-e2e`) builds the test runner against the same compose stack CI uses. No "works on my machine but breaks in CI" failure mode for harness setup.
+- **Same browser and compose stack as CI.** The container path (`make test-e2e`) runs Linux Chromium against the same compose stack. CI runs the tests on the runner, not in this container, with the SDK in `global.json`.
 
 The trade-off is speed: cold start (compose up + readiness probe + first Playwright launch) is ~30-40s. We accept that. Tight inner-loop runs use `make test-e2e-fast` natively on the host.
 

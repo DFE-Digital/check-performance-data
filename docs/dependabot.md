@@ -63,12 +63,21 @@ works, but nobody can see it later.
 `actions/setup-dotnet` step has `global-json-file: global.json`. A new SDK reaches CI only when
 a pull request changes `global.json`.
 
-`rollForward` is `patch`. The `dotnet` command uses the named version when it is installed. If it
-is not installed, the command uses a later patch of the same feature band (for example, another
-`10.0.4xx`). CI always installs the named version, so CI always uses it.
+A feature band is the set of SDK versions that have the same first digit in the last number. For
+example, 10.0.403 is in the 10.0.4xx feature band.
 
-Do not change `rollForward` to a value that starts with `latest`. `setup-dotnet` then installs the
-newest SDK that the value allows, and CI no longer uses a fixed SDK.
+`rollForward` is `patch`. The `dotnet` command uses the named version when it is installed. If it
+is not installed, the command uses a later patch of the same feature band. CI always installs
+the named version, so CI always uses it.
+
+Keep `rollForward` as `patch`. Every other value except `disable` lets CI use an SDK that
+`global.json` does not name:
+
+- With a value that starts with `latest`, `setup-dotnet` installs the newest SDK that the value
+  allows.
+- With `feature`, `minor` or `major`, `dotnet` uses the newest patch that the runner already has.
+
+`disable` keeps CI fixed, but it stops a developer who has a later patch.
 
 The SDK is fixed in three places:
 

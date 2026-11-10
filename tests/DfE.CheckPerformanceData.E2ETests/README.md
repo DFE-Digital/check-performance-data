@@ -11,7 +11,7 @@ There are two ways to run the suite, depending on what you need:
 | Container (canonical) | `make test-e2e` | Full functional suite inside the Linux Playwright container. | Before commit/push, before opening a PR |
 | Host (fast) | `make test-e2e-fast` | Same suite natively on the host SDK | TDD inner loop; quick smoke after a code change |
 
-These targets `cd` into the repo from the repo root and assume Docker (for `make test-e2e`) or the .NET 10 host SDK (for `make test-e2e-fast`) is installed. `make help` from the repo root lists every target the Makefile exposes.
+These targets `cd` into the repo from the repo root and assume Docker (for `make test-e2e`) or the .NET SDK that the root `global.json` names (for `make test-e2e-fast`) is installed. `make help` from the repo root lists every target the Makefile exposes.
 
 First run of `make test-e2e` is slow — it pulls the ~1.5GB Playwright image, builds the thin overlay (per `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`), and warms the named NuGet cache volume. Allow ~3-5 minutes. Subsequent runs reuse both the image layer cache and the NuGet volume → seconds-to-test-output.
 
@@ -309,7 +309,7 @@ When you stop writing test scaffolding and need to seed a real wiki page or cont
   #### Or, equivalently, without make:
   dotnet test tests/DfE.CheckPerformanceData.E2ETests/ -c Release --no-build --nologo
 
-  ### 5. E2E in the Linux Playwright container (~10-15min) — the same image CI uses
+  ### 5. E2E in the Linux Playwright container (~10-15min) — Linux Chromium, as in CI
   make test-e2e
   #### Or, equivalently, without make:
   docker compose --profile e2e run --rm e2e-tests

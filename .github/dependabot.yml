@@ -88,8 +88,8 @@ updates:
 
   - package-ecosystem: dotnet-sdk
     # The SDK version in /global.json, which the workflows install (#662). See docs/dependabot.md.
-    # There is no cooldown. The dotnet/sdk image digest is not held back either, and the two
-    # pull requests should come in the same week.
+    # There is no cooldown. The dotnet/sdk image digest is not held back either, and the three
+    # pull requests (global.json and one for each Dockerfile) should come in the same week.
     directory: /
     schedule:
       interval: weekly

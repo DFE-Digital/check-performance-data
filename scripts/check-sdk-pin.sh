@@ -25,7 +25,7 @@ fi
 
 WANTED=$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[0-9.]+"' "$GLOBAL_JSON" \
     | head -n1 \
-    | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+    | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
 
 if [ -z "$WANTED" ]; then
     echo "ERROR: could not read sdk.version from $GLOBAL_JSON."
@@ -33,6 +33,7 @@ if [ -z "$WANTED" ]; then
 fi
 
 failed=0
+unreadable=0
 checked=0
 
 for file in $(git ls-files '*Dockerfile'); do
@@ -45,7 +46,7 @@ for file in $(git ls-files '*Dockerfile'); do
             | sort -u)
         if [ -z "$versions" ]; then
             echo "ERROR: $file: could not read DOTNET_SDK_VERSION from $image"
-            failed=1
+            unreadable=1
         elif [ "$versions" != "$WANTED" ]; then
             echo "ERROR: $file: the image has SDK $(echo $versions), but $GLOBAL_JSON names $WANTED."
             failed=1
@@ -58,10 +59,18 @@ if [ "$checked" -eq 0 ]; then
     exit 1
 fi
 
-if [ "$failed" -ne 0 ]; then
-    echo
-    echo "Make the two agree in this pull request: change sdk.version in $GLOBAL_JSON, or the"
-    echo "dotnet/sdk digest in the Dockerfile. See docs/dependabot.md#net-sdk."
+if [ "$unreadable" -ne 0 ] || [ "$failed" -ne 0 ]; then
+    if [ "$unreadable" -ne 0 ]; then
+        echo
+        echo "Check that 'docker buildx imagetools inspect' works and that mcr.microsoft.com answers,"
+        echo "then run the job again."
+    fi
+    if [ "$failed" -ne 0 ]; then
+        echo
+        echo "Make global.json and every dotnet/sdk FROM line name the same SDK in this pull request:"
+        echo "change sdk.version in $GLOBAL_JSON, or the dotnet/sdk digest in each Dockerfile."
+        echo "See docs/dependabot.md#net-sdk."
+    fi
     exit 1
 fi
 

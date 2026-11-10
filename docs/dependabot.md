@@ -95,14 +95,14 @@ be older than the version in `global.json`. `dotnet` would then refuse to run. S
 `docker-compose.e2e.yml` runs `dotnet test` from `/`, outside the mounted repository, because
 `dotnet` looks for `global.json` from the working directory upwards.
 
-When Microsoft releases an SDK, Dependabot opens one pull request for `global.json` and one for
-the `sdk` image digest. The **Build** check runs `scripts/check-sdk-pin.sh`, which fails while
-`global.json` and the `sdk` images name different SDK versions. So each of the two pull requests
-fails by itself.
+When Microsoft releases an SDK, Dependabot opens one pull request for `global.json`, and one for
+the `sdk` digest in each of the Web and worker Dockerfiles. The **Build** check runs
+`scripts/check-sdk-pin.sh`, which fails while `global.json` and the `sdk` images name different
+SDK versions. So each of the three pull requests fails by itself.
 
-To finish, put both changes in one pull request. Copy the new `sdk.version` into `global.json` on
-the docker pull request, or copy the new digests into the Web and worker Dockerfiles on the
-`global.json` pull request. Push to the Dependabot branch, then close the other pull request.
+To finish, put all three changes in the `global.json` pull request: copy the new `sdk` digest into
+the Web and the worker Dockerfiles. Push to the Dependabot branch, then close the two docker pull
+requests.
 
 A new digest that has the same SDK passes by itself. That is a rebuild with Ubuntu fixes only.
 

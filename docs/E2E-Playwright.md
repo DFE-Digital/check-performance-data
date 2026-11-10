@@ -247,7 +247,7 @@ The suite drives the *deployed* app over HTTP — `docker compose up` brings up 
 
 - **Realistic auth + cookies + CSRF.** Antiforgery tokens come from the real Razor-rendered form (scraped via `PlaywrightFixture.ScrapeAntiforgeryTokenAsync`); cookies flow through the real ASP.NET pipeline. An in-process harness would short-circuit half the middleware and miss configuration drift.
 - **Stack matches production.** Postgres is the real `postgres:18.1-alpine` image, not a SQLite shim. EF query translation, Postgres-specific operators (FTS, etc.), and migrations are exercised end to end.
-- **Same browser and compose stack as CI.** The container path (`make test-e2e`) runs Linux Chromium against the same compose stack. CI runs the tests on the runner, not in this container, with the SDK in `global.json`.
+- **Same browser as CI.** The container path (`make test-e2e`) runs Linux Chromium, as CI does. CI runs the tests on a hosted runner against the review app, not in this container, with the SDK in `global.json`.
 
 The trade-off is speed: cold start (compose up + readiness probe + first Playwright launch) is ~30-40s. We accept that. Tight inner-loop runs use `make test-e2e-fast` natively on the host.
 

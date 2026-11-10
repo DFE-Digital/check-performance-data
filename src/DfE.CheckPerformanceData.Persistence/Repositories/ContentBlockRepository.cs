@@ -3,11 +3,14 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Mappers;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class ContentBlockRepository(IPortalDbContext context) : IContentBlockRepository
 {
+    private const string KeyIndex = "IX_ContentBlocks_Key";
+
     // Queries — use ProjectToDto so EF translates the mapping to SQL
 
     public async Task<List<ContentBlockDto>> GetAllAsync() =>
@@ -284,4 +287,10 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
                 throw;
             }
         });
+
+    public bool IsDuplicateKey(Exception exception) =>
+        exception is DbUpdateException
+        {
+            InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: KeyIndex }
+        };
 }

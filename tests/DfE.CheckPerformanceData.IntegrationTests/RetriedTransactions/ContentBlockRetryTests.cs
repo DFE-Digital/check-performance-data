@@ -74,4 +74,25 @@ public sealed class ContentBlockRetryTests(PostgresFixture fixture)
         Assert.Equal([1, 2], versions.Select(v => v.VersionNumber));
         Assert.Equal("<p>New</p>", versions[1].Value);
     }
+
+    [Fact]
+    public async Task Two_first_renders_of_one_key_both_get_the_block()
+    {
+        await ResetAsync();
+        var meet = new MeetAtCommandInterceptor("INSERT INTO \"ContentBlocks\"", parties: 2, TimeSpan.FromSeconds(10));
+        await using var ctxA = _fixture.CreateRetryingContext(meet);
+        await using var ctxB = _fixture.CreateRetryingContext(meet);
+
+        var results = await Task.WhenAll(
+            NewService(ctxA).EnsureAsync("raced-key", "Content", "<p>Default</p>", "/page-a"),
+            NewService(ctxB).EnsureAsync("raced-key", "Content", "<p>Default</p>", "/page-b"));
+
+        // The race really happened: both contexts reached the insert before either wrote.
+        Assert.Equal(2, meet.Arrived);
+        Assert.Equal(results[0].Id, results[1].Id);
+        await using var verify = _fixture.CreateContext();
+        var row = await verify.ContentBlocks.SingleAsync(b => b.Key == "raced-key");
+        Assert.Equal(results[0].Id, row.Id);
+        Assert.Equal(1, await verify.ContentBlockVersions.CountAsync(v => v.ContentBlockId == row.Id));
+    }
 }

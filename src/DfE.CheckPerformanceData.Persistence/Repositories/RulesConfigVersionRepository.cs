@@ -65,5 +65,20 @@ public sealed class RulesConfigVersionRepository(IPortalDbContext context) : IRu
     }
 
     public Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken ct = default) =>
-        context.ExecuteInTransactionAsync(work, ct);
+        context.ExecuteInTransactionAsync(async () =>
+        {
+            // #757: the retry strategy runs this delegate again with the same context. Forget
+            // what the failed attempt tracked, or the retry saves the version and the audit row a
+            // second time. Forget it after a failure too.
+            context.ChangeTracker.Clear();
+            try
+            {
+                await work();
+            }
+            catch
+            {
+                context.ChangeTracker.Clear();
+                throw;
+            }
+        }, ct);
 }

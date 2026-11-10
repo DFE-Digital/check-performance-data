@@ -31,6 +31,9 @@ public static class FieldCatalogue
             ["firstSchoolAdmissionDate"]          = FieldType.Date,
             ["dateOfArrivalInEngland"]            = FieldType.Date,
 
+            // Evidence: true when the school uploaded a file or wrote supporting text (#813).
+            ["hasSupportingEvidence"]             = FieldType.Bool,
+
             // Exclusion / removal dates
             ["dateOfPermanentExclusion"]          = FieldType.Date,
             ["dateOfRemoval"]                     = FieldType.Date,

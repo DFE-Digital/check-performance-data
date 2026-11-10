@@ -13,8 +13,9 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// is not 1:1: <c>sat-exams</c> resolves by checking window type (<see cref="SatExamsFieldFor"/>),
 /// radio and checkbox options fan out to several booleans (<see cref="OptionFanOut"/>),
 /// some answers carry journey vocabulary the rules don't use
-/// (<see cref="TranslatedQuestions"/>), and journey-only questions
-/// (<c>reason</c>, <c>evidence</c>, …) are intentionally projected out.
+/// (<see cref="TranslatedQuestions"/>), evidence answers are read by answer type
+/// (<see cref="EvidenceFileAnswerType"/>), and other journey-only questions
+/// (<c>reason</c>, …) are intentionally projected out.
 /// Question ids are also the contract for serialized in-flight draft state, so a
 /// rename would be a breaking change with no migration path.
 ///
@@ -32,6 +33,18 @@ public static class AnswerFieldMap
     /// supplied code, <c>Unknown</c> when <c>Pincl</c> is not supplied.
     /// </summary>
     public const int AddBackPincl = 403;
+
+    /// <summary>
+    /// <c>AnswerRecord.Type</c> of an evidence upload. <c>hasSupportingEvidence</c> is
+    /// calculated from the answer types, not from question ids (#813): <c>true</c> when an
+    /// answer of this type has a file, or an answer of type <see cref="SupportingTextAnswerType"/>
+    /// has text. It is <c>false</c> when neither has content, and <c>Unknown</c> when the
+    /// request has no answer of this type (no evidence page was on the path).
+    /// </summary>
+    public const string EvidenceFileAnswerType = "FileUpload";
+
+    /// <summary><c>AnswerRecord.Type</c> of a free-text answer that counts as supporting text.</summary>
+    public const string SupportingTextAnswerType = "TextArea";
 
     /// <summary>
     /// <c>Answer.QuestionId</c> on the queue message → canonical field name in

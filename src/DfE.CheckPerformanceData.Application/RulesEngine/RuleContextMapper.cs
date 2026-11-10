@@ -60,9 +60,28 @@ public sealed class RuleContextMapper : IRuleContextMapper
                 if (string.IsNullOrEmpty(answer.QuestionId)) continue;
                 MapAnswer(answer, checkingWindowType, fields);
             }
+
+            var evidence = MapSupportingEvidence(message.Answers);
+            if (evidence is not null) fields["hasSupportingEvidence"] = evidence;
         }
 
         return new RuleContext(outcomeKey, checkingWindowType, fields);
+    }
+
+    /// <summary>
+    /// <c>hasSupportingEvidence</c> from the answer types (see
+    /// <see cref="AnswerFieldMap.EvidenceFileAnswerType"/>). Null when the request has no
+    /// evidence upload answer, so the field stays <c>Unknown</c>.
+    /// </summary>
+    private static FieldValue? MapSupportingEvidence(IEnumerable<AnswerRecord?> answers)
+    {
+        var list = answers.OfType<AnswerRecord>().ToList();
+        if (!list.Any(a => a.Type == AnswerFieldMap.EvidenceFileAnswerType)) return null;
+
+        var hasFile = list.Any(a => a.Type == AnswerFieldMap.EvidenceFileAnswerType && a.Files is { Count: > 0 });
+        var hasText = list.Any(a => a.Type == AnswerFieldMap.SupportingTextAnswerType
+                                    && !string.IsNullOrWhiteSpace(a.RawValue ?? a.Value));
+        return new FieldValue.Bool(hasFile || hasText);
     }
 
     private static void MapAnswer(AnswerRecord answer, string checkingWindowType, Dictionary<string, FieldValue> fields)

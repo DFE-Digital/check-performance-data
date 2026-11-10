@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.22-01",
-  "updatedAt": "2026-10-22T12:00:00Z",
+  "version": "2026.11.10-01",
+  "updatedAt": "2026-11-10T12:00:00Z",
   "outcomes": [
 
     {
@@ -103,6 +103,16 @@
             { "field": "dateOfArrivalInEngland", "gte": "2024-09-01" }
           ] } },
 
+        { "id": "EAL-REJ-KS2-NOEVIDENCE", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "checkingWindowType", "eq": "KS2" },
+            { "field": "hasSupportingEvidence", "eq": false },
+            { "any": [
+              { "field": "schoolAdmissionDate", "lt": "2024-09-01" },
+              { "field": "firstSchoolAdmissionDate", "lt": "2024-09-01" }
+            ] }
+          ] } },
+
         { "id": "EAL-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
     },
@@ -191,20 +201,8 @@
         { "id": "TCI-KS2-REJ", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS2" },
-            { "any": [
-              { "all": [
-                { "field": "hasTerminalIllness",                "eq": false },
-                { "field": "hasCriticalIllness12mPlus",         "eq": false },
-                { "field": "hasRecentLifeChangingDiagnosis",    "eq": false },
-                { "field": "hasRecentLifeChangingInjury",       "eq": false },
-                { "field": "underInvestigation12mPlus",         "eq": false },
-                { "field": "illnessHasSevereProfoundEffect",    "eq": false }
-              ] },
-              { "all": [
-                { "field": "hasTerminalIllness",  "eq": false },
-                { "field": "hasSatExamsAsYear6",  "eq": true  }
-              ] }
-            ] }
+            { "field": "hasTerminalIllness",  "eq": false },
+            { "field": "hasSatExamsAsYear6",  "eq": true  }
           ] } },
 
         { "id": "TCI-DEF", "status": "Scrutiny", "when": "otherwise" }

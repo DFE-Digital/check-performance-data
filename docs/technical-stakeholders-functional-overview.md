@@ -260,6 +260,8 @@ erDiagram
 
 **Auditing**: `PortalDbContext.SaveChangesAsync` hand-rolls a two-phase interceptor — one `AuditEntry` per Added/Modified/Deleted entity (old/new/changed values as JSON), with deferred capture of generated PKs via a second save. A Postgres `BEFORE UPDATE OR DELETE` trigger makes `AuditEntries` immutable at the DB level. **Caveat:** bulk `ExecuteUpdate`/`ExecuteDelete` (used by the worker consumers and close-window) **bypass** this interceptor.
 
+**Retried transactions**: `PortalDbContext` retries transient faults. A transaction delegate can run more than once, with the same context. Each delegate that changes tracked entities starts with `ChangeTracker.Clear()`. The repository `ExecuteInTransactionAsync` wrappers do this for delegates that the Application layer writes. Without it, a retry saves the failed attempt's rows twice or loses an update. If two requests create the same content block at the same moment, the second request reads the block that the first one made (#757).
+
 **Session**: `session_cache` table via `AddDistributedPostgreSqlCache` — shared across replicas.
 
 Migrations run on **every boot** (environment guard commented out) plus a raw `DO $$` history-normalisation block.

@@ -97,6 +97,13 @@ public sealed class PortalDbContext(
         return result;
     }
 
+    // The delegate can run more than once. EnableRetryOnFailure runs it again from the start
+    // after a transient fault, with this same context, so the change tracker still holds what
+    // the failed attempt did. A delegate that adds, changes or removes tracked entities must
+    // start with ChangeTracker.Clear() (#753, #757). If it does not, the retry saves the failed
+    // attempt's rows and audit entries a second time, or it loses an update that the database
+    // rolled back. A delegate must also read what it needs inside itself: an entity that the
+    // caller tracked before the call is detached by that clear.
     public async Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default)
     {
         // Re-entrant: when a transaction is already open (for example an audited admin action

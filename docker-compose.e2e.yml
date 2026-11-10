@@ -23,7 +23,11 @@ services:
       context: .
       dockerfile: tests/DfE.CheckPerformanceData.E2ETests/Dockerfile
     image: cypd_e2e_tests:latest
-    working_dir: /work
+    # The working directory is outside the mounted repository on purpose (#662). `dotnet` looks
+    # for global.json from the working directory upwards. This image's SDK comes with the
+    # Playwright tag and can be older than the version in /work/global.json. `dotnet` then
+    # refuses to run. From / it finds no global.json and uses the SDK in the image.
+    working_dir: /
     environment:
       - CPD_E2E_BASE_URL=${CPD_E2E_BASE_URL:-http://web:8080}
       # The DB-probe helpers (CountChangeRequestsAsync in the enquiry suites) default to
@@ -48,4 +52,4 @@ services:
       - web
     networks:
       - cypd
-    command: ["sh", "-c", "dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release"]
+    command: ["sh", "-c", "dotnet test /work/tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release"]

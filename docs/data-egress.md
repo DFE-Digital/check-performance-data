@@ -283,7 +283,7 @@ curl -X POST "http://localhost:8080/dev/egress/cleanup?windowId=F34D285B-8660-4D
 plain HTTP (pull → results → preprocessing → summary → download → transfer → complete → refused),
 a failing-record path, and — Linux-only — a real-browser fact for the streamed progress. Run just
 this class: `docker compose --profile e2e run --rm e2e-tests sh -c 'dotnet test
-tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedName~DataEgressTests"'`.
+/work/tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedName~DataEgressTests"'`.
 
 To inspect what actually landed in the local LDS account, the Storage browser under Danger zone
 covers the **app** account only — the ingress account needs a separate client (e.g. Azure Storage

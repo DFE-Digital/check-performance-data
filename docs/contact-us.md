@@ -164,7 +164,7 @@ dotnet test tests/DfE.CheckPerformanceData.UnitTests --filter "FullyQualifiedNam
 # E2E — build + start the app stack, then run only the Contact Us tests in the Playwright container
 docker compose --profile e2e up -d --build web db azurite
 docker compose --profile e2e run --rm e2e-tests \
-  sh -c "dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --filter 'FullyQualifiedName~ContactUsTests'"
+  sh -c "dotnet test /work/tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --filter 'FullyQualifiedName~ContactUsTests'"
 ```
 
 ## 10. Extending this feature

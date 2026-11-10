@@ -96,8 +96,19 @@ be older than the version in `global.json`. `dotnet` would then refuse to run. S
 `dotnet` looks for `global.json` from the working directory upwards.
 
 When Microsoft releases an SDK, Dependabot opens one pull request for `global.json` and one for
-the `sdk` image digest. Merge them in the same week, so that the tests and the images use the same
-SDK. To see the SDK in an image, run `docker run --rm <image from the FROM line> dotnet --version`.
+the `sdk` image digest. The **Build** check runs `scripts/check-sdk-pin.sh`, which fails while
+`global.json` and the `sdk` images name different SDK versions. So each of the two pull requests
+fails by itself.
+
+To finish, put both changes in one pull request. Copy the new `sdk.version` into `global.json` on
+the docker pull request, or copy the new digests into the Web and worker Dockerfiles on the
+`global.json` pull request. Push to the Dependabot branch, then close the other pull request.
+
+A new digest that has the same SDK passes by itself. That is a rebuild with Ubuntu fixes only.
+
+The E2E runner image is not in this check, because its SDK moves with the Playwright tag.
+
+To see the SDK in an image, run `docker run --rm <image from the FROM line> dotnet --version`.
 
 A developer needs the SDK that `global.json` names, or a later patch of the same feature band.
 

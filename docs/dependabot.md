@@ -33,6 +33,8 @@ Each run shows in **Actions** as **Dependabot Updates**, with its log.
 
 - Minor and patch updates come as one pull request per ecosystem (`minor-and-patch`).
 - Each major update comes in a pull request of its own, because it may need code changes.
+- A new image digest comes in a pull request of its own for each Dockerfile. The `minor-and-patch`
+  group does not take it.
 - `Microsoft.Playwright` and `Microsoft.Playwright.Xunit` come together in a pull request of their
   own (`playwright`). See [Playwright](#playwright).
 - A new version is not proposed until it is 7 days old (`cooldown`), so a compromised or broken
@@ -95,14 +97,19 @@ be older than the version in `global.json`. `dotnet` would then refuse to run. S
 `docker-compose.e2e.yml` runs `dotnet test` from `/`, outside the mounted repository, because
 `dotnet` looks for `global.json` from the working directory upwards.
 
-When Microsoft releases an SDK, Dependabot opens one pull request for `global.json`, and one for
-the `sdk` digest in each of the Web and worker Dockerfiles. The **Build** check runs
-`scripts/check-sdk-pin.sh`, which fails while `global.json` and the `sdk` images name different
-SDK versions. So each of the three pull requests fails by itself.
+When Microsoft releases an SDK, Dependabot opens three pull requests. One changes `global.json`.
+The other two change the `sdk` digest, one in the Web Dockerfile and one in the worker Dockerfile.
+The **Build** check runs `scripts/check-sdk-pin.sh`, which fails while `global.json` and the `sdk`
+images name different SDK versions. So each of the three pull requests fails by itself.
 
-To finish, put all three changes in the `global.json` pull request: copy the new `sdk` digest into
-the Web and the worker Dockerfiles. Push to the Dependabot branch, then close the two docker pull
-requests.
+To finish, do these steps:
+
+1. On the Dependabot branch of the `global.json` pull request, copy the new `sdk` digest into the
+   Web Dockerfile and the worker Dockerfile. If the docker pull requests have not come, find the
+   digest as [Pins](#pins) describes.
+2. Push to the branch.
+3. When **Build** passes, merge the pull request.
+4. Close the two docker pull requests.
 
 A new digest that has the same SDK passes by itself. That is a rebuild with Ubuntu fixes only.
 

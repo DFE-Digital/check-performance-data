@@ -34,9 +34,10 @@ jobs:
       run: bash scripts/check-pins.sh
 
     - name: Check global.json and the sdk images name the same SDK
-      # Dependabot raises the SDK in global.json and the dotnet/sdk image digest in separate pull
-      # requests. This fails each one until it has both, so the tests and the images use the
-      # same SDK (#662). It reads the image configuration from the registry without a pull.
+      # Dependabot raises the SDK in global.json and the dotnet/sdk digest in each Dockerfile in
+      # separate pull requests. This fails each one until one of them has all the changes, so the
+      # tests and the images use the same SDK (#662). It reads the image configuration from the
+      # registry without a pull.
       run: bash scripts/check-sdk-pin.sh
 
     - name: Restore dependencies

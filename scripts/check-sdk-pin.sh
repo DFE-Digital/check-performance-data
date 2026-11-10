@@ -5,9 +5,10 @@ set -eu
 ### Check global.json names the SDK that the pinned dotnet/sdk images have (#662) ###
 #
 # CI tests with the SDK in global.json. The Web and worker images build with the SDK in the
-# dotnet/sdk image that each Dockerfile pins by digest. Dependabot updates the two in separate
-# pull requests. This check fails a pull request that moves one and not the other, so the SDK
-# that runs the tests is the SDK that builds the images. See docs/dependabot.md#net-sdk.
+# dotnet/sdk image that each Dockerfile pins by digest. Dependabot updates global.json and each
+# Dockerfile in separate pull requests. This check fails a pull request until global.json and
+# every pinned dotnet/sdk image have the same SDK, so the SDK that runs the tests is the SDK that
+# builds the images. See docs/dependabot.md#net-sdk.
 #
 # The check reads the image configuration from the registry. It does not pull the image.
 #
@@ -62,8 +63,8 @@ fi
 if [ "$unreadable" -ne 0 ] || [ "$failed" -ne 0 ]; then
     if [ "$unreadable" -ne 0 ]; then
         echo
-        echo "Check that 'docker buildx imagetools inspect' works and that mcr.microsoft.com answers,"
-        echo "then run the job again."
+        echo "Check that the digest in the FROM line exists, that 'docker buildx imagetools inspect' works"
+        echo "and that mcr.microsoft.com answers. Then run the job again."
     fi
     if [ "$failed" -ne 0 ]; then
         echo

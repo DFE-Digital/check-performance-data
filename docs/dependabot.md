@@ -23,6 +23,7 @@ Changing either setting needs a repository admin.
 |-----------|-------|----------------|
 | NuGet | `/src` | Every project in `src/DfE.CheckPerformanceData.slnx`, the test projects included: `src/Directory.Packages.props`, the test `.csproj` files and every `packages.lock.json` |
 | Docker | the four Dockerfiles | Web, worker, E2E test runner and maintenance page base images |
+| .NET SDK | `/global.json` | The SDK version that the workflows install. See [.NET SDK](#net-sdk) |
 | GitHub Actions | `/` and `/.github/actions/image-sbom` | The workflows and the SBOM composite action |
 
 Dependabot reads this file from `main` only, so a change to it takes effect once it is merged.
@@ -35,9 +36,10 @@ Each run shows in **Actions** as **Dependabot Updates**, with its log.
 - `Microsoft.Playwright` and `Microsoft.Playwright.Xunit` come together in a pull request of their
   own (`playwright`). See [Playwright](#playwright).
 - A new version is not proposed until it is 7 days old (`cooldown`), so a compromised or broken
-  release has time to be found and withdrawn. This applies to version updates only, and not to
-  a new digest of the .NET `aspnet` and `sdk` images, which carries .NET and Ubuntu security
-  fixes. See [Pins](#pins).
+  release has time to be found and withdrawn. This applies to version updates only. It does not
+  apply to a new digest of the .NET `aspnet` and `sdk` images, which carries .NET and Ubuntu
+  security fixes, or to the SDK version in `global.json`, which moves with the `sdk` image. See
+  [Pins](#pins) and [.NET SDK](#net-sdk).
 
 ### What is not proposed
 
@@ -45,6 +47,7 @@ Each run shows in **Actions** as **Dependabot Updates**, with its log.
 |------------|--------------|-----|
 | `Microsoft.AspNetCore.*`, `Microsoft.EntityFrameworkCore*`, `Microsoft.Extensions.*`, `System.Security.Cryptography.Xml`, `Npgsql*`, `Serilog.AspNetCore` | Major versions | They move with the .NET version. Moving to .NET 11 is an upgrade of its own. Patches still come. |
 | `mcr.microsoft.com/dotnet/aspnet`, `mcr.microsoft.com/dotnet/sdk` | Major versions | Moving to .NET 11 is an upgrade of its own. Each new digest of the `10.0` tag is still proposed. |
+| `dotnet-sdk` (`global.json`) | Major versions | Moving to .NET 11 is an upgrade of its own. Each new 10.0 SDK is still proposed. |
 | `Deque.AxeCore.Playwright` | 4.14.0 and later | It bundles axe-core 4.14, which turns on the `label-content-name-mismatch` rule (WCAG 2.5.3). The rule fails the admin accessibility sweep on the GOV.UK Frontend File upload button. Held on 4.13 until that is dealt with. |
 | `CsvHelper` | 34.0.0 and later | 34.0.0 is a rewrite with a new API, so the build fails. Its defaults also recover malformed data and guess the separator, where 33 threw. Ingress would then accept broken pupil files. Held on 33.x until the port is done, with tests for the ingress CSV rules. |
 | `mcr.microsoft.com/playwright/dotnet` | Any version | Its tag follows the NuGet package. See [Playwright](#playwright). |
@@ -52,6 +55,42 @@ Each run shows in **Actions** as **Dependabot Updates**, with its log.
 To stop a dependency being proposed, add an `ignore` entry to `.github/dependabot.yml` with the
 reason as a comment. Commenting `@dependabot ignore this major version` on a pull request also
 works, but nobody can see it later.
+
+## .NET SDK
+
+`global.json` in the repository root names the .NET SDK version (#662). The workflows that run
+`dotnet` (`build.yml`, `build-and-deploy.yml` and `e2e.yml`) install that version: their
+`actions/setup-dotnet` step has `global-json-file: global.json`. A new SDK reaches CI only when
+a pull request changes `global.json`.
+
+`rollForward` is `patch`. The `dotnet` command uses the named version when it is installed. If it
+is not installed, the command uses a later patch of the same feature band (for example, another
+`10.0.4xx`). CI always installs the named version, so CI always uses it.
+
+Do not change `rollForward` to a value that starts with `latest`. `setup-dotnet` then installs the
+newest SDK that the value allows, and CI no longer uses a fixed SDK.
+
+The SDK is fixed in three places:
+
+| Where | What fixes the SDK | What updates it |
+|-------|--------------------|-----------------|
+| The workflows, and `dotnet` on a developer's computer | `global.json` | Dependabot (`dotnet-sdk`) |
+| The Web and worker images | The digest of `mcr.microsoft.com/dotnet/sdk:10.0` in each Dockerfile | Dependabot (`docker`) |
+| The E2E runner container | The digest of the `playwright/dotnet` image | A person, with the Playwright package |
+
+The image builds do not read `global.json`. Their build context is `src/`, and the file is in the
+repository root.
+
+The E2E runner container does not read it either. Its SDK comes with the Playwright image and can
+be older than the version in `global.json`. `dotnet` would then refuse to run. So
+`docker-compose.e2e.yml` runs `dotnet test` from `/`, outside the mounted repository, because
+`dotnet` looks for `global.json` from the working directory upwards.
+
+When Microsoft releases an SDK, Dependabot opens one pull request for `global.json` and one for
+the `sdk` image digest. Merge them in the same week, so that the tests and the images use the same
+SDK. To see the SDK in an image, run `docker run --rm <image from the FROM line> dotnet --version`.
+
+A developer needs the SDK that `global.json` names, or a later patch of the same feature band.
 
 ## Playwright
 

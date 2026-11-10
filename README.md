@@ -6,7 +6,9 @@ Prerequisites
 
 - [Git](https://git-scm.com/downloads) (for getting a copy of the source code and contributing changes)
 - [.NET 10 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) (for building and running the C#/.NET web
-  application)
+  application). `global.json` names the version that CI uses. Install that version, or a later patch of the same
+  feature band (for 10.0.403, that is 10.0.403 or a later 10.0.4xx). If `dotnet` says that it cannot find a
+  compatible SDK, install the version in `global.json`.
 - ~~[Node.js](https://nodejs.org/en/download/) (for building web artefacts: (S)CSS, JS, etc.)~~
 - IDE/Editor of choice (e.g., Visual Studio, Visual Studio Code, JetBrains Rider, etc.)
 - [Docker Desktop](https://docs.docker.com/desktop/) (for development time hosting of dependencies)

@@ -689,7 +689,7 @@
       "dfe.checkperformancedata.application": {
         "type": "Project",
         "dependencies": {
-          "AngleSharp": "[1.9.0, )",
+          "AngleSharp": "[1.9.1, )",
           "DfE.CheckPerformanceData.Domain": "[1.0.0, )",
           "HtmlSanitizer": "[10.0.1120, )",
           "Markdig": "[1.5.1, )",
@@ -737,9 +737,9 @@
       },
       "AngleSharp": {
         "type": "CentralTransitive",
-        "requested": "[1.9.0, )",
-        "resolved": "1.9.0",
-        "contentHash": "NOKbXBsj4gaudXjAmdfSPxgUmKNbxP0k87ZRN56N0FW3u2z8AT7sRnTEOWjKoNrPI1vq4slV7Ld2nBCOvu/v8w=="
+        "requested": "[1.9.1, )",
+        "resolved": "1.9.1",
+        "contentHash": "QgOLaoPvDofo66KBOHlI9WLH+L/3xGDDd1joM4CrsFsxm0knRu/6ZoiWU0DUOhBZzSCa13zYKAeVPS/CxnF12Q=="
       },
       "Azure.Storage.Blobs": {
         "type": "CentralTransitive",

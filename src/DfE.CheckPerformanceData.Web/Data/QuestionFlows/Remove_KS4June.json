@@ -561,14 +561,14 @@
     },
     {
       "id": "year-group-change-higher",
-      "title": "Year group moved to",
+      "title": "Tell us about the year group moved to",
       "pageTitle": "Year group change details",
       "nextPageId": "year-group-change-evidence",
       "questions": [
         {
           "id": "year-group-higher-moved-to",
           "type": "Radio",
-          "title": "Which year group should {pupilName} be moved to?",
+          "title": "Which higher year group should {pupilName} be moved to?",
           "summaryTitle": "Year group moved to",
           "validationFailure": "Select the year group {pupilName} should be moved to",
           "options": [
@@ -601,7 +601,7 @@
         {
           "id": "year-group-lower-moved-to",
           "type": "Radio",
-          "title": "Which year group should {pupilName} be moved to?",
+          "title": "Which lower year group should {pupilName} be moved to?",
           "summaryTitle": "Year group moved to",
           "validationFailure": "Select the year group {pupilName} should be moved to",
           "options": [

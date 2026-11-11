@@ -166,7 +166,7 @@
     },
     {
       "id": "permanently-excluded",
-      "title": "Permanently excluded",
+      "title": "Tell us about the permanent exclusion",
       "pageTitle": "Permanent exclusion details",
       "nextPageId" : "evidence",
       "questions": [
@@ -290,7 +290,7 @@
     },
     {
       "id": "child-missing-education",
-      "title": "Child missing education",
+      "title": "Tell us about the child missing education",
       "pageTitle": "Child missing education details",
       "nextPageId": "evidence",
       "questions": [
@@ -373,7 +373,7 @@
     },
     {
       "id": "english-not-first-language-details",
-      "title": "Admission and arrival dates",
+      "title": "Tell us about their arrival in England",
       "pageTitle": "Admission and arrival dates",
       "nextPageId": "evidence",
       "questions": [
@@ -431,7 +431,7 @@
     },
     {
       "id": "permanent-exclusion",
-      "title": "Permanent exclusion",
+      "title": "Tell us about the permanent exclusion",
       "pageTitle": "Excluding school details",
       "nextPageId": "evidence",
       "questions": [
@@ -461,7 +461,7 @@
     },
     {
       "id": "permanently-left-england-questions",
-      "title": "Permanently left England",
+      "title": "Tell us about the pupil leaving England",
       "pageTitle": "Permanently left England details",
       "nextPageId": "evidence",
       "questions": [
@@ -489,7 +489,7 @@
     },
     {
       "id": "life-limiting-illness",
-      "title": "Terminal or critical illness",
+      "title": "Tell us about the terminal or critical illness",
       "pageTitle": "Health issue details",
       "nextPageId": "evidence",
       "questions": [
@@ -646,7 +646,7 @@
     },
     {
       "id": "social-care",
-      "title": "Social care involvement - including police or prison",
+      "title": "Tell us about the social care involvement",
       "pageTitle": "Social care details",
       "nextPageId": "evidence",
       "questions": [

@@ -54,7 +54,7 @@ export const removeAdmittedFromAbroad = {
             pageId: "english-not-first-language-details",
 
             expectedHeading:
-                "Admission and arrival dates",
+                "Tell us about their arrival in England",
 
             answers: {
                 q_country_originally_from:

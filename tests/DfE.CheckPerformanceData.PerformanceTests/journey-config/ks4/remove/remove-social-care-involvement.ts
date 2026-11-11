@@ -43,7 +43,7 @@ export const removeSocialCareInvolvement = {
             pageId: "social-care",
 
             expectedHeading:
-                "Social care involvement - including police or prison",
+                "Tell us about the social care involvement",
 
             answers: {
                 q_social_care_reason:

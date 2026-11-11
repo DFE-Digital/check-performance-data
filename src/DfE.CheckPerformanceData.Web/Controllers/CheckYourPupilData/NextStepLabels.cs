@@ -15,9 +15,9 @@ public static class NextStepLabels
 {
     public static string For(NextSteps step, LearnerNoun noun) => step switch
     {
-        NextSteps.RequestChange => $"Request an amendment to {noun.Singular} data",
-        NextSteps.Confirm => $"Confirm {noun.Singular} data is correct",
-        NextSteps.ResultsEnquiry => "Report an issue with an exam result",
+        NextSteps.RequestChange => $"request an amendment to {noun.Singular} data",
+        NextSteps.Confirm => $"confirm {noun.Singular} data is correct",
+        NextSteps.ResultsEnquiry => "report an issue with an exam result",
         _ => step.ToString()
     };
 }

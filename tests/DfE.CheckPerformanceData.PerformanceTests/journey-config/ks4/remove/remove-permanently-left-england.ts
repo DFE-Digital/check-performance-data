@@ -39,7 +39,7 @@ export const removePermanentlyLeftEngland = {
             pageId: "permanently-left-england-questions",
 
             expectedHeading:
-                "Permanently left England",
+                "Tell us about the pupil leaving England",
 
             answers: {
                 q_country_moved_to:

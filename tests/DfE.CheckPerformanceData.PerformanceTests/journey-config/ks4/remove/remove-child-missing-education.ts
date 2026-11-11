@@ -43,7 +43,7 @@ export const removeChildMissingEducation = {
             pageId: "child-missing-education",
 
             expectedHeading:
-                "Child missing education",
+                "Tell us about the child missing education",
 
             answers: {
                 q_why_removed:

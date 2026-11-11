@@ -145,7 +145,7 @@ public sealed class ConfirmationViewSourceTests
     {
         var source = ReadViewSource("Views/Journey/Confirmation.cshtml");
 
-        Assert.Contains("Return to check your data", source);
+        Assert.Contains("return to check your data", source);
     }
 
     [Fact]

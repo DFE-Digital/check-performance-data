@@ -19,7 +19,7 @@ What decides the order, strongest first:
 1. the page's **Search keywords**
 2. its title
 3. its subtitle
-4. the text of the page
+4. the text of the page: its headings, rich text, cards and published callouts. Search does not read a Summary list.
 
 Search understands word endings, so *check* also finds *checking* and *checked*. It ignores very common words such as *the* and *of*.
 
@@ -52,7 +52,7 @@ Add a **Search** widget, then choose what it searches with **Search in**.
 | Chosen pages | The pages you tick, and every page beneath each one | Searching one section, or several sections together |
 | This page | Only the page the box is on | Helping people find a section of one long page |
 
-With **Chosen pages**, tick the pages under **Pages to search**. Ticking a page includes everything beneath it, so tick *Guidance* to search all the guidance. Tick several to search them as a group.
+With **Chosen pages**, tick the pages under **Pages to search**. Ticking a page includes everything beneath it, so tick *Guidance* to search all the guidance. Tick several to search them as a group. To find a page in a long list, type in **Filter pages**. Tick **Show only selected pages** to check what you have chosen.
 
 > The box remembers the pages themselves, not their addresses. If someone later renames or moves a page you ticked, the search box keeps working.
 
@@ -76,7 +76,7 @@ Tick **Instant search** and the box suggests matches while the visitor is still 
 What a suggestion does depends on **Search in**:
 
 - **This page**: the suggestions are sections of the page. Choosing one jumps to that section and highlights the words searched for.
-- **The whole site** or **Chosen pages**: the suggestions are pages, up to 10. Choosing one opens that page.
+- **The whole site** or **Chosen pages**: the suggestions are pages, up to 10. Choosing one opens that page at the section that best matches, with the words searched for marked. This needs JavaScript.
 
 Two more settings appear when Instant search is ticked.
 
@@ -96,7 +96,7 @@ The search box at the top of this guide is a Search widget set to **Chosen pages
 For most pages the standard results page is all you need. Build your own when you want results to appear inside a section, with that section's menu and wording around them.
 
 1. Create a page, for example `guidance/search`.
-2. Add a **Search results** widget. Tick the sections it should show results from, or leave everything unticked for the whole site.
+2. Add a **Search results** widget. Tick the sections it should show results from, or leave everything unticked for the whole site. **Filter pages** and **Show only selected pages** work here as they do in the Search widget.
 3. On the page with the search box, set the Search widget's **Form action URL** to the address of your results page, for example `/guidance/search`.
 
 The number of results on a page is 20 unless an administrator changes the `CMS:PageLength` setting.

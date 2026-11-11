@@ -23,11 +23,12 @@ Someone without a role that grants a section does not see it in the menu. If the
 
 - Pages
 - Content blocks
+- Home page banners
 - Deleted pages
 - Content staging import/export
 - Seed sample CMS pages
 
-Everything else is for administrators only until you grant it.
+That is the starting position on a new database only. On a database that already existed, an administrator ticks `home-banners` for editors on this screen when they should have it. Everything else is for administrators only until you grant it.
 
 ## Change what a role can use
 
@@ -51,6 +52,7 @@ An administrator who writes content should be given both roles in DfE Sign-in. W
 |---|---|
 | `content-pages` | Pages: create, edit, publish, move, copy and delete |
 | `content-blocks` | Content blocks |
+| `home-banners` | Home page banners |
 | `deleted-pages` | Deleted pages, and restoring them |
 | `content-staging` | Content staging import/export |
 | `search-analytics` | Search analytics |

@@ -9,7 +9,7 @@ Administrators can use every tool an editor can. These pages cover the rest: the
 
 ## The Administration page
 
-Select **Admin** in the header. The Administration page lists every tool your role can use, in groups. The same groups are in the menu on the left of every admin screen.
+Select **Admin** in the navigation bar under the Department for Education logo. The Administration page lists every tool your role can use, in groups. The same groups are in the menu on the left of every admin screen.
 
 The CMS tools are in the **CMS administration** group.
 
@@ -17,6 +17,7 @@ The CMS tools are in the **CMS administration** group.
 |---|---|---|
 | Pages | Create, edit, move, copy and delete pages | Yes |
 | Content blocks | Edit the text of the fixed pages | Yes |
+| Home page banners | Add, schedule and order the notices at the top of the start page | Yes |
 | Deleted pages | Restore a page that was deleted | Yes |
 | Content staging import/export | Move content between environments | Yes |
 | Search analytics | See what people search for and cannot find | No |

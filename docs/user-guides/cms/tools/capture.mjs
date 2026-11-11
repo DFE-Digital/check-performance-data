@@ -12,6 +12,7 @@
 // Before the first screenshot it imports the example page from demo-content.mjs, so the pictures
 // do not depend on what happens to be in the database. Each screenshot is one entry in `shots`
 // below: where to go, what to do there, and which part of the screen to keep.
+// (The file input is picked by its name, not its id: the enhanced upload gives the id to its button.)
 import { chromium } from 'playwright';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -126,7 +127,7 @@ async function importExamplePage() {
   await writeFile(file, JSON.stringify(demoBundle()), 'utf8');
 
   await go('/admin/content-staging');
-  await page.setInputFiles('#bundle', file);
+  await page.setInputFiles('input[type=file][name=bundle]', file);
   await Promise.all([
     page.waitForURL(/content-staging\/preview/i),
     page.getByRole('button', { name: 'Preview import' }).click(),
@@ -190,7 +191,8 @@ const shots = [
   } },
   { name: 'admin-landing', role: 'editor', run: async () => {
     await go('/admin');
-    await save('admin-landing');
+    // The tiles run below the first screen, and the text names the last ones, so keep down to Content staging.
+    await save('admin-landing', { around: ['header', '.admin-main a:has-text("Content staging import/export")'], pad: 16 });
   } },
   { name: 'pages-list', run: async () => {
     await go(`/admin/pages/${guidanceRootId}`);
@@ -295,7 +297,7 @@ const shots = [
   } },
   { name: 'content-block-edit', run: async () => {
     await go('/admin/content-blocks');
-    await page.getByRole('row').filter({ hasText: 'home-content' }).getByRole('link', { name: 'Edit' }).click();
+    await page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'home-content_v2', exact: true }) }).getByRole('link', { name: 'Edit' }).click();
     await page.locator('.tox-tinymce').first().waitFor();
     await page.waitForTimeout(500);
     const form = page.locator('main form').filter({ has: page.locator('.tox-tinymce') }).first();
@@ -309,12 +311,12 @@ const shots = [
     await save('content-block-in-place', { around: ['h1', pencil, page.getByRole('button', { name: 'Start now' })], pad: 20 });
   } },
   { name: 'content-block-in-place-form', role: 'editor', run: async () => {
-    await go('/?edit=home-content');
+    await go('/?edit=home-content_v2');
     const form = page.locator('form').filter({ has: page.getByRole('button', { name: 'Save' }) }).first();
     await save('content-block-in-place-form', { around: [form], pad: 20 });
   } },
   { name: 'content-block-versions', run: async () => {
-    await go('/content-block/versions/home-content');
+    await go('/content-block/versions/home-content_v2');
     await save('content-block-versions', { around: ['h1', 'main table'] });
   } },
 

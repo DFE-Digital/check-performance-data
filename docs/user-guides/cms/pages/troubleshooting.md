@@ -48,9 +48,9 @@ Most problems in the CMS have one of a few causes. Find what you are seeing belo
 
 | What is missing | Why |
 |---|---|
-| The **Admin** link, or a tool in the admin area | Your role does not include it. Ask an administrator to check [Roles and access](managing-roles.md). |
+| The **Admin** link, or a tool in the admin area | Your role does not include it. Ask an administrator to check [Roles and access](managing-roles.md). The **Admin** link is also hidden while an administrator is viewing the service as an establishment. Select **Exit impersonation** to bring it back. |
 | The **Edit** button on a page | You are not signed in as an editor, or the page is not a content page. Wiki pages are edited from **Admin**, then **Pages**. Fixed pages are edited through [content blocks](content-blocks.md). |
-| The pencil beside a content block, or the preview of an unpublished page | Both need the content editor role itself. Use **Admin**, then **Content blocks** or **Pages**, or ask for that role as well. |
+| The pencil beside a content block, or the preview of an unpublished page | Both need the content editor role itself, and the pencil is hidden while an administrator is viewing the service as an establishment. Use **Admin**, then **Content blocks** or **Pages**, or ask for that role as well. |
 | A new content block in the list | A block appears after someone has visited the page it is on. Visit the page, then look again. |
 
 ## I cannot do something
@@ -90,7 +90,7 @@ If there is no warning, an administrator can check the [audit log](viewing-logs.
 
 ## The page publishes at the wrong time
 
-Publishing dates are in UTC. In summer the UK is one hour ahead, so a page set to 09:00 goes live at 10am UK time. Enter a time one hour earlier. See [Drafts, publishing and versions](managing-versions.md).
+**Publish from** and **Publish to** are in UK time, in summer and in winter, so a page set to 09:00 goes live at 9am on UK clocks. Do not allow for the clocks. Check the date and time on the **Versions** tab, and that you selected **Save** on that row. See [Drafts, publishing and versions](managing-versions.md).
 
 ## Still stuck
 

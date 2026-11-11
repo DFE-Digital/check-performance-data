@@ -3,7 +3,7 @@ title: Drafts, publishing and versions
 subtitle: Publish now or later, take a page down, and go back to an earlier version
 parent: for-editors
 order: 4
-keywords: publish schedule unpublish draft live past scheduled version history restore revert rollback preview time utc
+keywords: publish schedule unpublish draft live past scheduled version history restore revert rollback preview time uk time clocks
 ---
 
 The CMS keeps every version of a page. One version at most is *live*, meaning visitors can see it. You can work on a draft for as long as you like without changing the live page.
@@ -44,7 +44,7 @@ The **Versions** tab lists every version, newest first, with who changed it and 
 | Past | Has been published and is not the live version now. Kept so that you can go back to it. |
 | Draft | Has no publishing dates. It has never been published, or it has been unpublished. |
 
-The statuses are worked out when someone publishes, unpublishes or edits the page. They do not change by themselves when a date passes. See *Publish at a future date* below.
+The *Live* tag is set when someone publishes, unpublishes or edits the page. It does not move by itself when a date passes. The other tags are worked out each time you open the tab, so a *Scheduled* version shows as *Past* once its **Publish from** time has gone by, even though visitors can already see it. See *Publish at a future date* below.
 
 Each version has these actions.
 
@@ -68,7 +68,9 @@ From that time, anyone who goes to the page's address sees the new version. You 
 
 > **Warning** Do not select **Publish** on a version you mean to schedule. **Publish** always means now, whatever dates are in the fields.
 
-> Times are in UTC, not UK time. From late March to late October the UK is one hour ahead of UTC, so for a page to go live at 9am UK time in summer, enter 08:00. In winter the two are the same.
+> **Publish from** and **Publish to** are in UK time. The tab says so: "Publish from and publish to are UK time: the time shown on UK clocks on that date, whether British Summer Time or Greenwich Mean Time applies." To go live at 9am on a summer date, enter 09:00. You do not need to allow for the clocks.
+>
+> A time that does not exist is refused. On the day the clocks go forward, 1am to 2am is skipped, so the tab shows an error such as "Publish from must be a real UK time. On 29 March 2026 the clocks go forward from 1am to 2am, so 1:30am does not exist". Enter a time outside that hour.
 
 ## Take a page down at a set time
 

@@ -6,7 +6,7 @@
 
 This guide is for Department for Education (DfE) staff who use the admin area of the Check Performance Data service. That includes service owners, window administrators, content editors and the people who run data egress.
 
-It covers every group on the Administration page, in the order the page shows them: Dashboard, CMS administration, System administration, Messages, Window administration, Data egress, Audit log and Danger zone. For each screen, it says what the screen is for, what you can see and what you can do.
+It covers every group on the Administration page, in the order the page shows them: Dashboard, CMS administration, System administration, Messages, Manage windows, Data egress, Audit log, View as an establishment and Danger zone. For each screen, it says what the screen is for, what you can see and what you can do.
 
 This guide does not cover:
 
@@ -24,10 +24,11 @@ The source of this guide is a Markdown file kept with the service's code, alongs
     - Home page banners
 - 5. System administration
 - 6. Messages
-- 7. Window administration
+- 7. Manage windows
 - 8. Data egress
 - 9. Audit log
-- 10. Danger zone
+- 10. View as an establishment
+- 11. Danger zone
 - Appendix A: Actions that cannot be undone
 - Appendix B: Admin sections a role can be granted
 - Appendix C: System settings reference
@@ -39,7 +40,9 @@ The source of this guide is a Markdown file kept with the service's code, alongs
 
 You sign in with your DfE Sign-In account. Choose your organisation when DfE Sign-In asks you to.
 
-Once you are signed in, an **Admin** link appears in the header of the service. It appears only if you have an admin role. If you cannot see the link, you do not have one.
+The top of every page is a band with the Department for Education logo. **Sign in** is on the right of the band. Once you are signed in, it changes to **Sign out**. The label does not show your name.
+
+Under the band is a row of navigation links. Once you are signed in, an **Admin** link appears in this row. It appears for both admin roles. If you cannot see the link, you do not have an admin role. The link is also hidden while you are viewing the service as an establishment (chapter 10).
 
 ### Roles
 
@@ -60,6 +63,8 @@ If you type the address of an admin page that your role has not been given, the 
 
 If you think you should have access to a page, ask an administrator to give your role that section. Chapter 5 explains how.
 
+*View as an establishment* works differently. It is not a section that can be given to a role. Only the `cypmd_admin` role, signed in through DfE Sign-In, can use it. The service refuses anyone else, and the browser address changes to `/Account/AccessDenied` before the *Page not found* screen appears. Chapter 10 explains it.
+
 ### Environments
 
 The service runs in 4 environments. Each one uses a matching DfE Sign-In environment.
@@ -79,18 +84,19 @@ Some screens exist only outside production. This guide says so wherever it appli
 
 Select **Admin** in the header to open the *Administration* page. It shows one section for each group you have access to.
 
-![The top of the Administration page, with the side menu listing the eight groups and the first groups of tools in the main area](admin/images/admin-landing.png)
-*The top of the Administration page. The side menu lists all eight groups. In the main area, each group has a heading, a description and links to its screens.*
+![The top of the Administration page, with the side menu listing the nine entries and the first groups of tools in the main area](admin/images/admin-landing.png)
+*The top of the Administration page. The side menu lists all nine entries. In the main area, each group has a heading, a description and links to its screens.*
 
-The groups are:
+There are nine entries. Dashboard, Manage windows, Audit log and View as an establishment are single links. The other five are groups that hold tiles. The entries are, in order:
 
 - **Dashboard**: figures on school engagement and amendment requests.
 - **CMS administration**: pages, content blocks, home page banners, deleted pages, content staging and search analytics.
 - **System administration**: the rules engine, system settings, logs, site CSS and JavaScript, role settings and test data.
 - **Messages**: search feedback and the dead-letter queue.
-- **Window administration**: creating and managing checking windows.
+- **Manage windows**: creating and managing checking windows and their checking exercises. This is one link. It is not a group.
 - **Data egress**: pulling approved decisions and sending them to the Learning Data Service (LDS).
 - **Audit log**: a record of administrative activity.
+- **View as an establishment**: seeing the service as one school or college sees it, in read-only mode. Only the `cypmd_admin` role, signed in through DfE Sign-In, sees this entry (chapter 10). Everyone else sees eight entries at most.
 - **Danger zone**: actions that permanently delete data, and the blob storage browser.
 
 ### The side menu and the Messages badge
@@ -102,7 +108,7 @@ Every admin page has the same menu on the left. It shows the same groups as the 
 
 The Pages entry opens out into the live page tree of the site. Under the menu, **Leave admin and go to the home page** takes you back to the public service.
 
-The **Messages** badge in the header counts 2 things added together: search feedback messages you have not read, and messages in the dead-letter queue. The count is red while the dead-letter queue has any messages in it.
+The **Messages** badge sits in the navigation row under the Department for Education band, on every admin page. Only the `cypmd_admin` role sees it. It counts 2 things added together: search feedback messages you have not read, and messages in the dead-letter queue. Select it to open the *Messages* page. The count is red while the dead-letter queue has any messages in it. Otherwise it is blue when the count is above 0, and grey when the count is 0.
 
 ### Conventions used in this guide
 
@@ -119,12 +125,12 @@ Use the *Dashboard* to see how many schools have engaged with a checking window 
 ![The Dashboard, with a checking window picker and 9 figure tiles in 2 groups: School engagement and Amendment requests](admin/images/dashboard.png)
 *The Dashboard for the Key Stage 4 June window.*
 
-The dashboard lists open checking windows only. To see another window:
+The dashboard lists open checking windows only. If no window is open, the page says *There are no open checking windows. Metrics are shown while a checking window is open.* and shows no figures. To see another window:
 
 1. Choose a window from **Checking window**.
 2. Select **View**.
 
-The page shows when the figures were last refreshed. They refresh by themselves every 15 minutes. To stop this, select **Stop automatic refresh**. The page then says *Automatic refresh is off. Reload the page to see newer figures.* Automatic refresh needs JavaScript. Without it, reload the page to see new figures.
+The page shows when the figures were last refreshed. They refresh by themselves every 15 minutes unless the service's dashboard refresh setting has been changed. The page says how often it refreshes. To stop this, select **Stop automatic refresh**. The page then says *Automatic refresh is off. Reload the page to see newer figures.* Automatic refresh needs JavaScript. Without it, reload the page to see new figures.
 
 The dashboard has 9 tiles:
 
@@ -181,7 +187,7 @@ In the side menu, you can also press the right mouse button on a page to see the
 
 1. To create a page at the top level, select the plus icon under the **Pages** heading. Its name is **Create a top-level page**. To create a page below another, select **Add child page** on its row.
 2. Choose the **Page type**: Content, Wiki or Folder.
-3. Enter the **URL segment**. Use lowercase letters, digits and hyphens only. For example, `my-page`.
+3. Enter the **URL segment**. Use lowercase letters, numbers and single hyphens. A hyphen cannot come first or last. For example, `my-page`. If you type capital letters, the service makes them lowercase when it creates the page.
 4. Enter the **Title**.
 5. Select **Create page**.
 
@@ -207,22 +213,24 @@ The buttons under the content are:
 
 | Button | What it does |
 |---|---|
-| **Save** | Saves your changes as a draft. The live page does not change. |
+| **Save** | Keeps the draft and refreshes the text that site search uses for the page. The service also keeps each change to the content as you make it. The live page does not change. |
 | **Publish draft** | Makes the draft live. The tag above the tabs changes from *Draft* to *Published*. |
 | **Unpublish** | Takes the live page offline. This button shows only while the page is published. |
 
-On the **Properties** tab you can change the Title, Subtitle, Page name, URL segment, Show in menu, Appear in search and Search keywords. Select **Save details** to save them. The service confirms with a *Page details* message that says *Saved.* Changing the URL segment changes the address of the page and of every page below it. The service asks you to confirm with *Change page URL?*, and warns that existing links and bookmarks will stop working.
+On the **Properties** tab you can change the Title, Subtitle, Page name, URL segment, Show in menu, Appear in search and Search keywords. Select **Save details** to save them. The service confirms with a *Page details* message that says *Saved.* The URL segment follows the same rule as when you create a page. The service makes capital letters lowercase when you save. If the segment breaks the rule, the *Page details* message says *URL segment can only contain lowercase letters, numbers and single hyphens, for example my-page.* Changing the URL segment changes the address of the page and of every page below it. The service asks you to confirm with *Change page URL?*, and warns that existing links and bookmarks will stop working.
 
 The **Versions** tab lists every saved version with its status, when it was changed and who changed it.
 
 #### Publishing, scheduling and restoring versions
 
-On the **Versions** tab, each version has **Publish from** and **Publish to** date and time fields, and these buttons:
+On the **Versions** tab, each version has **Publish from (UK time)** and **Publish to (UK time)** date and time fields, and these buttons. A hint above the table says the times are UK time: the time shown on UK clocks on that date, whether British Summer Time or Greenwich Mean Time applies. Enter the time as it shows on a UK clock. Do not convert it to UTC.
 
 - **Save** saves the dates. A version with a Publish from date in the future goes live at that time. A version with a Publish to date stops being live at that time.
 - **Publish** makes that version live now.
 - **Unpublish** takes the live version offline.
 - **View** previews the version.
+
+The service refuses a time that does not exist when the clocks go forward. The message reads, for example, *Publish from must be a real UK time. On 29 March 2026 the clocks go forward from 1am to 2am, so 1:30am does not exist.* Choose a time before 1am or after 2am.
 
 To go back to an earlier version of a page, select **Publish** on that version.
 
@@ -264,7 +272,7 @@ shows only while it is on and within its dates; off always hides it. "Show from"
 minute you enter and "Show until" does not, so a banner due to end at 17:00 is gone at 17:00.
 
 The list shows each banner's status: **Live** (on and within its dates), **Scheduled** (on,
-not yet due), **Expired** (on, past its end) or **Off**. Banners appear on the start page in
+not yet due), **Expired** (on, past its end) or **Off**. Banners appear on the start page, and at the top of the guidance front page (`/guidance`) but not on the pages below it, in
 the order of the list; use **Move up** and **Move down** to change it.
 
 Every save makes a new version. **Version history** shows them and lets you restore an
@@ -312,7 +320,9 @@ Importing has 2 steps. The first step changes nothing.
     - Each item also has its own choice, with **Use default** as the starting point. Use it to override the default for one item.
 5. Select **Confirm import**. To leave without importing, select **Cancel**. When the import finishes, the service shows a summary such as *Import complete. Pages: 1 added, 11 updated, 0 skipped. Content blocks: 0 added, 0 updated, 0 skipped. Home page banners: 0 added, 0 updated, 0 skipped.*
 
-Some items cannot be imported. The service lists them under *These items cannot be imported*. This happens when an item's parent page is not in this environment or in the file. The service skips these items, and does not create a blank parent for them.
+Some items cannot be imported. The service lists them under *These items cannot be imported*, with the reason for each. This happens when an item's parent page is not in this environment or in the file. It also happens when an item breaks a rule, for example when two pages would end up at the same address once capital letters are made lowercase. The service skips these items and imports the rest. It does not create a blank parent for them.
+
+If a page has capital letters in its URL segment, the import makes the segment lowercase and warns you. The warning appears in an *Important* box at the top of *Review import*, headed *Check this warning before you import.* (or *Check these 3 warnings before you import.*, with the number of warnings). Read it before you select **Confirm import**.
 
 An import applies the normal checks and keeps version history, as if someone had typed the content in. Every import is recorded in the audit log.
 
@@ -338,6 +348,10 @@ Below the filters you will find:
 
 - **4 summary figures**: Searches, Unique users, Zero-result rate and P95 latency. P95 latency is the time within which 95 out of 100 searches finished. Each figure shows how it compares with the previous period.
 - **Search volume over time**: a chart of searches and unique sessions. Select **View volume data table** for the same figures as a table.
+- **Unique sessions over time**, **Zero-result count over time** and **Latency percentiles over time**: one chart for each of the summary figures. Each has a link to the full figures.
+- **Request timings**: a chart of the time each search took, shown under Latency percentiles over time.
+
+With JavaScript on, each summary figure is a button that shows the chart for that figure. Without JavaScript, every chart shows.
 - **When people search**: a chart of searches by weekday and hour. Darker cells mean more searches. Select a cell to see the sessions behind it.
 - **Zero-result outcomes**: what happened after a search that found nothing. People either refined their search, sent feedback, or gave up without telling you.
 - **Top queries**, **Top zero-result queries**, **Top pages** and **Top content blocks**.
@@ -371,6 +385,8 @@ The engine takes routine, clear-cut requests off caseworkers' desks. If it has a
 
 After the engine decides, the service creates a Zendesk ticket for the request. The Department controls the rules the engine follows. You can view and change them in *Rules Engine configuration*, later in this chapter.
 
+The rules cover all four window types: Key Stage 2, Key Stage 4 June, Key Stage 4 Autumn and Post 16. A rule can test the window type, so the same reason can lead to a different outcome in each window.
+
 ### Pipeline dashboard
 
 Use the *Pipeline dashboard* to see whether requests are moving through the service, and how quickly.
@@ -389,7 +405,7 @@ The screen shows:
 
 Select **Export this view (CSV)** to download the figures. Select **Print or save as PDF** to print the page.
 
-Outside production, a **Demo** panel is also available. It lets testers send test requests through the pipeline. It does not appear in production.
+A **Demo** panel appears only where the service's development tools are switched on, and never in production. It lets testers send test requests through the pipeline. Most environments do not show it.
 
 #### Transactions
 
@@ -488,7 +504,13 @@ To add a branch to an outcome:
 
 1. Open the outcome, then select **Add branch**.
 2. Choose the **Decision**: AutoApproved, AutoRejected or Scrutiny.
-3. Build the **Condition**. Under **Match**, choose how conditions combine: *All of these*, *Any of these* or *Not (one condition)*. Select **Add condition** to add a test. For each test, choose a **Field**, which is one of the answers the school gives, then an **Operator** and a **Value**. The operators are *equals*, *does not equal*, *is one of*, *is known and certain* and *official language is*. If you change the field, select **Update field** so the operators match it. Select **Remove condition** to take a test out. Select **Add group** to nest a group of conditions.
+3. Build the **Condition**. Under **Match**, choose how conditions combine: *All of these*, *Any of these* or *Not (one condition)*. Select **Add condition** to add a test. For each test, choose a **Field**, then an **Operator** and a **Value**. A field is any piece of information the rules can read. It can be an answer the school gave, the window type or the request type, a value from the pupil record, or a calculated field such as `hasSupportingEvidence`. The operators on offer depend on the type of the field:
+    - A text field offers *equals*, *does not equal*, *is one of*, *is known and certain* and *official language is*.
+    - A number field offers *is less than*, *is less than or equal to*, *is greater than*, *is greater than or equal to*, *equals* and *is known and certain*.
+    - A date field offers *is before*, *is on or before*, *is after*, *is on or after* and *equals*.
+    - A yes or no field offers *equals*, *does not equal* and *is known and certain*.
+
+    If you change the field, select **Update field** so the operators match it. Select **Remove condition** to take a test out. Select **Add group** to nest a group of conditions.
 4. Select **Save branch**.
 
 To change a branch, select its edit icon. To reorder branches, use the up and down icons. To remove a branch, select its remove icon. The service then asks *Remove branch?* Select **Remove branch** to confirm. It records a new version, and you can roll it back.
@@ -558,7 +580,7 @@ Use *View logs* to see what the service has recorded about its own activity, and
 ![The top of the View logs screen, showing the filters for level, category, dates and search text](admin/images/app-logs.png)
 *The top of the View logs screen. The list of log entries continues below.*
 
-The list shows the newest entries first, 20 to a page. Each entry has a timestamp, a level, a category, a message and the request that caused it.
+The list shows the newest entries first. The number of entries on a page follows the *CMS:PageLength* system setting, which is 20 unless it has been changed. Each entry has a timestamp, a level, a category, a message and the request that caused it.
 
 To narrow the list, use the filters: **Level**, **Category**, **From (UTC)**, **To (UTC)** and **Search**. Search looks in the message and any error text, and ignores capital letters. Select **Apply filters**, or select **Reset** to clear them.
 
@@ -613,7 +635,11 @@ A change takes effect straight away on the server you saved it on. On other serv
 The *Test data* group has 2 tools for filling an environment with sample content. Use them to test or demonstrate the service.
 
 - **Seed sample CMS pages** adds a set of published sample pages under Wiki, Help, Support and Guidance. It also restores the pages used for testing. It is available in every environment except production.
-- **Seed sample search data** adds made-up search events and feedback messages, so that Search analytics has something to show. You choose how far back the data goes: the last 24 hours, week, month, quarter or year. It is available in development, review and QA environments only.
+- **Seed sample search data** adds made-up search events and feedback messages, so that Search analytics has something to show. It is available in development, review and QA environments only. Under **Time span preset**, choose how far back the data goes: *Last 24 hours*, *Last week*, *Last month*, *Last quarter* or *Last year*. Each preset has a usual number of events. To change the numbers, open *Advanced — override the row counts* and fill in **Events to seed** and **Feedback messages to seed**. Leave a box blank to use the preset. Select **Seed data**. The page shows how far the seeding has got, and you can cancel it.
+
+  The page ends with a **Danger zone** heading. Both buttons there ask you to confirm, and neither can be undone. The page text says both are limited to the local development environment. In fact they work wherever the page itself is available: development, review and QA.
+    - **Delete seeded data** deletes only the search events, results and feedback messages that this tool created.
+    - **Delete all data** deletes every search event, result and feedback message, including real ones. You must type DELETE to confirm.
 
 > **Warning** Sample data looks like real data. Search events and feedback messages you seed appear in Search analytics and in the Search feedback inbox, and cannot be told apart from real ones. Do not seed sample data in an environment where you need to see real figures.
 
@@ -1225,22 +1251,25 @@ Use *Start a new egress* to begin.
 2. Under **2. Select data to pull from Zendesk**, tick **New learners**, **Remove learners** or both.
 3. Select **Pull data from Zendesk**.
 
+The service reads each decision, and the other values that go into the files, from the Zendesk ticket. A correction that a caseworker makes on a ticket therefore reaches the file. The service does not work those values out again from its own records. It reads its own records only for the few values that have no Zendesk field.
+
 The service saves the run as soon as the pull finishes. The same screen lists *Saved runs* that are still in progress, each with a **Resume** button, and *Completed runs*, with a **View** link.
 
-If the service refuses to start the run, it says why. There are 2 common reasons:
+If the service refuses to start the run, it says why. There are 3 common reasons:
 
 - *{Output type} for this checking window is already being processed by {name}, started {date} at {time} UTC. Wait for that run to finish or be abandoned.*
 - *{Output type} for this checking window has already been transferred to LDS by {name} on {date} at {time} UTC. It cannot be sent again.*
+- *Zendesk could not be read: …* This appears when the service cannot read the tickets. One cause is that the environment has no Zendesk ticket field id set for a field that egress reads. The message then names the fields, in the form *These Zendesk field ids are not configured for this environment (ZendeskTicketFields), so egress cannot read them: …* You cannot fix this from the admin area. Ask the development team to set the missing ids (Appendix D).
 
 ### Reviewing the pulled data, preprocessing and transferring
 
 A run has 5 screens. You move through them in order.
 
-**1. Data pulled from Zendesk.** The screen lists every request for the output types you chose, whatever its decision, with one tab for each output type. Each row shows the ticket ID, reference, decision, reason and the pupil details. Only approved and auto-approved requests go forward.
+**1. Data pulled from Zendesk.** The screen lists every request for the output types you chose, whatever its decision, with one tab for each output type. Each row shows the **Ticket ID**, **Reference**, **Decision**, **Reason**, **Key stage**, **DfE establishment number**, **Surname**, **Forename**, **Sex**, **Date of birth**, **Admission date**, **Year group**, **SEN status**, **UPN or ULN**, **CYPMD ID**, **LDS matched pupil ID**, **School URN** and **Submitted**. A column is blank when the record has no value for it. Only approved and auto-approved requests go forward.
 
 The buttons are **Proceed to preprocessing**, **Save and exit** and **Abandon run**.
 
-**2. Preprocessing data.** Select **Run preprocessing**. The service prepares the records in 8 steps and shows progress as it goes: Filter records, Derive correction codes, Split DfE establishment number, Standardise dates, Build LDS records, Trim values, Validate against LDS spec and Save to database. Do not leave the page while it runs. If you do, the run goes back to the pulled data and nothing is saved. When it finishes, the service takes you to the next screen.
+**2. Preprocessing data.** Select **Run preprocessing**. The service prepares the records in 8 steps and shows progress as it goes: Filter records, Read correction codes, Split DfE establishment number, Standardise dates, Build LDS records, Trim values, Validate against LDS spec and Save to database. Do not leave the page while it runs. If you do, the run goes back to the pulled data and nothing is saved. When it finishes, the service takes you to the next screen.
 
 **3. Preprocessing failed.** You only see this screen if a record has a problem. The service says how many problems it found. One failing record fails the whole batch, so nothing is saved and nothing is sent. The *Records that failed* list shows the **Ticket ID**, **Reference**, **Step**, **Field** and **Problem** for each one. Correct the source data in Zendesk, then select **Start a new egress**. Select **View the pulled data** to look at the records again. You cannot retry a failed run. You always start a new one.
 
@@ -1282,6 +1311,12 @@ The list shows the newest entries first, 20 to a page. The columns are **User**,
 - For data egress, the Activity is a *Data egress* tag. A pull shows *Run started*. A transfer shows a *Success* or *Failed* status.
 - When someone closes an exercise early, the Activity is a *Window admin* tag. The Checking window column names the window, with the exercise and *closed early, before scheduled end* beneath. The User column shows who closed it, and the Status is *Success*.
 - When the service sends an exercise's requests for processing by itself, the Activity is also a *Window admin* tag. The Checking window column names the window, with the exercise and how many requests were sent and drafts cancelled beneath. The User column shows *System*, and the Status is *Success*.
+- When someone adds, changes, closes early or sends the requests of an extension (extra time for named schools), the Activity is a *Window admin* tag. The Status is *Success*. The detail beneath the tag is one of these, with the exercise name first:
+    - *{Exercise} extension added for 3 schools, ending 01/12/2026 17:00*
+    - *{Exercise} extension edited: 1 school added, 0 schools removed, ending 01/12/2026 17:00*
+    - *{Exercise} extension closed early, before its end*
+    - *{Exercise} extension requests sent for processing: 4 requests sent, 2 drafts cancelled*
+- When an administrator starts or ends viewing the service as an establishment (chapter 10), the Activity is an *Establishment impersonation* tag. Beneath it is *Start*, or *Exit*, then the establishment's LAESTAB and URN, as in *Start: LAESTAB {number}, URN {number}*. The Status is *Success*. When someone tries a change that is blocked during viewing, the detail starts *BlockedChange* and the Status is *Failed*.
 - For everything else, the Activity is the type of item that changed, with the action beneath it: Insert, Update or Delete.
 - Actions the service takes for itself show *System* as the user.
 
@@ -1289,15 +1324,101 @@ By default the log shows all activity. Most of it is routine application log ent
 
 - **Filter by activity**: choose the type of item, such as *Data egress*, *Dead letter* or *Role access*.
 - **Filter by window**: choose a checking window.
-- **Filter by status**: *Success* or *Failed*. Data egress transfers have either. An exercise closed early, or one whose requests the service sent by itself, is always *Success*.
+- **Filter by status**: *Success* or *Failed*. Only two kinds of row can be *Failed*: a data egress transfer that failed, and a blocked change while viewing the service as an establishment. Every other row that has a status, such as an exercise closed early, an extension change, or requests the service sent by itself, is *Success*.
 
 Select **Apply filters**. The filters work together.
 
-Select **Export log as CSV** to download every entry that matches your filters.
+Select **Export log as CSV** to download every entry that matches your filters. The file has one line for each entry, with these columns: *Timestamp (UTC)*, *User*, *Activity*, *Action*, *Entity type*, *Entity id*, *Checking window*, *Output types* and *Status*. It never includes the details of what changed.
 
 You cannot edit or delete audit log entries from the service.
 
-## 10. Danger zone
+## 10. View as an establishment
+
+Use *View as an establishment* to see the service as one school or college sees it. It is read-only. You can look at what the establishment sees, but you cannot save or submit anything. Use it to help a school that says it cannot see something, or to check what a school sees after a data release.
+
+### Who can use it
+
+Only the `cypmd_admin` role can use *View as an establishment*, and only when you are signed in through DfE Sign-In. It is not an admin section, so it does not appear on *Role settings* and an administrator cannot give it to another role. A sign-in made with the development tools (**As CMS Admin**) cannot use it.
+
+If your role cannot use it, the service refuses you. The browser address changes to `/Account/AccessDenied`, and the *Page not found* screen appears.
+
+### Starting
+
+1. Select **View as an establishment** on the *Administration* page, or in the side menu.
+2. Choose the establishment, as described below.
+3. Select **Continue to choose where to start**.
+4. On the next screen, choose where to start (see "Choosing where to start").
+
+![The View as an establishment screen, with the establishment search box and the LAESTAB, URN, Lowest age and Highest age fields](admin/images/impersonation-start.png)
+*The View as an establishment screen.*
+
+The screen says: *View establishment data in read-only mode. You cannot save or submit changes.* You can fill it in 2 ways.
+
+- **Search.** In **Search for an establishment**, enter at least 2 characters from the establishment's name or URN. Choose one of the suggestions, up to 25 of them. The service fills in the four fields below for you. If nothing matches, the box says *No establishments found*. The search needs JavaScript.
+- **Type the details.** Enter the **LAESTAB** (7 digits), the **URN** (6 digits), the **Lowest age** and the **Highest age**. Without JavaScript this is the only way.
+
+The screen refuses details it cannot use, and says why:
+
+- *Enter a Laestab*, *Enter an Urn*, *Enter the lowest age* or *Enter the highest age* when a box is empty.
+- *Enter a valid LAESTAB* or *Enter a valid URN* when the number does not have the right number of digits.
+- *Enter an age between 0 and 150* when an age is outside that range.
+- *The highest age must be greater than the lowest age*.
+
+### Choosing where to start
+
+The next screen is headed *Choose where to start impersonation*.
+
+![The Choose where to start impersonation screen, with the establishment summary, a Go to establishment home page button and the checking exercises that hold data for the establishment](admin/images/impersonation-choices.png)
+*Choosing where to start.*
+
+It shows a summary of the establishment: its name, LAESTAB, URN and age range. You then have 2 choices:
+
+- Select **Go to establishment home page** to start on the page a school sees when it signs in.
+- Under *Checking exercises with establishment data*, find the window and the exercise, then select **View this checking window**. The service starts on that window's *Check your pupil data* page.
+
+The list holds only the exercises where the service has imported data for this LAESTAB. For each exercise it shows a tag and a table called *Imported data by dataset*, with the **Rows read** and **Rows imported** for each file.
+
+- **URN matched** (green) means the imported rows belong to the URN you entered.
+- **URN could not be verified** or **URN does not match** (yellow) means the service cannot confirm the URN. The counts are then for the LAESTAB, and may include data for a different URN.
+
+If no exercise holds data for the LAESTAB, the screen says *No checking exercise summaries show imported data for this LAESTAB.* You can still select **Go to establishment home page**. If the service could not read some summaries, a warning says *Some checking exercise summaries could not be checked. The list may be incomplete.*
+
+If you chose the exercise and it has since become unavailable, the screen says *That exercise is no longer available for this establishment. Choose another destination.* Select **Choose a different establishment** to go back to the first screen.
+
+### While you are viewing
+
+Every page shows a banner at the top with the heading *Read-only impersonation*. It says which establishment you are viewing: *Viewing LAESTAB {number}, URN {number}. Changes cannot be saved or submitted.* The banner has an **Exit impersonation** button.
+
+![A page of the service seen as an establishment, with the Read-only impersonation banner at the top](admin/images/impersonation-banner.png)
+*The banner shown on every page while you view an establishment.*
+
+You can open:
+
+- the establishment's landing page
+- *Check your pupil data*, and its downloads
+- the lists of requests, and the pages for a draft or a submitted request
+- the evidence files on a submitted request
+
+On the request lists, the tick boxes, the buttons that submit requests, and the **Edit** and **Delete** links are not shown. Draft requests have a **View** link instead. On *Check your pupil data*, the buttons that start a request are not shown.
+
+You cannot do anything that saves or submits. You also cannot open any admin page. If you try, the service shows a page headed *Read-only impersonation* that says *This action is unavailable while impersonating. Exit impersonation using the banner before accessing admin sections or making changes.* Select **Return to establishment data** to go back.
+
+Some things change for you while you view:
+
+- The **Admin** link is hidden from the navigation row.
+- The pencil buttons that edit content blocks and page titles are hidden.
+- The **Edit** button on CMS pages is still shown, but selecting it opens the refusal page.
+- If you open a checking window that is not open for the establishment, the service shows *Establishment data unavailable*.
+
+### Stopping
+
+Select **Exit impersonation** in the banner. The service takes you back to the *Administration* page. Signing out also ends it.
+
+### The audit log
+
+The service records when you start and when you exit, with the LAESTAB and URN, in the audit log (chapter 9). It also records each time the service blocks a change while you are viewing. Those rows show the status *Failed*.
+
+## 11. Danger zone
 
 This group holds actions that permanently delete or change data. Use them with care.
 
@@ -1308,7 +1429,14 @@ Use *Reset seed data* to put a test environment back to its starting state.
 ![The Reset seed data screen, with a warning and a Reset seed data button](admin/images/reset-seed-data.png)
 *The Reset seed data screen.*
 
-The screen is available in every environment except production. Testers use it on development, QA and preproduction.
+The screen is available in every environment except production. Testers use it on development, QA and preproduction. Its heading is *Reset seed data?*
+
+A reset puts these things back to their starting state:
+
+- **The checking windows.** The service deletes every window and creates seven: *Key Stage 4 June*, *Key Stage 4 Autumn*, *Key Stage 2*, and four Post 16 windows, *16 to 19 Oct*, *16 to 19 Nov*, *16 to 19 Feb* and *16 to 19 Mar*. Each one has its checking exercises and data files set up. The four Post 16 windows are one for each step of the results enquiry year.
+- **The sample data files.** The service loads sample pupil, results and summary files into each window and validates them, so each window has a release. It also copies the sample files into Ingress Storage, so you can repeat a step by hand.
+- **The sample change requests**, the pupil data and the question flows.
+- **The rules and the country languages.** The service puts the rules back only if the rules it ships are newer than the saved ones, or the saved ones are unusable. It leaves the country languages alone if they exist. The qualification list is put back if it is missing.
 
 > **Warning** This permanently deletes all change requests and checking windows. It then puts the database, pupil data and question flows back to the default seeded state. Any data testers created is lost. This cannot be undone. The screen is the only confirmation. When you select **Reset seed data**, it happens straight away. Select **Cancel** to leave.
 
@@ -1316,14 +1444,13 @@ The screen is available in every environment except production. Testers use it o
 
 Use the *Blob storage browser* to look at files in the service's storage, and to upload, download and delete them.
 
-![The Blob storage screen, listing three storage accounts, each with a Browse link](admin/images/storage-browser.png)
+![The Blob storage screen, listing two storage accounts, each with a Browse link](admin/images/storage-browser.png)
 *The Blob storage screen.*
 
-There are 3 storage accounts:
+There are 2 storage accounts:
 
 - **App Storage**: the service's own files. It holds one container for each checking window, with the pupil data for that window.
-- **Ingress Storage**: the files that suppliers send in, which you choose from when you set up a window.
-- **egress**: the files prepared for LDS.
+- **Ingress Storage**: the files that suppliers send in, which you choose from when you set up a window. The files that data egress prepares for LDS are also here, in the container `cypmd`, in the folder `extracts_input/`.
 
 To find a file:
 
@@ -1399,9 +1526,13 @@ This table lists the actions in the admin area that change or delete data. It sa
 | System administration | `seed-sample-search-data` | Seed sample search data |
 | Messages | `messages-inbox` | Search feedback |
 | Messages | `dead-letter-queue` | Dead Letter Queue |
-| Window administration | `window-admin` | The Window administration heading |
-| Window administration | `new-window` | Create new window |
-| Window administration | `manage-window` | Manage windows, the window summary and the requests list |
+| Manage windows | `window-admin` | Nothing now. The section is still on *Role settings*, but no screen uses it. |
+| Manage windows | `new-window` | The **New window** button, and the last 2 steps of creating a window: *Check your answers* and cancelling |
+| Manage windows | `manage-window` | The *Manage windows* list, the window summary, the requests list, the first 3 steps of creating a window (title, window type and dates), and every page for changing or deleting a window or an exercise |
+
+A role needs both `new-window` and `manage-window` to create a window. Chapter 7 explains this under "Who can do what".
+
+*View as an establishment* (chapter 10) is not in this table. It is not a section, so it cannot be given to a role. Only the `cypmd_admin` role can use it.
 | Data egress | `egress` | Start a new egress and every screen of a run |
 | Data egress | `egress-runs` | Egress runs |
 | Audit log | `audit-log` | Audit log |

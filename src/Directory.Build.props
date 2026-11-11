@@ -9,5 +9,7 @@
          NU1004 instead of quietly re-resolving. build.yml and the Dockerfiles also restore in
          locked mode explicitly; the Dockerfiles have no CI variable. -->
     <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+
+    <DfeAnalyticsDbContext>DfE.CheckPerformanceData.Persistence.Contexts.PortalDbContext, DfE.CheckPerformanceData.Persistence</DfeAnalyticsDbContext>
   </PropertyGroup>
 </Project>

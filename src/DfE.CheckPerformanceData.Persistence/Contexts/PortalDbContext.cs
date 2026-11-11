@@ -2,6 +2,7 @@ using System.Text.Json;
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Persistence.Analytics;
 using DfE.CheckPerformanceData.Persistence.Configurations;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -82,6 +83,8 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new SearchEventConfiguration());
         modelBuilder.ApplyConfiguration(new SearchEventResultConfiguration());
         modelBuilder.ApplyConfiguration(new SearchMessageConfiguration());
+
+        modelBuilder.ConfigureAnalyticsSync();
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

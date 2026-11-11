@@ -43,7 +43,7 @@ export const removeLifeLimitingIllness = {
             pageId: "life-limiting-illness",
 
             expectedHeading:
-                "Terminal or critical illness",
+                "Tell us about the terminal or critical illness",
 
             answers: {
                 q_life_limiting_illness_health_issue:

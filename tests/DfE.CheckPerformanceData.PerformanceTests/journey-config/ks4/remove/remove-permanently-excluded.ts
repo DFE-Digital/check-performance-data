@@ -43,7 +43,7 @@ export const removePermanentlyExcluded = {
             pageId: "permanently-excluded",
 
             expectedHeading:
-                "Permanently excluded",
+                "Tell us about the permanent exclusion",
 
             answers: {
                 q_date_permanently_excluded_day:

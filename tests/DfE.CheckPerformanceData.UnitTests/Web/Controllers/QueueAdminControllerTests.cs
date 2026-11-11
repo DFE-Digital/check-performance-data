@@ -7,12 +7,25 @@ using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
-public sealed class QueueAdminControllerTests
+public sealed class QueueAdminControllerTests : IDisposable
 {
+    // Each test that builds a substitute context also builds a real one for its change tracker.
+    // The class owns them so that each one is disposed.
+    private readonly List<PortalDbContext> _trackerContexts = [];
+
+    public void Dispose()
+    {
+        foreach (var context in _trackerContexts)
+        {
+            context.Dispose();
+        }
+    }
+
     // --- Controller class carries [RequireAdminSection("rules-engine-queue")] ---
     //
     // Every action (Index / Dlq / Message / Redrive / Purge / RedriveMessage / PurgeMessage
@@ -399,13 +412,21 @@ public sealed class QueueAdminControllerTests
         Assert.IsType<RedirectToActionResult>(result);
     }
 
-    private static (IPortalDbContext DbContext, Microsoft.EntityFrameworkCore.DbSet<AuditEntry> Audits)
+    private (IPortalDbContext DbContext, Microsoft.EntityFrameworkCore.DbSet<AuditEntry> Audits)
         SubstituteDbContext()
     {
         var dbContext = Substitute.For<IPortalDbContext>();
         var audits = Substitute.For<Microsoft.EntityFrameworkCore.DbSet<AuditEntry>>();
         dbContext.AuditEntries.Returns(audits);
         dbContext.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
+        // The audited action clears the change tracker first (#757). A substituted context has no
+        // tracker, so a real one from a context that never opens a connection stands in.
+        var trackerContext = new PortalDbContext(
+            new DbContextOptionsBuilder<PortalDbContext>()
+                .UseNpgsql("Host=unused").Options,
+            Substitute.For<ICurrentUserService>());
+        _trackerContexts.Add(trackerContext);
+        dbContext.ChangeTracker.Returns(trackerContext.ChangeTracker);
         // The transaction wrapper runs the supplied work inline so the audit write and the
         // queue mutation it encloses actually execute under test.
         dbContext.ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>())

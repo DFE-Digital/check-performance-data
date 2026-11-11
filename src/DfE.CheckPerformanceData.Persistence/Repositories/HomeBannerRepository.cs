@@ -108,7 +108,23 @@ public sealed class HomeBannerRepository(IPortalDbContext context, ICurrentUserS
     public async Task<HomeBannerVersionDto?> GetVersionByIdAsync(int versionId) =>
         await context.HomeBannerVersions.AsNoTracking().Where(v => v.Id == versionId).Select(v => ToVersionDto(v)).FirstOrDefaultAsync();
 
-    public Task ExecuteInTransactionAsync(Func<Task> work) => context.ExecuteInTransactionAsync(work);
+    public Task ExecuteInTransactionAsync(Func<Task> work) =>
+        context.ExecuteInTransactionAsync(async () =>
+        {
+            // #757: the retry strategy runs this delegate again with the same context. Forget
+            // what the failed attempt tracked. Otherwise the retry saves it a second time. It can
+            // also skip an update that the database rolled back. Forget it after a failure too.
+            context.ChangeTracker.Clear();
+            try
+            {
+                await work();
+            }
+            catch
+            {
+                context.ChangeTracker.Clear();
+                throw;
+            }
+        });
 
     private static HomeBannerDto ToDto(HomeBanner b) => new()
     {

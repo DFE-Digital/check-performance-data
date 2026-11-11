@@ -81,6 +81,35 @@ public class ContentBlockServiceTests
         await _repository.DidNotReceive().AddVersionAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>());
     }
 
+    [Fact]
+    public async Task EnsureAsync_WhenAnotherRequestCreatesTheKeyFirst_ReturnsThatBlock()
+    {
+        var winner = MakeBlock(id: 11, key: "raced-key", value: "<p>Default</p>");
+        // First read: nothing. Second read, after the duplicate key: the other request's block.
+        _repository.GetByKeyAsync("raced-key").Returns((ContentBlockDto?)null, winner);
+        var duplicate = new InvalidOperationException("duplicate key");
+        _repository.ExecuteInTransactionAsync(Arg.Any<Func<Task>>()).Returns(Task.FromException(duplicate));
+        _repository.IsDuplicateKey(duplicate).Returns(true);
+
+        var result = await _sut.EnsureAsync("raced-key", "Content", "<p>Default</p>", "/some-page");
+
+        Assert.Equal(11, result.Id);
+    }
+
+    [Fact]
+    public async Task EnsureAsync_WhenTheInsertFailsForAnotherReason_Throws()
+    {
+        _repository.GetByKeyAsync("broken-key").ReturnsNull();
+        var failure = new InvalidOperationException("not a duplicate key");
+        _repository.ExecuteInTransactionAsync(Arg.Any<Func<Task>>()).Returns(Task.FromException(failure));
+        _repository.IsDuplicateKey(failure).Returns(false);
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.EnsureAsync("broken-key", "Content", "<p>Default</p>", "/some-page"));
+
+        Assert.Same(failure, thrown);
+    }
+
     // --- RecordLastSeenAsync ---
 
     [Fact]

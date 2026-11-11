@@ -20,6 +20,10 @@ public sealed class AdminSectionAccessRepository(IPortalDbContext context) : IAd
     {
         await context.ExecuteInTransactionAsync(async () =>
         {
+            // #757: the retry strategy can run this delegate again. Rows that the failed attempt
+            // added are still tracked and would be inserted twice. Forget them.
+            context.ChangeTracker.Clear();
+
             var existing = await context.AdminSectionAccesses
                 .Where(a => a.RoleName == roleName)
                 .ToListAsync();

@@ -329,6 +329,10 @@ public sealed class QueueAdminController : Controller
 
         await _dbContext.ExecuteInTransactionAsync(async () =>
         {
+            // #757: the retry strategy can run this delegate again. The audit row from the failed
+            // attempt is still tracked and would be saved twice. Forget it.
+            _dbContext.ChangeTracker.Clear();
+
             await WriteActionAuditAsync(action, ids, cancellationToken);
             await mutate();
         }, cancellationToken);

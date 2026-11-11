@@ -21,12 +21,24 @@ public sealed class ContentBlockService(
         if (existing is null)
         {
             ContentBlockDto? created = null;
-            await repository.ExecuteInTransactionAsync(async () =>
+            try
             {
-                created = await repository.AddBlockAsync(key, blockType, defaultValue, PlainTextOf(defaultValue));
-                await repository.AddVersionAsync(created.Id, defaultValue, 1);
-                await repository.SetLastSeenAsync(key, path, DateTime.UtcNow);
-            });
+                await repository.ExecuteInTransactionAsync(async () =>
+                {
+                    created = await repository.AddBlockAsync(key, blockType, defaultValue, PlainTextOf(defaultValue));
+                    await repository.AddVersionAsync(created.Id, defaultValue, 1);
+                    await repository.SetLastSeenAsync(key, path, DateTime.UtcNow);
+                });
+            }
+            catch (Exception ex) when (repository.IsDuplicateKey(ex))
+            {
+                // #757: another request rendered this key for the first time at the same moment
+                // and its insert won. The block is there now, so use it.
+                var winner = await repository.GetByKeyAsync(key)
+                    ?? throw new InvalidOperationException(
+                        $"Content block '{key}' was refused as a duplicate but cannot be read.", ex);
+                return EnrichDto(winner);
+            }
             return EnrichDto(created!);
         }
 

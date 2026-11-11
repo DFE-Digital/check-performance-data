@@ -3,11 +3,14 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Mappers;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class ContentBlockRepository(IPortalDbContext context) : IContentBlockRepository
 {
+    private const string KeyIndex = "IX_ContentBlocks_Key";
+
     // Queries — use ProjectToDto so EF translates the mapping to SQL
 
     public async Task<List<ContentBlockDto>> GetAllAsync() =>
@@ -265,6 +268,29 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
     public async Task SaveChangesAsync() =>
         await context.SaveChangesAsync();
 
-    public async Task ExecuteInTransactionAsync(Func<Task> work) =>
-        await context.ExecuteInTransactionAsync(work);
+    public Task ExecuteInTransactionAsync(Func<Task> work) =>
+        context.ExecuteInTransactionAsync(async () =>
+        {
+            // #757: the retry strategy runs this delegate again after a transient fault, with the
+            // same context. Entities from the failed attempt are still tracked. They would be
+            // saved a second time, or they would hide an update that the database rolled back.
+            // Forget them. Forget them after a failure too. A later save on this context must not
+            // write what this transaction rolled back.
+            context.ChangeTracker.Clear();
+            try
+            {
+                await work();
+            }
+            catch
+            {
+                context.ChangeTracker.Clear();
+                throw;
+            }
+        });
+
+    public bool IsDuplicateKey(Exception exception) =>
+        exception is DbUpdateException
+        {
+            InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: KeyIndex }
+        };
 }

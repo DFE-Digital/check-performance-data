@@ -24,4 +24,8 @@ public interface IContentBlockRepository
 
     Task SaveChangesAsync();
     Task ExecuteInTransactionAsync(Func<Task> work);
+
+    // True when the exception is the database refusing a second row with a Key that exists.
+    // The Application layer cannot see the provider's exception types, so the repository answers.
+    bool IsDuplicateKey(Exception exception);
 }

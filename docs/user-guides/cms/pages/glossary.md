@@ -23,7 +23,7 @@ The words you will meet in the CMS and in this guide.
 | Region | A row of a content page that sets how many columns it has. |
 | Widget | One piece of content in a region, such as a heading, some text or a search box. |
 | Content block | A piece of text on a page that is built into the service, such as the home page or the footer. |
-| Key | The name of a content block, such as `home-content`. |
+| Key | The name of a content block, such as `home-content_v2`. |
 
 ## Publishing
 

@@ -114,6 +114,7 @@ The **Messages** badge sits in the navigation row under the Department for Educa
 
 - You **select** links and buttons. The guide writes their names in bold, exactly as they appear on screen. Screen names and page titles are in italics.
 - A **Warning** box marks an action that cannot be undone.
+- The screenshots come from a development copy of the service with sample data. The names, counts (such as the number on the Messages badge) and dates on your screen will differ.
 - Checking window and exercise dates and times are UK time. Other times are in UTC unless the screen says otherwise. UTC is the same as Greenwich Mean Time, and is one hour behind British Summer Time.
 
 ## 3. Dashboard
@@ -130,7 +131,7 @@ The dashboard lists open checking windows only. If no window is open, the page s
 1. Choose a window from **Checking window**.
 2. Select **View**.
 
-The page shows when the figures were last refreshed. They refresh by themselves every 15 minutes unless the service's dashboard refresh setting has been changed. The page says how often it refreshes. To stop this, select **Stop automatic refresh**. The page then says *Automatic refresh is off. Reload the page to see newer figures.* Automatic refresh needs JavaScript. Without it, reload the page to see new figures.
+The page shows when the figures were last refreshed. They refresh by themselves every 15 minutes unless the development team has set a different interval. This is application configuration, not an entry on *System settings*, so you cannot change it here. The page says how often it refreshes. To stop this, select **Stop automatic refresh**. The page then says *Automatic refresh is off. Reload the page to see newer figures.* Automatic refresh needs JavaScript. Without it, reload the page to see new figures.
 
 The dashboard has 9 tiles:
 
@@ -230,7 +231,7 @@ On the **Versions** tab, each version has **Publish from (UK time)** and **Publi
 - **Unpublish** takes the live version offline.
 - **View** previews the version.
 
-The service refuses a time that does not exist when the clocks go forward. The message reads, for example, *Publish from must be a real UK time. On 29 March 2026 the clocks go forward from 1am to 2am, so 1:30am does not exist.* Choose a time before 1am or after 2am.
+The service refuses a time that does not exist when the clocks go forward. The message reads, for example, *Publish from must be a real UK time. On 29 March 2026 the clocks go forward from 1am to 2am, so 1:30am does not exist*. Choose a time before 1am or after 2am.
 
 To go back to an earlier version of a page, select **Publish** on that version.
 
@@ -247,8 +248,8 @@ You cannot delete a page that has pages below it. The screen tells you to remove
 
 Use *Content blocks* to edit pieces of text that appear on several pages, such as the footer, without opening each page.
 
-![The Content blocks screen, showing a list of blocks with the page each one appears on](admin/images/cms-content-blocks.png)
-*The Content blocks screen. On a narrow window the table is wider than the screen, so scroll sideways to reach the Edit links.*
+![The top of the Content blocks screen, with a Filter box and the first rows of the table, which show each block's key, the page it appears on and its type](admin/images/cms-content-blocks.png)
+*The top of the Content blocks screen. The table is wider than the screen, so scroll sideways to reach the Edit links.*
 
 Each row shows the block key, the page it appears on, its type, its content, and when it was last updated and created. To find a block, enter words from its key, page or content in **Filter**. To see only the blocks on one page, choose that page in the side menu.
 
@@ -257,6 +258,8 @@ To edit a block:
 1. Select **Edit** on the block's row. The edit form opens for that block.
 2. Change the **Value**. You can also change **Appear in search**, which controls whether the block shows in help search results, and **Search keywords**.
 3. Select **Save**, or select **Cancel** to leave the block as it was.
+
+Some blocks hold the evidence guidance that a school sees when it raises a change request. Their keys start with `journey-`. Type `journey` in **Filter** to find them. A block that still shows placeholder text needs writing. The in-app guide *How to use the CMS* explains them under *Content blocks*.
 
 Each block keeps a version history. Select **Version history** in the block's edit form to see it. The *Content block versions* screen lists each version with its date, and previews the content when you select one. You can revert to an earlier version. The service asks you to confirm: *Are you sure you want to revert to version…?* It warns that this replaces the current published content, and adds the current version to the history.
 
@@ -272,8 +275,8 @@ shows only while it is on and within its dates; off always hides it. "Show from"
 minute you enter and "Show until" does not, so a banner due to end at 17:00 is gone at 17:00.
 
 The list shows each banner's status: **Live** (on and within its dates), **Scheduled** (on,
-not yet due), **Expired** (on, past its end) or **Off**. Banners appear on the start page, and at the top of the guidance front page (`/guidance`) but not on the pages below it, in
-the order of the list; use **Move up** and **Move down** to change it.
+not yet due), **Expired** (on, past its end) or **Off**. Banners appear on the start page and at the top of the guidance front page (`/guidance`). They do not appear on the pages below it.
+Banners show in the order of the list; use **Move up** and **Move down** to change it.
 
 Every save makes a new version. **Version history** shows them and lets you restore an
 earlier one, which becomes the newest version. **Preview** shows a banner the way schools
@@ -288,8 +291,8 @@ this feature an administrator has to tick it.
 
 Use *Deleted pages* to bring back a page that someone deleted.
 
-![The Deleted pages screen, showing that no pages have been deleted](admin/images/cms-deleted-pages.png)
-*The Deleted pages screen when no page has been deleted.*
+![The Deleted pages screen, with a table of deleted pages showing one deleted folder with its path, type, deletion date and a Restore button](admin/images/cms-deleted-pages.png)
+*The Deleted pages screen. It lists each deleted page with a Restore button. This copy holds one.*
 
 Each deleted page is listed with its path, type, when it was deleted and who deleted it. Select **Restore** to put the page and its content back in the live tree. The service shows *Page restored.*
 
@@ -332,8 +335,8 @@ An import applies the normal checks and keeps version history, as if someone had
 
 Use *Search analytics* to see what people search for, whether they find results and where the content has gaps. The figures cover a time window you choose.
 
-![The Search analytics screen, showing filters, four summary figures and charts of search volume, when people search, and top queries](admin/images/search-analytics.png)
-*The Search analytics screen.*
+![The top of the Search analytics screen, showing the filters, four summary figures, a chart of search volume over time and a heatmap of when people search](admin/images/search-analytics.png)
+*The top of the Search analytics screen. The lists of top queries and pages continue below.*
 
 The filters at the top are:
 
@@ -350,12 +353,12 @@ Below the filters you will find:
 - **Search volume over time**: a chart of searches and unique sessions. Select **View volume data table** for the same figures as a table.
 - **Unique sessions over time**, **Zero-result count over time** and **Latency percentiles over time**: one chart for each of the summary figures. Each has a link to the full figures.
 - **Request timings**: a chart of the time each search took, shown under Latency percentiles over time.
-
-With JavaScript on, each summary figure is a button that shows the chart for that figure. Without JavaScript, every chart shows.
 - **When people search**: a chart of searches by weekday and hour. Darker cells mean more searches. Select a cell to see the sessions behind it.
 - **Zero-result outcomes**: what happened after a search that found nothing. People either refined their search, sent feedback, or gave up without telling you.
 - **Top queries**, **Top zero-result queries**, **Top pages** and **Top content blocks**.
 - **Single-page search**: searches made with the search box on a single page.
+
+With JavaScript on, each summary figure is a button that shows the chart for that figure. Without JavaScript, every chart shows.
 
 Zero-result queries are the list of what to write next. If people keep searching for something and find nothing, that is a content gap.
 
@@ -391,8 +394,8 @@ The rules cover all four window types: Key Stage 2, Key Stage 4 June, Key Stage 
 
 Use the *Pipeline dashboard* to see whether requests are moving through the service, and how quickly.
 
-![The Pipeline dashboard, showing a health strip, three summary figures, a live board of the pipeline stages and charts](admin/images/pipeline-dashboard.png)
-*The Pipeline dashboard, after 5 test requests had gone through the rules engine.*
+![The Pipeline dashboard, showing a health strip, three summary figures, a live board of the pipeline stages with recent transitions, and charts including a pie chart of the decision mix](admin/images/pipeline-dashboard.png)
+*The Pipeline dashboard, after 6 test requests from the Demo panel had gone through the rules engine. Processed today still shows 0, because the test requests had not reached Zendesk.*
 
 The screen shows:
 
@@ -412,7 +415,7 @@ A **Demo** panel appears only where the service's development tools are switched
 *Transactions* lists every message recorded passing through the queues, newest first.
 
 ![The Transactions screen, listing pipeline steps with time, reference, stage, queue, decision and latency](admin/images/pipeline-transactions.png)
-*The Transactions screen.*
+*The Transactions screen. The table is wider than the screen, so the last columns are cut off here.*
 
 To find a request:
 
@@ -540,7 +543,7 @@ To change a branch, select its edit icon. To reorder branches, use the up and do
 
 Every change to the decision rules is saved as a new version. Select **Version history** on the *Rules Engine configuration* screen to see them.
 
-![The Version history screen for the decision rules, listing four saved versions](admin/images/rules-history.png)
+![The Version history screen for the decision rules, listing one saved version](admin/images/rules-history.png)
 *The version history for the decision rules.*
 
 Each version shows when it was saved and by whom. Select **View JSON** to see exactly what was saved. To go back to a version:
@@ -670,8 +673,8 @@ The Messages badge in the header counts messages that are still *New*.
 
 A dead-lettered message is a request that the pipeline could not process, even after several attempts. The service moves it to the dead-letter queue so that it is not lost. Someone then decides whether to try it again or to delete it.
 
-![The Dead-letter queue screen, listing three messages with Redrive and Purge buttons on each row](admin/images/dead-letter-queue.png)
-*The Dead-letter queue screen.*
+![The Dead-letter queue screen, listing three messages with their queue, attempts and reason, and Redrive selected and Purge selected buttons below the table](admin/images/dead-letter-queue.png)
+*The Dead-letter queue screen. The table is wider than the screen, so the last columns are cut off here.*
 
 Each row shows the message ID, the queue it came from, its reference, how many attempts were made, the reason it failed and when it was dead-lettered.
 
@@ -777,7 +780,7 @@ The State tags mean:
 
 | Tag | What it means |
 |---|---|
-| *Visible* | Schools can see the exercise. For Pupil data checking or Results enquiry, they can also make requests, because the exercise is between its opening and closing dates. A data share is always *Visible* when schools can see it. |
+| *Visible* | The exercise is switched on for schools. Schools see it only once its data is *Live* (see the Data tags below). Until then, the tag still says *Visible*, but the exercise does not show for schools. For Pupil data checking or Results enquiry, schools can also make requests, because the exercise is between its opening and closing dates. A data share can show *Visible*, but it never takes requests. |
 | *Visible – closed* | Schools can see the exercise and its data, but they cannot make requests, because the exercise is outside its dates. |
 | *Hidden* | Schools cannot see the exercise. It is not enabled, it is outside its *Visible from* and *Visible until* dates, or schools cannot see the window at all. |
 
@@ -799,7 +802,7 @@ Select **New window** on the *Manage windows* screen. The service takes you thro
 
 1. **Edit title for New window.** Enter the name for the window. It starts as *New window*. Select **Save and continue**.
 2. **Select the window type.** Choose Key Stage 4 June, Key Stage 2, Post 16 or Key Stage 4 Autumn. Select **Save and continue**. The window type decides the key stage and the checking exercises the window starts with.
-3. **Dates.** The service asks for the dates of each exercise in turn, on a page such as *Pupil data checking dates*. Enter **When does it open?** as a day, month and year. Enter **What time does it open?** as an hour and minute on the 24-hour clock, such as 09 30 or 17 00. Then do the same for **When does it close?** and **What time does it close?** The times start as 00 00 and 17 00. Select **Save and continue**.
+3. **Dates.** The service asks for the dates of each exercise in turn, on a page such as *Pupil data checking dates*. Enter **When does it open?** as a day, month and year. Enter **What time does it open?** as an hour and minute on the 24-hour clock, such as 09 30 or 17 00. Then do the same for **When does it close?** and **What time does it close?** The time fields start as 0 0 for opening and 17 0 for closing. Select **Save and continue**.
 4. **Check your answers.** The page lists the title, window type, key stage, checking exercises and the dates of each exercise. Select **Change** beside the title, the window type or an exercise's dates to correct it. The key stage and the checking exercises have no **Change** link, because they come from the window type. When everything is right, select **Save and continue**.
 
 ![The Select the window type page, with 4 options: Key Stage 4 June, Key Stage 2, Post 16 and Key Stage 4 Autumn](admin/images/window-create-type.png)
@@ -822,7 +825,9 @@ To discard your answers, select **Cancel** on the title page or on a dates page.
 
 If you have not saved any answers, **Cancel** on the title page opens the Administration page.
 
-> **Warning** 2 of the Cancel links do not work as you would expect at present. On the *Select the window type* page, **Cancel** shows a *Page not found* screen. On the *Check your answers* page, **Cancel** shows the same page again. To leave from either page, select **Back** on *Check your answers*, or use the links in the header.
+> **Warning** 2 of the Cancel links do not work as you would expect at present. On the *Select the window type* page, **Cancel** opens a *Page not found* screen, because the address it points to (`/CancelCreation/Cancel`) does not exist. On the *Check your answers* page, **Cancel** has no address, so selecting it shows the same page again.
+>
+> The window type page has no **Back** link. To leave from it, use your browser's back button to return to the title page and select **Cancel** there, or select **Admin** in the header. On *Check your answers*, select **Back** to open the *Manage windows* screen, or select **Change** beside the title and then **Cancel** on the title page to discard your answers. Your answers stay for the rest of your session until you discard them.
 
 ### The window summary page
 
@@ -839,7 +844,7 @@ The first section, *Window details*, lists:
 - **Turnaround commitment**, with a **Change** link. It says *Not set* until you add one.
 - **Next opportunity**, with a **Change** link. It says *Not set* until you add one.
 
-If you change the window type, the window keeps its exercises. The service changes the Results enquiry's results files to those of the new type.
+If you change the window type, the window keeps its exercises, but the service changes their data files to suit the new type. It adds the new type's default data files to every exercise that does not have them. It also deletes the old type's results files from each Results enquiry, even when they already hold a CSV or a schema. Data files you added yourself stay.
 
 Under *Checking exercises*, each exercise has a card, in the order schools see the tabs. The card title shows the exercise name and its type. The card has 2 links:
 
@@ -892,7 +897,7 @@ When you edit an exercise, select **Save changes** at the bottom of the page to 
 #### The Exercise Details tab
 
 - **Exercise name**: the name admins see, for example *Provisional students*.
-- **Exercise type**: **No exercise type (display only)**, **Pupil data checking** or **Results enquiry**. You must choose a type unless you tick **Display data only**. A window can have only one exercise of each type. You cannot change the type once the exercise has live data or schools have made requests on it. Add a new exercise instead.
+- **Exercise type**: **No exercise type (display only)**, **Pupil data checking** or **Results enquiry**. You must choose a type unless you tick **Display data only**. A window can have only one exercise of each type. You cannot change the type once the exercise has live data or schools have made requests on it. You also cannot change it on an exercise that was set up before exercises had their own storage: the page says *The type cannot be changed for this existing exercise*. In each case, add a new exercise instead.
 - **Tab name**: the label schools see on the tab, for example *Students* or *Results*.
 - **Tab order**: lower numbers appear first, on the school's checking data page and on the window summary.
 - **Display data only**: schools can view and download the data, but cannot start a journey.
@@ -963,7 +968,7 @@ The service returns you to the **Data** tab. Choose the new file's CSV and schem
 4. Under **Select a file**, choose the file.
 5. Select **Use selected file**.
 
-The service copies the file into the window's own storage and records its checksum. Then it returns you to the **Data** tab. Nothing is uploaded from your computer. If you select **Use selected file** without choosing a file, the page opens again.
+The service copies the file into the window's own storage and records its checksum. Then it returns you to the **Data** tab. Nothing is uploaded from your computer. If you select **Use selected file** without choosing a file, you go back to the list of containers and must start again.
 
 The screen says *No ingress containers were found* if the ingress storage area is empty. Whoever supplies the data has to place the file there first.
 
@@ -973,7 +978,7 @@ The screen says *No ingress containers were found* if the ingress storage area i
 2. On *Upload a JSON schema file for* and the data file's name, choose the file from your computer.
 3. Select **Save and continue**.
 
-The service checks that the file is a valid JSON schema. If you do not choose a file, the page says *Select a JSON schema file*. Then it returns you to the **Data** tab.
+The service checks that the file is a valid JSON schema. If you do not choose a file, the page says *Select a JSON schema file*. If the file is not a valid JSON schema, the page says so. When the upload works, the service returns you to the **Data** tab.
 
 ### Validating data and data releases
 
@@ -1154,7 +1159,7 @@ You can delete one checking exercise, or a whole window with all its exercises. 
 **Delete a checking exercise**
 
 1. Select **Delete** on the exercise's card on the window summary.
-2. Read the page headed *Delete* and the exercise name. It says how many data file slots, releases and extensions are deleted with the exercise. The window and its other exercises stay.
+2. Read the page headed *Delete* and the exercise name. It says how many data files, releases and extensions are deleted with the exercise. The window and its other exercises stay.
 3. If schools have made change requests through the exercise, tick the box, for example **I understand that 3 change requests will be permanently deleted**.
 4. Select **Delete exercise**, or select **Cancel**.
 
@@ -1165,7 +1170,7 @@ The page also tells you when:
 - another exercise replaces this one. That exercise stays, but no longer replaces anything.
 - the exercise was set up before exercises had their own storage. Its files are not deleted, because a new exercise of the same kind could read them.
 
-Every file uploaded to the exercise, and all the data made from them, is deleted with it. The summary page then shows a *Success* banner, for example *Pupil data checking deleted.*
+Every data file uploaded to the exercise, and all the data made from them, is deleted with it. Evidence that schools uploaded with their requests is not part of this. It stays in the window's storage until you delete the window. The summary page then shows a *Success* banner, for example *Pupil data checking deleted.*
 
 **Delete a window**
 
@@ -1177,7 +1182,7 @@ Every file uploaded to the exercise, and all the data made from them, is deleted
 ![The Delete page for a window, with a warning that you cannot undo this, the counts of change requests by status, a tick box and a Delete window button](admin/images/window-delete.png)
 *The page for deleting a window.*
 
-Both pages count the change requests by status: *Submitted, not yet sent for processing*, *Sent for processing*, *Drafts* and *Withdrawn or cancelled*. The requests are deleted with any evidence schools uploaded.
+Both pages count the change requests by status: *Submitted, not yet sent for processing*, *Sent for processing*, *Drafts* and *Withdrawn or cancelled*. When you delete a window, the requests are deleted with any evidence schools uploaded. When you delete only an exercise, the requests are deleted but the evidence files stay in the window's storage.
 
 - Submitted requests that have not been sent for processing are lost. To send them first, close the exercise, or send its requests for processing, before you delete it.
 - Requests already sent for processing stay in Zendesk. This service no longer holds them, and schools can no longer view them.
@@ -1223,7 +1228,7 @@ Two sections control *Manage windows*, and you give them to a role separately:
 - **new-window** lets a role see the **New window** button and finish the pages that create a window.
 - **manage-window** lets a role use *Manage windows*, the window summary, the requests list, and every page for changing a window. That includes adding, editing and deleting exercises, choosing files, validating, retiring data files, making a release live, closing, sending requests, extensions, and deleting a window.
 
-The create pages use pages from both sections. A role that has only one of them gets a *Page not found* screen part-way through. Give both sections together. Chapter 5 explains how to change what a role can see, under Role settings.
+The create pages use pages from both sections. A role that has only `new-window` cannot open *Manage windows*, so it cannot reach the **New window** button. A role that has only `manage-window` opens *Manage windows* but never sees **New window**. Give both sections together. Chapter 5 explains how to change what a role can see, under Role settings.
 
 Retiring a data file and making an earlier release live can both be undone, so Appendix A does not list them.
 
@@ -1311,12 +1316,12 @@ The list shows the newest entries first, 20 to a page. The columns are **User**,
 - For data egress, the Activity is a *Data egress* tag. A pull shows *Run started*. A transfer shows a *Success* or *Failed* status.
 - When someone closes an exercise early, the Activity is a *Window admin* tag. The Checking window column names the window, with the exercise and *closed early, before scheduled end* beneath. The User column shows who closed it, and the Status is *Success*.
 - When the service sends an exercise's requests for processing by itself, the Activity is also a *Window admin* tag. The Checking window column names the window, with the exercise and how many requests were sent and drafts cancelled beneath. The User column shows *System*, and the Status is *Success*.
-- When someone adds, changes, closes early or sends the requests of an extension (extra time for named schools), the Activity is a *Window admin* tag. The Status is *Success*. The detail beneath the tag is one of these, with the exercise name first:
+- When someone adds, changes, closes early or sends the requests of an extension (extra time for named schools), the Activity is a *Window admin* tag. The Status is *Success*. The detail sits beneath the window name in the Checking window column. It is one of these, and it starts with the exercise type, such as *Pupil data checking* or *Results enquiry*, and not the name you gave the exercise:
     - *{Exercise} extension added for 3 schools, ending 01/12/2026 17:00*
     - *{Exercise} extension edited: 1 school added, 0 schools removed, ending 01/12/2026 17:00*
     - *{Exercise} extension closed early, before its end*
     - *{Exercise} extension requests sent for processing: 4 requests sent, 2 drafts cancelled*
-- When an administrator starts or ends viewing the service as an establishment (chapter 10), the Activity is an *Establishment impersonation* tag. Beneath it is *Start*, or *Exit*, then the establishment's LAESTAB and URN, as in *Start: LAESTAB {number}, URN {number}*. The Status is *Success*. When someone tries a change that is blocked during viewing, the detail starts *BlockedChange* and the Status is *Failed*.
+- When an administrator starts or ends viewing the service as an establishment (chapter 10), the Activity is an *Establishment impersonation* tag. Beneath it is *Start*, or *Exit*, then the establishment's LAESTAB and URN, as in *Start: LAESTAB {number}, URN {number}*. The Status is *Success*. Each time the service refuses a page during viewing, it adds a row of the same kind. The detail starts *BlockedChange* and the Status is *Failed*. This covers a refused change and also a page that is only refused because it is not on the list of pages you can open (see chapter 10).
 - For everything else, the Activity is the type of item that changed, with the action beneath it: Insert, Update or Delete.
 - Actions the service takes for itself show *System* as the user.
 
@@ -1324,11 +1329,11 @@ By default the log shows all activity. Most of it is routine application log ent
 
 - **Filter by activity**: choose the type of item, such as *Data egress*, *Dead letter* or *Role access*.
 - **Filter by window**: choose a checking window.
-- **Filter by status**: *Success* or *Failed*. Only two kinds of row can be *Failed*: a data egress transfer that failed, and a blocked change while viewing the service as an establishment. Every other row that has a status, such as an exercise closed early, an extension change, or requests the service sent by itself, is *Success*.
+- **Filter by status**: *Success* or *Failed*. This filter looks only at data egress and *Window admin* rows. It finds a data egress transfer that failed. It does not find the *Failed* rows from viewing as an establishment, even though they show that status. To find those, use **Filter by activity** and choose *Establishment impersonation*. Every *Window admin* row, such as an exercise closed early, an extension change, or requests the service sent by itself, is *Success*.
 
 Select **Apply filters**. The filters work together.
 
-Select **Export log as CSV** to download every entry that matches your filters. The file has one line for each entry, with these columns: *Timestamp (UTC)*, *User*, *Activity*, *Action*, *Entity type*, *Entity id*, *Checking window*, *Output types* and *Status*. It never includes the details of what changed.
+Select **Export log as CSV** to download every entry that matches your filters. The export uses the same filters, so a **Filter by status** of *Failed* leaves out the viewing rows there too. The file has one line for each entry, with these columns: *Timestamp (UTC)*, *User*, *Activity*, *Action*, *Entity type*, *Entity id*, *Checking window*, *Output types* and *Status*. It never includes the details of what changed.
 
 You cannot edit or delete audit log entries from the service.
 
@@ -1365,7 +1370,7 @@ The screen refuses details it cannot use, and says why:
 
 The next screen is headed *Choose where to start impersonation*.
 
-It shows a summary of the establishment: its name, LAESTAB, URN and age range. You then have 2 choices:
+It shows a summary of the establishment: its name, LAESTAB, URN and age range. If the service does not know the establishment, the name shows as *Establishment*. You then have 2 choices:
 
 - Select **Go to establishment home page** to start on the page a school sees when it signs in.
 - Under *Checking exercises with establishment data*, find the window and the exercise, then select **View this checking window**. The service starts on that window's *Check your pupil data* page.
@@ -1383,22 +1388,23 @@ If you chose the exercise and it has since become unavailable, the screen says *
 
 Every page shows a banner at the top with the heading *Read-only impersonation*. It says which establishment you are viewing: *Viewing LAESTAB {number}, URN {number}. Changes cannot be saved or submitted.* The banner has an **Exit impersonation** button.
 
-You can open:
+You can open only these pages:
 
-- the establishment's landing page
+- the establishment's landing page and the home page
 - *Check your pupil data*, and its downloads
 - the lists of requests, and the pages for a draft or a submitted request
 - the evidence files on a submitted request
+- the *Page not found* and error pages
 
 On the request lists, the tick boxes, the buttons that submit requests, and the **Edit** and **Delete** links are not shown. Draft requests have a **View** link instead. On *Check your pupil data*, the buttons that start a request are not shown.
 
-You cannot do anything that saves or submits. You also cannot open any admin page. If you try, the service shows a page headed *Read-only impersonation* that says *This action is unavailable while impersonating. Exit impersonation using the banner before accessing admin sections or making changes.* Select **Return to establishment data** to go back.
+You cannot do anything that saves or submits. You also cannot open any other page: not an admin page, not the guidance or any other CMS page, not the footer pages (privacy, cookies and accessibility), and not *Contact*. If you try, the service shows a page headed *Read-only impersonation* that says *This action is unavailable while impersonating. Exit impersonation using the banner before accessing admin sections or making changes.* Select **Return to establishment data** to go back.
 
 Some things change for you while you view:
 
 - The **Admin** link is hidden from the navigation row.
 - The pencil buttons that edit content blocks and page titles are hidden.
-- The **Edit** button on CMS pages is still shown, but selecting it opens the refusal page.
+- On the request lists, the **Raise a new request** button is also hidden.
 - If you open a checking window that is not open for the establishment, the service shows *Establishment data unavailable*.
 
 ### Stopping
@@ -1407,7 +1413,7 @@ Select **Exit impersonation** in the banner. The service takes you back to the *
 
 ### The audit log
 
-The service records when you start and when you exit, with the LAESTAB and URN, in the audit log (chapter 9). It also records each time the service blocks a change while you are viewing. Those rows show the status *Failed*.
+The service records when you start and when you exit, with the LAESTAB and URN, in the audit log (chapter 9). It also records each time the service refuses a page while you are viewing, whether it was a change or a page that is not on the list above. Those rows show the status *Failed*. **Filter by status** does not find them. To list them, use **Filter by activity** and choose *Establishment impersonation* (chapter 9).
 
 ## 11. Danger zone
 
@@ -1424,12 +1430,12 @@ The screen is available in every environment except production. Testers use it o
 
 A reset puts these things back to their starting state:
 
-- **The checking windows.** The service deletes every window and creates seven: *Key Stage 4 June*, *Key Stage 4 Autumn*, *Key Stage 2*, and four Post 16 windows, *16 to 19 Oct*, *16 to 19 Nov*, *16 to 19 Feb* and *16 to 19 Mar*. Each one has its checking exercises and data files set up. The four Post 16 windows are one for each step of the results enquiry year.
-- **The sample data files.** The service loads sample pupil, results and summary files into each window and validates them, so each window has a release. It also copies the sample files into Ingress Storage, so you can repeat a step by hand.
+- **The checking windows.** The service deletes every data egress run, every change request and every window. It then creates seven windows: *Key Stage 4 June*, *Key Stage 4 Autumn*, *Key Stage 2*, and four Post 16 windows, *16 to 19 Oct*, *16 to 19 Nov*, *16 to 19 Feb* and *16 to 19 Mar*. Each one has its checking exercises and data files set up. The four Post 16 windows are one for each step of the results enquiry year.
+- **The sample data files.** The service loads sample pupil, results and summary files into each window and validates them, so each window has a release. It also copies the sample files into Ingress Storage, so you can repeat a step by hand. It does this for every window except *Key Stage 4 June*, whose sample files are not copied there.
 - **The sample change requests**, the pupil data and the question flows.
 - **The rules and the country languages.** The service puts the rules back only if the rules it ships are newer than the saved ones, or the saved ones are unusable. It leaves the country languages alone if they exist. The qualification list is put back if it is missing.
 
-> **Warning** This permanently deletes all change requests and checking windows. It then puts the database, pupil data and question flows back to the default seeded state. Any data testers created is lost. This cannot be undone. The screen is the only confirmation. When you select **Reset seed data**, it happens straight away. Select **Cancel** to leave.
+> **Warning** This permanently deletes all change requests, data egress runs and checking windows. It then puts the database, pupil data and question flows back to the default seeded state. Any data testers created is lost. This cannot be undone. The screen is the only confirmation. When you select **Reset seed data**, it happens straight away. Select **Cancel** to leave.
 
 ### Blob storage browser
 
@@ -1467,7 +1473,7 @@ This table lists the actions in the admin area that change or delete data. It sa
 | Window summary | Send requests for processing | For an exercise that has closed: sends submitted requests for processing and cancels drafts. Cannot be undone. | Yes. A confirmation page shows the counts. |
 | Window summary | Close an extension early | Ends the extra time for the extension's schools straight away. Does not send their requests. Cannot be undone. | Yes. You must type the window's name. |
 | Window summary | Send an extension's requests for processing | For an extension that has ended: sends its schools' submitted requests for processing and cancels their drafts. Cannot be undone. | Yes. A confirmation page shows the counts. |
-| Window summary | Delete (a checking exercise) | Deletes the exercise, its data files, releases, extensions and uploaded files, and every change request made through it. Cannot be undone. | Yes. A confirmation page lists what goes. If there are change requests, you must tick a box. |
+| Window summary | Delete (a checking exercise) | Deletes the exercise, its data files, releases, extensions and uploaded data files, and every change request made through it. Evidence schools uploaded stays in the window's storage. Cannot be undone. | Yes. A confirmation page lists what goes. If there are change requests, you must tick a box. |
 | Window summary | Delete window | Deletes the window, its checking exercises and their files, every change request made through it with any evidence, and its data egress runs. Files already transferred to LDS are not changed. Cannot be undone. | Yes. A confirmation page lists what goes. If there are change requests, you must tick a box. |
 | Data egress | Confirm and transfer | Sends the files to LDS. The same output type cannot be sent again for that window. | No. The screen warns you that this cannot be undone. |
 | Data egress | Abandon run | Ends the run for good. Removes any files a transfer had already written. | No. |
@@ -1521,14 +1527,15 @@ This table lists the actions in the admin area that change or delete data. It sa
 | Manage windows | `new-window` | The **New window** button, and the last 2 steps of creating a window: *Check your answers* and cancelling |
 | Manage windows | `manage-window` | The *Manage windows* list, the window summary, the requests list, the first 3 steps of creating a window (title, window type and dates), and every page for changing or deleting a window or an exercise |
 
-A role needs both `new-window` and `manage-window` to create a window. Chapter 7 explains this under "Who can do what".
-
-*View as an establishment* (chapter 10) is not in this table. It is not a section, so it cannot be given to a role. Only the `cypmd_admin` role can use it.
 | Data egress | `egress` | Start a new egress and every screen of a run |
 | Data egress | `egress-runs` | Egress runs |
 | Audit log | `audit-log` | Audit log |
 | Danger zone | `reset-seed-data` | Reset seed data |
 | Danger zone | `storage-browser` | Blob storage browser |
+
+A role needs both `new-window` and `manage-window` to create a window. Chapter 7 explains this under "Who can do what".
+
+*View as an establishment* (chapter 10) is not in this table. It is not a section, so it cannot be given to a role. Only the `cypmd_admin` role can use it.
 
 ## Appendix C: System settings reference
 

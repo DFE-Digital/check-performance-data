@@ -37,7 +37,7 @@ The words you will meet in the CMS and in this guide.
 | Publish from, Publish to | The start and end of the time a version is live. |
 | Unpublish | Take the live version of a page off the public site without deleting it. |
 | Revert | Make an earlier version of a content block the live one again. |
-| UTC | The time standard the service uses. The same as UK time in winter, and one hour behind it in summer. |
+| UTC | A time standard. The same as UK time in winter, and one hour behind it in summer. Publishing dates are in UK time, not UTC. Search analytics and the application log show UTC. |
 
 ## Search
 

@@ -95,7 +95,7 @@ Adding, moving, deleting and saving a widget all update your draft straight away
 
 | Button | What it does |
 |---|---|
-| **Save** | You do not need this. Your draft is already saved each time you add, move, delete or save a widget. |
+| **Save** | You do not need this to keep your work: your draft is already saved each time you add, move, delete or save a widget. Save also refreshes the text that site search uses for the page. |
 | **Publish draft** | Makes your draft the live page, now. |
 | **Unpublish** | Takes the live version off the site. Shown only when the page is published. |
 

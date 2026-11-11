@@ -37,7 +37,7 @@ This is the quickest way, because you see the text in place.
 
 ![The home page text opened for editing in place, with a text editor, a Save button, a Cancel link and a Version history link](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/content-block-in-place-form.png "Editing the block without leaving the page.")
 
-The pencils are shown to people with the content editor role. If you cannot see them, use the Content blocks screen instead.
+The pencils are shown to people with the content editor role. If you cannot see them, use the Content blocks screen instead. They are also hidden while an administrator is viewing the service as an establishment (see [the full admin user guide](admin-user-guide.md)).
 
 > **Warning** Saving a block with the pencil clears its **Search keywords** and ticks **Appear in search** again. If the block has either set, edit it from the Content blocks screen instead, or set them again there afterwards.
 

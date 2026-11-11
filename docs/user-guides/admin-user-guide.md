@@ -1526,7 +1526,6 @@ This table lists the actions in the admin area that change or delete data. It sa
 | Manage windows | `window-admin` | Nothing now. The section is still on *Role settings*, but no screen uses it. |
 | Manage windows | `new-window` | The **New window** button, and the last 2 steps of creating a window: *Check your answers* and cancelling |
 | Manage windows | `manage-window` | The *Manage windows* list, the window summary, the requests list, the first 3 steps of creating a window (title, window type and dates), and every page for changing or deleting a window or an exercise |
-
 | Data egress | `egress` | Start a new egress and every screen of a run |
 | Data egress | `egress-runs` | Egress runs |
 | Audit log | `audit-log` | Audit log |

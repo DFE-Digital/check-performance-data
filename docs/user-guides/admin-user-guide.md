@@ -663,179 +663,418 @@ To open a message, select its ID. The detail screen shows the reason, the number
 
 The dead-letter queue also sends an email alert when it holds too many messages, and deletes old messages after a set number of days. Both are system settings (see Appendix C).
 
-## 7. Window administration
+## 7. Manage windows
 
-A checking window is a period when schools can check their data and ask for changes. Window administration is where you set windows up, load the data schools check, and close them when the period ends.
+A checking window is a period when schools can check their data and ask for changes. *Manage windows* is where you set windows up, load the data schools see, and close them when the period ends.
 
-### Windows, checking exercises and datasets
+### Windows, checking exercises and data files
 
 A **window** has:
 
-- a **name**, such as *Key Stage 4 June*
+- a **title**, such as *Key Stage 4 June*
 - a **window type**: Key Stage 4 June, Key Stage 2, Post 16 or Key Stage 4 Autumn
-- a **key stage**: Key stage 2, Key stage 4 or Post 16
+- a **key stage**: Key stage 2, Key stage 4 or Post 16. The service works it out from the window type.
 - a **turnaround commitment**: a short sentence that tells schools when to expect changes, such as *updated in the Autumn*
 - a **next opportunity**: an optional month and year. Once the window's pupil data checking has closed, schools see when they can next review their data. They see the month and year only, for example *October 2027*.
 
-A window runs one or 2 **checking exercises**:
+The window type decides which changes a school can ask for in pupil data checking. There is no setting for this.
+
+| Window type | Changes a school can ask for |
+|---|---|
+| Key Stage 2 | Remove |
+| Key Stage 4 June | Merge, Include, Remove and Add |
+| Key Stage 4 Autumn | Merge, Include, Remove and Add |
+| Post 16 | Merge, Include and Remove |
+
+A window holds one or more **checking exercises**. Each exercise has its own opening and closing date and time. The window's start and end dates are worked out from its exercises, so you do not enter them.
+
+Each exercise has one of these types:
 
 - **Pupil data checking**: schools check their pupil data and ask for changes.
 - **Results enquiry**: schools ask about results.
+- **No exercise type (display only)**: a data share. Schools can view and download the data, but they cannot ask for changes. Admin screens show its type as *Data share*. For example, the *Summary* exercise of a Key Stage 2 window is a data share.
 
-Each exercise has its own opening and closing date and time. The window's overall dates are worked out from its exercises, so you do not enter them.
+A window can have only one Pupil data checking exercise and one Results enquiry exercise. It can have any number of data shares.
 
-Each exercise also has one or more **datasets**: the data the school checks. Each dataset needs 2 files:
+Each exercise holds **data files**. Each data file needs 2 files:
 
-- an **ingress file**: the data itself. You choose it from the ingress storage area. You do not upload it from your own computer. The service copies it into the window's own storage and records a checksum, which lets it tell later if the file has changed.
-- a **schema file**: a JSON file that describes what the data should look like. You do upload this from your computer.
+- a **CSV**: the data itself. You choose it from the ingress storage area. You do not upload it from your own computer. The service copies it into the window's own storage and records a checksum, which lets it tell later if the file has changed.
+- a **JSON schema**: a file that describes what the data should look like and how schools see it. You upload this from your computer.
 
-Some datasets are marked *(optional)*. The supplier may send those later, or not at all. You can validate without them.
+Each data file is *Required* or *Optional*. An optional file is one the supplier may send later, or not at all. You can validate without it.
 
-When both files are in place, you **validate** the exercise. Validation reads every record and checks it against the schema. When the exercise ends, you **close** it. Closing sends the requests schools have submitted for processing.
+Each data file is also used for one of 2 things:
 
-### Manage windows
+- *Journey*: its records feed the journeys schools use to ask for a change or make an enquiry.
+- *Data share*: schools can view and download it, but no journey uses it.
 
-Use *Manage windows* to see every window and open one.
+When the files are in place, you **validate** the exercise. Validation checks every record against its schema. Each validation that passes makes a new **release** of the data, and schools see it at once. When the exercise ends, the service sends the requests schools have submitted for processing. You can also close an exercise early.
 
-![The Manage windows screen, titled Window Admin, listing five windows with their status, exercises, published state and Edit and Requests links](admin/images/windows-list.png)
+#### What a new window starts with
+
+When you create a window, the service gives it the checking exercises and data files below. Add the other data files the window needs from the exercise's **Data** tab. Add a data share, such as *Summary*, with **Add checking exercise**. The create pages never add one.
+
+| Window type | Checking exercises | Data files |
+|---|---|---|
+| Key Stage 2 | Pupil data checking | None. Add the pupil files. |
+| Key Stage 4 June | Pupil data checking | One file, *Pupils*, which feeds the journeys. |
+| Key Stage 4 Autumn | Pupil data checking and Results enquiry | Pupil data checking: none. Results enquiry: *Main results (KS4_MAIN)*, which is required, and *Late results 1 (KS4_LR1)*, *Late results 2 (KS4_LR2)* and *Revised results (KS4_Revised)*, which are optional. |
+| Post 16 | Pupil data checking and Results enquiry | Pupil data checking: none. Add the included and non-included student files. Results enquiry: 7 results files. *Included (16to19_INC)*, *Non-included (16to19_NONINC)* and *Late results 1 (16to19_LR1)* are required. The 2 revised files, the revised file with retention and *Late results 2 (16to19_LR2)* are optional. |
+
+A Results enquiry exercise that you add to a window later starts with the same results files. A Results enquiry on a Key Stage 2 window has none, because Key Stage 2 has no results files.
+
+Every exercise the create pages make is hidden from schools at first. Schools see it only after you tick **Enable this exercise for schools** on the exercise's **Dates** tab.
+
+### The Manage windows screen
+
+Select **Manage windows** on the Administration page to see every window and its checking exercises.
+
+![The Manage windows screen, titled Window Admin, with a New window button and a table listing each window's checking exercises with their type, state and data tags, and Edit and Requests links](admin/images/windows-list.png)
 *The Manage windows screen. The screen title is Window Admin.*
 
-The screen opens in the public layout of the service, without the admin side menu. Select **Back** to return.
+The screen opens in the public layout of the service, without the admin side menu. Select **Back** to return to the Administration page.
 
-The table has these columns:
+**New window** starts the pages that create a window. You see it only if your role has the `new-window` section.
+
+The table has one row for each checking exercise. The window's name, its start date and its actions span all of its rows.
 
 | Column | What it shows |
 |---|---|
-| Name | The window name. |
-| Status | *Open* or *Closed*. |
-| Checking exercises | Each exercise with its own status tag: *Upcoming* (not open yet), *Open* or *Closed*, worked out from the exercise's dates. A red *Missing journeys* tag replaces these when the service has no request form set up for this type of window. The line beneath it lists which types of request are affected, for example *Missing: Include, Add*. Tell the development team if you see it. |
-| Published | *True*. At present this column says *True* for every window, so it does not tell you anything. |
-| Actions | **Edit** opens the window summary. **Requests** opens the list of requests for the window. |
+| Window | The window title, with its start date beneath. |
+| Checking exercise | The exercise name. A window with no exercises shows *No checking exercises*. |
+| Type | *Pupil data checking*, *Results enquiry* or *Data share*. |
+| State | What schools can see now: *Visible*, *Visible – closed* or *Hidden*. See the table below. |
+| Data | Whether schools have data from this exercise: *Live*, *Live – new files not validated*, *Not validated* or *No files*. See the table below. |
+| Actions | **Edit** opens the window summary. **Requests** opens the list of requests made in the window. |
+
+The State tags mean:
+
+| Tag | What it means |
+|---|---|
+| *Visible* | Schools can see the exercise. For Pupil data checking or Results enquiry, they can also make requests, because the exercise is between its opening and closing dates. A data share is always *Visible* when schools can see it. |
+| *Visible – closed* | Schools can see the exercise and its data, but they cannot make requests, because the exercise is outside its dates. |
+| *Hidden* | Schools cannot see the exercise. It is not enabled, it is outside its *Visible from* and *Visible until* dates, or schools cannot see the window at all. |
+
+The Data tags mean:
+
+| Tag | What it means |
+|---|---|
+| *Live* | Schools see the data from the files the exercise now holds. |
+| *Live – new files not validated* | Schools see a release, but at least one file has changed since. Validate the exercise to make the new files live. |
+| *Not validated* | The files are in place, but no validation has passed yet. Schools see no data. |
+| *No files* | No data file has both a CSV and a schema. |
 
 ### Creating a new window
 
-Use *Create new window* to start a new window. The service takes you through 6 pages, one question at a time. It only creates the window on the last page.
+Select **New window** on the *Manage windows* screen. The service takes you through the pages one question at a time. It only creates the window on the last page.
 
-![The first page of the create wizard, headed Edit title for New window, with a name field and the Save and continue button](admin/images/window-create-title.png)
-*The first page of Create new window.*
+![The first page of the create pages, headed Edit title for New window, with a name field and a Save and continue button](admin/images/window-create-title.png)
+*The first page: the window title.*
 
 1. **Edit title for New window.** Enter the name for the window. It starts as *New window*. Select **Save and continue**.
-2. **Select the window type.** Choose Key Stage 4 June, Key Stage 2, Post 16 or Key Stage 4 Autumn. Select **Save and continue**.
-3. **Select the key stage.** Choose Key stage 2, Key stage 4 or Post 16. Select **Save and continue**.
-4. **Which checking exercises does this window run?** Tick *Pupil data checking*, *Results enquiry* or both. Select **Save and continue**.
-5. **Dates.** For each exercise you ticked, the service asks for that exercise's dates. Enter **When does it open?** as a day, month and year. Enter **What time does it open?** as an hour and minute on the 24-hour clock, such as 09 30 or 17 00. Then do the same for **When does it close?** Select **Save and continue**.
-6. **Check your answers.** The page lists every answer. Select **Change** beside an answer to correct it. When everything is right, select **Save and continue**.
+2. **Select the window type.** Choose Key Stage 4 June, Key Stage 2, Post 16 or Key Stage 4 Autumn. Select **Save and continue**. The window type decides the key stage and the checking exercises the window starts with.
+3. **Dates.** The service asks for the dates of each exercise in turn, on a page such as *Pupil data checking dates*. Enter **When does it open?** as a day, month and year. Enter **What time does it open?** as an hour and minute on the 24-hour clock, such as 09 30 or 17 00. Then do the same for **When does it close?** and **What time does it close?** The times start as 00 00 and 17 00. Select **Save and continue**.
+4. **Check your answers.** The page lists the title, window type, key stage, checking exercises and the dates of each exercise. Select **Change** beside the title, the window type or an exercise's dates to correct it. The key stage and the checking exercises have no **Change** link, because they come from the window type. When everything is right, select **Save and continue**.
 
-Selecting **Save and continue** on the last page creates the window and its storage. The service then opens the window summary page.
+![The Select the window type page, with 4 options: Key Stage 4 June, Key Stage 2, Post 16 and Key Stage 4 Autumn](admin/images/window-create-type.png)
+*The window type page.*
+
+The dates page rejects an opening date in the past, with the message *Start date can not occur in the past.* It also rejects a closing date before the opening date, with *End date can not occur before the start date.*
+
+Selecting **Save and continue** on *Check your answers* creates the window and its storage. The service then opens the window summary page.
 
 The service does not ask for a turnaround commitment or a next opportunity in these pages. Add them afterwards from the window summary.
 
-#### Leaving the wizard part-way
+#### Leaving the create pages part-way
 
-The service keeps your answers for the rest of your session. If you leave and come back, the first page shows the name you entered. The window is not created until you complete the last page, so leaving does not affect any existing window.
+The service keeps your answers for the rest of your session. The window is not created until you complete the last page, so leaving does not affect any existing window. Select **New window** again to start with no answers.
 
-> **Warning** The Cancel links in this wizard do not work as you would expect at present. On the first page, **Cancel** takes you to the Administration page if you have not saved any answers yet. If you have, it opens the *Do you want to delete this window?* page described below. On the later pages, **Cancel** shows a *Page not found* screen. On the *Check your answers* page, **Cancel** does nothing. That page is at `/admin/windows/cancel-creation`. It shows your answers, with **Continue** and **Delete** buttons. Both show *Page not found*, and **Delete** does not discard your answers. To leave, use the side menu or the header. To start again, change each answer.
+To discard your answers, select **Cancel** on the title page or on a dates page. If you have saved any answers, the service shows *Do you want to delete this window?* with the answers so far:
+
+- Select **Delete** to discard your answers. The service opens the Administration page.
+- Select **Continue** to go back to the next page you have not answered.
+
+If you have not saved any answers, **Cancel** on the title page opens the Administration page.
+
+> **Warning** 2 of the Cancel links do not work as you would expect at present. On the *Select the window type* page, **Cancel** shows a *Page not found* screen. On the *Check your answers* page, **Cancel** shows the same page again. To leave from either page, select **Back** on *Check your answers*, or use the links in the header.
 
 ### The window summary page
 
 Select **Edit** on a window in *Manage windows* to open its summary. This is where you manage the window from day to day.
 
-![The summary page for the Key Stage 4 June window, showing the window details and the Pupil data checking section](admin/images/window-summary.png)
-*The summary page for a window with one exercise, Pupil data checking.*
+![The summary page for the Key Stage 2 window, showing the window details and a card for each checking exercise with its tags, dates, data files and buttons](admin/images/window-summary.png)
+*The summary page for a window with 2 checking exercises.*
 
-The first section, *Window details*, lists the title, whether the window is published and open, its start and end dates, its window type, its checking exercises, its turnaround commitment and its next opportunity. Select **Change** beside a row to edit it. The start and end dates have no **Change** link, because they come from the exercises. *Is Published* and *Is Open* have none either.
+The first section, *Window details*, lists:
 
-When you change an exercise's dates, the service checks them. It rejects an opening date in the past, with the message *Start date can not occur in the past.* It also rejects a closing date before the opening date, with *End date can not occur before the start date.* The first check applies even if you only want to change the closing date of an exercise that has already opened. The service cannot save changes to the dates of an exercise that has already opened. If you need to move the closing date of an open exercise, ask the development team.
+- **Title**, with a **Change** link
+- **Start Date** and **End Date**: the earliest exercise start and the latest exercise end. They have no **Change** link, because they come from the exercises.
+- **Window Type**, with a **Change** link. The page shows the type as a short code, such as *KS2*, *KS4June*, *KS4Autumn* or *Post16*.
+- **Turnaround commitment**, with a **Change** link. It says *Not set* until you add one.
+- **Next opportunity**, with a **Change** link. It says *Not set* until you add one.
 
-*Is Published* and *Is Open* can differ from the *Published* and *Status* columns on *Manage windows*. For example, a window that *Manage windows* shows as open can show *False* here. If they disagree, ask the development team which is right.
+If you change the window type, the window keeps its exercises. The service changes the Results enquiry's results files to those of the new type.
 
-Below that, each exercise has its own section. It shows:
+Under *Checking exercises*, each exercise has a card, in the order schools see the tabs. The card title shows the exercise name and its type. The card has 2 links:
 
-- **Start Date** and **End Date**, with **Change** links.
-- **Validated**: *Yes* with the date and time, *No*, or *Not since the files changed*. The last one means the exercise was validated once, but someone has since replaced a file. Validate again.
-- One line for each dataset's **ingress file** and **schema file**, each with a **Change** link. A missing file shows *Not supplied*.
-- **Status**: *Open*, *Closed* or *Upcoming*. An exercise is open between its start and end dates.
-- Buttons named after the exercise. **Validate Pupil data checking** is always shown for an exercise that has files to load. **Close Pupil data checking** is shown only while the exercise is open. **Send Pupil data checking requests for processing** is shown only once the exercise has closed.
+- **Edit** opens the exercise's edit page, where you change everything about the exercise, including its dates and data files.
+- **Delete** opens a page that asks you to confirm. See "Deleting a checking exercise or a window" later in this chapter.
 
-#### Choosing an ingress file
+The card starts with 2 tags. The first is the State tag, as on *Manage windows*: *Visible*, *Visible – closed* or *Hidden*. The second says whether the exercise is validated:
 
-1. Select **Change** beside a dataset's ingress file.
-2. On *Browse ingress files*, choose a storage container from the list.
-3. Open folders until you find the file. Select **Back to Containers** to start again.
+- *Validated*: the last validation read the files the exercise now holds.
+- *Files changed since validation*: someone has changed a file since the last validation. Validate again.
+- *Not validated*: no validation has passed.
+
+The card then shows:
+
+- **Tab name**: the label schools see on the exercise's tab
+- **Start Date** and **End Date**
+- **Validated**: *Yes* with the date and time, *No*, or *Not since the files changed* with the date and time of the last validation
+- a *Data files* table, with each data file's name, what it is **Used for** (*Journey* or *Data share*) and its **Status**. An optional file shows *(optional)* after its name. A retired file is not listed here. An exercise with no data files says *This exercise has no ingress files to load.*
+- for Pupil data checking and Results enquiry only, an *Extensions* table, or the words *No extensions.*
+
+The data file Status tags mean:
+
+| Tag | What it means |
+|---|---|
+| *Live* | Schools see this file. It is in the live release. |
+| *Not validated* | The file has a CSV and a schema, but they are not in the live release. Validate the exercise. |
+| *Not supplied* | The CSV, the schema or both are missing. |
+| *Retired* | Another file replaces this one. No validation reads it. Only the exercise's **Data** tab shows this tag. |
+
+The buttons at the bottom of the card are:
+
+- **Validate**: shown on every card. It is greyed out until every required data file has a CSV and a schema, and once the exercise's closing date has passed. To validate after the closing date, use **Validate data** on the exercise's **Data** tab.
+- **Close**: for Pupil data checking and Results enquiry, while the exercise is between its opening and closing dates.
+- **Send requests for processing**: for Pupil data checking and Results enquiry, once the exercise has closed.
+- **Add extension**: for Pupil data checking and Results enquiry, at any time.
+
+Below the cards:
+
+- **Add checking exercise** adds an exercise to the window, such as a data share.
+- *Delete this window* has a **Delete window** button.
+
+### Adding or editing a checking exercise
+
+Select **Add checking exercise** on the window summary to add an exercise. Select **Edit** on an exercise's card to change one. Both open the same page, headed *Add checking exercise* or *Edit checking exercise*, with 3 tabs: **Exercise Details**, **Dates** and **Data**.
+
+When you add an exercise, the **Data** tab is empty. Select **Add checking exercise** at the bottom of the page to save it. Then select **Edit** on its card to add its data files. A new Pupil data checking exercise or data share has no data files. A new Results enquiry starts with the window type's results files.
+
+When you edit an exercise, select **Save changes** at the bottom of the page to save the **Exercise Details** and **Dates** tabs. Select **Cancel** to leave without saving. The **Data** tab saves each change as you make it, on its own pages. Save any changes on the other 2 tabs before you choose files.
+
+#### The Exercise Details tab
+
+- **Exercise name**: the name admins see, for example *Provisional students*.
+- **Exercise type**: **No exercise type (display only)**, **Pupil data checking** or **Results enquiry**. You must choose a type unless you tick **Display data only**. A window can have only one exercise of each type. You cannot change the type once the exercise has live data or schools have made requests on it. Add a new exercise instead.
+- **Tab name**: the label schools see on the tab, for example *Students* or *Results*.
+- **Tab order**: lower numbers appear first, on the school's checking data page and on the window summary.
+- **Display data only**: schools can view and download the data, but cannot start a journey.
+- **Show late results warning**: on a Results enquiry, when you edit it. Before an incorrect grade enquiry, schools are told that late results may still correct the grade. A new Results enquiry starts with the box ticked. Clear it when the late results have arrived.
+- **How schools see the data**: this applies to every data file in the exercise.
+    - **Table**: many records for each school. Schools choose a data file, then search and page through it.
+    - **Summary list**: one record for each school, shown as labels and values. Use this for a summary.
+    - **Included and non-included tabs**: 2 tables, each on its own tab. A pupil goes on a tab by P_INCL, or by the file's inclusion setting. Use this for Key Stage 4 pupil data.
+
+#### The Dates tab
+
+Under *Exercise dates*, enter **When does it open?**, **What time does it open?**, **When does it close?** and **What time does it close?** These dates make up the window's dates. For an exercise with a journey, they also decide when schools can make requests. A display-only exercise never accepts requests.
+
+If the closing date is before the opening date, the page says *End date cannot occur before the start date*. When you add an exercise, the opening date cannot be in the past. If it is, the page says *Start date cannot occur in the past*. When you edit an exercise, you can change the dates of an exercise that has already opened.
+
+Under *Visibility*:
+
+- **Enable this exercise for schools**: schools see nothing of the exercise until you tick this.
+- **Visible from (optional)**: the exercise is visible from this date and time, when it is enabled. Leave it blank for no start limit. When you add an exercise, you enter a date only, and it starts at midnight.
+- **Visible until (optional)**: the exercise is hidden from this date and time. A date after the exercise closes keeps the window on the school's landing page, read only, until then. Leave it blank to hide it when the window closes. *Visible until* must be after *Visible from*.
+- **Replaces exercise (optional)**: choose an exercise in this window that this one replaces. This records the link only. It does not hide the earlier exercise or copy its data.
+
+Visibility is separate from the checking dates. Schools can view and download the data after checking closes.
+
+#### The Data tab
+
+The **Data** tab lists the exercise's data files and its data releases.
+
+![The Data tab of the Edit checking exercise page, with a data files table, the Add data file and Validate data buttons, and a Data releases table](admin/images/exercise-edit-data.png)
+*The Data tab, with the Data releases table below the data files.*
+
+The *Data files* table has one row for each data file:
+
+| Column | What it shows |
+|---|---|
+| Data file | The file's name, with *Required*, *Optional* or *Retired* beneath. |
+| CSV | The CSV file name, or *Not selected*, and a **Choose CSV** link. |
+| JSON schema | The schema file name, or *Not selected*, and a **Choose schema** link. |
+| Status | *Live*, *Not validated*, *Not supplied* or *Retired*, with a **Retire** link, or **Put back in use** for a retired file. |
+
+Below the table:
+
+- **Add data file** adds a new data file to the exercise.
+- The *Validation* line says *Up to date*, *Files have changed since the last validation* or *Not yet validated*.
+- **Validate data** opens the validation page. It is greyed out until every required data file has a CSV and a schema.
+- The *Data releases* table. See "Validating data and data releases" later in this chapter.
+
+#### Adding a data file
+
+1. On the **Data** tab, select **Add data file**.
+2. Enter a **Data file name**. Use a short name, such as *Included pupils*. On a Results enquiry, schools see this name as the source of each result in the file. The name must be 50 characters or fewer, must not contain `/` or `\`, and must be different from the exercise's other data files.
+3. Leave **This file is required before the exercise can be validated** ticked, or clear it for an optional file.
+4. On Pupil data checking or a Results enquiry, answer **What is this file for?**:
+    - **Pupil data for the journeys** (on Pupil data checking) or **Results for the enquiry** (on a Results enquiry): the file is merged with the exercise's other journey files.
+    - **Data share only**: schools can view and download it, but no journey uses it, for example previously published data.
+5. For pupil data for the journeys, answer **Pupil inclusion**: **Use the CSV's values**, **All pupils are included** or **All pupils are not included**.
+6. Select **Add data file**.
+
+If the exercise already has files that feed the journey, the page warns you that the new file will be merged with them, and lists them. Tick **Yes, add this file to the journey data** to go on. If the new file replaces one of them, retire the old file after you add this one.
+
+The service returns you to the **Data** tab. Choose the new file's CSV and schema next.
+
+#### Choosing a CSV
+
+1. On the **Data** tab, select **Choose CSV** beside the data file.
+2. On *Browse ingress files for* and the data file's name, choose a storage container from the list.
+3. Open folders until you find the file. Select **Back** to go up one folder, or **Back to Containers** to start again.
 4. Under **Select a file**, choose the file.
 5. Select **Use selected file**.
 
-The service copies the file into the window's own storage and records its checksum. Then it returns you to the summary page. Nothing is uploaded from your computer.
+The service copies the file into the window's own storage and records its checksum. Then it returns you to the **Data** tab. Nothing is uploaded from your computer. If you select **Use selected file** without choosing a file, the page opens again.
 
-The screen says *No ingress containers were found* if the ingress storage area is empty. The file has to be placed there by whoever supplies the data first.
+The screen says *No ingress containers were found* if the ingress storage area is empty. Whoever supplies the data has to place the file there first.
 
 #### Uploading a schema file
 
-1. Select **Change** beside a dataset's schema file.
-2. On *Upload a JSON schema file*, choose the file from your computer.
+1. On the **Data** tab, select **Choose schema** beside the data file.
+2. On *Upload a JSON schema file for* and the data file's name, choose the file from your computer.
 3. Select **Save and continue**.
+
+The service checks that the file is a valid JSON schema. If you do not choose a file, the page says *Select a JSON schema file*. Then it returns you to the **Data** tab.
+
+### Validating data and data releases
 
 #### Validating an exercise
 
-Validation checks every record against the schema. The validate button is greyed out until the exercise has all the files it needs.
+Validation checks every record of every data file in use against its schema. Validate an exercise after you choose or change any of its files. An empty optional file is left out.
 
-1. Select the validate button for the exercise, such as **Validate Pupil data checking**.
-2. On the validation page, select **Run validation**.
+1. Select **Validate** on the exercise's card on the window summary, or **Validate data** on its **Data** tab.
+2. On the page headed *Validate* and the exercise type, such as *Validate Pupil data checking*, select **Run validation**.
 3. Watch the progress. The page counts *Records read*, *Records processed*, *Files written* and *Errors* as it goes.
 4. When it finishes, read the result. *Validation complete* means no errors. *Validation failed* means at least one error, and the page describes what was wrong.
-5. The page lists *Records processed per LAESTAB*: one row for each school, with the number of records checked.
-
-If validation fails, fix the data at source, put the corrected file in the ingress storage area, choose it again as the ingress file, and validate again.
+5. The page lists *Records processed per LAESTAB*: one row for each school, with the number of records checked, and a total.
+6. Select **Return to the checking window** to go back to the window summary.
 
 Without JavaScript the page works differently. There is no live progress. The result appears once validation has finished.
 
-#### Closing an exercise early
+If validation fails, schools keep the data they saw before. Fix the data at source, put the corrected file in the ingress storage area, choose it again with **Choose CSV**, and validate again.
 
-Use this to stop schools using an exercise before its scheduled end. You can only close an exercise that is open.
+#### Data releases
 
-1. Select the close button for the exercise, such as **Close Pupil data checking**.
-2. Read the confirmation page. It shows the window, the exercise and its scheduled end.
+Each validation that passes makes a new release, and schools see it at once. The service keeps the earlier releases. You do not need to make a release live after a validation.
+
+The *Data releases* table on the **Data** tab lists the releases, newest first. Each row shows the release number, when it was published (in UTC) and by whom, and the CSV of each data file it read. The live release shows a *Live* tag. Every other release has a **Make live** link.
+
+To put an earlier release back:
+
+1. Select **Make live** beside the release.
+2. Read the confirmation page, for example *Make release 1 live*. It shows when the release was published and its files. It says which release stops being live.
+3. Select the button, for example **Make release 1 live**, or select **Cancel**.
+
+Schools see the data from that release at once. The page titles and columns come from that release's schemas. Change requests schools have already submitted do not change. The release that was live is kept, so you can make it live again. The data files may then show *Not validated*, because the files they now hold are not in the live release.
+
+### Replacing a data file
+
+A replacement file goes in a data file of its own. Do not choose the new CSV for the old data file. Then:
+
+1. Choose the new file's CSV and schema.
+2. Retire the old data file.
+3. Validate the exercise.
+
+Schools keep the live release until the validation passes. Then they see the new release, without the retired file.
+
+To retire a data file:
+
+1. On the **Data** tab, select **Retire** beside the data file.
+2. Read the page headed *Retire* and the data file's name. It says that the next validation makes a release without the file, and that schools keep the live release until then.
+3. Select **Retire data file**, or select **Cancel**.
+
+![The Retire page for the Pupils data file of the Key Stage 2 pupil data checking exercise, with a Retire data file button and a Cancel link](admin/images/exercise-retire-file.png)
+*The page for retiring a data file.*
+
+The retired file's files are kept, and the releases that used it do not change. A retired file does not stop validation, even if it is required.
+
+You can undo retiring. Select **Put back in use** beside the retired file, then select **Put back in use** on the next page. The next validation reads the file again, if it has a CSV and a schema.
+
+#### The December files for Key Stage 2
+
+A Key Stage 2 window gets new pupil and summary files in December. Each December file replaces the September file. Each exercise has a data file for each month:
+
+- The *Pupil data checking* exercise has *Pupils* (September, required, used for the journeys) and *Pupils (December)* (optional, a data share). Schools only view and download the December file. It does not feed the journeys, because the exercise has closed by December.
+- The *Summary* data share has *Summary* (September, required) and *Summary (December)* (optional).
+
+The December data files wait empty until December. An empty required file would stop the September validation, so they are optional.
+
+In December, do these steps for the *Pupil data checking* exercise, then for *Summary*:
+
+1. On the window summary, select **Edit** on the exercise's card. Select the **Data** tab.
+2. Select **Choose CSV** on the December row. Choose the December CSV and select **Use selected file**.
+3. Select **Choose schema** on the December row. Upload the December schema and select **Save and continue**.
+4. Select **Retire** on the September row (*Pupils* or *Summary*). Select **Retire data file**.
+5. Select **Validate data**, then **Run validation**.
+
+Use **Validate data** on the **Data** tab. By December the exercise has closed, so the **Validate** button on the window summary is greyed out.
+
+Schools keep the September data until the validation passes. In a test environment with seed data, the December sample files are in the `ks2` ingress container: `pupils/pupils-december.csv` and `summary/summary-december.csv`.
+
+#### Pupil data for Key Stage 4 Autumn
+
+Give the Key Stage 4 Autumn pupil file the Key Stage 4 Autumn pupils schema, and validate it. That schema says which not-included pupils a school can ask to include. Do not use the Key Stage 4 June schema. Pupil data validated before the service marked which pupils can be included has nobody to include, so the Include journey finds no pupils. If schools say that the Include journey finds nobody, validate the pupil data again.
+
+### Closing an exercise early
+
+Use this to stop schools using an exercise before its scheduled end. You can only close a Pupil data checking or Results enquiry exercise while it is open.
+
+1. Select **Close** on the exercise's card.
+2. Read the confirmation page, for example *Close Pupil data checking early?*. It shows the window, the exercise and its scheduled end.
 3. Under **To confirm, type the window name**, type the window's name exactly as the page shows it. Capital letters matter.
-4. Select the close button again to confirm, or select **Cancel** to go back.
+4. Select the button, for example **Close Pupil data checking**, to confirm, or select **Cancel** to go back.
 
 If the name you type does not match, the exercise stays open. The page shows *The window name you entered does not match*. Correct the name and try again.
 
-> **Warning** You cannot undo closing an exercise. From that moment schools cannot make new requests for it, and any school part-way through a request is stopped on its next page. The service also sends every request schools have submitted for processing, and cancels drafts that a school has not submitted. Submitted requests cannot be changed afterwards. Cancelled drafts cannot be resumed.
+> **Warning** You cannot undo closing an exercise. From that moment schools cannot make new requests for it, and any school part-way through a request is stopped on its next page. The service also sends every request schools have submitted for processing, and cancels drafts that a school has not submitted. Submitted requests cannot be changed afterwards. Cancelled drafts cannot be resumed. Schools in an open extension keep their extra time.
 
-After it closes, the summary page shows a *Success* banner, for example *Pupil data checking was closed early on 03/09/2026, 10:39 by Sam Taylor. 1 request sent for processing and 10 drafts cancelled.* The exercise's **End Date** becomes the time you closed it, its **Status** becomes *Closed*, and the close button is no longer shown. The close is recorded in the audit log.
+After it closes, the summary page shows a *Success* banner, for example *Pupil data checking was closed early on 03/09/2026, 10:39 by Sam Taylor. 1 request sent for processing and 10 drafts cancelled.* The exercise's **End Date** becomes the time you closed it, and the **Close** button is no longer shown. The close is recorded in the audit log.
 
 The banner and the end date show UK time.
 
-If the service closes the exercise but cannot send its requests for processing, the summary page shows an *Important* banner instead. It says the exercise was closed and that its requests could not be sent. The exercise is closed. Select **Send Pupil data checking requests for processing** to try again.
+If the service closes the exercise but cannot send its requests for processing, the summary page shows an *Important* banner instead. It says the exercise was closed and that its requests could not be sent. The exercise is closed. Select **Send requests for processing** on the exercise's card to try again.
 
-#### Sending requests for processing after an exercise has closed
+### Sending requests for processing after an exercise has closed
 
 When an exercise reaches its end, the service sends its requests for processing by itself, two hours later. It also cancels drafts that schools have not submitted. You do not need to do anything.
 
 Use the button if you want the requests sent before the two hours are up, or if you think some were missed.
 
-1. Select **Send Pupil data checking requests for processing** in the exercise's section. The button appears once the exercise has closed.
-2. Read the confirmation page. It says how many *Requests to send for processing* and how many *Drafts to cancel*.
+1. Select **Send requests for processing** on the exercise's card. The button appears once the exercise has closed.
+2. Read the confirmation page. It says how many *Requests to send for processing*, how many *Requests waiting for the Rules Engine* and how many *Drafts to cancel*.
 3. Select **Send requests for processing** to confirm, or select **Cancel** to go back.
 
 > **Warning** You cannot undo this. Submitted requests are sent for processing and cannot be changed afterwards. Drafts that a school has not submitted are cancelled, and cannot be resumed.
 
-A request a school submitted only moments before the close may still be waiting for the Rules Engine. The page and the message after sending say how many are waiting. They are not lost: select **Send … requests for processing** again later to send them.
+A request a school submitted only moments before the close may still be waiting for the Rules Engine. The page and the message after sending say how many are waiting. They are not lost: select **Send requests for processing** again later to send them.
 
 You do not need to do this after closing an exercise early, because closing it early also sends its requests. If there is nothing left to send, the confirmation page says so.
 
 The two hours are counted from the end time shown on the page, which is UK time.
 
-#### Extending an exercise for named schools
+### Extending an exercise for named schools
 
 Use an extension to give some schools more time on a Pupil data checking or Results enquiry exercise. You name the schools and set a later end date. Every other school still sees the exercise close on its original date. A data share cannot have extensions.
 
-Each exercise's section on the window summary has an **Extensions** table, or says *No extensions.*
+Each exercise's card on the window summary has an **Extensions** table, or says *No extensions.*
 
 **Add an extension**
 
-1. Select **Add extension** in the exercise's section. You can add one before, during or after the exercise's end.
-2. Enter the date and time the extension ends. It must be later than the exercise's own end, which the page shows. If it is not, the page says *The extension must end after the exercise ends*. It must also be in the future. If it is not, the page says *The extension end date must be in the future*.
+1. Select **Add extension** on the exercise's card. You can add one before, during or after the exercise's end.
+2. Enter the date and time the extension ends. It must be later than the exercise's own end, which the page shows. If it is not, the page says *The extension must end after the exercise ends on* and the exercise's end. It must also be in the future. If it is not, the page says *The extension end date must be in the future*.
 3. Under **Schools**, enter one LAESTAB on each line, as `933/4290` or `9334290`. Both forms work. A school can be in only one extension of an exercise. If you enter a school that is already in another one, the page names it and gives that extension's end date.
 4. Select **Save extension**.
 
@@ -847,7 +1086,7 @@ After it saves, the summary page shows a *Success* banner, for example *Extensio
 
 Select **Edit** beside an open extension. You can change the end date and the list of schools. The end date must still be later than the exercise's end and in the future. The page shows the schools in the form `933/4290`. Select **Save extension**. The warning about schools with no data file works as it does when you add, but the tick box is labelled **Save these schools anyway**. If someone else changed the extension while you had it open, the page says so. Check the extension and try again.
 
-If you remove a school after the exercise's requests were sent automatically, use the exercise's Send requests for processing to send that school's requests.
+If you remove a school after the exercise's requests were sent automatically, use the exercise's **Send requests for processing** to send that school's requests.
 
 You cannot edit an extension that has closed.
 
@@ -882,36 +1121,85 @@ A named school sees only the new end date, wherever the service shows the exerci
 
 Each change appears in the audit log, under the **Window admin** activity, with your name: an extension added, edited, closed early, and its requests sent for processing. When the service sends them by itself, the entry shows *System* instead of a name.
 
+### Deleting a checking exercise or a window
+
+You can delete one checking exercise, or a whole window with all its exercises. Both need the `manage-window` section. Neither can be undone. Before you delete anything, the service shows a page that lists what will go.
+
+**Delete a checking exercise**
+
+1. Select **Delete** on the exercise's card on the window summary.
+2. Read the page headed *Delete* and the exercise name. It says how many data file slots, releases and extensions are deleted with the exercise. The window and its other exercises stay.
+3. If schools have made change requests through the exercise, tick the box, for example **I understand that 3 change requests will be permanently deleted**.
+4. Select **Delete exercise**, or select **Cancel**.
+
+The page also tells you when:
+
+- schools can see the exercise now. Its tab is removed as soon as you delete it.
+- it is the last exercise in the window. Schools will not see the window until you add another exercise and enable it.
+- another exercise replaces this one. That exercise stays, but no longer replaces anything.
+- the exercise was set up before exercises had their own storage. Its files are not deleted, because a new exercise of the same kind could read them.
+
+Every file uploaded to the exercise, and all the data made from them, is deleted with it. The summary page then shows a *Success* banner, for example *Pupil data checking deleted.*
+
+**Delete a window**
+
+1. Select **Delete window** under *Delete this window* at the bottom of the window summary.
+2. Read the page headed *Delete* and the window title. It says how many checking exercises are deleted, with every data file, schema and release they hold.
+3. If schools have made change requests through the window, tick the box, for example **I understand that 11 change requests will be permanently deleted**.
+4. Select **Delete window**, or select **Cancel**.
+
+![The Delete page for a window, with a warning that you cannot undo this, the counts of change requests by status, a tick box and a Delete window button](admin/images/window-delete.png)
+*The page for deleting a window.*
+
+Both pages count the change requests by status: *Submitted, not yet sent for processing*, *Sent for processing*, *Drafts* and *Withdrawn or cancelled*. The requests are deleted with any evidence schools uploaded.
+
+- Submitted requests that have not been sent for processing are lost. To send them first, close the exercise, or send its requests for processing, before you delete it.
+- Requests already sent for processing stay in Zendesk. This service no longer holds them, and schools can no longer view them.
+
+If you select the delete button without ticking the box, nothing is deleted. The page says *Confirm that you want to delete the change requests made through this window*, or *through this exercise*. The service counts the requests again when you select the button, so it asks if a school made a request while you had the page open.
+
+Deleting a window also deletes its data egress runs. Files already transferred to LDS are not changed. Schools no longer see the window. The *Manage windows* screen then shows a *Success* banner, for example *Key Stage 4 June deleted.*
+
+Each delete is recorded in the audit log.
+
 ### Requests for a window
 
-Select **Requests** on a window in *Manage windows* to see every request made in that window. The page is read-only. Use it to check what schools have asked for, and what happened to each request.
+Select **Requests** on a window in *Manage windows* to see every request made in that window. The page is read-only. Use it to check what schools have asked for, and what happened to each request. Select **Back to windows** to return.
 
-![The top of the Requests screen for the Key Stage 4 June window, with an exercise filter and the first rows of the table](admin/images/window-requests.png)
+![The top of the Requests for Key Stage 4 June screen, with a Checking exercise filter and the first rows of the table](admin/images/window-requests.png)
 *The top of the Requests screen. The table continues below and is wider than the screen.*
 
-To show one exercise only, choose it under **Checking exercise** and select **Apply filter**. Results enquiries appear here under the Results enquiry exercise.
+To show one exercise only, choose it under **Checking exercise** and select **Apply filter**. Choose **All exercises** to show every request. Results enquiries appear here under the Results enquiry exercise.
 
-Each row shows:
+The table has these columns, in this order:
 
-- **Reference**, **Organisation URN**, **Pupil** and **Request type**
-- **Checking exercise** (or *Not recorded* if the request has none)
-- **Status**, such as InProgress, ReadyToSubmit, Submitted, Withdrawn or NotSubmitted
-- **Processing**: where a submitted request is on its way to a ticket, or *Waiting for decision*
-- **Submitted by** and **Submitted**
-- **Outcome**: *Auto approved*, *Auto rejected* or *Scrutiny*, or *Not yet processed*
-- **Matched Rule**: the rule that decided the outcome
-- **Zendesk Id**: the ticket, once one exists
+| Column | What it shows |
+|---|---|
+| Reference | The request's reference. |
+| Organisation URN | The school's URN. |
+| Pupil | The pupil's name. |
+| Request type | The type of change and the reason, such as *Remove - Dual registered or moved school*. |
+| Checking exercise | The exercise the request was made in, or *Not recorded* if it has none. |
+| Status | *InProgress*, *ReadyToSubmit*, *Submitted*, *Withdrawn* or *NotSubmitted*. |
+| Submitted by | The name of the person who made the request. |
+| Submitted | The date and time. |
+| Outcome | *Auto approved*, *Auto rejected* or *Scrutiny*, or *Not yet processed*. |
+| Matched Rule | The rule that decided the outcome. |
+| Zendesk Id | The ticket number, once one exists. When the service knows the Zendesk address, the number is a link that opens the ticket in a new tab. |
+| Processing | For a submitted request: where it is on its way to a ticket (*Decided*, *TicketQueued*, *TicketCreating* or *TicketCreated*), or *Waiting for decision*. A dash for any other request. |
 
-For a request the rules engine has decided, select **Decision trace** under the row to see how the engine reached its decision. The trace lists each condition the engine checked and whether it was true, ending with the rule that decided.
+For a request the rules engine has decided, select **Decision trace for** and the reference under the row to see how the engine reached its decision. The trace lists each condition the engine checked and whether it was true, ending with the rule that decided.
 
 ### Who can do what
 
-Two sections control window administration, and you give them to a role separately:
+Two sections control *Manage windows*, and you give them to a role separately:
 
-- **new-window** lets a role start the Create new window pages.
-- **manage-window** lets a role use Manage windows, the window summary, the requests list, and the pages for changing a window.
+- **new-window** lets a role see the **New window** button and finish the pages that create a window.
+- **manage-window** lets a role use *Manage windows*, the window summary, the requests list, and every page for changing a window. That includes adding, editing and deleting exercises, choosing files, validating, retiring data files, making a release live, closing, sending requests, extensions, and deleting a window.
 
-The Create new window wizard uses pages from both sections. A role that has only one of them gets a *Page not found* screen part-way through. Give both sections together. Chapter 5 explains how to change what a role can see, under Role settings.
+The create pages use pages from both sections. A role that has only one of them gets a *Page not found* screen part-way through. Give both sections together. Chapter 5 explains how to change what a role can see, under Role settings.
+
+Retiring a data file and making an earlier release live can both be undone, so Appendix A does not list them.
 
 ## 8. Data egress
 
@@ -1057,8 +1345,12 @@ This table lists the actions in the admin area that change or delete data. It sa
 
 | Screen | Action | What it does | Does it ask you to confirm? |
 |---|---|---|---|
-| Window summary | Close an exercise early | Ends the exercise for schools straight away, sends submitted requests for processing and cancels drafts. Cannot be undone. | Yes. You must type the window's name. |
+| Window summary | Close an exercise early | Ends the exercise for schools straight away, sends submitted requests for processing and cancels drafts. Schools in an open extension keep their extra time. Cannot be undone. | Yes. You must type the window's name. |
 | Window summary | Send requests for processing | For an exercise that has closed: sends submitted requests for processing and cancels drafts. Cannot be undone. | Yes. A confirmation page shows the counts. |
+| Window summary | Close an extension early | Ends the extra time for the extension's schools straight away. Does not send their requests. Cannot be undone. | Yes. You must type the window's name. |
+| Window summary | Send an extension's requests for processing | For an extension that has ended: sends its schools' submitted requests for processing and cancels their drafts. Cannot be undone. | Yes. A confirmation page shows the counts. |
+| Window summary | Delete (a checking exercise) | Deletes the exercise, its data files, releases, extensions and uploaded files, and every change request made through it. Cannot be undone. | Yes. A confirmation page lists what goes. If there are change requests, you must tick a box. |
+| Window summary | Delete window | Deletes the window, its checking exercises and their files, every change request made through it with any evidence, and its data egress runs. Files already transferred to LDS are not changed. Cannot be undone. | Yes. A confirmation page lists what goes. If there are change requests, you must tick a box. |
 | Data egress | Confirm and transfer | Sends the files to LDS. The same output type cannot be sent again for that window. | No. The screen warns you that this cannot be undone. |
 | Data egress | Abandon run | Ends the run for good. Removes any files a transfer had already written. | No. |
 | Dead-letter queue | Purge | Deletes a message for good. The audit log keeps a record of the purge. | Yes. A dialog asks *Purge this message?* |

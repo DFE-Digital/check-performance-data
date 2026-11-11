@@ -1,6 +1,6 @@
 # Check Performance Data: admin user guide
 
-*Version 1.0, 29 September 2026. Describes the service as it worked on that date.*
+*Version 1.1, 11 November 2026. Describes the service as it worked on that date.*
 
 ## About this guide
 
@@ -84,8 +84,8 @@ Some screens exist only outside production. This guide says so wherever it appli
 
 Select **Admin** in the header to open the *Administration* page. It shows one section for each group you have access to.
 
-![The top of the Administration page, with the side menu listing the nine entries and the first groups of tools in the main area](admin/images/admin-landing.png)
-*The top of the Administration page. The side menu lists all nine entries. In the main area, each group has a heading, a description and links to its screens.*
+![The top of the Administration page, with the side menu listing eight entries and the first groups of tools in the main area](admin/images/admin-landing.png)
+*The top of the Administration page as a development sign-in shows it, so the side menu lists eight entries: View as an establishment is missing, because that sign-in cannot use it. In the main area, each group has a heading, a description and links to its screens.*
 
 There are nine entries. Dashboard, Manage windows, Audit log and View as an establishment are single links. The other five are groups that hold tiles. The entries are, in order:
 
@@ -1349,9 +1349,6 @@ If your role cannot use it, the service refuses you. The browser address changes
 3. Select **Continue to choose where to start**.
 4. On the next screen, choose where to start (see "Choosing where to start").
 
-![The View as an establishment screen, with the establishment search box and the LAESTAB, URN, Lowest age and Highest age fields](admin/images/impersonation-start.png)
-*The View as an establishment screen.*
-
 The screen says: *View establishment data in read-only mode. You cannot save or submit changes.* You can fill it in 2 ways.
 
 - **Search.** In **Search for an establishment**, enter at least 2 characters from the establishment's name or URN. Choose one of the suggestions, up to 25 of them. The service fills in the four fields below for you. If nothing matches, the box says *No establishments found*. The search needs JavaScript.
@@ -1367,9 +1364,6 @@ The screen refuses details it cannot use, and says why:
 ### Choosing where to start
 
 The next screen is headed *Choose where to start impersonation*.
-
-![The Choose where to start impersonation screen, with the establishment summary, a Go to establishment home page button and the checking exercises that hold data for the establishment](admin/images/impersonation-choices.png)
-*Choosing where to start.*
 
 It shows a summary of the establishment: its name, LAESTAB, URN and age range. You then have 2 choices:
 
@@ -1388,9 +1382,6 @@ If you chose the exercise and it has since become unavailable, the screen says *
 ### While you are viewing
 
 Every page shows a banner at the top with the heading *Read-only impersonation*. It says which establishment you are viewing: *Viewing LAESTAB {number}, URN {number}. Changes cannot be saved or submitted.* The banner has an **Exit impersonation** button.
-
-![A page of the service seen as an establishment, with the Read-only impersonation banner at the top](admin/images/impersonation-banner.png)
-*The banner shown on every page while you view an establishment.*
 
 You can open:
 

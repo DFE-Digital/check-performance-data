@@ -163,6 +163,10 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
             return new DisplayColumn(property.Name,
                 Text(display, "label") ?? property.Name, order, searchable);
         }).Where(c => c is not null).Select(c => c!).OrderBy(c => c.Order).ToList();
+        // A sheet with more than one column set (the 16-18 pupil sheet: provisional/revised and
+        // retention) has one schema, and the schema says which set its file uses. A field with no
+        // letter in that set is not in the file (#841).
+        var columnVariant = Text(root, "x-download", "columnVariant");
         var csvColumns = properties.Select((property, index) =>
         {
             if (!property.Value.TryGetProperty("x-csv", out var csv))
@@ -170,8 +174,12 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
             if (!csv.TryGetProperty("columns", out var positions)) return null;
             // Variant keys are the workbook's, and differ by sheet ("provisional-revised" on the
             // students sheets, "autumn" on the summary). Prefer the named ones, then whatever the
-            // property has; an empty map means the field is not exported.
-            var variant = positions.TryGetProperty("default", out var standard) ? standard :
+            // property has; an empty map means the field is not exported. A schema that names its
+            // variant (x-download.columnVariant) gets that variant only.
+            var variant = columnVariant is not null
+                ? positions.ValueKind == JsonValueKind.Object && positions.TryGetProperty(columnVariant, out var named)
+                    ? named : default
+                : positions.TryGetProperty("default", out var standard) ? standard :
                 positions.TryGetProperty("provisional-revised", out var provisional) ? provisional :
                 positions.ValueKind == JsonValueKind.Object
                     ? positions.EnumerateObject().Select(v => v.Value).FirstOrDefault() : default;

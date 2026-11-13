@@ -285,6 +285,29 @@ public class ExerciseDisplayServiceTests
     }
 
     [Fact]
+    public void A_schema_that_names_its_column_variant_exports_only_that_variants_columns()
+    {
+        // #841: the Autumn included students file carried the fields that have a retention
+        // letter only, because each field fell back to whatever variant it had.
+        using var json = JsonDocument.Parse("""
+            {
+              "x-ingress": { "collection": "students-included" },
+              "x-download": { "fileName": "students.csv", "columnVariant": "provisional-revised" },
+              "properties": {
+                "CYPMD_ID": { "x-csv": { "columns": { "provisional-revised": "A", "retention": "A" }, "heading": "CYPMD ID" } },
+                "P_INCL_aims": { "x-csv": { "columns": { "retention": "I" }, "heading": "Aims flag" } },
+                "attendance_year_0": { "x-csv": { "columns": { "provisional-revised": "I", "retention": "K" }, "heading": "Included" } },
+                "cypmd_pk": { "x-csv": { "columns": {}, "heading": "cypmd_pk" } }
+              }
+            }
+            """);
+
+        var definition = Service().ParseDefinition("students", true, json.RootElement);
+
+        Assert.Equal(["CYPMD_ID", "attendance_year_0"], definition.CsvColumns.Select(c => c.Field));
+    }
+
+    [Fact]
     public void Supplier_dates_are_shown_and_downloaded_as_day_month_year()
     {
         // LDS supplies DOB and ENTRYDAT as YYYY-MM-DD; schools read them as DD/MM/YYYY.

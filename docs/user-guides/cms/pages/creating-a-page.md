@@ -32,7 +32,7 @@ Fill in the 3 fields.
 | Wiki | A simple page of text with nothing else. Quicker to write, but it cannot use widgets, and its title and address cannot be changed afterwards. |
 | Folder | A container that groups pages. It has no content of its own. Its address shows a list of the pages inside it. Its title and address cannot be changed afterwards. |
 
-**URL segment.** The last part of the page's address. Use lowercase letters, numbers and hyphens only, for example `spring-checking-exercise`. Keep it short and use the words people would search for.
+**URL segment.** The last part of the page's address. Use lowercase letters, numbers and single hyphens, for example `spring-checking-exercise`. Do not start or end with a hyphen, and do not put two hyphens together. If you type capital letters, the CMS makes them lowercase. Keep it short and use the words people would search for.
 
 **Title.** The main heading of the page. On a content page you can change it later.
 
@@ -45,7 +45,7 @@ Select **Create page**. A content or wiki page opens in the editor, ready for yo
 | A page already exists at that path. | Another page under the same parent uses that URL segment. Choose a different one. |
 | 'x' is a reserved path segment and cannot be used for content pages. | A top-level page cannot be called `admin`, `dev` or `healthcheck`. Choose a different segment. |
 | 'x' conflicts with an existing application route and cannot be used for content pages. | A top-level page cannot use an address that belongs to a built-in page of the service. Choose a different segment. |
-| Path may only contain lowercase letters, digits, hyphens, and forward slashes (e.g. 'my-page' or 'section/sub-page'). | Remove spaces, capital letters and punctuation from the URL segment. |
+| Path may only contain lowercase letters, digits, hyphens, and forward slashes (e.g. 'my-page' or 'section/sub-page'). | Remove spaces and punctuation from the URL segment. Capital letters are made lowercase for you. |
 
 ## Start from a page that already exists
 

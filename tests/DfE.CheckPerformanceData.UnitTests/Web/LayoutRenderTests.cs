@@ -138,16 +138,18 @@ public sealed class LayoutRenderTests
 	}
 
 	[Fact]
-	public void Layout_ServiceNavigation_ListsPupilsThenAmendmentRequestsThenGuidance()
+	public void Layout_ServiceNavigation_ListsHomeThenPupilsThenAmendmentRequestsThenGuidance()
 	{
-		// #627: UCD asked for "Pupils | Amendment requests | Guidance (opens in new tab)".
+		// Home, then #627: "Pupils | Amendment requests | Guidance (opens in new tab)".
 		var view = ReadLayout();
 
+		var home = view.IndexOf("href=\"@Url.Action(\"Index\", \"LandingPage\")\">Home</a>", StringComparison.Ordinal);
 		var pupils = view.IndexOf("\"CheckYourPupilData\"", StringComparison.Ordinal);
 		var amendments = view.IndexOf(">Amendment requests</a>", StringComparison.Ordinal);
 		var guidance = view.IndexOf(">Guidance (opens in new tab)</a>", StringComparison.Ordinal);
 
-		Assert.True(pupils >= 0 && amendments >= 0 && guidance >= 0);
+		Assert.True(home >= 0 && pupils >= 0 && amendments >= 0 && guidance >= 0);
+		Assert.True(home < pupils, "Home must come before Pupils.");
 		Assert.True(pupils < amendments, "Pupils must come before Amendment requests.");
 		Assert.True(amendments < guidance, "Amendment requests must come before Guidance.");
 	}

@@ -9,13 +9,13 @@ Everything you need to write and publish content. If you are new to the CMS, rea
 
 ## Two ways into the editor
 
-**From the page you are reading.** When you are signed in as an editor, every content page shows an **Edit** button in the top right corner. Select it to open that page in the editor, in a new tab.
+**From the page you are reading.** When you are signed in as an editor, every content page shows an **Edit** button, a white button with a pencil, fixed at the top right of the window. It stays in view as you scroll. Select it to open that page in the editor, in a new tab.
 
-![The top of a public page when signed in as an editor, with an Edit button in the top right corner of the blue header](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/edit-chip.png "The Edit button appears on every content page.")
+![The top of a public page when signed in as an editor, with a white Edit button, with a pencil, at the top right of the window](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/edit-chip.png "The Edit button appears on every content page.")
 
-**From the admin area.** Select **Admin** in the header, then **Pages**. This is where you create pages and find ones that are not published yet.
+**From the admin area.** Select **Admin** in the navigation bar under the Department for Education logo, then **Pages**. This is where you create pages and find ones that are not published yet.
 
-![The Administration page for an editor, listing Pages, Content blocks, Deleted pages and Content staging import/export under CMS administration](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/admin-landing.png "The Administration page shows only the tools your role can use.")
+![The Administration page for an editor, listing Pages, Content blocks, Home page banners, Deleted pages and Content staging import/export under CMS administration](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/admin-landing.png "The Administration page shows only the tools your role can use.")
 
 ## The 5 things to know first
 
@@ -35,7 +35,7 @@ Everything you need to write and publish content. If you are new to the CMS, rea
 | [Page properties](page-properties.md) | Title, address, menu and search settings |
 | [Drafts, publishing and versions](managing-versions.md) | Publishing, scheduling, unpublishing and going back |
 | [Content blocks](content-blocks.md) | The text of the home page, contact page and footer |
-| [Home page banners](home-page-banners.md) | Notices at the top of the start page, now or at a set time |
+| [Home page banners](home-page-banners.md) | Notices at the top of the start page and the guidance page, now or at a set time |
 | [Search](search.md) | Search boxes, results pages and making content easy to find |
 
 ## Before you publish: a checklist

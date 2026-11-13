@@ -13,8 +13,16 @@ module "application_configuration" {
   is_rails_application = false
 
   config_variables = merge({
-    ENVIRONMENT_NAME = var.environment
-    PGSSLMODE        = local.postgres_ssl_mode
+    ENVIRONMENT_NAME         = var.environment
+    PGSSLMODE                = local.postgres_ssl_mode
+    BIGQUERY_PROJECT_ID      = local.gcp_project_id
+    BIGQUERY_TABLE_NAME      = var.enable_dfe_analytics_federated_auth ? module.dfe_analytics[0].bigquery_table_name : null
+    BIGQUERY_DATASET         = var.enable_dfe_analytics_federated_auth ? module.dfe_analytics[0].bigquery_dataset : null
+    BIGQUERY_AIRBYTE_DATASET = var.airbyte_enabled ? local.gcp_dataset_name : null
+    AIRBYTE_SERVER_URL       = var.airbyte_enabled ? local.airbyte_server_url : null
+    BIGQUERY_POLICY_TAGS = var.airbyte_enabled ? jsonencode({
+      hidden = "projects/${local.gcp_project_id}/locations/${local.gcp_region}/taxonomies/${local.gcp_taxonomy_id}/policyTags/${local.gcp_policy_tag_id}"
+    }) : null
   }, local.federated_auth_configmap)
   secret_variables = merge({
     DATABASE_URL                      = module.postgres.url
@@ -24,6 +32,11 @@ module "application_configuration" {
     AZURE_STORAGE_ACCOUNT_NAME        = local.azure_storage_account_name
     AZURE_STORAGE_ACCESS_KEY          = local.azure_storage_access_key
     AZURE_STORAGE_CONTAINER           = local.azure_storage_container
+    AIRBYTE_CONFIGURATION = var.airbyte_enabled ? jsonencode({
+      SOURCE_ID      = module.airbyte[0].airbyte_source_id
+      DESTINATION_ID = module.airbyte[0].airbyte_destination_id
+      CONNECTION_ID  = module.airbyte[0].airbyte_connection_id
+    }) : null
   }, local.federated_auth_secrets)
 }
 

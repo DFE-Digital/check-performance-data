@@ -102,7 +102,7 @@ The number of results on each page is set by an administrator. See [Search](sear
 
 ## Summary list
 
-Pairs of labels and values in 2 columns. Use it for facts people look up, such as dates, contact details or deadlines.
+Pairs of labels and values in 2 columns. Use it for facts people look up, such as dates, contact details or deadlines. Site search does not read the text in a Summary list, so a visitor cannot find the page by a date or a name that appears only there. Put important words in a heading or in Rich text too, or add them to the page's **Search keywords**.
 
 ![A Summary list widget opened for editing. The Rows box holds three lines, each with a label, a vertical bar and a value](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/editor-summary-list.png "One row to a line, with a vertical bar between the label and the value.")
 
@@ -116,7 +116,7 @@ Type one row to a line, with a vertical bar between the label and the value:
 |---|---|
 | Paragraphs, lists, a table or a picture | Rich text |
 | The start of a main section | Heading |
-| Dates, deadlines or contact details | Summary list |
+| Dates, deadlines or contact details | Summary list (and repeat any key words in text, because search ignores it) |
 | Links to the main parts of a section | Cards in a Halves or Thirds region |
 | A contents list for a long page | Page navigation, set to Page headings |
 | A menu of the pages in a section | Page navigation, set to Child pages |

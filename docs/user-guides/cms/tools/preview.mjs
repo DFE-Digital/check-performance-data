@@ -17,7 +17,7 @@ const page = await browser.newPage();
 try {
   await page.goto(`${baseUrl}/dev/impersonate/admin`);
   await page.goto(`${baseUrl}/admin/content-staging`, { waitUntil: 'networkidle' });
-  await page.setInputFiles('#bundle', bundle);
+  await page.setInputFiles('input[type=file][name=bundle]', bundle);
   await Promise.all([
     page.waitForURL(/content-staging\/preview/i),
     page.getByRole('button', { name: 'Preview import' }).click(),

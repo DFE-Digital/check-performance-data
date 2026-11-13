@@ -43,7 +43,7 @@ export const removeAdmittedFollowingExclusion = {
             pageId: "permanent-exclusion",
 
             expectedHeading:
-                "Permanent exclusion",
+                "Tell us about the permanent exclusion",
 
             answers: {
                 q_permanent_exclusion_dfe_number:

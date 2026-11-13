@@ -848,6 +848,22 @@ dialog.govuk-modal-dialogue__box::backdrop {
   margin-left: auto;
 }
 
+/* School layout: the service name is on one row and the links are on a second row.
+   GOV.UK Frontend puts them on one row on a wide screen. The wrapper stretches to the
+   full width, so the Admin link still goes to the far right. */
+.app-service-navigation--stacked .govuk-service-navigation__container {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.app-service-navigation--stacked .govuk-service-navigation__service-name {
+  padding-bottom: 0;
+}
+
+.app-service-navigation--stacked .govuk-service-navigation__wrapper {
+  align-self: stretch;
+}
+
 /* Account navigation (Sign in / Sign out) on the right of the DfE header band.
    The logo stays on the left. On a narrow screen the links wrap below the logo. */
 .app-header__container {

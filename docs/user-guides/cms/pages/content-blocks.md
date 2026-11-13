@@ -8,19 +8,21 @@ keywords: content block home page footer contact privacy accessibility pencil in
 
 Some pages of the service are not CMS pages. The home page, the contact page, the footer and the pages of the request journey are built into the service, and their layout is fixed. The words on them are held in **content blocks**, which you can edit.
 
-A content block is one piece of text with a name, called its **key**. For example, `home-content` is the main text of the home page.
+A content block is one piece of text with a name, called its **key**. For example, `home-content_v2` is the main text of the home page.
 
 ## Blocks you are likely to edit
 
 | Key | Where it appears |
 |---|---|
-| `home-title`, `home-content` | The home page |
+| `home-title`, `home-content_v2` | The home page |
 | `contact-title`, `contact-intro`, `contact-highlight` | The Contact us page. The highlight is hidden from visitors while it is empty. |
 | `privacy` | The Privacy page |
 | `accessibility` | The Accessibility statement |
 | `footer-support-and-guidance-v2` | The *Support and guidance* text in the footer of every public page |
 
 The pages of the request journey have blocks of their own. The **Content blocks** screen lists them all.
+
+An older `home-content` block may still be listed. It no longer appears on the home page, so editing it changes nothing. Edit `home-content_v2` instead.
 
 > **Warning** A content block has no draft. When you select **Save**, the change is live at once, on every page that shows the block. Read it through before you save.
 
@@ -37,7 +39,7 @@ This is the quickest way, because you see the text in place.
 
 ![The home page text opened for editing in place, with a text editor, a Save button, a Cancel link and a Version history link](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/content-block-in-place-form.png "Editing the block without leaving the page.")
 
-The pencils are shown to people with the content editor role. If you cannot see them, use the Content blocks screen instead.
+The pencils are shown to people with the content editor role. If you cannot see them, use the Content blocks screen instead. They are also hidden while an administrator is viewing the service as an establishment (see [the full admin user guide](admin-user-guide.md)).
 
 > **Warning** Saving a block with the pencil clears its **Search keywords** and ticks **Appear in search** again. If the block has either set, edit it from the Content blocks screen instead, or set them again there afterwards.
 
@@ -63,11 +65,19 @@ As well as the text, you can set:
 
 Select **Save**, or **Cancel** to leave the block as it was.
 
+## Evidence guidance in a request
+
+When a school or college raises a change request, one page asks for evidence. The guidance on that page comes from content blocks. Their keys start with `journey-`, then the window type and the type of change, and end with `-evidence`. The service shows one block for each option the school ticked, and one shared block for the section that shows whatever the school ticks.
+
+To find them, type `journey` or `evidence` in **Filter** on the **Content blocks** screen. A block that has not been written yet shows placeholder text that starts *PLACEHOLDER EVIDENCE REQUIREMENTS COPY* and names the option or section. The school sees that text until you replace it, so write every block that appears.
+
+As with any block, the service makes each one the first time a school reaches the page that needs it. A block for a new combination appears in the list only after someone has been that way.
+
 ## Go back to an earlier version of a block
 
 Every save is kept. Select **Version history** in a block's edit form.
 
-![The Version history screen for the home-content block, listing its versions with their dates. The newest is tagged Current](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/content-block-versions.png "The version history of a block.")
+![The Version history screen for a content block, listing its versions with their dates. The newest is tagged Current](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/content-block-versions.png "The version history of a block.")
 
 Select a row to read that version. Select **Revert** on the one you want and confirm with **Yes, revert**. That version becomes the live text straight away. A revert is saved as a new version, so you can undo it in the same way.
 

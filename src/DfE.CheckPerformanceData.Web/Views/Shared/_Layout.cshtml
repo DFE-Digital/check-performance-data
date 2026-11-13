@@ -122,7 +122,7 @@
     @* The service navigation is hand-rolled (not <govuk-service-navigation>). Its output
        matches what the tag helpers would emit. The sign-in cluster is in the header
        band above, not in this row. *@
-    <section class="govuk-service-navigation" data-module="govuk-service-navigation" aria-label="Service information">
+    <section class="govuk-service-navigation app-service-navigation--stacked" data-module="govuk-service-navigation" aria-label="Service information">
         <div class="govuk-width-container">
             <div class="govuk-service-navigation__container">
                 <span class="govuk-service-navigation__service-name">
@@ -137,7 +137,14 @@
                             // noun rather than the word "Pupils" (LearnerNoun).
                             var navLearnerNoun = Context.Session.GetSelectedWindowLearnerNoun();
                         }
-                        @* #627: Pupils, then Amendment requests, then Guidance. *@
+                        @* Home goes to the signed-in user's landing page. #627: Pupils, then
+                           Amendment requests, then Guidance. *@
+                        @if (User.Identity is { IsAuthenticated: true })
+                        {
+                            <li class="govuk-service-navigation__item">
+                                <a class="govuk-service-navigation__link" href="@Url.Action("Index", "LandingPage")">Home</a>
+                            </li>
+                        }
                         @if (User.Identity is { IsAuthenticated: true } && selectedWindowId is not null)
                         {
                             <li class="govuk-service-navigation__item">

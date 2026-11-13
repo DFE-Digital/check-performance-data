@@ -26,6 +26,8 @@ The kinds of activity that come from the CMS are:
 | Content page version | A version is created, changed, published, scheduled or unpublished. Every change to a widget is recorded. |
 | Content block | A block is created or edited, or is shown on a different page for the first time. |
 | Content block version | A block is saved or reverted. |
+| Home page banner | A banner is created, changed, ordered or deleted. |
+| Home page banner version | A banner version is saved or restored. |
 | Content import | A file is imported through Content staging. |
 | Content staging session | A file is uploaded for review before an import. |
 | Feedback message | A visitor sends a search feedback note, or someone reads or deletes one. |

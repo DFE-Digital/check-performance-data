@@ -1,14 +1,16 @@
 ---
 title: Home page banners
-subtitle: Put an "Important" notice at the top of the start page, now or at a set time
+subtitle: Put an "Important" notice at the top of the start page and the guidance page, now or at a set time
 parent: for-editors
 order: 6
-keywords: banner notification important start page home page scheduled show from show until
+keywords: banner notification important start page home page guidance front page scheduled show from show until
 ---
 
 The start page can show one or more blue **Important** banners above its heading, for news
-such as new rules, a known problem or an extended deadline. You manage them from
-**CMS administration > Home page banners**.
+such as new rules, a known problem or an extended deadline. The same banners also show at the
+top of the guidance front page, at `/guidance`. They do not show on the pages beneath it, such
+as `/guidance/ks4-checking`. An editor who previews the guidance front page sees them too.
+You manage them from **CMS administration > Home page banners**.
 
 ## Create a banner
 
@@ -20,7 +22,7 @@ such as new rules, a known problem or an extended deadline. You manage them from
    date blank for no limit.
 5. Select **Save banner**.
 
-A banner is on the start page only while it is ticked **and** within its dates. "Show from"
+A banner is on the start page and the guidance front page only while it is ticked **and** within its dates. "Show from"
 includes the minute you enter; "Show until" does not.
 
 ## Order, status and preview
@@ -28,7 +30,8 @@ includes the minute you enter; "Show until" does not.
 The list shows banners in the order they appear on the start page. Use **Move up** and
 **Move down** to change it. Each banner shows a status: **Live**, **Scheduled** (not yet
 due), **Expired** (past its end) or **Off**. **Preview** shows a banner as schools will
-see it, whatever its status.
+see it, whatever its status. There is one list of banners: you cannot show a banner on the start
+page only.
 
 ## Versions
 

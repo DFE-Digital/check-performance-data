@@ -14,6 +14,6 @@ module "postgres" {
   azure_maintenance_window       = var.azure_maintenance_window
   azure_enable_high_availability = var.enable_postgres_high_availability
   azure_sku_name                 = var.postgres_flexible_server_sku
-  server_version                 = "17"
+  server_version                 = var.server_version
   use_airbyte                    = var.pg_airbyte_enabled
 }

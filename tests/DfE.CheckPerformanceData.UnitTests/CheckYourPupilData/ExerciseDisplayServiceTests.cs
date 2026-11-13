@@ -297,7 +297,8 @@ public class ExerciseDisplayServiceTests
                 "CYPMD_ID": { "x-csv": { "columns": { "provisional-revised": "A", "retention": "A" }, "heading": "CYPMD ID" } },
                 "P_INCL_aims": { "x-csv": { "columns": { "retention": "I" }, "heading": "Aims flag" } },
                 "attendance_year_0": { "x-csv": { "columns": { "provisional-revised": "I", "retention": "K" }, "heading": "Included" } },
-                "cypmd_pk": { "x-csv": { "columns": {}, "heading": "cypmd_pk" } }
+                "cypmd_pk": { "x-csv": { "columns": {}, "heading": "cypmd_pk" } },
+                "NO_CSV_ENTRY": { "type": "string" }
               }
             }
             """);

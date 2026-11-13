@@ -346,6 +346,17 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     }
 
     [Fact]
+    public async Task A_rule_with_descriptions_only_on_a_slot_that_does_not_say_if_its_file_is_included_fails_the_run_by_name()
+    {
+        // Nothing would stamp INCLUDED, so every row would fail validation with a type error.
+        var (last, _) = await RunInclusionRuleAsync(
+            "SURNAME,LAESTAB,P_INCL\nSmith,8604070,501\n", SchemaWithDescriptionsOnly, slotIncluded: null);
+
+        Assert.True(last.IsError);
+        Assert.Contains("x-ingress.inclusion", last.Message);
+    }
+
+    [Fact]
     public async Task A_rule_with_no_included_codes_and_no_description_field_fails_the_run_by_name()
     {
         const string schema = """

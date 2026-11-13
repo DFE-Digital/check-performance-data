@@ -2,9 +2,9 @@
 
 This folder holds the 16-19 supplier schemas, named `{name}_schema.json`. It holds no CSVs: the dev seed generates its sample files (`SeedPost16OctoberSamples` and the later `SeedPost16*Samples`).
 
-These row schemas transcribe the field references, SQL types, CSV column letters and supplied headings in `Post16.ods`. `post16-ingress_schema.json` defines one combined document per institution. A collection name identifies the source dataset, so a CSV download can select that collection without guessing from overlapping fields.
+These row schemas transcribe the field references, SQL types, CSV column letters and supplied headings of the data specification. The Autumn 2026 data requirements specification now replaces `Post16.ods` as the source. `post16-ingress_schema.json` defines one combined document per institution. A collection name identifies the source dataset, so a CSV download can select that collection without guessing from overlapping fields.
 
-The schemas follow the Autumn 2026 data requirements specification (#841). The download file names are the specification's and end in `26`. A revised or retention copy keeps its own suffix (`KS5res26_revised.csv`), which the specification does not name.
+The schemas follow the Autumn 2026 data requirements specification (#841). Where the specification names a file, the download file name is the specification's and ends in `26`. The two late results files (`late-results.csv`, `late-results-2.csv`) and the three later summary files are not named in it, so they keep their own names. A revised or retention copy keeps its own suffix (`KS5res26_revised.csv`), which the specification does not name.
 
 Each row schema uses the same extensions:
 

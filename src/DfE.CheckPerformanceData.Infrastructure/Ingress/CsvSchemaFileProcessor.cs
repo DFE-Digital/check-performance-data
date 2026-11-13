@@ -193,6 +193,16 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                 yield break;
             }
 
+            // A rule that gives descriptions only stamps nothing, so the slot must stamp INCLUDED.
+            // Without that, every row would fail validation with a type error that names no cause.
+            if (inclusion is { DecidesInclusion: false } && dataset.Included is null
+                && schema.Properties.ContainsKey("INCLUDED"))
+            {
+                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                yield return Failed($"Schema '{dataset.SchemaFile}': x-ingress.inclusion gives descriptions only, so the data file's slot must say whether its file is included.");
+                yield break;
+            }
+
             // #711: who may be asked to be included. Validated like the inclusion rule, so a schema
             // that cannot be honoured fails by name before any row is read.
             IncludableRule? includable = IncludableRule.From(schema);

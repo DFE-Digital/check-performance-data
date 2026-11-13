@@ -147,6 +147,9 @@ Session readiness for the journey requires only `SelectedWhatToChange` and `Chec
   view-ready records: `x-display.layout: "vertical"` pivots one record per school to label/value
   rows, anything else is a searched, paged table, and an exercise with no schemas falls back to a
   raw column-per-key table. A mix of layouts on one exercise renders as a table and logs a warning.
+  A tab lists its datasets by the schema's `x-display.selectorOrder`, lowest first. A schema with
+  none comes last, and ties keep the order the files were published. A schema with
+  `x-download.columnVariant` exports only the fields that have a column letter under that key.
   All of this lives in Application — the controller reads session, calls the service, returns the
   view. Do not move it back into Web.
 - **A summary list is paged by group, not by row.** A schema's `x-display.groups` (`[{key, title}]`,

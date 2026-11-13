@@ -170,7 +170,7 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
         var csvColumns = properties.Select((property, index) =>
         {
             if (!property.Value.TryGetProperty("x-csv", out var csv))
-                return new CsvColumn(property.Name, property.Name, index);
+                return columnVariant is null ? new CsvColumn(property.Name, property.Name, index) : null;
             if (!csv.TryGetProperty("columns", out var positions)) return null;
             // Variant keys are the workbook's, and differ by sheet ("provisional-revised" on the
             // students sheets, "autumn" on the summary). Prefer the named ones, then whatever the

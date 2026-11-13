@@ -25,9 +25,14 @@ public enum ExerciseLayout
 }
 
 /// <summary>One schema's worth of a school's data: how to show it, how to export it, and its rows.</summary>
+/// <param name="SelectorOrder">
+/// Where the schema asks to be listed among a tab's datasets (<c>x-display.selectorOrder</c>).
+/// A schema that gives none is listed after those that do.
+/// </param>
 public sealed record ExerciseDataset(string Key, string Label, string FileName,
     IReadOnlyList<DisplayColumn> Columns, IReadOnlyList<CsvColumn> CsvColumns,
-    IReadOnlyList<Dictionary<string, string>> Rows, bool? Included, IReadOnlySet<string> Fields);
+    IReadOnlyList<Dictionary<string, string>> Rows, bool? Included, IReadOnlySet<string> Fields,
+    int SelectorOrder = int.MaxValue);
 
 public sealed record VerticalField(string Label, string Value);
 

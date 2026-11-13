@@ -317,6 +317,52 @@ public class ExerciseDisplayServiceTests
         Assert.Equal(["Smith", "31/01/2010", "01/09/2021"], vertical.Fields.Select(f => f.Value));
     }
 
+    [Fact]
+    public void Datasets_are_listed_in_the_schemas_selector_order_whatever_order_the_files_were_added()
+    {
+        // #841: an admin added the non-included file first, and schools saw it listed first.
+        var nonIncluded = Ordered("students-non-included", 1);
+        var previous = Ordered("students-previously-published", 2);
+        var included = Ordered("students-included", 0);
+
+        var view = Service().BuildTable([], [nonIncluded, previous, included], null, null, 0, 10);
+
+        Assert.Equal(["students-included", "students-non-included", "students-previously-published"],
+            view.Datasets.Select(d => d.Key));
+        Assert.Equal("students-included", view.Selected.Key);
+    }
+
+    [Fact]
+    public void A_schema_with_no_selector_order_comes_after_those_that_have_one_in_the_order_added()
+    {
+        var first = Ordered("first-added", null);
+        var second = Ordered("second-added", null);
+        var ordered = Ordered("ordered", 0);
+
+        var view = Service().BuildTable([], [first, second, ordered], null, null, 0, 10);
+
+        Assert.Equal(["ordered", "first-added", "second-added"], view.Datasets.Select(d => d.Key));
+    }
+
+    private static ExerciseDataset Ordered(string key, int? selectorOrder)
+    {
+        var order = selectorOrder is { } value ? $", \"selectorOrder\": {value}" : "";
+        using var json = JsonDocument.Parse($$"""
+            {
+              "x-ingress": { "collection": "{{key}}" },
+              "x-display": { "section": "{{key}}"{{order}} },
+              "x-download": { "fileName": "{{key}}.csv" },
+              "properties": {
+                "SURNAME": {
+                  "x-display": { "label": "Last name", "visible": true, "order": 0, "searchable": true },
+                  "x-csv": { "columns": { "default": "A" }, "heading": "Surname" }
+                }
+              }
+            }
+            """);
+        return Service().ParseDefinition(key, null, json.RootElement);
+    }
+
     private static ExerciseDataset SummaryDefinition(string layout)
     {
         var schema = $$"""

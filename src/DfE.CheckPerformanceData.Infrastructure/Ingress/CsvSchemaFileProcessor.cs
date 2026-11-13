@@ -318,11 +318,12 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                     // 16-19 non-included file has no P_INCL column); otherwise the schema's rule
                     // reads the record's own code. Stamped BEFORE validation because
                     // AllowAdditionalProperties is false, so the schema must declare INCLUDED.
+                    // A rule that gives descriptions only (16-19) stamps nothing here.
                     if (dataset.Included is bool included && schema.Properties.ContainsKey("INCLUDED"))
                     {
                         record["INCLUDED"] = included;
                     }
-                    else if (inclusion is not null)
+                    else if (inclusion is { DecidesInclusion: true })
                     {
                         record["INCLUDED"] = inclusion.IsIncluded(record);
                     }
@@ -811,11 +812,13 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             : "URN";
 
     /// <summary>
-    /// Which pupils a file includes, by their own code: <c>"x-ingress": { "inclusion": { "field":
+    /// What a pupil file's own inclusion code means: <c>"x-ingress": { "inclusion": { "field":
     /// "P_INCL", "included": ["201"], "descriptionField": "P_INCL_DESC", "descriptions": { "201":
-    /// "..." } } }</c> at the schema's root. Codes are compared as trimmed text.
+    /// "..." } } }</c> at the schema's root. Codes are compared as trimmed text. A rule with no
+    /// <c>included</c> gives descriptions only: the file a record came from decides inclusion
+    /// (16-19, #841).
     /// </summary>
-    private sealed record InclusionRule(string Field, IReadOnlySet<string> Included, string? DescriptionField,
+    private sealed record InclusionRule(string Field, IReadOnlySet<string>? Included, string? DescriptionField,
         IReadOnlyDictionary<string, string> Descriptions)
     {
         public static InclusionRule? From(JSchema schema)
@@ -826,21 +829,27 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             return new InclusionRule(
                 rule["field"]?.Value<string>() ?? string.Empty,
-                (rule["included"] as JArray ?? []).Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal),
+                rule["included"] is JArray codes
+                    ? codes.Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal)
+                    : null,
                 rule["descriptionField"]?.Value<string>(),
                 (rule["descriptions"] as JObject ?? [])
                     .Properties().ToDictionary(p => p.Name.Trim(), p => p.Value.ToString(), StringComparer.Ordinal));
         }
 
+        /// <summary>The rule names included codes, so it can stamp INCLUDED.</summary>
+        public bool DecidesInclusion => Included is not null;
+
         public string? ErrorFor(JSchema schema) =>
             string.IsNullOrWhiteSpace(Field) ? "x-ingress.inclusion names no field."
             : !schema.Properties.ContainsKey(Field) ? $"x-ingress.inclusion reads {Field}, which the schema does not declare."
-            : !schema.Properties.ContainsKey("INCLUDED") ? "x-ingress.inclusion needs the schema to declare INCLUDED, the stamp it writes."
+            : !DecidesInclusion && DescriptionField is null ? "x-ingress.inclusion names no included codes and no descriptionField, so it does nothing."
+            : DecidesInclusion && !schema.Properties.ContainsKey("INCLUDED") ? "x-ingress.inclusion needs the schema to declare INCLUDED, the stamp it writes."
             : DescriptionField is not null && !schema.Properties.ContainsKey(DescriptionField)
                 ? $"x-ingress.inclusion writes {DescriptionField}, which the schema does not declare."
             : null;
 
-        public bool IsIncluded(JObject record) => Included.Contains(Code(record));
+        public bool IsIncluded(JObject record) => Included is not null && Included.Contains(Code(record));
 
         public string? DescriptionOf(JObject record) => Descriptions.GetValueOrDefault(Code(record));
 

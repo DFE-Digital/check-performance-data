@@ -306,6 +306,68 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Equal(description ?? string.Empty, pupil["P_INCL_DESC"]?.Value<string>() ?? string.Empty);
     }
 
+    // 16-19 (#841): the file a student came from decides inclusion, so the schema's rule gives
+    // the words for a code and names no included codes.
+    private const string SchemaWithDescriptionsOnly = """
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "x-ingress": {
+        "inclusion": {
+          "field": "P_INCL",
+          "descriptionField": "P_INCL_DESC",
+          "descriptions": { "501": "Included words", "502": "Not included words" }
+        }
+      },
+      "properties": {
+        "INCLUDED":    { "type": "boolean" },
+        "INCLUDABLE":  { "type": "boolean" },
+        "SURNAME":     { "type": ["string", "null"] },
+        "LAESTAB":     { "type": ["string", "null"] },
+        "P_INCL":      { "type": ["integer", "null"] },
+        "P_INCL_DESC": { "type": ["string", "null"] }
+      }
+    }
+    """;
+
+    [Theory]
+    [InlineData("501", "Included words")]
+    [InlineData("502", "Not included words")]
+    [InlineData("505", null)]
+    public async Task A_rule_with_descriptions_only_describes_the_code_and_the_slot_decides_inclusion(
+        string code, string? description)
+    {
+        var (last, pupil) = await RunInclusionRuleAsync(
+            $"SURNAME,LAESTAB,P_INCL\nSmith,8604070,{code}\n", SchemaWithDescriptionsOnly, slotIncluded: true);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.True(pupil!["INCLUDED"]!.Value<bool>());
+        Assert.Equal(description ?? string.Empty, pupil["P_INCL_DESC"]?.Value<string>() ?? string.Empty);
+    }
+
+    [Fact]
+    public async Task A_rule_with_no_included_codes_and_no_description_field_fails_the_run_by_name()
+    {
+        const string schema = """
+        {
+          "type": "object",
+          "x-ingress": { "inclusion": { "field": "P_INCL" } },
+          "properties": {
+            "INCLUDED":   { "type": "boolean" },
+            "INCLUDABLE": { "type": "boolean" },
+            "SURNAME":    { "type": ["string", "null"] },
+            "LAESTAB":    { "type": ["string", "null"] },
+            "P_INCL":     { "type": ["integer", "null"] }
+          }
+        }
+        """;
+
+        var (last, _) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,501\n", schema, slotIncluded: true);
+
+        Assert.True(last.IsError);
+        Assert.Contains("x-ingress.inclusion", last.Message);
+    }
+
     [Fact]
     public async Task The_slots_file_of_origin_stamp_wins_over_the_schemas_rule()
     {

@@ -72,6 +72,32 @@ public static class RulesAdminViewModelFactory
         };
     }
 
+    /// <summary>
+    /// #800: the window rules page. Every branch condition is described with the
+    /// window-aware describer, resolving window-relative dates against the window's
+    /// start date. A missing or empty rules set yields the "no rules configured" state.
+    /// </summary>
+    public static WindowRulesViewModel WindowRules(
+        string windowTitle, Guid windowId, DateOnly windowStartDate, RuleSet? rules) => new()
+    {
+        Title = $"{windowTitle} rules",
+        WindowTitle = windowTitle,
+        WindowId = windowId,
+        StartDate = windowStartDate,
+        RulesVersion = rules?.Version,
+        HasRules = rules is not null && rules.Outcomes.Count > 0,
+        Outcomes = rules is null
+            ? Array.Empty<WindowOutcomeRules>()
+            : rules.Outcomes
+                .Select(o => new WindowOutcomeRules(o.Label,
+                    o.Rules
+                        .Select(b => new BranchViewModel(
+                            b.Id, b.Status, PredicateDescriber.Describe(b.When, windowStartDate),
+                            b.When is Predicate.Otherwise))
+                        .ToList()))
+                .ToList()
+    };
+
     public static LookupsViewModel Lookups(Lookups? lookups) => new()
     {
         Rows = lookups is null

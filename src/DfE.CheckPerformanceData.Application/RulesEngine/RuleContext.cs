@@ -19,10 +19,16 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// <see cref="Predicate"/>s must exist in <see cref="FieldCatalogue"/>. Missing
 /// answers project to <see cref="FieldValue.Unknown"/>.
 /// </param>
+/// <param name="WindowStartDate">
+/// The checking window's start date (#800), the anchor for window-relative
+/// date literals. Null when the message carries no start date; a relative
+/// literal then resolves to no date and the engine makes no decision on it.
+/// </param>
 public sealed record RuleContext(
     string OutcomeKey,
     string CheckingWindowType,
-    IReadOnlyDictionary<string, FieldValue> Fields)
+    IReadOnlyDictionary<string, FieldValue> Fields,
+    DateOnly? WindowStartDate = null)
 {
     public FieldValue GetField(string name) =>
         Fields.TryGetValue(name, out var v) ? v : FieldValue.Unknown.Instance;

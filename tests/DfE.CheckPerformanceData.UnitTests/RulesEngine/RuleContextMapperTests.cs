@@ -558,6 +558,30 @@ public sealed class RuleContextMapperTests
         Assert.Equal(new FieldValue.Str("Remove - pupil-died"), ctx.GetField("requestType"));
     }
 
+    // --- WindowStartDate (#800) ---
+
+    [Fact]
+    public void Map_CopiesCheckingWindowStartDate_OntoWindowStartDate()
+    {
+        // Only the date part carries over; the time of day does not.
+        var msg = NewMessage("Remove - pupil-died",
+            checkingWindowStartDate: new DateTime(2027, 9, 3, 9, 30, 0, DateTimeKind.Unspecified));
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new DateOnly(2027, 9, 3), ctx.WindowStartDate);
+    }
+
+    [Fact]
+    public void Map_WindowStartDate_IsNull_WhenMessageHasNoCheckingWindowStartDate()
+    {
+        var msg = NewMessage("Remove - pupil-died");
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Null(ctx.WindowStartDate);
+    }
+
     [Fact]
     public void Map_NullMessage_ThrowsArgumentNullException()
     {
@@ -571,7 +595,8 @@ public sealed class RuleContextMapperTests
         string checkingWindowType = "KS4June",
         IEnumerable<AnswerRecord>? answers = null,
         int pupilAge = 0,
-        int pupilPincl = 0) =>
+        int pupilPincl = 0,
+        DateTime? checkingWindowStartDate = null) =>
         new()
         {
             ChangeRequestId    = Guid.NewGuid(),
@@ -579,6 +604,7 @@ public sealed class RuleContextMapperTests
             RequestTypeCode    = whatToChange,
             CheckingWindowType = checkingWindowType,
             CheckingWindowId   = Guid.NewGuid(),
+            CheckingWindowStartDate = checkingWindowStartDate,
             SubmittedAt        = DateTime.UtcNow,
             SubmittedBy        = new UserDetails { UserId = "u", DisplayName = "x" },
             School             = new SchoolDetails { Urn = "1", Name = "S" },

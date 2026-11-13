@@ -148,6 +148,10 @@ public sealed class PredicateJsonConverter : JsonConverter<Predicate>
             JsonValueKind.False  => new FieldValue.Bool(false),
             JsonValueKind.Number => new FieldValue.Num(el.GetDecimal()),
             JsonValueKind.Null   => FieldValue.Unknown.Instance,
+            // A window-relative date object (#800); the FieldValue converter
+            // rejects any object that is not a well-formed one.
+            JsonValueKind.Object => JsonSerializer.Deserialize<FieldValue>(el.GetRawText(), options)
+                ?? throw new JsonException("Object literal deserialised to null."),
             _ => throw new JsonException($"Unsupported literal value kind {el.ValueKind}.")
         };
     }

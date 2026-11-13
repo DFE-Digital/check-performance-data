@@ -18,6 +18,9 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 ///         maps (plain copy, option fan-out, vocabulary translation, window-type-resolved
 ///         sat-exams), parsed against the <see cref="FieldCatalogue"/>'s expected types.
 ///         The engine-facing <c>RawValue</c> is preferred over the display <c>Value</c>.</item>
+///   <item><c>WindowStartDate</c> from <see cref="RequestDocument.CheckingWindowStartDate"/>
+///         (the date part only). Null when the message carries no start date; a
+///         window-relative rule literal then resolves to no date (#800).</item>
 /// </list>
 ///
 /// Throws <see cref="RuleContextMappingException"/> when an answer's value is
@@ -65,7 +68,11 @@ public sealed class RuleContextMapper : IRuleContextMapper
             if (evidence is not null) fields["hasSupportingEvidence"] = evidence;
         }
 
-        return new RuleContext(outcomeKey, checkingWindowType, fields);
+        // Date part only: the window start date is a UK wall-clock deadline (#800).
+        var windowStartDate = message.CheckingWindowStartDate is { } start
+            ? DateOnly.FromDateTime(start)
+            : (DateOnly?)null;
+        return new RuleContext(outcomeKey, checkingWindowType, fields, windowStartDate);
     }
 
     /// <summary>

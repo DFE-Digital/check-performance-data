@@ -46,6 +46,35 @@ public sealed record OutcomesViewModel
 
 public sealed record BranchViewModel(string Id, DecisionStatus Status, PredicateNode Condition, bool IsOtherwise);
 
+/// <summary>
+/// #800: the read-only "rules for this window" page. Every branch condition is already
+/// described with the window-aware describer, so the view renders nodes as-is.
+/// </summary>
+public sealed record WindowRulesViewModel
+{
+    /// <summary>The page heading: the window title with "rules" — shown in the one &lt;h1&gt;.</summary>
+    public required string Title { get; init; }
+
+    /// <summary>The window title alone, for the breadcrumb and the back link.</summary>
+    public required string WindowTitle { get; init; }
+
+    public required Guid WindowId { get; init; }
+
+    /// <summary>The window's start date — the anchor a window-relative date resolves from.</summary>
+    public required DateOnly StartDate { get; init; }
+
+    /// <summary>The serving rules file's version, or null when no rules are configured.</summary>
+    public string? RulesVersion { get; init; }
+
+    /// <summary>False when the rules blob is missing or holds no outcomes: show the empty state.</summary>
+    public bool HasRules { get; init; }
+
+    public required IReadOnlyList<WindowOutcomeRules> Outcomes { get; init; }
+}
+
+/// <summary>#800: one outcome card on the window rules page.</summary>
+public sealed record WindowOutcomeRules(string Label, IReadOnlyList<BranchViewModel> Branches);
+
 public sealed record OutcomeDetailViewModel
 {
     public required string Key { get; init; }

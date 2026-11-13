@@ -136,4 +136,85 @@ public sealed class PredicateDescriberTests
         Assert.Equal(2, node.Children[0].Children.Count);
         Assert.Equal("Not true:", node.Children[1].Text);
     }
+
+    // #800: the window-aware overload resolves a window-relative date literal to the
+    // concrete date for the window being viewed.
+
+    private static PredicateNode DescribeForWindow(Predicate p, DateOnly windowStart) =>
+        PredicateDescriber.Describe(p, windowStart);
+
+    [Fact]
+    public void SecondMondayOfMay_resolves_to_the_concrete_date_for_the_window()
+    {
+        var node = DescribeForWindow(
+            new Predicate.FieldEq("dateOfRemoval",
+                new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay())),
+            new DateOnly(2027, 1, 4));
+        Assert.Equal("dateOfRemoval is 10 May 2027 (window-relative: second Monday of May)", node.Text);
+    }
+
+    [Fact]
+    public void FirstSeptemberMinusYears_resolves_years_back_from_the_window_year()
+    {
+        var node = DescribeForWindow(
+            new Predicate.FieldCompare("schoolAdmissionDate", CompareOp.Lte,
+                new FieldValue.RelativeDate(new RelativeDateSpec.FirstSeptemberMinusYears(3))),
+            new DateOnly(2027, 1, 4));
+        Assert.Equal("schoolAdmissionDate is less than or equal to 1 September 2024 (window-relative: 1 September, 3 years before the window year)", node.Text);
+    }
+
+    [Fact]
+    public void DayMonthOfWindowYear_resolves_the_named_day_of_the_window_year()
+    {
+        var node = DescribeForWindow(
+            new Predicate.FieldEq("dateAddedToRoll",
+                new FieldValue.RelativeDate(new RelativeDateSpec.DayMonthOfWindowYear(4, 1))),
+            new DateOnly(2027, 1, 4));
+        Assert.Equal("dateAddedToRoll is 1 April 2027 (window-relative: 1 April of the window year)", node.Text);
+    }
+
+    [Fact]
+    public void A_relative_date_that_cannot_resolve_shows_the_form_name_with_no_date()
+    {
+        // 29 February has no date in 2027 — the describer shows the form name and no
+        // date, never a guessed one.
+        var node = DescribeForWindow(
+            new Predicate.FieldEq("dateOfRemoval",
+                new FieldValue.RelativeDate(new RelativeDateSpec.DayMonthOfWindowYear(2, 29))),
+            new DateOnly(2027, 1, 4));
+        Assert.Equal("dateOfRemoval is 29 February of the window year", node.Text);
+    }
+
+    [Fact]
+    public void A_fixed_date_renders_unchanged_with_and_without_a_window()
+    {
+        var leaf = new Predicate.FieldEq("schoolAdmissionDate", new FieldValue.Date(new DateOnly(2025, 9, 1)));
+        Assert.Equal("schoolAdmissionDate is 2025-09-01", DescribeForWindow(leaf, new DateOnly(2027, 1, 4)).Text);
+        Assert.Equal("schoolAdmissionDate is 2025-09-01", Describe(leaf).Text);
+    }
+
+    [Fact]
+    public void The_single_argument_member_delegates_without_a_window()
+    {
+        // No window start date means a relative literal shows its form name, never "unknown".
+        var node = Describe(new Predicate.FieldEq("dateOfRemoval",
+            new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay())));
+        Assert.Equal("dateOfRemoval is second Monday of May", node.Text);
+    }
+
+    [Fact]
+    public void A_relative_date_in_a_nested_group_resolves_for_the_window()
+    {
+        var node = DescribeForWindow(new Predicate.AllOf(new Predicate[]
+        {
+            new Predicate.Not(new Predicate.FieldCompare("dateOfRemoval", CompareOp.Lt,
+                new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay())))
+        }), new DateOnly(2027, 1, 4));
+
+        var not = node.Children[0];
+        Assert.Equal("Not true:", not.Text);
+        Assert.Equal(
+            "dateOfRemoval is less than 10 May 2027 (window-relative: second Monday of May)",
+            not.Children[0].Text);
+    }
 }

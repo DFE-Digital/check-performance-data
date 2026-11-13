@@ -176,6 +176,71 @@ public sealed class PredicateJsonConverterTests
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Predicate>(json, Opts));
     }
 
+    // --- window-relative date literals (#800) ---
+
+    [Fact]
+    public void Reads_DayMonthOfWindowYear_Object()
+    {
+        var json = """{ "field": "dateOfRemoval", "eq": { "windowRelative": "dayMonthOfWindowYear", "month": 4, "day": 1 } }""";
+        var p = JsonSerializer.Deserialize<Predicate>(json, Opts);
+        var eq = Assert.IsType<Predicate.FieldEq>(p);
+        Assert.Equal(new FieldValue.RelativeDate(new RelativeDateSpec.DayMonthOfWindowYear(4, 1)), eq.Value);
+    }
+
+    [Fact]
+    public void Reads_FirstSeptemberMinusYears_Object()
+    {
+        var json = """{ "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } }""";
+        var p = JsonSerializer.Deserialize<Predicate>(json, Opts);
+        var cmp = Assert.IsType<Predicate.FieldCompare>(p);
+        Assert.Equal(new FieldValue.RelativeDate(new RelativeDateSpec.FirstSeptemberMinusYears(3)), cmp.Value);
+    }
+
+    [Fact]
+    public void Reads_SecondMondayOfMay_Object()
+    {
+        var json = """{ "field": "dateOfRemoval", "gte": { "windowRelative": "secondMondayOfMay" } }""";
+        var p = JsonSerializer.Deserialize<Predicate>(json, Opts);
+        var cmp = Assert.IsType<Predicate.FieldCompare>(p);
+        Assert.Equal(new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay()), cmp.Value);
+    }
+
+    [Fact]
+    public void Rejects_ObjectWithoutWindowRelativeToken()
+    {
+        // Every install path turns this JsonException into a save refusal.
+        var json = """{ "field": "dateOfRemoval", "eq": { "month": 4, "day": 1 } }""";
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Predicate>(json, Opts));
+    }
+
+    [Fact]
+    public void Rejects_ObjectWithUnknownWindowRelativeToken()
+    {
+        var json = """{ "field": "dateOfRemoval", "eq": { "windowRelative": "everyMondayOfMay" } }""";
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Predicate>(json, Opts));
+    }
+
+    [Fact]
+    public void Rejects_ObjectMissingARequiredParameter()
+    {
+        var json = """{ "field": "dateOfRemoval", "eq": { "windowRelative": "dayMonthOfWindowYear", "month": 4 } }""";
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Predicate>(json, Opts));
+    }
+
+    [Fact]
+    public void Rejects_ObjectWithAnUnexpectedExtraProperty()
+    {
+        var json = """{ "field": "dateOfRemoval", "eq": { "windowRelative": "secondMondayOfMay", "day": 1 } }""";
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Predicate>(json, Opts));
+    }
+
+    [Fact]
+    public void Rejects_ParameterOfTheWrongType()
+    {
+        var json = """{ "field": "dateOfRemoval", "eq": { "windowRelative": "dayMonthOfWindowYear", "month": "four", "day": 1 } }""";
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Predicate>(json, Opts));
+    }
+
     // --- shape rejections ---
 
     [Fact]

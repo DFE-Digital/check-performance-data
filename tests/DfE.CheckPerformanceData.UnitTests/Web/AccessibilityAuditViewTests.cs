@@ -714,4 +714,48 @@ public sealed class AccessibilityAuditViewTests
 			view.IndexOf("Model.ShowHomeBanners", StringComparison.Ordinal)
 				< view.IndexOf("Model.IsPreview", StringComparison.Ordinal));
 	}
+
+	// ── #800 Per-window rules page: title, breadcrumb and GOV.UK components ─────────────
+
+	[Fact]
+	public void WindowRulesPage_TitleMatchesItsSingleHeading()
+	{
+		// The layout prefixes the document title with "Error: " when the form fails, so the
+		// title must hold the same words as the page's one heading — nothing else.
+		var view = ReadView("Views", "WindowAdmin", "Rules.cshtml");
+
+		Assert.Contains("ViewBag.Title = Model.Title;", view);
+		Assert.Contains("<h1 class=\"govuk-heading-xl\">@Model.Title</h1>", view);
+		Assert.Equal(1, view.Split("<h1", StringSplitOptions.None).Length - 1);
+	}
+
+	[Fact]
+	public void WindowRulesPage_RendersItsBreadcrumb_InTheLayoutSection_NotInline()
+	{
+		// Same rule as the content page: the breadcrumb is repeated navigation, so it sits in
+		// the layout's Breadcrumbs section, which renders before <main>.
+		var view = ReadView("Views", "WindowAdmin", "Rules.cshtml");
+		var layout = ReadView("Views", "Shared", "_Layout.cshtml");
+
+		Assert.Contains("@section Breadcrumbs {", view);
+		Assert.Contains("RenderSection(\"Breadcrumbs\", required: false)", layout);
+
+		var headerSectionStart = layout.IndexOf("@section Header {", StringComparison.Ordinal);
+		var breadcrumbRender = layout.IndexOf("RenderSection(\"Breadcrumbs\"", StringComparison.Ordinal);
+		var renderBody = layout.IndexOf("@RenderBody()", StringComparison.Ordinal);
+		Assert.InRange(breadcrumbRender, headerSectionStart, renderBody);
+	}
+
+	[Fact]
+	public void WindowRulesPage_UsesGovUkComponents_AndNoInlineHandlers()
+	{
+		// The page is built from GOV.UK Frontend components only, and a GET-only read-only page
+		// carries no event handlers of its own.
+		var view = ReadView("Views", "WindowAdmin", "Rules.cshtml");
+
+		Assert.Contains("govuk-summary-card", view);
+		Assert.Contains("govuk-summary-list", view);
+		Assert.Contains("govuk-back-link", view);
+		Assert.DoesNotContain("onclick", view, StringComparison.OrdinalIgnoreCase);
+	}
 }

@@ -16,6 +16,11 @@ public sealed class PredicateNodeForm
     public string? Value { get; set; }     // scalar literal (also the language for OfficialLanguageIs)
     public List<string> Values { get; set; } = new(); // for FieldIn
 
+    // UI-only: the Value is a window-relative date token (for example "window:secondMondayOfMay"),
+    // not a fixed date. The value editor renders it read-only (#800). Round-trips via the form,
+    // but PredicateForm reads the token, so the flag itself never affects the saved predicate.
+    public bool RelativeDate { get; set; }
+
     // UI-only: when true, a composite group renders as a read-only summary instead of the full
     // editor. Round-trips via the form; ignored by PredicateForm.Build, so it never affects the
     // saved predicate. Always false for leaves.

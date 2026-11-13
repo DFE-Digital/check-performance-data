@@ -1,0 +1,89 @@
+@using DfE.CheckPerformanceData.Application.RulesEngine
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model WindowRulesViewModel
+@{
+    ViewBag.Title = Model.Title;
+
+    string TagClass(DecisionStatus s) => s switch
+    {
+        DecisionStatus.AutoApproved => "govuk-tag--green",
+        DecisionStatus.AutoRejected => "govuk-tag--red",
+        _ => "govuk-tag--yellow"
+    };
+
+    string TagText(DecisionStatus s) => s switch
+    {
+        DecisionStatus.AutoApproved => "Auto approved",
+        DecisionStatus.AutoRejected => "Auto rejected",
+        _ => "Scrutiny"
+    };
+}
+
+@section Breadcrumbs {
+    @* Rendered by the layout before <main>, so it stays out of the skip-link target. *@
+    <div class="govuk-width-container">
+        <nav class="govuk-breadcrumbs cpb-breadcrumbs" aria-label="Breadcrumb">
+            <ol class="govuk-breadcrumbs__list">
+                <li class="govuk-breadcrumbs__list-item">
+                    <a class="govuk-breadcrumbs__link" href="/">Home</a>
+                </li>
+                <li class="govuk-breadcrumbs__list-item">
+                    <a class="govuk-breadcrumbs__link" href="/admin/windows">Windows</a>
+                </li>
+                <li class="govuk-breadcrumbs__list-item">
+                    <a class="govuk-breadcrumbs__link" href="/admin/windows/summary/@Model.WindowId">@Model.WindowTitle</a>
+                </li>
+                <li class="govuk-breadcrumbs__list-item" aria-current="page">Rules</li>
+            </ol>
+        </nav>
+    </div>
+}
+
+<govuk-back-link href="/admin/windows/summary/@Model.WindowId">Back to window</govuk-back-link>
+
+<span class="govuk-caption-xl">Rules for this window</span>
+<h1 class="govuk-heading-xl">@Model.Title</h1>
+
+<p class="govuk-body">
+    Window-relative dates resolve to the concrete date they take for this window.
+    A date that cannot resolve for this window shows the form name only.
+</p>
+
+<govuk-summary-list>
+    <govuk-summary-list-row>
+        <govuk-summary-list-row-key>Start Date</govuk-summary-list-row-key>
+        <govuk-summary-list-row-value>@Model.StartDate.ToString("dd MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</govuk-summary-list-row-value>
+    </govuk-summary-list-row>
+    <govuk-summary-list-row>
+        <govuk-summary-list-row-key>Rules version</govuk-summary-list-row-key>
+        <govuk-summary-list-row-value>@(Model.RulesVersion ?? "not set")</govuk-summary-list-row-value>
+    </govuk-summary-list-row>
+</govuk-summary-list>
+
+@if (!Model.HasRules)
+{
+    <div class="govuk-inset-text">
+        This window has no rules configured.
+    </div>
+}
+
+@foreach (var outcome in Model.Outcomes)
+{
+    <govuk-summary-card>
+        <govuk-summary-card-title>@outcome.Label</govuk-summary-card-title>
+        <govuk-summary-list>
+            @foreach (var branch in outcome.Branches)
+            {
+                <govuk-summary-list-row>
+                    <govuk-summary-list-row-key>@branch.Id</govuk-summary-list-row-key>
+                    <govuk-summary-list-row-value>
+                        <strong class="govuk-tag @TagClass(branch.Status)">@TagText(branch.Status)</strong>
+                        <ul class="govuk-list govuk-list--bullet">
+                            @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateNode.cshtml", branch.Condition)
+                        </ul>
+                    </govuk-summary-list-row-value>
+                </govuk-summary-list-row>
+            }
+        </govuk-summary-list>
+    </govuk-summary-card>
+}

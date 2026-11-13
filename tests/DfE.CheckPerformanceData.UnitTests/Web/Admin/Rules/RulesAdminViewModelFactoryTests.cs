@@ -161,4 +161,61 @@ public sealed class RulesAdminViewModelFactoryTests
         Assert.Equal(2, vm.Versions[0].VersionNumber); // newest first
         Assert.Equal(1, vm.Versions[1].VersionNumber);
     }
+
+    // #800: the window rules page view model.
+
+    [Fact]
+    public void WindowRules_carries_window_metadata_and_versions()
+    {
+        var windowId = Guid.NewGuid();
+        var startDate = new DateOnly(2026, 9, 1);
+
+        var vm = RulesAdminViewModelFactory.WindowRules("Main 2027", windowId, startDate, SampleRules());
+
+        Assert.Equal("Main 2027 rules", vm.Title);
+        Assert.Equal("Main 2027", vm.WindowTitle);
+        Assert.Equal(windowId, vm.WindowId);
+        Assert.Equal(startDate, vm.StartDate);
+        Assert.Equal("v3", vm.RulesVersion);
+        Assert.True(vm.HasRules);
+    }
+
+    [Fact]
+    public void WindowRules_describes_each_branch_with_the_window_relative_date()
+    {
+        var rules = new RuleSet("v1", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero),
+            new[]
+            {
+                Outcome("Inclusion", "Inclusion",
+                    new RuleBranch("INC-1", DecisionStatus.AutoApproved,
+                        new Predicate.FieldEq("dateOfRemoval",
+                            new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay()))))
+            });
+
+        var vm = RulesAdminViewModelFactory.WindowRules("Main 2027", Guid.NewGuid(),
+            new DateOnly(2026, 9, 1), rules);
+
+        // The second Monday of May 2026 is 11 May 2026; the anchor is the window's
+        // start-date year, not the year the page is viewed in.
+        var branch = vm.Outcomes.Single().Branches.Single();
+        Assert.Contains("11 May 2026", branch.Condition.Text);
+        Assert.Contains("window-relative: second Monday of May", branch.Condition.Text);
+    }
+
+    [Fact]
+    public void WindowRules_reports_no_rules_when_null_or_empty()
+    {
+        var windowId = Guid.NewGuid();
+        var startDate = new DateOnly(2026, 9, 1);
+
+        var missing = RulesAdminViewModelFactory.WindowRules("Main 2027", windowId, startDate, null);
+        Assert.False(missing.HasRules);
+        Assert.Null(missing.RulesVersion);
+        Assert.Empty(missing.Outcomes);
+
+        var empty = RulesAdminViewModelFactory.WindowRules("Main 2027", windowId, startDate,
+            new RuleSet("v0", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero), Array.Empty<OutcomeRules>()));
+        Assert.False(empty.HasRules);
+        Assert.Empty(empty.Outcomes);
+    }
 }

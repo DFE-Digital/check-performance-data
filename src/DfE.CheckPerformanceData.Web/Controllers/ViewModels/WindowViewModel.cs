@@ -70,6 +70,10 @@ public class WindowEditItem : AdminPage
         get => $"{BaseEditUrl}/window-type";
     }
 
+    /// <summary>#800: the window's rule dates, resolved for this window
+    /// (<see cref="Controllers.WindowAdmin.WindowRulesController"/>).</summary>
+    public string RulesLink => $"{BaseEditUrl}/rules";
+
     /// <summary>
     /// One section per checking exercise (#319). Each carries its own dates, its own ingress and
     /// schema files, and its own validation state — a window is no longer validated as a whole.

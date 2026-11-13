@@ -285,6 +285,30 @@ public class ExerciseDisplayServiceTests
     }
 
     [Fact]
+    public void A_schema_that_names_its_column_variant_exports_only_that_variants_columns()
+    {
+        // #841: the Autumn included students file carried the fields that have a retention
+        // letter only, because each field fell back to whatever variant it had.
+        using var json = JsonDocument.Parse("""
+            {
+              "x-ingress": { "collection": "students-included" },
+              "x-download": { "fileName": "students.csv", "columnVariant": "provisional-revised" },
+              "properties": {
+                "CYPMD_ID": { "x-csv": { "columns": { "provisional-revised": "A", "retention": "A" }, "heading": "CYPMD ID" } },
+                "P_INCL_aims": { "x-csv": { "columns": { "retention": "I" }, "heading": "Aims flag" } },
+                "attendance_year_0": { "x-csv": { "columns": { "provisional-revised": "I", "retention": "K" }, "heading": "Included" } },
+                "cypmd_pk": { "x-csv": { "columns": {}, "heading": "cypmd_pk" } },
+                "NO_CSV_ENTRY": { "type": "string" }
+              }
+            }
+            """);
+
+        var definition = Service().ParseDefinition("students", true, json.RootElement);
+
+        Assert.Equal(["CYPMD_ID", "attendance_year_0"], definition.CsvColumns.Select(c => c.Field));
+    }
+
+    [Fact]
     public void Supplier_dates_are_shown_and_downloaded_as_day_month_year()
     {
         // LDS supplies DOB and ENTRYDAT as YYYY-MM-DD; schools read them as DD/MM/YYYY.
@@ -315,6 +339,52 @@ public class ExerciseDisplayServiceTests
         Assert.Equal("01/09/2021", view.Rows[0]["ENTRYDAT"]);
         Assert.Contains("Smith,31/01/2010,01/09/2021", csv);
         Assert.Equal(["Smith", "31/01/2010", "01/09/2021"], vertical.Fields.Select(f => f.Value));
+    }
+
+    [Fact]
+    public void Datasets_are_listed_in_the_schemas_selector_order_whatever_order_the_files_were_added()
+    {
+        // #841: an admin added the non-included file first, and schools saw it listed first.
+        var nonIncluded = Ordered("students-non-included", 1);
+        var previous = Ordered("students-previously-published", 2);
+        var included = Ordered("students-included", 0);
+
+        var view = Service().BuildTable([], [nonIncluded, previous, included], null, null, 0, 10);
+
+        Assert.Equal(["students-included", "students-non-included", "students-previously-published"],
+            view.Datasets.Select(d => d.Key));
+        Assert.Equal("students-included", view.Selected.Key);
+    }
+
+    [Fact]
+    public void A_schema_with_no_selector_order_comes_after_those_that_have_one_in_the_order_added()
+    {
+        var first = Ordered("first-added", null);
+        var second = Ordered("second-added", null);
+        var ordered = Ordered("ordered", 0);
+
+        var view = Service().BuildTable([], [first, second, ordered], null, null, 0, 10);
+
+        Assert.Equal(["ordered", "first-added", "second-added"], view.Datasets.Select(d => d.Key));
+    }
+
+    private static ExerciseDataset Ordered(string key, int? selectorOrder)
+    {
+        var order = selectorOrder is { } value ? $", \"selectorOrder\": {value}" : "";
+        using var json = JsonDocument.Parse($$"""
+            {
+              "x-ingress": { "collection": "{{key}}" },
+              "x-display": { "section": "{{key}}"{{order}} },
+              "x-download": { "fileName": "{{key}}.csv" },
+              "properties": {
+                "SURNAME": {
+                  "x-display": { "label": "Last name", "visible": true, "order": 0, "searchable": true },
+                  "x-csv": { "columns": { "default": "A" }, "heading": "Surname" }
+                }
+              }
+            }
+            """);
+        return Service().ParseDefinition(key, null, json.RootElement);
     }
 
     private static ExerciseDataset SummaryDefinition(string layout)

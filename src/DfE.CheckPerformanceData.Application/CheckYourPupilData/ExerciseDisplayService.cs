@@ -13,7 +13,10 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
         // Several slots may share one schema — a results enquiry has a slot per supplier file
         // (main, late, revised...) and every file has the same shape and lands in the same
         // per-school blob. They present as one dataset, keyed by the schema's collection.
-        definitions = definitions.DistinctBy(d => d.Key).ToList();
+        // The schemas say where each dataset is listed, so included files come before
+        // non-included ones whatever order an admin added them (#841). OrderBy is stable:
+        // datasets with the same order keep the order they were added.
+        definitions = definitions.DistinctBy(d => d.Key).OrderBy(d => d.SelectorOrder).ToList();
         var grouped = definitions.ToDictionary(d => d.Key,
             d => new List<Dictionary<string, string>>());
         foreach (var row in rows)
@@ -143,6 +146,11 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
         var key = Text(root, "x-ingress", "collection") ?? datasetName;
         var label = Text(root, "x-display", "section") ?? Text(root, "x-download", "label") ?? datasetName;
         var fileName = Path.GetFileName(Text(root, "x-download", "fileName") ?? $"{key}.csv");
+        var selectorOrder = root.TryGetProperty("x-display", out var rootDisplay)
+            && rootDisplay.ValueKind == JsonValueKind.Object
+            && rootDisplay.TryGetProperty("selectorOrder", out var selector)
+            && selector.ValueKind == JsonValueKind.Number && selector.TryGetInt32(out var listed)
+                ? listed : int.MaxValue;
         var columns = properties.Select((property, index) =>
         {
             var display = property.Value.TryGetProperty("x-display", out var value) ? value : default;
@@ -155,15 +163,23 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
             return new DisplayColumn(property.Name,
                 Text(display, "label") ?? property.Name, order, searchable);
         }).Where(c => c is not null).Select(c => c!).OrderBy(c => c.Order).ToList();
+        // A sheet with more than one column set (the 16-18 pupil sheet: provisional/revised and
+        // retention) has one schema, and the schema says which set its file uses. A field with no
+        // letter in that set is not in the file (#841).
+        var columnVariant = Text(root, "x-download", "columnVariant");
         var csvColumns = properties.Select((property, index) =>
         {
             if (!property.Value.TryGetProperty("x-csv", out var csv))
-                return new CsvColumn(property.Name, property.Name, index);
+                return columnVariant is null ? new CsvColumn(property.Name, property.Name, index) : null;
             if (!csv.TryGetProperty("columns", out var positions)) return null;
             // Variant keys are the workbook's, and differ by sheet ("provisional-revised" on the
             // students sheets, "autumn" on the summary). Prefer the named ones, then whatever the
-            // property has; an empty map means the field is not exported.
-            var variant = positions.TryGetProperty("default", out var standard) ? standard :
+            // property has; an empty map means the field is not exported. A schema that names its
+            // variant (x-download.columnVariant) gets that variant only.
+            var variant = columnVariant is not null
+                ? positions.ValueKind == JsonValueKind.Object && positions.TryGetProperty(columnVariant, out var named)
+                    ? named : default
+                : positions.TryGetProperty("default", out var standard) ? standard :
                 positions.TryGetProperty("provisional-revised", out var provisional) ? provisional :
                 positions.ValueKind == JsonValueKind.Object
                     ? positions.EnumerateObject().Select(v => v.Value).FirstOrDefault() : default;
@@ -173,7 +189,7 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
         }).Where(c => c is not null).Select(c => c!).OrderBy(c => c.Order).ToList();
         // x-display.layout in a schema is ignored: the exercise sets the layout (see ExerciseLayout).
         return new ExerciseDataset(key, label, fileName, columns, csvColumns, [], included,
-            new HashSet<string>(properties.Select(p => p.Name), StringComparer.OrdinalIgnoreCase));
+            new HashSet<string>(properties.Select(p => p.Name), StringComparer.OrdinalIgnoreCase), selectorOrder);
     }
 
     private static string? Text(JsonElement element, params string[] path)

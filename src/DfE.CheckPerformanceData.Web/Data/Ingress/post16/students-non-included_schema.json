@@ -11,7 +11,7 @@
     "institutionKey": "LAESTAB"
   },
   "x-download": {
-    "fileName": "KS5_not_incl_pup25.csv",
+    "fileName": "KS5_not_incl_pup26.csv",
     "label": "Students non-included"
   },
   "x-display": {
@@ -23,8 +23,15 @@
     "INCLUDED": {
       "type": "boolean",
       "description": "Whether this row came from the included students file",
-      "x-csv": { "columns": {}, "heading": "Included" },
-      "x-display": { "label": "Included", "visible": false, "order": 999 }
+      "x-csv": {
+        "columns": {},
+        "heading": "Included"
+      },
+      "x-display": {
+        "label": "Included",
+        "visible": false,
+        "order": 999
+      }
     },
     "INCLUDABLE": {
       "type": "boolean",
@@ -157,7 +164,7 @@
         "integer",
         "null"
       ],
-      "description": "Student age at beginning of the reporting year (ie, 31 August 2024)",
+      "description": "Student age at beginning of the reporting year (ie, 31 August 2025)",
       "x-csv": {
         "columns": {
           "default": "F"
@@ -239,6 +246,40 @@
       },
       "x-display": {
         "label": "ULN",
+        "visible": false
+      }
+    },
+    "CampID_0": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Campus the student attended in 25/26 academic year",
+      "x-csv": {
+        "columns": {
+          "default": "K"
+        },
+        "heading": "The campus identifier for the 2025/26 academic year"
+      },
+      "x-display": {
+        "label": "The campus identifier for the 2025/26 academic year",
+        "visible": false
+      }
+    },
+    "CampID_1": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Campus the student attended in 24/25 academic year",
+      "x-csv": {
+        "columns": {
+          "default": "L"
+        },
+        "heading": "The campus identifier for the 2024/25 academic year"
+      },
+      "x-display": {
+        "label": "The campus identifier for the 2024/25 academic year",
         "visible": false
       }
     },

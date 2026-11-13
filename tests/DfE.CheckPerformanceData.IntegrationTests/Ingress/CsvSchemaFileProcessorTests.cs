@@ -586,6 +586,25 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Equal(includable, pupil!["INCLUDABLE"]!.Value<bool>());
     }
 
+    // #841: the shipped 16-19 included schema gives the words for 501 and 502 and for no other
+    // code, and the included slot still decides inclusion.
+    [Theory]
+    [InlineData("501", true)]
+    [InlineData("502", true)]
+    [InlineData("505", false)]
+    public async Task The_shipped_16_19_included_schema_describes_the_inclusion_code(string code, bool described)
+    {
+        var schema = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", "post16", "students-included_schema.json"));
+
+        var (last, pupil) = await RunInclusionRuleAsync(
+            $"CYPMD_ID,SURNAME,FORENAMES,P_INCL,LAESTAB\n1,Smith,Al,{code},8604070\n", schema, slotIncluded: true);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.True(pupil!["INCLUDED"]!.Value<bool>());
+        Assert.Equal(described, !string.IsNullOrEmpty(pupil["P_INCL_DESC"]?.Value<string>()));
+    }
+
     [Fact]
     public async Task A_schema_with_an_institution_key_splits_the_file_by_that_column()
     {

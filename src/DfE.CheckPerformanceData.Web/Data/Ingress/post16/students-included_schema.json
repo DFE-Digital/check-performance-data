@@ -9,11 +9,25 @@
     "collection": "students-included",
     "pageTab": "students",
     "institutionKey": "LAESTAB",
-    "includable": { "field": "P_INCL", "codes": ["502"] }
+    "includable": {
+      "field": "P_INCL",
+      "codes": [
+        "502"
+      ]
+    },
+    "inclusion": {
+      "field": "P_INCL",
+      "descriptionField": "P_INCL_DESC",
+      "descriptions": {
+        "501": "Student included in performance measures for level 3 or level 2 vocational",
+        "502": "Student not included in performance measures for level 3 or level 2 vocational"
+      }
+    }
   },
   "x-download": {
-    "fileName": "ks5pup25.csv",
-    "label": "Students included"
+    "fileName": "ks5pup26.csv",
+    "label": "Students included",
+    "columnVariant": "provisional-revised"
   },
   "x-display": {
     "tab": "students",
@@ -24,8 +38,15 @@
     "INCLUDED": {
       "type": "boolean",
       "description": "Whether this row came from the included students file",
-      "x-csv": { "columns": {}, "heading": "Included" },
-      "x-display": { "label": "Included", "visible": false, "order": 999 }
+      "x-csv": {
+        "columns": {},
+        "heading": "Included"
+      },
+      "x-display": {
+        "label": "Included",
+        "visible": false,
+        "order": 999
+      }
     },
     "INCLUDABLE": {
       "type": "boolean",
@@ -46,10 +67,11 @@
         "null"
       ],
       "maxLength": 20,
-      "description": "A student reference number for use in checking exercise",
+      "description": "A student reference number for use in the checking exercise",
       "x-csv": {
         "columns": {
-          "provisional-revised": "A"
+          "provisional-revised": "A",
+          "retention": "A"
         },
         "heading": "CYPMD ID"
       },
@@ -68,7 +90,8 @@
       "description": "Student surname",
       "x-csv": {
         "columns": {
-          "provisional-revised": "B"
+          "provisional-revised": "B",
+          "retention": "B"
         },
         "heading": "Surname"
       },
@@ -88,7 +111,8 @@
       "description": "Student forename",
       "x-csv": {
         "columns": {
-          "provisional-revised": "C"
+          "provisional-revised": "C",
+          "retention": "C"
         },
         "heading": "Forename"
       },
@@ -108,7 +132,8 @@
       "description": "Student sex",
       "x-csv": {
         "columns": {
-          "provisional-revised": "D"
+          "provisional-revised": "D",
+          "retention": "D"
         },
         "heading": "Sex"
       },
@@ -127,7 +152,8 @@
       "description": "Student date of birth in format DD/MM/YYYY",
       "x-csv": {
         "columns": {
-          "provisional-revised": "E"
+          "provisional-revised": "E",
+          "retention": "E"
         },
         "heading": "Date of birth"
       },
@@ -142,10 +168,11 @@
         "integer",
         "null"
       ],
-      "description": "Student age at beginning of the reporting year (ie, 31 August 2024)",
+      "description": "Student age at beginning of the reporting year (ie, 31 August 2025)",
       "x-csv": {
         "columns": {
-          "provisional-revised": "F"
+          "provisional-revised": "F",
+          "retention": "F"
         },
         "heading": "Age"
       },
@@ -163,12 +190,31 @@
       "description": "501: Student included in performance measures for level 3 or level 2 vocational 502: Student not included in performance measures for level 3 or level 2 vocational",
       "x-csv": {
         "columns": {
-          "provisional-revised": "G"
+          "provisional-revised": "G",
+          "retention": "G"
         },
         "heading": "Student inclusion flag"
       },
       "x-display": {
         "label": "Student inclusion flag",
+        "visible": false
+      }
+    },
+    "P_INCL_DESC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student inclusion description. The specification gives no field reference. Ingress fills it from x-ingress.inclusion.descriptions when the supplier sends none.",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "H",
+          "retention": "H"
+        },
+        "heading": "Student inclusion description"
+      },
+      "x-display": {
+        "label": "Student inclusion description",
         "visible": false
       }
     },
@@ -189,21 +235,38 @@
         "visible": false
       }
     },
+    "P_INCL_aims_DESC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student inclusion flag for aims description. The specification gives no field reference. A retention column only; nothing fills it, so it is blank unless the supplier sends it.",
+      "x-csv": {
+        "columns": {
+          "retention": "J"
+        },
+        "heading": "Student inclusion flag for aims description"
+      },
+      "x-display": {
+        "label": "Student inclusion flag for aims description",
+        "visible": false
+      }
+    },
     "attendance_year_0": {
       "type": [
         "integer",
         "null"
       ],
-      "description": "Student included in this school or college's results for the 2024/25 academic year",
+      "description": "Student included in this school or college's results for the 2025/26 academic year",
       "x-csv": {
         "columns": {
           "provisional-revised": "I",
           "retention": "K"
         },
-        "heading": "Allocated to provider in 2024/25"
+        "heading": "Included in 2025/26"
       },
       "x-display": {
-        "label": "Allocated to provider in 2024/25",
+        "label": "Included in 2025/26",
         "visible": false
       }
     },
@@ -212,16 +275,16 @@
         "integer",
         "null"
       ],
-      "description": "Student included in this school or college's results for the 2023/24 academic year",
+      "description": "Student included in this school or college's results for the 2024/25 academic year",
       "x-csv": {
         "columns": {
           "provisional-revised": "J",
           "retention": "L"
         },
-        "heading": "Allocated to provider in 2023/24"
+        "heading": "Included in 2024/25"
       },
       "x-display": {
-        "label": "Allocated to provider in 2023/24",
+        "label": "Included in 2024/25",
         "visible": false
       }
     },
@@ -230,16 +293,16 @@
         "integer",
         "null"
       ],
-      "description": "Student included in this school or college's results for the 2022/23 academic year",
+      "description": "Student included in this school or college's results for the 2023/24 academic year",
       "x-csv": {
         "columns": {
           "provisional-revised": "K",
           "retention": "M"
         },
-        "heading": "Allocated to provider in 2022/23"
+        "heading": "Included in 2023/24"
       },
       "x-display": {
-        "label": "Allocated to provider in 2022/23",
+        "label": "Included in 2023/24",
         "visible": false
       }
     },
@@ -249,16 +312,16 @@
         "null"
       ],
       "maxLength": 10,
-      "description": "Source of allocation if the student is included in this school or college's results for the 2024/25 academic year",
+      "description": "Source of allocation if the student is included in this school or college's results for the 2025/26 academic year",
       "x-csv": {
         "columns": {
           "provisional-revised": "L",
           "retention": "N"
         },
-        "heading": "Allocation source in 2024/25"
+        "heading": "Allocation source in 2025/26"
       },
       "x-display": {
-        "label": "Allocation source in 2024/25",
+        "label": "Allocation source in 2025/26",
         "visible": false
       }
     },
@@ -268,16 +331,16 @@
         "null"
       ],
       "maxLength": 10,
-      "description": "Source of allocation if the student is included in this school or college's results for the 2023/24 academic year",
+      "description": "Source of allocation if the student is included in this school or college's results for the 2024/25 academic year",
       "x-csv": {
         "columns": {
           "provisional-revised": "M",
           "retention": "O"
         },
-        "heading": "Allocation source in 2023/24"
+        "heading": "Allocation source in 2024/25"
       },
       "x-display": {
-        "label": "Allocation source in 2023/24",
+        "label": "Allocation source in 2024/25",
         "visible": false
       }
     },
@@ -287,16 +350,16 @@
         "null"
       ],
       "maxLength": 10,
-      "description": "Source of allocation if the student is included in this school or college's results for the 2022/23 academic year",
+      "description": "Source of allocation if the student is included in this school or college's results for the 2023/24 academic year",
       "x-csv": {
         "columns": {
           "provisional-revised": "N",
           "retention": "P"
         },
-        "heading": "Allocation source in 2022/23"
+        "heading": "Allocation source in 2023/24"
       },
       "x-display": {
-        "label": "Allocation source in 2022/23",
+        "label": "Allocation source in 2023/24",
         "visible": false
       }
     },
@@ -435,7 +498,7 @@
         "number",
         "null"
       ],
-      "description": "Total points achieved in A levels at grades A*-E that contribute to their institution’s published average point scores in A levels.",
+      "description": "Total points achieved in A levels at grades A*-E that contribute to their institution’s published average point scores in A levels.",
       "x-csv": {
         "columns": {
           "provisional-revised": "V",
@@ -597,7 +660,7 @@
         "number",
         "null"
       ],
-      "description": "Total points achieved in applied general qualifications that contribute to their institution’s published average point scores (in applied general qualifications).",
+      "description": "Total points achieved in applied general qualifications that contribute to their institution’s published average point scores in applied general qualifications",
       "x-csv": {
         "columns": {
           "provisional-revised": "AE",
@@ -651,7 +714,7 @@
         "number",
         "null"
       ],
-      "description": "Total points achieved in technical certificate qualifications that contribute to their institution’s published average point scores (in technical certificate qualifications).",
+      "description": "Total points achieved in technical certificate qualifications that contribute to their institution’s published average point scores in technical certificate qualifications",
       "x-csv": {
         "columns": {
           "provisional-revised": "AH",
@@ -661,6 +724,1039 @@
       },
       "x-display": {
         "label": "Total point score in technical certificates",
+        "visible": false
+      }
+    },
+    "TLEVEL": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student entered for T level qualification",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AI",
+          "retention": "AK"
+        },
+        "heading": "T level student"
+      },
+      "x-display": {
+        "label": "T level student",
+        "visible": false
+      }
+    },
+    "TOTENTS_TLEVEL": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Total entries for T level qualifications, ie this student’s contribution to their institution’s published average point scores.",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AJ",
+          "retention": "AL"
+        },
+        "heading": "Total entries in T levels"
+      },
+      "x-display": {
+        "label": "Total entries in T levels",
+        "visible": false
+      }
+    },
+    "TOTPTSE_TLEVEL": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Total points achieved in T level qualifications that contribute to their institution’s published average point scores.",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AK",
+          "retention": "AM"
+        },
+        "heading": "Total point score in T levels"
+      },
+      "x-display": {
+        "label": "Total point score in T levels",
+        "visible": false
+      }
+    },
+    "L3_FLAG": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student is flagged in at least one of the ACAD, AGEN or TLEV attainment programmes",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AL",
+          "retention": "AN"
+        },
+        "heading": "Student in one of the L3 attainment programmes"
+      },
+      "x-display": {
+        "label": "Student in one of the L3 attainment programmes",
+        "visible": false
+      }
+    },
+    "TechCert_nodisc": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student entered for at least one technical certificate qualification (ignoring discounting)",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AM",
+          "retention": "AO"
+        },
+        "heading": "Technical certificate student (ignoring discounting)"
+      },
+      "x-display": {
+        "label": "Technical certificate student (ignoring discounting)",
+        "visible": false
+      }
+    },
+    "L2VOC_nodisc": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student entered for at least one level 2 vocational qualification (ignoring discounting)",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AN",
+          "retention": "AP"
+        },
+        "heading": "Level 2 vocational student (ignoring discounting)"
+      },
+      "x-display": {
+        "label": "Level 2 vocational student (ignoring discounting)",
+        "visible": false
+      }
+    },
+    "TLEV_nodisc": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student entered for at least one tech level qualification (ignoring discounting)",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AO",
+          "retention": "AQ"
+        },
+        "heading": "Tech level student (ignoring discounting)"
+      },
+      "x-display": {
+        "label": "Tech level student (ignoring discounting)",
+        "visible": false
+      }
+    },
+    "TLEV_denom": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student entered for at least one level 3 vocational qualification excluding applied generals (ignoring discounting)",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AP",
+          "retention": "AR"
+        },
+        "heading": "Level 3 vocational student excluding applied generals (ignoring discounting)"
+      },
+      "x-display": {
+        "label": "Level 3 vocational student excluding applied generals (ignoring discounting)",
+        "visible": false
+      }
+    },
+    "AGEN_nodisc": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student entered for at least one applied general qualification (ignoring discounting)",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AQ",
+          "retention": "AS"
+        },
+        "heading": "Applied general student (ignoring discounting)"
+      },
+      "x-display": {
+        "label": "Applied general student (ignoring discounting)",
+        "visible": false
+      }
+    },
+    "AGEN_denom": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student entered for at least one level 3 vocational qualification excluding tech levels (ignoring discounting)",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AR",
+          "retention": "AT"
+        },
+        "heading": "Level 3 vocational student excluding tech levels (ignoring discounting)"
+      },
+      "x-display": {
+        "label": "Level 3 vocational student excluding tech levels (ignoring discounting)",
+        "visible": false
+      }
+    },
+    "LearningAimReference": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 8,
+      "description": "Qualification number of aim selected as core aim for retention measure",
+      "x-csv": {
+        "columns": {
+          "retention": "AU"
+        },
+        "heading": "Retention core aim qualification number"
+      },
+      "x-display": {
+        "label": "Retention core aim qualification number",
+        "visible": false
+      }
+    },
+    "INSCOPE_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student is included in the English progress measure i.e. student doesn't have A*-C in English GCSE and no exemptions apply",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AS",
+          "retention": "AV"
+        },
+        "heading": "Student in English progress measure"
+      },
+      "x-display": {
+        "label": "Student in English progress measure",
+        "visible": false
+      }
+    },
+    "PROGRESS_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Progress made in English while studying at this school or college",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AT",
+          "retention": "AW"
+        },
+        "heading": "Progress made in English"
+      },
+      "x-display": {
+        "label": "Progress made in English",
+        "visible": false
+      }
+    },
+    "BASE_pts_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The baseline points for English progress measure",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AU",
+          "retention": "AX"
+        },
+        "heading": "Baseline points for English progress measure"
+      },
+      "x-display": {
+        "label": "Baseline points for English progress measure",
+        "visible": false
+      }
+    },
+    "BEST_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The highest points achieved in English qualifications during 16-18",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AV",
+          "retention": "AY"
+        },
+        "heading": "Highest points in English"
+      },
+      "x-display": {
+        "label": "Highest points in English",
+        "visible": false
+      }
+    },
+    "EXEMPT_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Exempt due to either SEN/LDA/EHCP or prior international equivalent qualification (1) or because condition of funding does not apply (2)",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AW",
+          "retention": "AZ"
+        },
+        "heading": "Student exempt from English progress measure"
+      },
+      "x-display": {
+        "label": "Student exempt from English progress measure",
+        "visible": false
+      }
+    },
+    "NO_ENTRIES_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student is included in the English progress measure (i.e. student doesn't have A*-C in English GCSE) and did not enter approved exams.",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AX",
+          "retention": "BA"
+        },
+        "heading": "Student in scope of English progress measure who did not enter approved exams"
+      },
+      "x-display": {
+        "label": "Student in scope of English progress measure who did not enter approved exams",
+        "visible": false
+      }
+    },
+    "INSCOPE_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student is included in the maths progress measure i.e. student doesn't have A*-C in maths GCSE and no exemptions apply",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AY",
+          "retention": "BB"
+        },
+        "heading": "Student in maths progress measure"
+      },
+      "x-display": {
+        "label": "Student in maths progress measure",
+        "visible": false
+      }
+    },
+    "PROGRESS_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Progress made in maths while studying at this school or college",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "AZ",
+          "retention": "BC"
+        },
+        "heading": "Progress made in maths"
+      },
+      "x-display": {
+        "label": "Progress made in maths",
+        "visible": false
+      }
+    },
+    "BASE_pts_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The baseline points for Maths progress measure",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BA",
+          "retention": "BD"
+        },
+        "heading": "Baseline points for Maths progress measure"
+      },
+      "x-display": {
+        "label": "Baseline points for Maths progress measure",
+        "visible": false
+      }
+    },
+    "BEST_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The highest points achieved in Maths qualifications during 16-18",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BB",
+          "retention": "BE"
+        },
+        "heading": "Highest points in Maths"
+      },
+      "x-display": {
+        "label": "Highest points in Maths",
+        "visible": false
+      }
+    },
+    "EXEMPT_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Exempt due to either SEN/LAD/EHCP or prior international equivalent qualification (1) or because condition of funding does not apply (2)",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BC",
+          "retention": "BF"
+        },
+        "heading": "Student exempt from maths progress measure"
+      },
+      "x-display": {
+        "label": "Student exempt from maths progress measure",
+        "visible": false
+      }
+    },
+    "NO_ENTRIES_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student is included in the maths progress measure (i.e. student doesn't have A*-C in English GCSE) and did not enter approved exams.",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BD",
+          "retention": "BG"
+        },
+        "heading": "Student in scope of maths progress measure who did not enter approved exams"
+      },
+      "x-display": {
+        "label": "Student in scope of maths progress measure who did not enter approved exams",
+        "visible": false
+      }
+    },
+    "BEST_L3M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student achieved an approved level 3 maths qualification (also counts towards TechBacc)",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BE",
+          "retention": "BH"
+        },
+        "heading": "Student achieved approved L3 maths qualification"
+      },
+      "x-display": {
+        "label": "Student achieved approved L3 maths qualification",
+        "visible": false
+      }
+    },
+    "InScope_L3M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student in scope for level 3 maths measure at this institution, ie achieved at least A*-C in maths GCSE by end KS4; if a student has an approved level 3 maths qualification from a prior institution they are moved out-of-scope if they don't achieve another approved level 3 maths qualification at current their provider.",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BF",
+          "retention": "BI"
+        },
+        "heading": "Student in scope for L3 maths measure"
+      },
+      "x-display": {
+        "label": "Student in scope for L3 maths measure",
+        "visible": false
+      }
+    },
+    "ACH_L3M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student both in scope and achieved approved level 3 maths qualification at current institution",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BG",
+          "retention": "BJ"
+        },
+        "heading": "Student in scope and achieved approved L3 maths"
+      },
+      "x-display": {
+        "label": "Student in scope and achieved approved L3 maths",
+        "visible": false
+      }
+    },
+    "Retention_CompletionStatus": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether core aim was completed for retention measure",
+      "x-csv": {
+        "columns": {
+          "retention": "BK"
+        },
+        "heading": "Retention core aim completion status"
+      },
+      "x-display": {
+        "label": "Retention core aim completion status",
+        "visible": false
+      }
+    },
+    "AimSize_Final": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Shows size of core aim for retention measure",
+      "x-csv": {
+        "columns": {
+          "retention": "BL"
+        },
+        "heading": "Retention core aim size"
+      },
+      "x-display": {
+        "label": "Retention core aim size",
+        "visible": false
+      }
+    },
+    "CoreAimFlag": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether learning aim has been flagged as a core aim by provider 1 = Yes, 0 = No",
+      "x-csv": {
+        "columns": {
+          "retention": "BM"
+        },
+        "heading": "Retention core aim flagged as core aim by provider"
+      },
+      "x-display": {
+        "label": "Retention core aim flagged as core aim by provider",
+        "visible": false
+      }
+    },
+    "Ret_Trigger": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether learning aim is in scope for inclusion in retention measure 1 = Yes, 0 = No",
+      "x-csv": {
+        "columns": {
+          "retention": "BN"
+        },
+        "heading": "Retention core aim in scope"
+      },
+      "x-display": {
+        "label": "Retention core aim in scope",
+        "visible": false
+      }
+    },
+    "InScope_ALEV_Ret": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether this student has an A level core aim",
+      "x-csv": {
+        "columns": {
+          "retention": "BO"
+        },
+        "heading": "Student in A level programme for retention measure"
+      },
+      "x-display": {
+        "label": "Student in A level programme for retention measure",
+        "visible": false
+      }
+    },
+    "Retained_ALEV_Ret": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student has an A level core aim which was retained",
+      "x-csv": {
+        "columns": {
+          "retention": "BP"
+        },
+        "heading": "Student retained in A level programme"
+      },
+      "x-display": {
+        "label": "Student retained in A level programme",
+        "visible": false
+      }
+    },
+    "Ret_Assessed_ALEV": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student retained in an A level core aim and was assessed in an exam of the same level and at least the same size as the core aim.",
+      "x-csv": {
+        "columns": {
+          "retention": "BQ"
+        },
+        "heading": "Student retained and assessed with an A-level core aim"
+      },
+      "x-display": {
+        "label": "Student retained and assessed with an A-level core aim",
+        "visible": false
+      }
+    },
+    "InScope_ALEV_2ndYr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether student has an A level core aim and is in scope for returned for a second year supporting measure",
+      "x-csv": {
+        "columns": {
+          "retention": "BR"
+        },
+        "heading": "Student in A level programme for returned for a second year supporting measure"
+      },
+      "x-display": {
+        "label": "Student in A level programme for returned for a second year supporting measure",
+        "visible": false
+      }
+    },
+    "Retained_ALEV_2ndYr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student has an A level core aim which was retained and returned for a second year.",
+      "x-csv": {
+        "columns": {
+          "retention": "BS"
+        },
+        "heading": "Student retained and returned for a second year with an A level programme"
+      },
+      "x-display": {
+        "label": "Student retained and returned for a second year with an A level programme",
+        "visible": false
+      }
+    },
+    "InScope_ACAD_Ret": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether this student has a academic core aim",
+      "x-csv": {
+        "columns": {
+          "retention": "BT"
+        },
+        "heading": "Student in academic programme for retention measure"
+      },
+      "x-display": {
+        "label": "Student in academic programme for retention measure",
+        "visible": false
+      }
+    },
+    "Retained_ACAD_Ret": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student has an academic core aim which was retained",
+      "x-csv": {
+        "columns": {
+          "retention": "BU"
+        },
+        "heading": "Student retained in academic programme"
+      },
+      "x-display": {
+        "label": "Student retained in academic programme",
+        "visible": false
+      }
+    },
+    "Ret_Assessed_ACAD": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student retained in an academic core aim and was assessed in an exam of the same level and at least the same size as the core aim.",
+      "x-csv": {
+        "columns": {
+          "retention": "BV"
+        },
+        "heading": "Student retained and assessed with an academic core aim"
+      },
+      "x-display": {
+        "label": "Student retained and assessed with an academic core aim",
+        "visible": false
+      }
+    },
+    "InScope_ACAD_2ndYr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether student has an academic core aim and is in scope for returned for a second year supporting measure",
+      "x-csv": {
+        "columns": {
+          "retention": "BW"
+        },
+        "heading": "Student in academic programme for returned for a second year supporting measure"
+      },
+      "x-display": {
+        "label": "Student in academic programme for returned for a second year supporting measure",
+        "visible": false
+      }
+    },
+    "Retained_ACAD_2ndYr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student has an academic core aim which was retained and returned for a second year.",
+      "x-csv": {
+        "columns": {
+          "retention": "BX"
+        },
+        "heading": "Student retained for a second year with an academic core aim"
+      },
+      "x-display": {
+        "label": "Student retained for a second year with an academic core aim",
+        "visible": false
+      }
+    },
+    "InScope_TLEV_Ret": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether this student has a tech level core aim",
+      "x-csv": {
+        "columns": {
+          "retention": "BY"
+        },
+        "heading": "Student in tech level programme for retention measure"
+      },
+      "x-display": {
+        "label": "Student in tech level programme for retention measure",
+        "visible": false
+      }
+    },
+    "Retained_TLEV_Ret": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student has a tech level core aim which was retained",
+      "x-csv": {
+        "columns": {
+          "retention": "BZ"
+        },
+        "heading": "Student retained in tech level programme"
+      },
+      "x-display": {
+        "label": "Student retained in tech level programme",
+        "visible": false
+      }
+    },
+    "Ret_Assessed_TLEV": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student retained in a tech level core aim and was assessed in an exam of the same level and at least the same size as the core aim.",
+      "x-csv": {
+        "columns": {
+          "retention": "CA"
+        },
+        "heading": "Student retained and assessed with a tech level core aim"
+      },
+      "x-display": {
+        "label": "Student retained and assessed with a tech level core aim",
+        "visible": false
+      }
+    },
+    "InScope_TLEV_2ndYr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether student has a tech level core aim and is in scope for returned for a second year supporting measure",
+      "x-csv": {
+        "columns": {
+          "retention": "CB"
+        },
+        "heading": "Student in tech level programme for returned for a second year supporting measure"
+      },
+      "x-display": {
+        "label": "Student in tech level programme for returned for a second year supporting measure",
+        "visible": false
+      }
+    },
+    "Retained_TLEV_2ndYr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student has a tech level core aim which was retained and returned for a second year.",
+      "x-csv": {
+        "columns": {
+          "retention": "CC"
+        },
+        "heading": "Student retained for a second year with a tech level core aim"
+      },
+      "x-display": {
+        "label": "Student retained for a second year with a tech level core aim",
+        "visible": false
+      }
+    },
+    "InScope_AGEN_Ret": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether this student has a tech level core aim",
+      "x-csv": {
+        "columns": {
+          "retention": "CD"
+        },
+        "heading": "Student in applied general programme for retention measure"
+      },
+      "x-display": {
+        "label": "Student in applied general programme for retention measure",
+        "visible": false
+      }
+    },
+    "Retained_AGEN_Ret": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student has an applied general core aim which was retained",
+      "x-csv": {
+        "columns": {
+          "retention": "CE"
+        },
+        "heading": "Student retained in applied general programme"
+      },
+      "x-display": {
+        "label": "Student retained in applied general programme",
+        "visible": false
+      }
+    },
+    "Ret_Assessed_AGEN": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student retained in an applied general core aim and was assessed in an exam of the same level and at least the same size as the core aim.",
+      "x-csv": {
+        "columns": {
+          "retention": "CF"
+        },
+        "heading": "Student retained and assessed with an applied general core aim"
+      },
+      "x-display": {
+        "label": "Student retained and assessed with an applied general core aim",
+        "visible": false
+      }
+    },
+    "InScope_AGEN_2ndYr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether student has an applied general core aim and is in scope for returned for a second year supporting measure",
+      "x-csv": {
+        "columns": {
+          "retention": "CG"
+        },
+        "heading": "Student in applied general programme for returned for a second year supporting measure"
+      },
+      "x-display": {
+        "label": "Student in applied general programme for returned for a second year supporting measure",
+        "visible": false
+      }
+    },
+    "Retained_AGEN_2ndYr": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student has an applied general core aim which was retained and returned for a second year.",
+      "x-csv": {
+        "columns": {
+          "retention": "CH"
+        },
+        "heading": "Student retained for a second year with an applied general core aim"
+      },
+      "x-display": {
+        "label": "Student retained for a second year with an applied general core aim",
+        "visible": false
+      }
+    },
+    "InScope_TechCert_Ret": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Shows whether this student has a technical certificate core aim",
+      "x-csv": {
+        "columns": {
+          "retention": "CI"
+        },
+        "heading": "Student in technical certificate programme for retention measure"
+      },
+      "x-display": {
+        "label": "Student in technical certificate programme for retention measure",
+        "visible": false
+      }
+    },
+    "Retained_TechCert_Ret": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student has a technical certificate core aim which was retained",
+      "x-csv": {
+        "columns": {
+          "retention": "CJ"
+        },
+        "heading": "Student retained in a technical certificate programme"
+      },
+      "x-display": {
+        "label": "Student retained in a technical certificate programme",
+        "visible": false
+      }
+    },
+    "Ret_Assessed_TechCert": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student retained in a technical certificate core aim and was assessed in an exam of the same level and at least the same size as the core aim.",
+      "x-csv": {
+        "columns": {
+          "retention": "CK"
+        },
+        "heading": "Student retained and assessed with a technical certificate core aim"
+      },
+      "x-display": {
+        "label": "Student retained and assessed with a technical certificate core aim",
+        "visible": false
+      }
+    },
+    "INCLUDE_B3": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student is included in the best 3 A levels measure",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BH",
+          "retention": "CL"
+        },
+        "heading": "Student included in Best 3 measure"
+      },
+      "x-display": {
+        "label": "Student included in Best 3 measure",
+        "visible": false
+      }
+    },
+    "B3PTSE_B3": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Student's average points in their best 3 A levels",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BI",
+          "retention": "CM"
+        },
+        "heading": "Student's Best 3 score"
+      },
+      "x-display": {
+        "label": "Student's Best 3 score",
+        "visible": false
+      }
+    },
+    "INCLUDE_AAB": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student is included in the AAB (including 2 facilitating subjects) measure",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BJ",
+          "retention": "CN"
+        },
+        "heading": "Student included in AAB measure"
+      },
+      "x-display": {
+        "label": "Student included in AAB measure",
+        "visible": false
+      }
+    },
+    "AAB_FAC": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student achieved at least AAB including at least 2 facilitating subjects",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BK",
+          "retention": "CO"
+        },
+        "heading": "Student achieved AAB measure"
+      },
+      "x-display": {
+        "label": "Student achieved AAB measure",
+        "visible": false
+      }
+    },
+    "KS4_Year_Calc": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Year student reached or assumed to have reached the end of key stage 4",
+      "x-csv": {
+        "columns": {
+          "provisional-revised": "BL",
+          "retention": "CP"
+        },
+        "heading": "KS4 year"
+      },
+      "x-display": {
+        "label": "KS4 year",
+        "visible": false
+      }
+    },
+    "cypmd_pk": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 50,
+      "description": "primary key for use by Oracle team (laestab,pupilid)",
+      "x-csv": {
+        "columns": {},
+        "heading": "cypmd_pk"
+      },
+      "x-display": {
+        "label": "cypmd_pk",
         "visible": false
       }
     },
@@ -772,699 +1868,6 @@
         "status": "removed"
       }
     },
-    "L3_FLAG": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student is flagged in at least one of the ACAD, AGEN or TLEV attainment programmes",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AI",
-          "retention": "AK"
-        },
-        "heading": "Student in one of the L3 attainment programmes"
-      },
-      "x-display": {
-        "label": "Student in one of the L3 attainment programmes",
-        "visible": false
-      }
-    },
-    "TechCert_nodisc": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student entered for at least one technical certificate qualification (ignoring discounting)",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AJ",
-          "retention": "AL"
-        },
-        "heading": "Technical certificate student (ignoring discounting)"
-      },
-      "x-display": {
-        "label": "Technical certificate student (ignoring discounting)",
-        "visible": false
-      }
-    },
-    "L2VOC_nodisc": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student entered for at least one level 2 vocational qualification (ignoring discounting)",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AK",
-          "retention": "AM"
-        },
-        "heading": "Level 2 vocational student (ignoring discounting)"
-      },
-      "x-display": {
-        "label": "Level 2 vocational student (ignoring discounting)",
-        "visible": false
-      }
-    },
-    "TLEV_nodisc": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student entered for at least one tech level qualification (ignoring discounting)",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AL",
-          "retention": "AN"
-        },
-        "heading": "Tech level student (ignoring discounting)"
-      },
-      "x-display": {
-        "label": "Tech level student (ignoring discounting)",
-        "visible": false
-      }
-    },
-    "TLEV_denom": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student entered for at least one level 3 vocational qualification excluding applied generals (ignoring discounting)",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AM",
-          "retention": "AO"
-        },
-        "heading": "Level 3 vocational student excluding applied generals (ignoring discounting)"
-      },
-      "x-display": {
-        "label": "Level 3 vocational student excluding applied generals (ignoring discounting)",
-        "visible": false
-      }
-    },
-    "AGEN_nodisc": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student entered for at least one applied general qualification (ignoring discounting)",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AN",
-          "retention": "AP"
-        },
-        "heading": "Applied general student (ignoring discounting)"
-      },
-      "x-display": {
-        "label": "Applied general student (ignoring discounting)",
-        "visible": false
-      }
-    },
-    "AGEN_denom": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student entered for at least one level 3 vocational qualification excluding tech levels (ignoring discounting)",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AO",
-          "retention": "AQ"
-        },
-        "heading": "Level 3 vocational student excluding tech levels (ignoring discounting)"
-      },
-      "x-display": {
-        "label": "Level 3 vocational student excluding tech levels (ignoring discounting)",
-        "visible": false
-      }
-    },
-    "LearningAimReference": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 8,
-      "description": "Qualification number of aim selected as core aim for retention measure",
-      "x-csv": {
-        "columns": {
-          "retention": "AR"
-        },
-        "heading": "Retention core aim qualification number"
-      },
-      "x-display": {
-        "label": "Retention core aim qualification number",
-        "visible": false
-      }
-    },
-    "Retention_CompletionStatus": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether core aim was completed for retention measure",
-      "x-csv": {
-        "columns": {
-          "retention": "AS"
-        },
-        "heading": "Retention core aim completion status"
-      },
-      "x-display": {
-        "label": "Retention core aim completion status",
-        "visible": false
-      }
-    },
-    "AimSize_Final": {
-      "type": [
-        "number",
-        "null"
-      ],
-      "description": "Shows size of core aim for retention measure",
-      "x-csv": {
-        "columns": {
-          "retention": "AT"
-        },
-        "heading": "Retention core aim size"
-      },
-      "x-display": {
-        "label": "Retention core aim size",
-        "visible": false
-      }
-    },
-    "CoreAimFlag": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether learning aim has been flagged as a core aim by provider 1 = Yes, 0 = No",
-      "x-csv": {
-        "columns": {
-          "retention": "AU"
-        },
-        "heading": "Retention core aim flagged as core aim by provider"
-      },
-      "x-display": {
-        "label": "Retention core aim flagged as core aim by provider",
-        "visible": false
-      }
-    },
-    "Ret_Trigger": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether learning aim is in scope for inclusion in retention measure 1 = Yes, 0 = No",
-      "x-csv": {
-        "columns": {
-          "retention": "AV"
-        },
-        "heading": "Retention core aim in scope"
-      },
-      "x-display": {
-        "label": "Retention core aim in scope",
-        "visible": false
-      }
-    },
-    "InScope_ALEV_Ret": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether this student has an A level core aim",
-      "x-csv": {
-        "columns": {
-          "retention": "AW"
-        },
-        "heading": "Student in A level programme for retention measure"
-      },
-      "x-display": {
-        "label": "Student in A level programme for retention measure",
-        "visible": false
-      }
-    },
-    "Retained_ALEV_Ret": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student has an A level core aim which was retained",
-      "x-csv": {
-        "columns": {
-          "retention": "AX"
-        },
-        "heading": "Student retained in A level programme"
-      },
-      "x-display": {
-        "label": "Student retained in A level programme",
-        "visible": false
-      }
-    },
-    "Ret_Assessed_ALEV": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student retained in an A level core aim and was assessed in an exam of the same level and at least the same size as the core aim.",
-      "x-csv": {
-        "columns": {
-          "retention": "AY"
-        },
-        "heading": "Student retained and assessed with an A-level core aim"
-      },
-      "x-display": {
-        "label": "Student retained and assessed with an A-level core aim",
-        "visible": false
-      }
-    },
-    "InScope_ALEV_2ndYr": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether student has an A level core aim and is in scope for returned for a second year supporting measure",
-      "x-csv": {
-        "columns": {
-          "retention": "AZ"
-        },
-        "heading": "Student in A level programme for returned for a second year supporting measure"
-      },
-      "x-display": {
-        "label": "Student in A level programme for returned for a second year supporting measure",
-        "visible": false
-      }
-    },
-    "Retained_ALEV_2ndYr": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student has an A level core aim which was retained and returned for a second year.",
-      "x-csv": {
-        "columns": {
-          "retention": "BA"
-        },
-        "heading": "Student retained and returned for a second year with an A level programme"
-      },
-      "x-display": {
-        "label": "Student retained and returned for a second year with an A level programme",
-        "visible": false
-      }
-    },
-    "InScope_ACAD_Ret": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether this student has a academic core aim",
-      "x-csv": {
-        "columns": {
-          "retention": "BB"
-        },
-        "heading": "Student in academic programme for retention measure"
-      },
-      "x-display": {
-        "label": "Student in academic programme for retention measure",
-        "visible": false
-      }
-    },
-    "Retained_ACAD_Ret": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student has an academic core aim which was retained",
-      "x-csv": {
-        "columns": {
-          "retention": "BC"
-        },
-        "heading": "Student retained in academic programme"
-      },
-      "x-display": {
-        "label": "Student retained in academic programme",
-        "visible": false
-      }
-    },
-    "Ret_Assessed_ACAD": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student retained in an academic core aim and was assessed in an exam of the same level and at least the same size as the core aim.",
-      "x-csv": {
-        "columns": {
-          "retention": "BD"
-        },
-        "heading": "Student retained and assessed with an academic core aim"
-      },
-      "x-display": {
-        "label": "Student retained and assessed with an academic core aim",
-        "visible": false
-      }
-    },
-    "InScope_ACAD_2ndYr": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether student has an academic core aim and is in scope for returned for a second year supporting measure",
-      "x-csv": {
-        "columns": {
-          "retention": "BE"
-        },
-        "heading": "Student in academic programme for returned for a second year supporting measure"
-      },
-      "x-display": {
-        "label": "Student in academic programme for returned for a second year supporting measure",
-        "visible": false
-      }
-    },
-    "Retained_ACAD_2ndYr": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student has an academic core aim which was retained and returned for a second year.",
-      "x-csv": {
-        "columns": {
-          "retention": "BF"
-        },
-        "heading": "Student retained for a second year with an academic core aim"
-      },
-      "x-display": {
-        "label": "Student retained for a second year with an academic core aim",
-        "visible": false
-      }
-    },
-    "InScope_TLEV_Ret": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether this student has a tech level core aim",
-      "x-csv": {
-        "columns": {
-          "retention": "BG"
-        },
-        "heading": "Student in tech level programme for retention measure"
-      },
-      "x-display": {
-        "label": "Student in tech level programme for retention measure",
-        "visible": false
-      }
-    },
-    "Retained_TLEV_Ret": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student has a tech level core aim which was retained",
-      "x-csv": {
-        "columns": {
-          "retention": "BH"
-        },
-        "heading": "Student retained in tech level programme"
-      },
-      "x-display": {
-        "label": "Student retained in tech level programme",
-        "visible": false
-      }
-    },
-    "Ret_Assessed_TLEV": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student retained in a tech level core aim and was assessed in an exam of the same level and at least the same size as the core aim.",
-      "x-csv": {
-        "columns": {
-          "retention": "BI"
-        },
-        "heading": "Student retained and assessed with a tech level core aim"
-      },
-      "x-display": {
-        "label": "Student retained and assessed with a tech level core aim",
-        "visible": false
-      }
-    },
-    "InScope_TLEV_2ndYr": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether student has a tech level core aim and is in scope for returned for a second year supporting measure",
-      "x-csv": {
-        "columns": {
-          "retention": "BJ"
-        },
-        "heading": "Student in tech level programme for returned for a second year supporting measure"
-      },
-      "x-display": {
-        "label": "Student in tech level programme for returned for a second year supporting measure",
-        "visible": false
-      }
-    },
-    "Retained_TLEV_2ndYr": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student has a tech level core aim which was retained and returned for a second year.",
-      "x-csv": {
-        "columns": {
-          "retention": "BK"
-        },
-        "heading": "Student retained for a second year with a tech level core aim"
-      },
-      "x-display": {
-        "label": "Student retained for a second year with a tech level core aim",
-        "visible": false
-      }
-    },
-    "InScope_AGEN_Ret": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether this student has a tech level core aim",
-      "x-csv": {
-        "columns": {
-          "retention": "BL"
-        },
-        "heading": "Student in applied general programme for retention measure"
-      },
-      "x-display": {
-        "label": "Student in applied general programme for retention measure",
-        "visible": false
-      }
-    },
-    "Retained_AGEN_Ret": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student has an applied general core aim which was retained",
-      "x-csv": {
-        "columns": {
-          "retention": "BM"
-        },
-        "heading": "Student retained in applied general programme"
-      },
-      "x-display": {
-        "label": "Student retained in applied general programme",
-        "visible": false
-      }
-    },
-    "Ret_Assessed_AGEN": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student retained in an applied general core aim and was assessed in an exam of the same level and at least the same size as the core aim.",
-      "x-csv": {
-        "columns": {
-          "retention": "BN"
-        },
-        "heading": "Student retained and assessed with an applied general core aim"
-      },
-      "x-display": {
-        "label": "Student retained and assessed with an applied general core aim",
-        "visible": false
-      }
-    },
-    "InScope_AGEN_2ndYr": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether student has an applied general core aim and is in scope for returned for a second year supporting measure",
-      "x-csv": {
-        "columns": {
-          "retention": "BO"
-        },
-        "heading": "Student in applied general programme for returned for a second year supporting measure"
-      },
-      "x-display": {
-        "label": "Student in applied general programme for returned for a second year supporting measure",
-        "visible": false
-      }
-    },
-    "Retained_AGEN_2ndYr": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student has an applied general core aim which was retained and returned for a second year.",
-      "x-csv": {
-        "columns": {
-          "retention": "BP"
-        },
-        "heading": "Student retained for a second year with an applied general core aim"
-      },
-      "x-display": {
-        "label": "Student retained for a second year with an applied general core aim",
-        "visible": false
-      }
-    },
-    "InScope_TechCert_Ret": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Shows whether this student has a technical certificate core aim",
-      "x-csv": {
-        "columns": {
-          "retention": "BQ"
-        },
-        "heading": "Student in technical certificate programme for retention measure"
-      },
-      "x-display": {
-        "label": "Student in technical certificate programme for retention measure",
-        "visible": false
-      }
-    },
-    "Retained_TechCert_Ret": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student has a technical certificate core aim which was retained",
-      "x-csv": {
-        "columns": {
-          "retention": "BR"
-        },
-        "heading": "Student retained in a technical certificate programme"
-      },
-      "x-display": {
-        "label": "Student retained in a technical certificate programme",
-        "visible": false
-      }
-    },
-    "Ret_Assessed_TechCert": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student retained in a technical certificate core aim and was assessed in an exam of the same level and at least the same size as the core aim.",
-      "x-csv": {
-        "columns": {
-          "retention": "BS"
-        },
-        "heading": "Student retained and assessed with a technical certificate core aim"
-      },
-      "x-display": {
-        "label": "Student retained and assessed with a technical certificate core aim",
-        "visible": false
-      }
-    },
-    "INCLUDE_B3": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student is included in the best 3 A levels measure",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AP",
-          "retention": "BT"
-        },
-        "heading": "Student included in Best 3 measure"
-      },
-      "x-display": {
-        "label": "Student included in Best 3 measure",
-        "visible": false
-      }
-    },
-    "B3PTSE_B3": {
-      "type": [
-        "number",
-        "null"
-      ],
-      "description": "Student's average points in their best 3 A levels",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AQ",
-          "retention": "BU"
-        },
-        "heading": "Student's Best 3 score"
-      },
-      "x-display": {
-        "label": "Student's Best 3 score",
-        "visible": false
-      }
-    },
-    "INCLUDE_AAB": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student is included in the AAB (including 2 facilitating subjects) measure",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AR",
-          "retention": "BV"
-        },
-        "heading": "Student included in AAB measure"
-      },
-      "x-display": {
-        "label": "Student included in AAB measure",
-        "visible": false
-      }
-    },
-    "AAB_FAC": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Student achieved at least AAB including at least 2 facilitating subjects",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AS",
-          "retention": "BW"
-        },
-        "heading": "Student achieved AAB measure"
-      },
-      "x-display": {
-        "label": "Student achieved AAB measure",
-        "visible": false
-      }
-    },
-    "KS4_Year_Calc": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "description": "Year student reached or assumed to have reached the end of key stage 4",
-      "x-csv": {
-        "columns": {
-          "provisional-revised": "AT",
-          "retention": "BX"
-        },
-        "heading": "KS4 year"
-      },
-      "x-display": {
-        "label": "KS4 year",
-        "visible": false
-      }
-    },
     "new_trigger": {
       "type": [
         "integer",
@@ -1477,22 +1880,6 @@
       },
       "x-display": {
         "label": "Student newly triggered in revised data",
-        "visible": false
-      }
-    },
-    "cypmd_pk": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 50,
-      "description": "primary key for use by Oracle team (laestab,pupilid)",
-      "x-csv": {
-        "columns": {},
-        "heading": "cypmd_pk"
-      },
-      "x-display": {
-        "label": "cypmd_pk",
         "visible": false
       }
     }

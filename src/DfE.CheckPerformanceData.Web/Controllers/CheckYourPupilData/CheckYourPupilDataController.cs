@@ -21,6 +21,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
 // #317: this controller no longer holds a TimeProvider. Every "is it open" question on this page
 // goes through ICheckingExerciseService, which owns the only clock in that path.
+[ServiceNavSection(ServiceNavSection.Pupils)]
 public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService,
     ICurrentUserService currentUserService, IAnalyticsService analytics,
     INextStepsService nextSteps, ICheckingExerciseService checkingExercises,

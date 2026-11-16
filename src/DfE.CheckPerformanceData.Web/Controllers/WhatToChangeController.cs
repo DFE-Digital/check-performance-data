@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
+[ServiceNavSection(ServiceNavSection.Pupils)]
 public sealed class WhatToChangeController(
     ICheckYourPupilDataService service,
     IQuestionFlowService flowService,

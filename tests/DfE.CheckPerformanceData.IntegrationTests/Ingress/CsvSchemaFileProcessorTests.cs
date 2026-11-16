@@ -673,6 +673,51 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Null(record);
     }
 
+    private static readonly string[] ResultDescriptions =
+        ["R_INCL_DESCRIPTION", "R_INCL_EM_DESCRIPTION", "QUAL_KS4_DESCRIPTION"];
+
+    private async Task<(ValidationProgress Last, List<JObject> Records)> RunRecordsAsync(string csv, string schema)
+    {
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/results.csv", csv),
+            ("schema/results.json", schema));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("results", "results.csv", Checksum(csv), "results.json", Checksum(schema), Included: null)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+        var records = await ReadPupilsAsync(container, "8604070");
+        return (progress[^1], records?.Children<JObject>().ToList() ?? []);
+    }
+
+    [Theory]
+    [InlineData("results-included_schema.json")]
+    [InlineData("results-non-included_schema.json")]
+    [InlineData("results-included-revised_schema.json")]
+    [InlineData("results-non-included-revised_schema.json")]
+    [InlineData("results-included-revised-retention_schema.json")]
+    public async Task A_shipped_16_19_results_schema_describes_each_code_and_leaves_any_other_code_blank(string file)
+    {
+        var schema = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", "post16", file));
+        string[] describedCodes = ["51,57,59", "52,58,60", "53,57,59", "54,58,60", "55,57,59", "56,58,60"];
+        string[] otherCodes = ["99,99,99", ",,"];
+        var csv = "CYPMD_ID,SURNAME,R_INCL,R_INCL_EM,QUAL_KS4,LAESTAB\n" + string.Concat(
+            describedCodes.Concat(otherCodes).Select((codes, row) => $"{row + 1},Smith,{codes},8604070\n"));
+
+        var (last, records) = await RunRecordsAsync(csv, schema);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal(describedCodes.Length + otherCodes.Length, records.Count);
+        Assert.All(records.Take(describedCodes.Length), record => Assert.All(ResultDescriptions,
+            field => Assert.False(string.IsNullOrEmpty(record[field]?.Value<string>()))));
+        Assert.All(records.Skip(describedCodes.Length), record => Assert.All(ResultDescriptions,
+            field => Assert.True(string.IsNullOrEmpty(record[field]?.Value<string>()))));
+    }
+
     [Fact]
     public async Task A_schema_with_an_institution_key_splits_the_file_by_that_column()
     {

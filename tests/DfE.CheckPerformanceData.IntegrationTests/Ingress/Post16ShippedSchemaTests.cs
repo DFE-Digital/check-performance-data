@@ -67,4 +67,21 @@ public sealed class Post16ShippedSchemaTests
     {
         Assert.True(Shipped(first).SelectorOrder < Shipped(second).SelectorOrder);
     }
+
+    private static readonly string[] ResultFlags = ["R_INCL", "R_INCL_EM", "QUAL_KS4"];
+
+    [Theory]
+    [InlineData("results-included_schema.json")]
+    [InlineData("results-non-included_schema.json")]
+    [InlineData("results-included-revised_schema.json")]
+    [InlineData("results-non-included-revised_schema.json")]
+    [InlineData("results-included-revised-retention_schema.json")]
+    public void A_results_file_has_each_description_straight_after_its_flag(string file)
+    {
+        var fields = CsvFields(file);
+
+        Assert.All(ResultFlags, flag => Assert.Equal($"{flag}_DESCRIPTION", fields[fields.IndexOf(flag) + 1]));
+        Assert.Equal(33, fields.Count);
+        Assert.Equal(["UKPRN", "URN", "LAESTAB"], fields.TakeLast(3));
+    }
 }

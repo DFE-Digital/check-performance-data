@@ -786,6 +786,17 @@ public sealed class JourneyController(
             windowId, currentUserService.OrganisationLaestab, cypmdId, ct);
     }
 
+    private async Task<IReadOnlyList<ResultRecord>> HeldInOtherFilesAsync(
+        Guid windowId, JourneyPage page, RequestState journey)
+    {
+        if (journey.SelectedResult is not { } selected
+            || page.Questions.All(q => q.Type != QuestionType.GradeSelect))
+            return [];
+
+        var studentResults = await GetPupilResultsAsync(windowId, journey, HttpContext.RequestAborted);
+        return HeldResults.InOtherFiles(selected, studentResults);
+    }
+
     // ── Page (POST — Continue) ──────────────────────────────────────────────
 
     [HttpPost]
@@ -809,6 +820,7 @@ public sealed class JourneyController(
         var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
         // Resolved once for the page rather than per question: a page has at most one grade picker.
         var gradeReference = ResolveGradeReference(page, journey);
+        var heldInOtherFiles = await HeldInOtherFilesAsync(windowId, page, journey);
         var isValid = true;
         var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, conditionContext);
@@ -878,13 +890,14 @@ public sealed class JourneyController(
                     var resolvedValidationFailure = question.ValidationFailure is not null
                         ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName) : null;
 
-                    // A grade picker has its own rules and its own inputs (the qualification's scale
-                    // and the grade the result already holds), so it does not go through the generic
+                    // A grade picker has its own rules and its own inputs (the qualification's scale,
+                    // the grade the result already holds and the same result in other files), so it does not go through the generic
                     // answer validator. AB#296648.
                     var error = question.Type switch
                     {
                         QuestionType.GradeSelect => journeyService.ValidateGradeSelect(
-                            question, answer, gradeReference, journey.SelectedResult?.Grade, resolvedValidationFailure),
+                            question, answer, gradeReference, journey.SelectedResult?.Grade,
+                            resolvedValidationFailure, heldInOtherFiles),
                         // AB#297848: syllabus options live on the resolved qualification; a QAN
                         // with none (961 of 974 today) rejects everything and the page explains
                         // the gap. Membership is on the code alone — the title is display-only.

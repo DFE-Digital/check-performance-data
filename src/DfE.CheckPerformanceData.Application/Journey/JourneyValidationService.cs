@@ -1,3 +1,4 @@
+using System.Globalization;
 using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
@@ -74,12 +75,17 @@ public sealed class JourneyValidationService(
     public const string RevisedGradeMustDifferMessage =
         "The revised grade must be different from the current grade";
 
+    /// <summary>Format: {0} is the results file's label, {1} is the grade that file holds.</summary>
+    public const string RevisedGradeAlreadyHeldMessage =
+        "{0} already has grade {1} for this result. Select a different grade";
+
     public string? ValidateGradeSelect(
         Question question,
         QuestionAnswer? answer,
         GradeReference? reference,
         string? currentGrade,
-        string? resolvedValidationFailure = null)
+        string? resolvedValidationFailure = null,
+        IReadOnlyList<ResultRecord>? heldInOtherFiles = null)
     {
         var required = resolvedValidationFailure ?? "Select the revised grade";
         var chosen = answer?.TextValue?.Trim();
@@ -99,7 +105,12 @@ public sealed class JourneyValidationService(
         if (reference is null || !reference.Offers(chosen))
             return required;
 
-        return null;
+        var holder = heldInOtherFiles?.FirstOrDefault(r => GradeEquality.IsSame(chosen, r.Grade));
+        return holder is null
+            ? null
+            : string.Format(
+                CultureInfo.InvariantCulture, RevisedGradeAlreadyHeldMessage,
+                ResultsSources.LabelFor(holder.SourceFile), holder.Grade.Trim());
     }
 
     /// <summary>

@@ -40,12 +40,16 @@ public interface IJourneyValidationService
     /// <param name="reference">The QAN's grade scale, or null when the qualification is absent from
     /// the AODC reference data — in which case nothing can be submitted.</param>
     /// <param name="currentGrade">The grade the selected result holds, or null when unknown.</param>
+    /// <param name="heldInOtherFiles">The same result in the student's other results files
+    /// (<see cref="ResultsEnquiry.HeldResults.InOtherFiles"/>). A chosen grade that one of them holds
+    /// is refused with a message that names that file's label. Null or empty skips the rule.</param>
     string? ValidateGradeSelect(
         Question question,
         QuestionAnswer? answer,
         ResultsEnquiry.GradeReference? reference,
         string? currentGrade,
-        string? resolvedValidationFailure = null);
+        string? resolvedValidationFailure = null,
+        IReadOnlyList<ResultsEnquiry.ResultRecord>? heldInOtherFiles = null);
     /// <summary>
     /// AB#297848: membership validation for a select whose options come from server-side state
     /// (SyllabusSelect). Fails closed — blank, unknown, and nothing-to-offer all return the same

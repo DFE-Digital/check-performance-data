@@ -251,12 +251,22 @@ The picker never offers the result's current grade (AB#301913 / #407): `JourneyV
 GradeOptions` drops it from the scale before the `<select>` is rendered, so the rule holds with
 JavaScript off. Rule 2 below is therefore reached only by a forged or stale post.
 
+The picker does offer a grade that another results file holds for the same result. Rule 4 refuses
+that grade when the user selects Continue (#844). The message names the file's label
+(`ResultsSources.LabelFor`), never its tag. `HeldResults.InOtherFiles` finds the other copies of the
+result: the student's results with the same `EnquirySubject`, minus the selected result itself.
+`JourneyController.PagePost` reads them from the student's cached results.
+
 Server-authoritative, in this order (`JourneyValidationService.ValidateGradeSelect`):
 
 1. Unanswered → `Select the revised grade`
 2. Equal to the result's current grade → `The revised grade must be different from the current grade`
 3. Not a grade the QAN offers → treated as unanswered (fail closed against a forged post)
-4. QAN absent from the 16-19 qualification reference → the picker is empty, the page says
+4. A grade that another results file holds for the same student, QAN and session →
+   `{file label} already has grade {grade} for this result. Select a different grade`
+   (`JourneyValidationService.RevisedGradeAlreadyHeldMessage`). When two files hold the grade, the
+   message names the first in the student's results order.
+5. QAN absent from the 16-19 qualification reference → the picker is empty, the page says
    `We cannot list grades for this qualification yet`, a warning was logged when the result was chosen,
    and validation can never pass. Any later journey page or the summary re-resolves a qualification
    that is still `null` if the reference has since caught up; the heal logs nothing on a repeat miss,
@@ -302,7 +312,42 @@ Reference format: `CYPMD_16to19_RE_{7 hex}` (`GenerateEnquiryReference`). The `R
 staff tell an enquiry from an amendment when a school reads one out. The confirmation mockup's
 `3014023_RE10005` was confirmed illustrative.
 
-No duplicate check — the spec allows several enquiries for the same student and result.
+### Duplicate enquiries
+
+A school cannot have two submitted results enquiries in one window for the same student and the same
+subject (#844). The subject is `EnquirySubject`: the QAN and, for a held result, the session. A
+missing qualification has a QAN and no session. The service trims both values and converts them to
+upper case.
+
+The key has no source file field, so one result in two files is one subject. It has no AO field,
+because a QAN belongs to one AO.
+
+- An incorrect-grade enquiry and a result-does-not-belong enquiry for one result block each other.
+- A missing-qualification enquiry has no session. It matches only another missing-qualification
+  enquiry for the same student and QAN.
+- A withdrawn enquiry does not block a new one. Only a submitted enquiry counts.
+- An enquiry written before the two columns existed has no subject. It blocks nothing.
+- The enquiry's own reference number never counts.
+
+The school is the signed-in school (`ICurrentUserService`). The student is the session's selected
+student. Neither comes from the request.
+
+The service checks the rule twice:
+
+1. When the user selects a result or a qualification. `JourneyController.ResultSearchPost` and
+   `QualificationSearchPost` call `IRequestService.FindDuplicateResultsEnquiryAsync`. If it returns a
+   reference, the page shows `DuplicateEnquiryMessage` on the field and the user cannot continue. The
+   message holds the existing reference number:
+   `You have already made an enquiry about this result. Your reference is {reference}`, or
+   `You have already made an enquiry about this qualification. Your reference is {reference}` for a
+   missing qualification.
+2. When the user submits. `RequestRepository.UpsertAsync` runs the same query inside the serializable
+   transaction. It throws `DuplicateEnquiryException` if another submitted enquiry matches, and it saves
+   nothing. `SummaryConfirm` catches the exception and shows the same message on the summary page. This
+   covers two browser tabs, and a colleague who submits between the selection and the submit.
+
+The subject lives in two nullable `text` columns on `ChangeRequests`, `EnquiryQan` and
+`EnquirySession` (migration `AddChangeRequestEnquirySubject`). Only a submitted enquiry writes them.
 
 ### Two places the duplicate rule had to be taught about enquiries
 
@@ -316,6 +361,9 @@ nor counts as one. `ResultsEnquiry` rows are therefore excluded from both:
 The two must stay in step, or a user is warned about something that then submits fine — or worse, the
 reverse. Without these exclusions, reporting a wrong grade for a student blocked every later amendment
 for them, with an error naming an unrelated request.
+
+The rule in this section is the amendment rule. Enquiries have their own rule: see
+[Duplicate enquiries](#duplicate-enquiries).
 
 ### Choosing a student discards only what came after
 
@@ -423,6 +471,10 @@ Changing the resolved qualification clears the syllabus-code and grade answers (
 qualification); re-confirming the same QAN is not a change, so they survive back-navigation — the
 same rule the result-search page applies to the revised grade.
 
+`QualificationSearchPost` also runs the [duplicate enquiry check](#duplicate-enquiries) once the AO
+and QAN resolve. A matching submitted enquiry for the same student and QAN puts the error on the QAN
+field.
+
 ### Grade scale without a blob call
 
 Both enquiry journeys' grade pickers get their scale without a blob call on the page: the
@@ -486,6 +538,9 @@ them. No cohort question and no late-results interstitial — entry goes straigh
 
 Flow config: `src/DfE.CheckPerformanceData.Web/Data/QuestionFlows/ResultDoesNotBelong_Post16.json`.
 `ResultDoesNotBelongFlowTests` pins the page/question ids and the inset copy.
+
+`ResultSearchPost` runs the [duplicate enquiry check](#duplicate-enquiries) when the user selects a
+result. A matching submitted enquiry for the same result puts the error on the result field.
 
 ### Summary and completeness gap
 
@@ -581,6 +636,10 @@ box is free text by definition. `cohort_wide` is a boolean rather than the count
 
 Validation failures flow through the existing `validation_error` event; `GradeSelect` codes as
 `selection_invalid` alongside Radio and Autocomplete.
+
+A refused duplicate at selection sends `validation_error` with the code `duplicate_enquiry`. A
+duplicate found at submit sends `request_submission_failed` with the reason `duplicate_enquiry`.
+Neither event carries the reference number.
 
 ## Local development
 
@@ -681,14 +740,13 @@ states, dataset reparenting, per-exercise ingress, draft-across-boundary rules.
 
 The "Review exam results" / Results / Late-results tab pages and CSV/ZIP downloads (entry-point
 ticket); the six-file ingestion pipeline itself (FACT tickets — the portal side of it, the admin upload and
-ingress run that fill these blobs, is #324); drafts (decided against); duplicate-enquiry blocking (the
-spec allows multiples).
+ingress run that fill these blobs, is #324); drafts (decided against).
 
 ## Still open
 
 | Item | Owner |
 |---|---|
-| Copy sign-off: the must-differ message; "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session; the result page's hint, now "Results are listed by subject and QAN" since the type-ahead went (the designs' "Start typing to search" described a control the page no longer has); the "Enter which result is incorrect" validation copy, which still says Enter for what is now a dropdown; the "Awarding Organisation (AO) name" row label, now the one label on both journeys' details pages and summaries (AB#301903) | Content designer |
+| Copy sign-off: the must-differ message; the held-grade message and the two duplicate-enquiry messages (FLAGGED, #844); "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session; the result page's hint, now "Results are listed by subject and QAN" since the type-ahead went (the designs' "Start typing to search" described a control the page no longer has); the "Enter which result is incorrect" validation copy, which still says Enter for what is now a dropdown; the "Awarding Organisation (AO) name" row label, now the one label on both journeys' details pages and summaries (AB#301903) | Content designer |
 | Whether to keep or delete `/results/suggestions` | Dev team |
 | Breadcrumb: the designs show `Check your student data - 16 to 19 and result enquiry`, but no journey view in the service renders a breadcrumb. Worth doing across the whole 16-19 journey at once rather than on one page | Design / dev |
 | `PupilSearch.cshtml` is still JavaScript-dependent (pre-existing). A server-rendered `<select>`, enhanced or not, would fix it — the roll is too long to list unenhanced, so this one needs the `enhanceSelectElement` pattern the other pickers have now dropped | Dev team |

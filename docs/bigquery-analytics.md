@@ -115,7 +115,9 @@ All custom events carry **no PII as plain fields**; a hidden field is noted belo
 
 Plus the library-provided **`web_request`** event, emitted automatically per request and enriched with the user and organisation.
 
-**Validation error codes** are a controlled taxonomy (never the raw, PII-bearing validation messages): `no_selection`, `same_pupil`, `at_least_one`, `file_required`, and per-question `required`, `bad_date`, `too_long`, `selection_invalid`, `invalid`. See `Web/Analytics/ValidationErrorCoding.cs`.
+**Validation error codes** are a controlled taxonomy (never the raw, PII-bearing validation messages): `no_selection`, `same_pupil`, `at_least_one`, `file_required`, `duplicate_enquiry`, and per-question `required`, `bad_date`, `too_long`, `selection_invalid`, `invalid`. See `Web/Analytics/ValidationErrorCoding.cs`.
+
+`request_submission_failed` sets `failure_reason` to `duplicate_request` for a competing amendment. It sets `duplicate_enquiry` for a duplicate results enquiry found at submit.
 
 ### The submission funnel
 

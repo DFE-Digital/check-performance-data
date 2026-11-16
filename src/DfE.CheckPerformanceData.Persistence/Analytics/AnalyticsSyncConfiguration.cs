@@ -24,5 +24,7 @@ internal static class AnalyticsSyncConfiguration
         adminSectionAccess.Property(e => e.SubmittedByName).ConfigureAnalyticsSync(hidden: true);
         adminSectionAccess.Property(e => e.SubmittedByEmail).ConfigureAnalyticsSync(hidden: true);
         adminSectionAccess.Property(e => e.WithdrawnByEmail).ConfigureAnalyticsSync(hidden: true);
+        adminSectionAccess.Property(e => e.EnquiryQan).ConfigureAnalyticsSync(hidden: true);
+        adminSectionAccess.Property(e => e.EnquirySession).ConfigureAnalyticsSync(hidden: true);
     }
 }

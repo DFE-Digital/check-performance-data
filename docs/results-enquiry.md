@@ -332,6 +332,10 @@ because a QAN belongs to one AO.
 The school is the signed-in school (`ICurrentUserService`). The student is the session's selected
 student. Neither comes from the request.
 
+The rule matches the student by `ChangeRequest.PupilId`. Ingress gives each student a new id on every
+pupil data run. So an enquiry made before a new pupil data release does not block an enquiry made after
+it. A results enquiry run does not change the ids.
+
 The service checks the rule twice:
 
 1. When the user selects a result or a qualification. `JourneyController.ResultSearchPost` and
@@ -348,6 +352,7 @@ The service checks the rule twice:
 
 The subject lives in two nullable `text` columns on `ChangeRequests`, `EnquiryQan` and
 `EnquirySession` (migration `AddChangeRequestEnquirySubject`). Only a submitted enquiry writes them.
+The Airbyte sync sends both columns to BigQuery as hidden fields (`AnalyticsSyncConfiguration`).
 
 ### Two places the duplicate rule had to be taught about enquiries
 

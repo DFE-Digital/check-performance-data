@@ -54,7 +54,6 @@ public sealed class JourneyController(
     private const long MaxUploadBytes = 10 * 1024 * 1024; // 10 MB
     private const string SelectedResultKeyField = "selectedResultKey";
     private const string SelectedQanField = "selectedQan";
-    private const string DuplicateEnquiryFailureReason = "duplicate_enquiry";
 
     // ── Page (GET) ──────────────────────────────────────────────────────────
 
@@ -920,8 +919,8 @@ public sealed class JourneyController(
                         ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName) : null;
 
                     // A grade picker has its own rules and its own inputs (the qualification's scale,
-                    // the grade the result already holds and the same result in other files), so it does not go through the generic
-                    // answer validator. AB#296648.
+                    // the grade the result already holds and the same result in other files), so it
+                    // does not go through the generic answer validator. AB#296648.
                     var error = question.Type switch
                     {
                         QuestionType.GradeSelect => journeyService.ValidateGradeSelect(
@@ -1512,7 +1511,7 @@ public sealed class JourneyController(
     {
         await analytics.TrackSafeAsync(new RequestSubmissionFailedEvent
         {
-            FailureReason = DuplicateEnquiryFailureReason,
+            FailureReason = ValidationErrorCoding.DuplicateEnquiry,
             WhatToChange = journey.SelectedWhatToChange?.ToString() ?? "",
             CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
         });

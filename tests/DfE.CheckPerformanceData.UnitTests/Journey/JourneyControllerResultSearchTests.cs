@@ -687,7 +687,7 @@ public sealed class JourneyControllerResultSearchTests
     }
 
     [Fact]
-    public async Task A_refused_duplicate_reports_a_coded_validation_error_with_no_reference_number()
+    public async Task A_refused_duplicate_reports_a_coded_validation_error()
     {
         ReadyJourney();
         SchoolAlreadyEnquiredAbout(BusStuds);
@@ -745,6 +745,26 @@ public sealed class JourneyControllerResultSearchTests
             Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<bool>());
         Assert.NotNull(_session.GetRequestState(WindowId).SelectedResult);
         await _notifications.DidNotReceiveWithAnyArgs().NotifyResultsEnquirySubmittedAsync(default!);
+    }
+
+    [Fact]
+    public async Task Submitting_a_duplicate_enquiry_reports_a_coded_submission_failure()
+    {
+        ReadyJourney(s =>
+        {
+            s.SelectedResult = BusStuds;
+            s.ReferenceNumber = "CYPMD_16to19_RE_1A2B3C4";
+            s.QuestionHistory = ["select-result", "grade-details"];
+            s.QuestionAnswers["q-revised-grade"] = new QuestionAnswer { TextValue = "6" };
+        });
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DuplicateEnquiryException(ExistingReference));
+
+        await _sut.SummaryConfirm(WindowId);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<RequestSubmissionFailedEvent>(e => e.FailureReason == ValidationErrorCoding.DuplicateEnquiry),
+            Arg.Any<CancellationToken>());
     }
 
     private sealed class FakeSession : ISession

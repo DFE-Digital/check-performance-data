@@ -10,7 +10,7 @@ internal sealed class CodeDescriptions
     private const string RulesKey = "codeDescriptions";
     private const string InclusionKey = "inclusion";
     private const string RulesPath = IngressExtension + "." + RulesKey;
-    private const string InclusionPath = IngressExtension + "." + InclusionKey;
+    internal const string InclusionPath = IngressExtension + "." + InclusionKey;
 
     private readonly IReadOnlyList<CodeDescriptionRule> _schemaRules;
     private readonly CodeDescriptionRule? _inclusionDescription;

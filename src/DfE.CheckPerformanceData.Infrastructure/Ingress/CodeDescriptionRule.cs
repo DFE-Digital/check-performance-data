@@ -8,9 +8,8 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 /// <c>"x-ingress": { "codeDescriptions": [ { "field": "R_INCL", "descriptionField":
 /// "R_INCL_DESCRIPTION", "descriptions": { "51": "..." } } ] }</c> at its root. The description
 /// part of <c>x-ingress.inclusion</c> has the same three keys. Codes are compared as trimmed text.
-/// The words go into a CSV that a school opens in a spreadsheet. A rule of the
-/// <c>codeDescriptions</c> list must not give words that start with a formula character. The
-/// words of <c>x-ingress.inclusion</c> do not have this check.
+/// The words go into a CSV that a school opens in a spreadsheet, so they must not start with a
+/// formula character. Both keys have this check.
 /// </summary>
 internal sealed record CodeDescriptionRule(
     string Field, string DescriptionField, IReadOnlyDictionary<string, string> Descriptions)
@@ -67,25 +66,26 @@ internal sealed record CodeDescriptionRule(
         return DescriptionsErrorFor(path);
     }
 
-    private string? DescriptionsErrorFor(string path)
+    /// <summary>The reason ingress cannot use this rule's descriptions, or null.</summary>
+    /// <param name="path">The schema key that holds the rule, which the message names.</param>
+    internal string? DescriptionsErrorFor(string path)
     {
         if (Descriptions.Count == 0)
-            return $"{path} has a rule for {Field} that gives no descriptions.";
+            return $"{path} gives no descriptions for {Field}.";
         if (Descriptions.ContainsKey(string.Empty))
-            return $"{path} has a rule for {Field} that describes a blank code.";
+            return $"{path} describes a blank {Field} code.";
         if (RepeatedCode is not null)
-            return $"{path} has a rule for {Field} that describes {RepeatedCode} more than once.";
+            return $"{path} describes the {Field} code {RepeatedCode} more than once.";
         if (CodeWithoutWords is not null)
-            return $"{path} has a rule for {Field} that gives no words for {CodeWithoutWords}.";
+            return $"{path} gives no words for the {Field} code {CodeWithoutWords}.";
 
         string? formulaCode = Descriptions
             .Where(words => words.Value.Length > 0 && FormulaPrefixes.Contains(words.Value[0]))
             .Select(words => words.Key)
             .FirstOrDefault();
-        if (formulaCode is not null)
-            return $"{path} has a rule for {Field} whose words for {formulaCode} start with a character that a spreadsheet reads as a formula.";
-
-        return null;
+        return formulaCode is null
+            ? null
+            : $"{path} gives words for the {Field} code {formulaCode} that start with a character a spreadsheet reads as a formula.";
     }
 
     /// <summary>

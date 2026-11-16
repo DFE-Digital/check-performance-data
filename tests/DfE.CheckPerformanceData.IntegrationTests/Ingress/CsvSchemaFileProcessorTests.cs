@@ -390,6 +390,20 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Contains("x-ingress.inclusion", last.Message);
     }
 
+    [Theory]
+    [InlineData("\"=1+1\"")]
+    [InlineData("\"\"")]
+    [InlineData("7")]
+    public async Task An_inclusion_rule_with_words_that_ingress_refuses_fails_the_run_by_name(string words)
+    {
+        var schema = SchemaWithInclusionRule.Replace("\"Not included words\"", words);
+
+        var (last, _) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", schema);
+
+        Assert.True(last.IsError);
+        Assert.Contains("x-ingress.inclusion", last.Message);
+    }
+
     [Fact]
     public async Task The_slots_file_of_origin_stamp_wins_over_the_schemas_rule()
     {

@@ -19,7 +19,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IReadOnlyDictionary<string, BlobServiceClient> blobClients) : ICsvSchemaFileProcessor
 {
     private const string SchemaFailureStage = "schema";
-    private const string RuleFailureCode = "identifier_mapping_invalid";
+    private const string SchemaMappingFailureCode = "identifier_mapping_invalid";
 
     public async IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
@@ -191,7 +191,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             InclusionRule? inclusion = InclusionRule.From(schema);
             if (inclusion?.ErrorFor(schema) is { } inclusionError)
             {
-                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                summaryCapture?.SetFailure(SchemaFailureStage, SchemaMappingFailureCode);
                 yield return Failed($"Schema '{dataset.SchemaFile}': {inclusionError}");
                 yield break;
             }
@@ -201,7 +201,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             if (inclusion is { DecidesInclusion: false } && dataset.Included is null
                 && schema.Properties.ContainsKey("INCLUDED"))
             {
-                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                summaryCapture?.SetFailure(SchemaFailureStage, SchemaMappingFailureCode);
                 yield return Failed($"Schema '{dataset.SchemaFile}': x-ingress.inclusion gives descriptions only, so the data file's slot must say whether its file is included.");
                 yield break;
             }
@@ -209,7 +209,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             CodeDescriptions codeDescriptions = CodeDescriptions.From(schema, inclusion?.Description);
             if (codeDescriptions.ErrorFor(schema) is { } codeDescriptionError)
             {
-                summaryCapture?.SetFailure(SchemaFailureStage, RuleFailureCode);
+                summaryCapture?.SetFailure(SchemaFailureStage, SchemaMappingFailureCode);
                 yield return Failed($"Schema '{dataset.SchemaFile}': {codeDescriptionError}");
                 yield break;
             }
@@ -219,7 +219,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             IncludableRule? includable = IncludableRule.From(schema);
             if (includable?.ErrorFor(schema) is { } includableError)
             {
-                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                summaryCapture?.SetFailure(SchemaFailureStage, SchemaMappingFailureCode);
                 yield return Failed($"Schema '{dataset.SchemaFile}': {includableError}");
                 yield break;
             }
@@ -279,7 +279,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             var institutionColumn = records.Count == 0 ? null : FindHeader(records[0].Keys, institutionKey);
             if (records.Count > 0 && institutionColumn is null)
             {
-                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                summaryCapture?.SetFailure(SchemaFailureStage, SchemaMappingFailureCode);
                 yield return Failed(
                     $"Ingress file '{dataset.InputCsvFile}' has no {institutionKey} column, so its records " +
                     "cannot be grouped by school.");
@@ -857,9 +857,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             : DecidesInclusion && !schema.Properties.ContainsKey("INCLUDED") ? "x-ingress.inclusion needs the schema to declare INCLUDED, the stamp it writes."
             : Description is not null && !schema.Properties.ContainsKey(Description.DescriptionField)
                 ? $"x-ingress.inclusion writes {Description.DescriptionField}, which the schema does not declare."
-            : Description?.RepeatedCode is { } repeated
-                ? $"x-ingress.inclusion describes {repeated} more than once."
-            : null;
+            : Description?.DescriptionsErrorFor(CodeDescriptions.InclusionPath);
 
         public bool IsIncluded(JObject record) => Included is not null && Included.Contains(Code(record));
 

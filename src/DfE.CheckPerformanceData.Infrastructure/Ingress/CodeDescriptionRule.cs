@@ -8,8 +8,9 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 /// <c>"x-ingress": { "codeDescriptions": [ { "field": "R_INCL", "descriptionField":
 /// "R_INCL_DESCRIPTION", "descriptions": { "51": "..." } } ] }</c> at its root. The description
 /// part of <c>x-ingress.inclusion</c> has the same three keys. Codes are compared as trimmed text.
-/// The words go into a CSV that a school opens in a spreadsheet, so they must not start with a
-/// formula character.
+/// The words go into a CSV that a school opens in a spreadsheet. A rule of the
+/// <c>codeDescriptions</c> list must not give words that start with a formula character. The
+/// words of <c>x-ingress.inclusion</c> do not have this check.
 /// </summary>
 internal sealed record CodeDescriptionRule(
     string Field, string DescriptionField, IReadOnlyDictionary<string, string> Descriptions)

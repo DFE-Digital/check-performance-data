@@ -844,7 +844,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                 rule["included"] is JArray codes
                     ? codes.Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal)
                     : null,
-                rule["descriptionField"] is null or { Type: JTokenType.Null } ? null : CodeDescriptionRule.Parse(rule));
+                rule[CodeDescriptionRule.DescriptionFieldKey] is null or { Type: JTokenType.Null } ? null : CodeDescriptionRule.Parse(rule));
         }
 
         /// <summary>The rule names included codes, so it can stamp INCLUDED.</summary>
@@ -857,6 +857,8 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             : DecidesInclusion && !schema.Properties.ContainsKey("INCLUDED") ? "x-ingress.inclusion needs the schema to declare INCLUDED, the stamp it writes."
             : Description is not null && !schema.Properties.ContainsKey(Description.DescriptionField)
                 ? $"x-ingress.inclusion writes {Description.DescriptionField}, which the schema does not declare."
+            : Description?.RepeatedCode is { } repeated
+                ? $"x-ingress.inclusion describes {repeated} more than once."
             : null;
 
         public bool IsIncluded(JObject record) => Included is not null && Included.Contains(Code(record));

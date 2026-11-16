@@ -133,6 +133,11 @@ public sealed class CodeDescriptionsTests
     [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS" } ]""", "R_INCL")]
     [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { " ": "Words" } } ]""", "R_INCL")]
     [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "Words" } }, { "field": "QUAL_KS4", "descriptionField": "R_INCL_WORDS", "descriptions": { "59": "Words" } } ]""", "R_INCL_WORDS")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "Words", " 51 ": "Other words" } } ]""", "51")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": 7 } } ]""", "51")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "" } } ]""", "51")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": { "words": "Words" } } } ]""", "51")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "Words" } }, { "field": "R_INCL_WORDS", "descriptionField": "QUAL_KS4_WORDS", "descriptions": { "Words": "More words" } } ]""", "R_INCL_WORDS")]
     public void Rules_the_schema_cannot_honour_have_an_error_that_names_the_key(string rules, string named)
     {
         var schema = Schema(rules);
@@ -148,6 +153,32 @@ public sealed class CodeDescriptionsTests
     public void A_rule_that_writes_the_inclusion_rules_description_field_has_an_error()
     {
         const string oneRule = """[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "Words" } } ]""";
+        var inclusion = new CodeDescriptionRule("QUAL_KS4", "R_INCL_WORDS", new Dictionary<string, string> { ["59"] = "Words" });
+        var schema = Schema(oneRule);
+
+        var error = CodeDescriptions.From(schema, inclusion).ErrorFor(schema);
+
+        Assert.NotNull(error);
+        Assert.Contains("R_INCL_WORDS", error);
+    }
+
+    [Fact]
+    public void A_rule_that_writes_the_field_the_inclusion_rule_reads_has_an_error()
+    {
+        const string oneRule = """[ { "field": "R_INCL", "descriptionField": "QUAL_KS4_WORDS", "descriptions": { "51": "Words" } } ]""";
+        var inclusion = new CodeDescriptionRule("QUAL_KS4_WORDS", "R_INCL_WORDS", new Dictionary<string, string> { ["Words"] = "More words" });
+        var schema = Schema(oneRule);
+
+        var error = CodeDescriptions.From(schema, inclusion).ErrorFor(schema);
+
+        Assert.NotNull(error);
+        Assert.Contains("QUAL_KS4_WORDS", error);
+    }
+
+    [Fact]
+    public void A_rule_that_reads_the_field_the_inclusion_rule_writes_has_an_error()
+    {
+        const string oneRule = """[ { "field": "R_INCL_WORDS", "descriptionField": "QUAL_KS4_WORDS", "descriptions": { "Words": "More words" } } ]""";
         var inclusion = new CodeDescriptionRule("QUAL_KS4", "R_INCL_WORDS", new Dictionary<string, string> { ["59"] = "Words" });
         var schema = Schema(oneRule);
 

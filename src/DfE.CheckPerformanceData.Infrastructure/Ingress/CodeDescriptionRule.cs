@@ -12,19 +12,37 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 internal sealed record CodeDescriptionRule(
     string Field, string DescriptionField, IReadOnlyDictionary<string, string> Descriptions)
 {
+    internal const string DescriptionFieldKey = "descriptionField";
     private const string FieldKey = "field";
-    private const string DescriptionFieldKey = "descriptionField";
     private const string DescriptionsKey = "descriptions";
+
+    /// <summary>A code the schema describes more than once when codes are trimmed, or null.</summary>
+    public string? RepeatedCode { get; private init; }
+
+    /// <summary>A code whose description is not text or is blank, or null.</summary>
+    public string? CodeWithoutWords { get; private init; }
 
     public static CodeDescriptionRule Parse(JObject rule)
     {
         Dictionary<string, string> descriptions = new(StringComparer.Ordinal);
+        string? repeatedCode = null;
+        string? codeWithoutWords = null;
         foreach (JProperty words in (rule[DescriptionsKey] as JObject ?? []).Properties())
         {
-            descriptions[words.Name.Trim()] = words.Value.ToString();
+            string code = words.Name.Trim();
+            if (descriptions.ContainsKey(code))
+                repeatedCode ??= code;
+            if (words.Value is not JValue { Type: JTokenType.String } || string.IsNullOrWhiteSpace(words.Value.ToString()))
+                codeWithoutWords ??= code;
+
+            descriptions[code] = words.Value.ToString();
         }
 
-        return new CodeDescriptionRule(Text(rule[FieldKey]), Text(rule[DescriptionFieldKey]), descriptions);
+        return new CodeDescriptionRule(Text(rule[FieldKey]), Text(rule[DescriptionFieldKey]), descriptions)
+        {
+            RepeatedCode = repeatedCode,
+            CodeWithoutWords = codeWithoutWords
+        };
     }
 
     /// <summary>The reason the schema cannot honour this rule, or null.</summary>
@@ -39,14 +57,22 @@ internal sealed record CodeDescriptionRule(
             return $"{path} has a rule for {Field} that names no descriptionField.";
         if (!schema.Properties.TryGetValue(DescriptionField, out JSchema? target))
             return $"{path} writes {DescriptionField}, which the schema does not declare.";
-        if (DescriptionField == Field)
-            return $"{path} has a rule that writes {Field}, the field it reads.";
         if (target.Type is { } type && !type.HasFlag(JSchemaType.String))
             return $"{path} writes {DescriptionField}, which the schema does not declare as text.";
+
+        return DescriptionsErrorFor(path);
+    }
+
+    private string? DescriptionsErrorFor(string path)
+    {
         if (Descriptions.Count == 0)
             return $"{path} has a rule for {Field} that gives no descriptions.";
         if (Descriptions.ContainsKey(string.Empty))
             return $"{path} has a rule for {Field} that describes a blank code.";
+        if (RepeatedCode is not null)
+            return $"{path} has a rule for {Field} that describes {RepeatedCode} more than once.";
+        if (CodeWithoutWords is not null)
+            return $"{path} has a rule for {Field} that gives no words for {CodeWithoutWords}.";
 
         return null;
     }

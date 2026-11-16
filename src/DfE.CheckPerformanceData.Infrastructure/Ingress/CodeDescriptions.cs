@@ -53,10 +53,22 @@ internal sealed class CodeDescriptions
         if (ruleError is not null)
             return ruleError;
 
+        if (FieldWrittenAndRead() is { } chained)
+            return $"{RulesPath} writes {chained}, a field that a rule reads.";
+
         string? writtenTwice = _allRules
             .GroupBy(rule => rule.DescriptionField, StringComparer.Ordinal)
             .FirstOrDefault(written => written.Count() > 1)?.Key;
         return writtenTwice is null ? null : $"{RulesPath} writes {writtenTwice} more than once.";
+    }
+
+    private string? FieldWrittenAndRead()
+    {
+        HashSet<string> readByAnyRule = _allRules.Select(rule => rule.Field).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> readBySchemaRules = _schemaRules.Select(rule => rule.Field).ToHashSet(StringComparer.Ordinal);
+
+        return _schemaRules.Select(rule => rule.DescriptionField).FirstOrDefault(readByAnyRule.Contains)
+            ?? _allRules.Select(rule => rule.DescriptionField).FirstOrDefault(readBySchemaRules.Contains);
     }
 
     /// <summary>Writes each rule's description on the record.</summary>

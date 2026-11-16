@@ -380,6 +380,17 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     }
 
     [Fact]
+    public async Task An_inclusion_rule_that_describes_a_code_more_than_once_fails_the_run_by_name()
+    {
+        var schema = SchemaWithInclusionRule.Replace("\"402\": \"Not included words\"", "\" 401 \": \"Other words\"");
+
+        var (last, _) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", schema);
+
+        Assert.True(last.IsError);
+        Assert.Contains("x-ingress.inclusion", last.Message);
+    }
+
+    [Fact]
     public async Task The_slots_file_of_origin_stamp_wins_over_the_schemas_rule()
     {
         var (last, pupil) = await RunInclusionRuleAsync(

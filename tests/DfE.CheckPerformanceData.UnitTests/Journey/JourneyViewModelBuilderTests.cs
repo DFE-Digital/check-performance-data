@@ -654,6 +654,23 @@ public class JourneyViewModelBuilderTests
         Assert.Null(vm.Content);
     }
 
+    [Fact]
+    public void BuildResultSearchVm_ShowsThePostedResultKeyInPlaceOfTheStoredResult()
+    {
+        var stored = new ResultRecord { Qan = "60370683", Session = "S2024", SourceFile = ResultsFileTags.Post16Included };
+        var page = new JourneyPage { Id = "select-result", Type = PageType.ResultSearch };
+        _flowService.GetPage(Config, "select-result").Returns(page);
+        var journey = JourneyWithHistory(["select-student"]);
+        journey.SelectedResult = stored;
+        var postedKey = "60370683|S2024|" + ResultsFileTags.Post16LateResults1;
+
+        var posted = _sut.BuildResultSearchVm(WindowId, "select-result", page, journey, Config, [], postedKey);
+        var notPosted = _sut.BuildResultSearchVm(WindowId, "select-result", page, journey, Config, []);
+
+        Assert.Equal(postedKey, posted.SelectedResultKey);
+        Assert.Equal(stored.CompositeKey, notPosted.SelectedResultKey);
+    }
+
     // ── Question-level visibility (issue #577) ───────────────────────────────
 
     private static readonly JourneyPage SyllabusQuestionPage = new()

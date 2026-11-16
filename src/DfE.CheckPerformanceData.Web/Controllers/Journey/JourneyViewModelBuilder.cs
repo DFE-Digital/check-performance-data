@@ -365,7 +365,7 @@ public sealed class JourneyViewModelBuilder(
 
     public ResultSearchViewModel BuildResultSearchVm(
         Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
-        IReadOnlyList<ResultRecord> availableResults)
+        IReadOnlyList<ResultRecord> availableResults, string? selectedResultKey = null)
     {
         var pupilName = GetPupilName(journey);
         var (backPageId, backPage) = ResolveBackPage(pageId, journey, config);
@@ -378,7 +378,7 @@ public sealed class JourneyViewModelBuilder(
             PageTitle = page.PageTitle,
             Hint = page.Subheading,
             Content = page.Content,
-            SelectedResultKey = journey.SelectedResult?.CompositeKey,
+            SelectedResultKey = selectedResultKey ?? journey.SelectedResult?.CompositeKey,
             AvailableResults = availableResults,
             BackPageId = backPageId,
             BackPageAction = JourneyRouting.ActionFor(backPage?.Type)

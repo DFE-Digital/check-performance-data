@@ -15,6 +15,9 @@ public static class ValidationErrorCoding
     public const string FileRequired = "file_required";
     public const string Conflict = "conflict";
 
+    /// <summary>The school already has a results enquiry for the same student and subject.</summary>
+    public const string DuplicateEnquiry = "duplicate_enquiry";
+
     /// <summary>A date that is well-formed but inconsistent with another date on the same page,
     /// or with today — distinct from <c>bad_date</c>, which means unparseable.</summary>
     public const string DateInconsistent = "date_inconsistent";

@@ -35,10 +35,12 @@ public interface IJourneyViewModelBuilder
     /// <summary>
     /// AB#296648: the "which of {pupil}'s results is incorrect?" page. The pupil's results are passed
     /// in rather than fetched here because reading them is async and the builder is not.
+    /// <paramref name="selectedResultKey"/> is the key the user posted, shown as selected when the post
+    /// is refused. Null shows the journey's stored result.
     /// </summary>
     ResultSearchViewModel BuildResultSearchVm(
         Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
-        IReadOnlyList<Application.ResultsEnquiry.ResultRecord> availableResults);
+        IReadOnlyList<Application.ResultsEnquiry.ResultRecord> availableResults, string? selectedResultKey = null);
 
     /// <summary>
     /// AB#297848: the "provide the missing qualification details" AO + QAN page. The reference

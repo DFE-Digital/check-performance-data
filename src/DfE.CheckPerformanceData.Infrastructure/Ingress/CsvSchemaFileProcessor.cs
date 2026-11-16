@@ -18,6 +18,9 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 
 public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IReadOnlyDictionary<string, BlobServiceClient> blobClients) : ICsvSchemaFileProcessor
 {
+    private const string SchemaFailureStage = "schema";
+    private const string RuleFailureCode = "identifier_mapping_invalid";
+
     public async IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
         CheckingExerciseType? exercise,
@@ -203,6 +206,14 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                 yield break;
             }
 
+            CodeDescriptions codeDescriptions = CodeDescriptions.From(schema, inclusion?.Description);
+            if (codeDescriptions.ErrorFor(schema) is { } codeDescriptionError)
+            {
+                summaryCapture?.SetFailure(SchemaFailureStage, RuleFailureCode);
+                yield return Failed($"Schema '{dataset.SchemaFile}': {codeDescriptionError}");
+                yield break;
+            }
+
             // #711: who may be asked to be included. Validated like the inclusion rule, so a schema
             // that cannot be honoured fails by name before any row is read.
             IncludableRule? includable = IncludableRule.From(schema);
@@ -360,15 +371,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                         record["SOURCE"] = sourceFile;
                     }
 
-                    // The supplier file may not carry the inclusion description that the school's
-                    // CSV shows. Its words come from the schema's rule; a description the supplier
-                    // did send is kept.
-                    if (inclusion is { DescriptionField: { } descriptionField }
-                        && string.IsNullOrWhiteSpace(record[descriptionField]?.ToString())
-                        && inclusion.DescriptionOf(record) is { Length: > 0 } description)
-                    {
-                        record[descriptionField] = description;
-                    }
+                    codeDescriptions.Describe(record);
 
                 }
 
@@ -828,8 +831,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
     /// <c>included</c> gives descriptions only: the file a record came from decides inclusion
     /// (16-19, #841).
     /// </summary>
-    private sealed record InclusionRule(string Field, IReadOnlySet<string>? Included, string? DescriptionField,
-        IReadOnlyDictionary<string, string> Descriptions)
+    private sealed record InclusionRule(string Field, IReadOnlySet<string>? Included, CodeDescriptionRule? Description)
     {
         public static InclusionRule? From(JSchema schema)
         {
@@ -842,9 +844,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                 rule["included"] is JArray codes
                     ? codes.Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal)
                     : null,
-                rule["descriptionField"]?.Value<string>(),
-                (rule["descriptions"] as JObject ?? [])
-                    .Properties().ToDictionary(p => p.Name.Trim(), p => p.Value.ToString(), StringComparer.Ordinal));
+                rule["descriptionField"] is null or { Type: JTokenType.Null } ? null : CodeDescriptionRule.Parse(rule));
         }
 
         /// <summary>The rule names included codes, so it can stamp INCLUDED.</summary>
@@ -853,15 +853,13 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         public string? ErrorFor(JSchema schema) =>
             string.IsNullOrWhiteSpace(Field) ? "x-ingress.inclusion names no field."
             : !schema.Properties.ContainsKey(Field) ? $"x-ingress.inclusion reads {Field}, which the schema does not declare."
-            : !DecidesInclusion && DescriptionField is null ? "x-ingress.inclusion names no included codes and no descriptionField, so it does nothing."
+            : !DecidesInclusion && Description is null ? "x-ingress.inclusion names no included codes and no descriptionField, so it does nothing."
             : DecidesInclusion && !schema.Properties.ContainsKey("INCLUDED") ? "x-ingress.inclusion needs the schema to declare INCLUDED, the stamp it writes."
-            : DescriptionField is not null && !schema.Properties.ContainsKey(DescriptionField)
-                ? $"x-ingress.inclusion writes {DescriptionField}, which the schema does not declare."
+            : Description is not null && !schema.Properties.ContainsKey(Description.DescriptionField)
+                ? $"x-ingress.inclusion writes {Description.DescriptionField}, which the schema does not declare."
             : null;
 
         public bool IsIncluded(JObject record) => Included is not null && Included.Contains(Code(record));
-
-        public string? DescriptionOf(JObject record) => Descriptions.GetValueOrDefault(Code(record));
 
         private string Code(JObject record) =>
             record[Field] is { Type: not JTokenType.Null } value ? value.ToString().Trim() : string.Empty;

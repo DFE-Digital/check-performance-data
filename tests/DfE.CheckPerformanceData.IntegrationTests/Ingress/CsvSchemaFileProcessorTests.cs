@@ -616,6 +616,52 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Equal(described, !string.IsNullOrEmpty(pupil["P_INCL_DESC"]?.Value<string>()));
     }
 
+    private const string SchemaWithCodeDescriptions = """
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "x-ingress": {
+        "codeDescriptions": [
+          { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "Words for 51" } },
+          { "field": "QUAL_KS4", "descriptionField": "QUAL_KS4_WORDS", "descriptions": { "59": "Words for 59" } }
+        ]
+      },
+      "properties": {
+        "SURNAME":        { "type": ["string", "null"] },
+        "LAESTAB":        { "type": ["string", "null"] },
+        "R_INCL":         { "type": ["integer", "null"] },
+        "R_INCL_WORDS":   { "type": ["string", "null"] },
+        "QUAL_KS4":       { "type": ["integer", "null"] },
+        "QUAL_KS4_WORDS": { "type": ["string", "null"] }
+      }
+    }
+    """;
+
+    [Fact]
+    public async Task A_schemas_code_descriptions_are_written_for_each_field_at_ingress()
+    {
+        var (last, record) = await RunInclusionRuleAsync(
+            "SURNAME,LAESTAB,R_INCL,QUAL_KS4\nSmith,8604070,51,60\n", SchemaWithCodeDescriptions);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal("Words for 51", record!["R_INCL_WORDS"]!.Value<string>());
+        Assert.True(string.IsNullOrEmpty(record["QUAL_KS4_WORDS"]?.Value<string>()));
+    }
+
+    [Fact]
+    public async Task A_code_description_rule_the_schema_cannot_honour_fails_the_run_by_name()
+    {
+        var schema = SchemaWithCodeDescriptions.Replace(
+            "\"descriptionField\": \"R_INCL_WORDS\"", "\"descriptionField\": \"NOT_DECLARED\"");
+
+        var (last, record) = await RunInclusionRuleAsync(
+            "SURNAME,LAESTAB,R_INCL,QUAL_KS4\nSmith,8604070,51,60\n", schema);
+
+        Assert.True(last.IsError);
+        Assert.Contains("x-ingress.codeDescriptions", last.Message);
+        Assert.Null(record);
+    }
+
     [Fact]
     public async Task A_schema_with_an_institution_key_splits_the_file_by_that_column()
     {

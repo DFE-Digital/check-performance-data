@@ -176,6 +176,13 @@ variable "pg_airbyte_enabled" {
   description = "Enable Write ahead logging for Postgres replication for Airbyte."
   default     = false
 }
+
+# wal_threshold is read by the database-replication-monitor workflow, not by terraform
+variable "wal_threshold" {
+  default     = null
+  description = "WAL size in bytes above which the monitor workflow drops the Airbyte replication slot"
+}
+
 locals {
   azure_storage_account_name = module.storage_private.name
   azure_storage_access_key   = module.storage_private.primary_access_key

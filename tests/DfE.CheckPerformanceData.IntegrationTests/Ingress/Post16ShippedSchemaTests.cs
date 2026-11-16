@@ -67,4 +67,73 @@ public sealed class Post16ShippedSchemaTests
     {
         Assert.True(Shipped(first).SelectorOrder < Shipped(second).SelectorOrder);
     }
+
+    private static readonly string[] ResultFlags = ["R_INCL", "R_INCL_EM", "QUAL_KS4"];
+    private const int ResultColumnCount = 33;
+
+    [Theory]
+    [InlineData("results-included_schema.json")]
+    [InlineData("results-non-included_schema.json")]
+    [InlineData("results-included-revised_schema.json")]
+    [InlineData("results-non-included-revised_schema.json")]
+    [InlineData("results-included-revised-retention_schema.json")]
+    public void A_results_file_has_each_description_straight_after_its_flag(string file)
+    {
+        var fields = CsvFields(file);
+
+        Assert.All(ResultFlags, flag => Assert.Equal($"{flag}_DESCRIPTION", fields[fields.IndexOf(flag) + 1]));
+        Assert.Equal(Enumerable.Range(1, ResultColumnCount), Shipped(file).CsvColumns.Select(column => column.Order));
+        Assert.Equal(["UKPRN", "URN", "LAESTAB"], fields.TakeLast(3));
+    }
+
+    private static readonly string[] ResultSchemaFiles =
+    [
+        "results-included_schema.json",
+        "results-non-included_schema.json",
+        "results-included-revised_schema.json",
+        "results-non-included-revised_schema.json",
+        "results-included-revised-retention_schema.json"
+    ];
+
+    private static readonly string[] FirstFlagToDfeNumber =
+    [
+        "R_INCL", "R_INCL_DESCRIPTION", "R_INCL_EM", "R_INCL_EM_DESCRIPTION", "QUAL_KS4", "QUAL_KS4_DESCRIPTION",
+        "UKPRN", "URN", "LAESTAB"
+    ];
+
+    private static readonly string[] FirstFlagToDfeNumberLetters = ["Y", "Z", "AA", "AB", "AC", "AD", "AE", "AF", "AG"];
+
+    private static T FromSchema<T>(string file, Func<JsonElement, T> read)
+    {
+        using var json = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", "post16", file)));
+        return read(json.RootElement);
+    }
+
+    [Theory]
+    [InlineData("results-included_schema.json")]
+    [InlineData("results-non-included_schema.json")]
+    [InlineData("results-included-revised_schema.json")]
+    [InlineData("results-non-included-revised_schema.json")]
+    [InlineData("results-included-revised-retention_schema.json")]
+    public void A_results_file_has_the_columns_from_the_first_flag_to_the_DfE_number_at_Y_to_AG(string file)
+    {
+        var letters = FromSchema(file, root => FirstFlagToDfeNumber
+            .Select(field => root.GetProperty("properties").GetProperty(field)
+                .GetProperty("x-csv").GetProperty("columns").GetProperty("default").GetString())
+            .ToList());
+
+        Assert.Equal(FirstFlagToDfeNumberLetters, letters);
+    }
+
+    [Fact]
+    public void The_five_results_files_have_the_same_code_descriptions()
+    {
+        var rules = ResultSchemaFiles
+            .Select(file => FromSchema(file, root =>
+                JsonSerializer.Serialize(root.GetProperty("x-ingress").GetProperty("codeDescriptions"))))
+            .Distinct();
+
+        Assert.Single(rules);
+    }
 }

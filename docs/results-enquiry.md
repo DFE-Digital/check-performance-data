@@ -132,7 +132,9 @@ because their lengths and one download heading differ. Neither file has a single
 qualification-name column, so
 the schema joins columns: `SESSION` is `SEASON` + `EXAMYEAR` (`S2025`) and `QUAL_NAME` is
 `Short_Qual_Desc` + `SubjectDescription` (`GCE A English`). `QAN` is `GNUMBER` and `SYLLABUS` is
-`BRDSUBNO`, as in the late files.
+`BRDSUBNO`, as in the late files. Both schemas, and their revised and retention copies, also give
+each of `R_INCL`, `R_INCL_EM` and `QUAL_KS4` a description column. Ingress fills these from
+`x-ingress.codeDescriptions`. The journey does not read them.
 
 **Late results files have their own schema** (`post16/results-late_schema.json`,
 `ks4autumn/results-late_schema.json`), in the data specification's column names. A schema property may

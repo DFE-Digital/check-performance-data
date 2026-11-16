@@ -380,6 +380,32 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     }
 
     [Fact]
+    public async Task An_inclusion_rule_that_describes_a_code_more_than_once_fails_the_run_by_name()
+    {
+        var schema = SchemaWithInclusionRule.Replace("\"402\": \"Not included words\"", "\" 401 \": \"Other words\"");
+
+        var (last, _) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", schema);
+
+        Assert.True(last.IsError);
+        Assert.Contains("x-ingress.inclusion", last.Message);
+    }
+
+    [Theory]
+    [InlineData("\"=1+1\"")]
+    [InlineData("\"\"")]
+    [InlineData("7")]
+    public async Task An_inclusion_rule_with_words_that_ingress_refuses_fails_the_run_by_name(string words)
+    {
+        var schema = SchemaWithInclusionRule.Replace("\"Not included words\"", words);
+
+        var (last, _) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", schema);
+
+        Assert.True(last.IsError);
+        Assert.Contains("x-ingress.inclusion", last.Message);
+        Assert.Contains("402", last.Message);
+    }
+
+    [Fact]
     public async Task The_slots_file_of_origin_stamp_wins_over_the_schemas_rule()
     {
         var (last, pupil) = await RunInclusionRuleAsync(
@@ -614,6 +640,102 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.False(last.IsError, last.Message);
         Assert.True(pupil!["INCLUDED"]!.Value<bool>());
         Assert.Equal(described, !string.IsNullOrEmpty(pupil["P_INCL_DESC"]?.Value<string>()));
+    }
+
+    private const string SchemaWithCodeDescriptions = """
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "x-ingress": {
+        "codeDescriptions": [
+          { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "Words for 51" } },
+          { "field": "QUAL_KS4", "descriptionField": "QUAL_KS4_WORDS", "descriptions": { "59": "Words for 59" } }
+        ]
+      },
+      "properties": {
+        "SURNAME":        { "type": ["string", "null"] },
+        "LAESTAB":        { "type": ["string", "null"] },
+        "R_INCL":         { "type": ["integer", "null"] },
+        "R_INCL_WORDS":   { "type": ["string", "null"] },
+        "QUAL_KS4":       { "type": ["integer", "null"] },
+        "QUAL_KS4_WORDS": { "type": ["string", "null"] }
+      }
+    }
+    """;
+
+    [Fact]
+    public async Task A_schemas_code_descriptions_are_written_for_each_field_at_ingress()
+    {
+        var (last, record) = await RunInclusionRuleAsync(
+            "SURNAME,LAESTAB,R_INCL,QUAL_KS4\nSmith,8604070,51,60\n", SchemaWithCodeDescriptions);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal("Words for 51", record!["R_INCL_WORDS"]!.Value<string>());
+        Assert.True(string.IsNullOrEmpty(record["QUAL_KS4_WORDS"]?.Value<string>()));
+    }
+
+    [Fact]
+    public async Task A_code_description_rule_the_schema_cannot_honour_fails_the_run_by_name()
+    {
+        var schema = SchemaWithCodeDescriptions.Replace(
+            "\"descriptionField\": \"R_INCL_WORDS\"", "\"descriptionField\": \"NOT_DECLARED\"");
+
+        var (last, record) = await RunInclusionRuleAsync(
+            "SURNAME,LAESTAB,R_INCL,QUAL_KS4\nSmith,8604070,51,60\n", schema);
+
+        Assert.True(last.IsError);
+        Assert.Contains("x-ingress.codeDescriptions", last.Message);
+        Assert.Null(record);
+    }
+
+    private static readonly string[] ResultDescriptions =
+        ["R_INCL_DESCRIPTION", "R_INCL_EM_DESCRIPTION", "QUAL_KS4_DESCRIPTION"];
+
+    private async Task<(ValidationProgress Last, List<JObject> Records)> RunRecordsAsync(string csv, string schema)
+    {
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/results.csv", csv),
+            ("schema/results.json", schema));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("results", "results.csv", Checksum(csv), "results.json", Checksum(schema), Included: null)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+        var records = await ReadPupilsAsync(container, "8604070");
+        return (progress[^1], records?.Children<JObject>().ToList() ?? []);
+    }
+
+    [Theory]
+    [InlineData("results-included_schema.json")]
+    [InlineData("results-non-included_schema.json")]
+    [InlineData("results-included-revised_schema.json")]
+    [InlineData("results-non-included-revised_schema.json")]
+    [InlineData("results-included-revised-retention_schema.json")]
+    public async Task A_shipped_16_19_results_schema_describes_each_code_and_leaves_any_other_code_blank(string file)
+    {
+        var schema = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", "post16", file));
+        string[] describedCodes = ["51,57,59", "52,58,60", "53,57,59", "54,58,60", "55,57,59", "56,58,60"];
+        string[] otherCodes = ["99,99,99", ",,"];
+        var csv = "CYPMD_ID,SURNAME,R_INCL,R_INCL_EM,QUAL_KS4,LAESTAB\n" + string.Concat(
+            describedCodes.Concat(otherCodes).Select((codes, row) => $"{row + 1},Smith,{codes},8604070\n"));
+
+        var (last, records) = await RunRecordsAsync(csv, schema);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal(describedCodes.Length + otherCodes.Length, records.Count);
+        Assert.All(records.Take(describedCodes.Length), record => Assert.All(ResultDescriptions,
+            field => Assert.False(string.IsNullOrEmpty(record[field]?.Value<string>()))));
+        Assert.All(records.Skip(describedCodes.Length), record => Assert.All(ResultDescriptions,
+            field => Assert.True(string.IsNullOrEmpty(record[field]?.Value<string>()))));
+        Assert.All(ResultDescriptions.Select((field, column) => (Field: field, Column: column)), description =>
+            Assert.Equal(
+                describedCodes.Select(codes => codes.Split(',')[description.Column]).Distinct().Count(),
+                records.Take(describedCodes.Length)
+                    .Select(record => record[description.Field]!.Value<string>()).Distinct().Count()));
     }
 
     [Fact]

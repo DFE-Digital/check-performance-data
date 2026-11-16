@@ -12,6 +12,7 @@ using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -270,10 +271,8 @@ public sealed class RequestServiceResultsEnquiryTests
     }
 
     [Fact]
-    public async Task Submitting_does_not_run_the_duplicate_check()
+    public async Task Submitting_does_not_run_the_amendment_conflict_check()
     {
-        // The spec allows several enquiries for the same pupil and result — a school may be reporting
-        // more than one thing about the same qualification.
         await _sut.SubmitResultsEnquiryAsync(WindowId, Journey());
 
         await _repository.DidNotReceiveWithAnyArgs()
@@ -281,16 +280,49 @@ public sealed class RequestServiceResultsEnquiryTests
     }
 
     [Fact]
-    public async Task Two_enquiries_for_the_same_result_both_persist()
+    public async Task The_row_carries_the_subject_of_the_enquiry()
     {
-        var first = Journey();
-        var second = Journey();
-        second.ReferenceNumber = "CYPMD_16to19_RE_BBBBBB2";
+        await _sut.SubmitResultsEnquiryAsync(WindowId, Journey());
 
-        await _sut.SubmitResultsEnquiryAsync(WindowId, first);
-        await _sut.SubmitResultsEnquiryAsync(WindowId, second);
+        await _repository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+            d.EnquirySubject == EnquirySubject.ForResult(Result())));
+    }
 
-        await _repository.Received(2).UpsertAsync(Arg.Any<ChangeRequestData>());
+    [Fact]
+    public async Task A_duplicate_enquiry_is_not_saved_or_queued()
+    {
+        _repository.UpsertAsync(Arg.Any<ChangeRequestData>())
+            .ThrowsAsync(new DuplicateEnquiryException("CYPMD_16to19_RE_AAAAAA1"));
+
+        var refused = await Assert.ThrowsAsync<DuplicateEnquiryException>(
+            () => _sut.SubmitResultsEnquiryAsync(WindowId, Journey()));
+
+        Assert.Equal("CYPMD_16to19_RE_AAAAAA1", refused.ExistingReferenceNumber);
+        await _stateBlob.DidNotReceiveWithAnyArgs().SaveAsync(default, default!, default!);
+        Assert.Empty(_queue.ReceivedCalls());
+    }
+
+    [Fact]
+    public async Task The_duplicate_lookup_is_for_the_signed_in_school_the_journeys_student_and_not_the_journeys_own_reference()
+    {
+        var journey = Journey();
+        var subject = EnquirySubject.ForResult(Result());
+        _repository.FindSubmittedResultsEnquiryReferenceAsync(
+                WindowId, 142313, journey.SelectedPupil!.Id, subject, journey.ReferenceNumber, Arg.Any<CancellationToken>())
+            .Returns("CYPMD_16to19_RE_AAAAAA1");
+
+        Assert.Equal("CYPMD_16to19_RE_AAAAAA1", await _sut.FindDuplicateResultsEnquiryAsync(WindowId, journey, subject));
+    }
+
+    [Fact]
+    public async Task The_duplicate_lookup_finds_nothing_for_a_journey_with_no_student()
+    {
+        var journey = Journey();
+        journey.SelectedPupil = null;
+
+        Assert.Null(await _sut.FindDuplicateResultsEnquiryAsync(WindowId, journey, EnquirySubject.ForResult(Result())));
+        await _repository.DidNotReceiveWithAnyArgs()
+            .FindSubmittedResultsEnquiryReferenceAsync(default, default, default, default!, default, default);
     }
 
     // ── AB#297848: the missing-qualification sibling enquiry ─────────────────
@@ -351,6 +383,15 @@ public sealed class RequestServiceResultsEnquiryTests
             d.RequestTypeDescription == "Results enquiry - Missing qualification" &&
             d.Status == RequestStatus.Submitted &&
             d.RequestType == RequestType.ResultsEnquiry));
+    }
+
+    [Fact]
+    public async Task A_missing_qualification_row_has_a_subject_with_no_session()
+    {
+        await _sut.SubmitResultsEnquiryAsync(WindowId, MissingQualificationJourney());
+
+        await _repository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+            d.EnquirySubject!.Session == null && d.EnquirySubject.Qan == "60146084"));
     }
 
     [Fact]

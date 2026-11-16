@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
 
@@ -37,6 +38,9 @@ public sealed class ChangeRequestData
 
     /// <summary>The school's LAESTAB from the DfE Sign-In claim; null when the claim is empty (AB#294553).</summary>
     public string? OrganisationLaestab { get; init; }
+
+    /// <summary>What a results enquiry is about. Null for every other request.</summary>
+    public EnquirySubject? EnquirySubject { get; init; }
 
     /// <summary>
     /// Shows how far the request is on its way to Zendesk. Null for a draft and for an amendment;

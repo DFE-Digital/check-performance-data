@@ -8,6 +8,8 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 /// <c>"x-ingress": { "codeDescriptions": [ { "field": "R_INCL", "descriptionField":
 /// "R_INCL_DESCRIPTION", "descriptions": { "51": "..." } } ] }</c> at its root. The description
 /// part of <c>x-ingress.inclusion</c> has the same three keys. Codes are compared as trimmed text.
+/// The words go into a CSV that a school opens in a spreadsheet, so they must not start with a
+/// formula character.
 /// </summary>
 internal sealed record CodeDescriptionRule(
     string Field, string DescriptionField, IReadOnlyDictionary<string, string> Descriptions)
@@ -15,6 +17,7 @@ internal sealed record CodeDescriptionRule(
     internal const string DescriptionFieldKey = "descriptionField";
     private const string FieldKey = "field";
     private const string DescriptionsKey = "descriptions";
+    private static readonly char[] FormulaPrefixes = ['=', '+', '-', '@', '\t', '\r'];
 
     /// <summary>A code the schema describes more than once when codes are trimmed, or null.</summary>
     public string? RepeatedCode { get; private init; }
@@ -73,6 +76,13 @@ internal sealed record CodeDescriptionRule(
             return $"{path} has a rule for {Field} that describes {RepeatedCode} more than once.";
         if (CodeWithoutWords is not null)
             return $"{path} has a rule for {Field} that gives no words for {CodeWithoutWords}.";
+
+        string? formulaCode = Descriptions
+            .Where(words => words.Value.Length > 0 && FormulaPrefixes.Contains(words.Value[0]))
+            .Select(words => words.Key)
+            .FirstOrDefault();
+        if (formulaCode is not null)
+            return $"{path} has a rule for {Field} whose words for {formulaCode} start with a character that a spreadsheet reads as a formula.";
 
         return null;
     }

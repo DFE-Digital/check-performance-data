@@ -7,6 +7,7 @@ namespace DfE.CheckPerformanceData.UnitTests.Ingress;
 public sealed class CodeDescriptionsTests
 {
     private const string RulesPath = "x-ingress.codeDescriptions";
+    private const string InclusionPath = "x-ingress.inclusion";
 
     private const string TwoRules = """
         [
@@ -138,6 +139,10 @@ public sealed class CodeDescriptionsTests
     [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "" } } ]""", "51")]
     [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": { "words": "Words" } } } ]""", "51")]
     [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "Words" } }, { "field": "R_INCL_WORDS", "descriptionField": "QUAL_KS4_WORDS", "descriptions": { "Words": "More words" } } ]""", "R_INCL_WORDS")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": null } } ]""", "51")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "  " } } ]""", "51")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "=1+1" } } ]""", "51")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "Words", "52": "@Words" } } ]""", "52")]
     public void Rules_the_schema_cannot_honour_have_an_error_that_names_the_key(string rules, string named)
     {
         var schema = Schema(rules);
@@ -160,6 +165,7 @@ public sealed class CodeDescriptionsTests
 
         Assert.NotNull(error);
         Assert.Contains("R_INCL_WORDS", error);
+        Assert.Contains(InclusionPath, error);
     }
 
     [Fact]
@@ -173,6 +179,7 @@ public sealed class CodeDescriptionsTests
 
         Assert.NotNull(error);
         Assert.Contains("QUAL_KS4_WORDS", error);
+        Assert.Contains(InclusionPath, error);
     }
 
     [Fact]
@@ -186,5 +193,6 @@ public sealed class CodeDescriptionsTests
 
         Assert.NotNull(error);
         Assert.Contains("R_INCL_WORDS", error);
+        Assert.Contains(InclusionPath, error);
     }
 }

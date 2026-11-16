@@ -716,6 +716,11 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
             field => Assert.False(string.IsNullOrEmpty(record[field]?.Value<string>()))));
         Assert.All(records.Skip(describedCodes.Length), record => Assert.All(ResultDescriptions,
             field => Assert.True(string.IsNullOrEmpty(record[field]?.Value<string>()))));
+        Assert.All(ResultDescriptions.Select((field, column) => (Field: field, Column: column)), description =>
+            Assert.Equal(
+                describedCodes.Select(codes => codes.Split(',')[description.Column]).Distinct().Count(),
+                records.Take(describedCodes.Length)
+                    .Select(record => record[description.Field]!.Value<string>()).Distinct().Count()));
     }
 
     [Fact]

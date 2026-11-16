@@ -69,6 +69,7 @@ public sealed class Post16ShippedSchemaTests
     }
 
     private static readonly string[] ResultFlags = ["R_INCL", "R_INCL_EM", "QUAL_KS4"];
+    private const int ResultColumnCount = 33;
 
     [Theory]
     [InlineData("results-included_schema.json")]
@@ -81,7 +82,7 @@ public sealed class Post16ShippedSchemaTests
         var fields = CsvFields(file);
 
         Assert.All(ResultFlags, flag => Assert.Equal($"{flag}_DESCRIPTION", fields[fields.IndexOf(flag) + 1]));
-        Assert.Equal(33, fields.Count);
+        Assert.Equal(Enumerable.Range(1, ResultColumnCount), Shipped(file).CsvColumns.Select(column => column.Order));
         Assert.Equal(["UKPRN", "URN", "LAESTAB"], fields.TakeLast(3));
     }
 }

@@ -8,9 +8,12 @@ internal sealed class CodeDescriptions
 {
     private const string IngressExtension = "x-ingress";
     private const string RulesKey = "codeDescriptions";
+    private const string InclusionKey = "inclusion";
     private const string RulesPath = IngressExtension + "." + RulesKey;
+    private const string InclusionPath = IngressExtension + "." + InclusionKey;
 
     private readonly IReadOnlyList<CodeDescriptionRule> _schemaRules;
+    private readonly CodeDescriptionRule? _inclusionDescription;
     private readonly IReadOnlyList<CodeDescriptionRule> _allRules;
     private readonly bool _isList;
 
@@ -18,13 +21,15 @@ internal sealed class CodeDescriptions
         IReadOnlyList<CodeDescriptionRule> schemaRules, CodeDescriptionRule? inclusionDescription, bool isList)
     {
         _schemaRules = schemaRules;
+        _inclusionDescription = inclusionDescription;
         _allRules = inclusionDescription is null ? schemaRules : schemaRules.Prepend(inclusionDescription).ToList();
         _isList = isList;
     }
 
     /// <summary>Reads <c>x-ingress.codeDescriptions</c> from the schema's root.</summary>
     /// <param name="inclusionDescription">
-    /// The description part of <c>x-ingress.inclusion</c>. That rule reports its own errors.
+    /// The description part of <c>x-ingress.inclusion</c>. That rule reports its own errors. This
+    /// type reports a conflict between it and a rule of the list.
     /// </param>
     public static CodeDescriptions From(JSchema schema, CodeDescriptionRule? inclusionDescription = null)
     {
@@ -47,28 +52,36 @@ internal sealed class CodeDescriptions
         if (!_isList)
             return $"{RulesPath} must be a list of rules.";
 
-        string? ruleError = _schemaRules
-            .Select(rule => rule.ErrorFor(schema, RulesPath))
-            .FirstOrDefault(error => error is not null);
-        if (ruleError is not null)
-            return ruleError;
+        return _schemaRules.Select(rule => rule.ErrorFor(schema, RulesPath)).FirstOrDefault(error => error is not null)
+            ?? ConflictBetweenSchemaRules()
+            ?? ConflictWithInclusionRule();
+    }
 
-        if (FieldWrittenAndRead() is { } chained)
-            return $"{RulesPath} writes {chained}, a field that a rule reads.";
+    private string? ConflictBetweenSchemaRules()
+    {
+        HashSet<string> read = _schemaRules.Select(rule => rule.Field).ToHashSet(StringComparer.Ordinal);
+        string? chained = _schemaRules.Select(rule => rule.DescriptionField).FirstOrDefault(read.Contains);
+        if (chained is not null)
+            return $"{RulesPath} writes {chained}, a field that one of its rules reads.";
 
-        string? writtenTwice = _allRules
+        string? writtenTwice = _schemaRules
             .GroupBy(rule => rule.DescriptionField, StringComparer.Ordinal)
             .FirstOrDefault(written => written.Count() > 1)?.Key;
         return writtenTwice is null ? null : $"{RulesPath} writes {writtenTwice} more than once.";
     }
 
-    private string? FieldWrittenAndRead()
+    private string? ConflictWithInclusionRule()
     {
-        HashSet<string> readByAnyRule = _allRules.Select(rule => rule.Field).ToHashSet(StringComparer.Ordinal);
-        HashSet<string> readBySchemaRules = _schemaRules.Select(rule => rule.Field).ToHashSet(StringComparer.Ordinal);
+        if (_inclusionDescription is not { } inclusion)
+            return null;
+        if (_schemaRules.Any(rule => rule.DescriptionField == inclusion.DescriptionField))
+            return $"{RulesPath} writes {inclusion.DescriptionField}, which {InclusionPath} writes too.";
+        if (_schemaRules.Any(rule => rule.DescriptionField == inclusion.Field))
+            return $"{RulesPath} writes {inclusion.Field}, the field that {InclusionPath} reads.";
+        if (_schemaRules.Any(rule => rule.Field == inclusion.DescriptionField))
+            return $"{RulesPath} reads {inclusion.DescriptionField}, the field that {InclusionPath} writes.";
 
-        return _schemaRules.Select(rule => rule.DescriptionField).FirstOrDefault(readByAnyRule.Contains)
-            ?? _allRules.Select(rule => rule.DescriptionField).FirstOrDefault(readBySchemaRules.Contains);
+        return null;
     }
 
     /// <summary>Writes each rule's description on the record.</summary>

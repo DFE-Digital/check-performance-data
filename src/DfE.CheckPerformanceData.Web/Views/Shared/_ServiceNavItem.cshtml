@@ -1,0 +1,19 @@
+@model DfE.CheckPerformanceData.Web.Navigation.ServiceNavItemModel
+@* One link in the school-facing service navigation (#854). The markup matches the GOV.UK
+   Frontend service navigation. The active item gets the --active modifier, aria-current and
+   the <strong> fallback, which keeps the item visible as active when the CSS does not load.
+   aria-current is "page" on the link's own page and "true" on other pages in its section. *@
+@if (Model.Active)
+{
+    <li class="govuk-service-navigation__item govuk-service-navigation__item--active">
+        <a class="govuk-service-navigation__link" href="@Model.Href" aria-current="@(Model.CurrentPage ? "page" : "true")">
+            <strong class="govuk-service-navigation__active-fallback">@Model.Text</strong>
+        </a>
+    </li>
+}
+else
+{
+    <li class="govuk-service-navigation__item">
+        <a class="govuk-service-navigation__link" href="@Model.Href">@Model.Text</a>
+    </li>
+}

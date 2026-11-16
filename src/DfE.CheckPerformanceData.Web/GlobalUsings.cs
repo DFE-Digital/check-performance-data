@@ -12,3 +12,4 @@ global using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 global using Microsoft.AspNetCore.Authorization;
 global using Microsoft.Extensions.Hosting;
 global using DfE.CheckPerformanceData.Domain.Enums;
+global using DfE.CheckPerformanceData.Web.Navigation;

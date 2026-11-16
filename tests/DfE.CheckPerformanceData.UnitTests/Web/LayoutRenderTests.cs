@@ -143,9 +143,10 @@ public sealed class LayoutRenderTests
 		// Home, then #627: "Pupils | Amendment requests | Guidance (opens in new tab)".
 		var view = ReadLayout();
 
-		var home = view.IndexOf("href=\"@Url.Action(\"Index\", \"LandingPage\")\">Home</a>", StringComparison.Ordinal);
-		var pupils = view.IndexOf("\"CheckYourPupilData\"", StringComparison.Ordinal);
-		var amendments = view.IndexOf(">Amendment requests</a>", StringComparison.Ordinal);
+		// The three section links render through _ServiceNavItem, in this order.
+		var home = view.IndexOf("<partial name=\"_ServiceNavItem\" model=\"homeItem\" />", StringComparison.Ordinal);
+		var pupils = view.IndexOf("<partial name=\"_ServiceNavItem\" model=\"pupilsItem\" />", StringComparison.Ordinal);
+		var amendments = view.IndexOf("<partial name=\"_ServiceNavItem\" model=\"amendmentRequestsItem\" />", StringComparison.Ordinal);
 		var guidance = view.IndexOf(">Guidance (opens in new tab)</a>", StringComparison.Ordinal);
 
 		Assert.True(home >= 0 && pupils >= 0 && amendments >= 0 && guidance >= 0);
@@ -165,5 +166,20 @@ public sealed class LayoutRenderTests
 		Assert.Contains("govuk-service-navigation__list", view);
 		Assert.Contains("govuk-service-navigation__item", view);
 		Assert.Contains("govuk-service-navigation__link", view);
+	}
+
+	[Fact]
+	public void Layout_ServiceNavigation_MarksTheActiveSection()
+	{
+		// #854: each section link takes its active state from the endpoint's [ServiceNavSection].
+		var view = ReadLayout();
+
+		Assert.Contains("ServiceNavigation.ActiveSection(Context)", view);
+		Assert.Contains("\"Home\", ServiceNavSection.Home", view);
+		Assert.Contains("navLearnerNoun.PluralCapitalised, ServiceNavSection.Pupils", view);
+		Assert.Contains("\"Amendment requests\", ServiceNavSection.AmendmentRequests", view);
+		Assert.Contains("\"Index\", \"LandingPage\"", view);
+		Assert.Contains("\"Index\", \"CheckYourPupilData\"", view);
+		Assert.Contains("\"Index\", \"AmendmentRequests\"", view);
 	}
 }

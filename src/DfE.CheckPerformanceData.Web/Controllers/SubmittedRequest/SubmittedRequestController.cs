@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
 
+[ServiceNavSection(ServiceNavSection.AmendmentRequests)]
 public sealed class SubmittedRequestController(
     ISubmittedRequestService service,
     IRequestService requestService,

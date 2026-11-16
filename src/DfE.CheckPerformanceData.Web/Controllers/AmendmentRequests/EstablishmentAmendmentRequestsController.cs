@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Web.Extensions;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
 
+[ServiceNavSection(ServiceNavSection.AmendmentRequests)]
 public class EstablishmentAmendmentRequestsController(
     IUrnAmendmentRequestsService urnAmendmentRequestsService, 
     ISubmittedRequestService submittedRequestService): Controller

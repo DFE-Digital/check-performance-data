@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
+[ServiceNavSection(ServiceNavSection.Journey)]
 public sealed class JourneyController(
     IQuestionFlowService flowService,
     IJourneyValidationService journeyService,

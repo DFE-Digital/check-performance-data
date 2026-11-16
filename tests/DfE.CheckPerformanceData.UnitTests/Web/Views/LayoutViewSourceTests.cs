@@ -39,7 +39,7 @@ public sealed class LayoutViewSourceTests
         // 16-19 calls a learner a student. The nav link is window-scoped, so its label comes from
         // the selected window's LearnerNoun and the word "Pupils" must not be written into the view.
         Assert.Contains("Context.Session.GetSelectedWindowLearnerNoun()", source);
-        Assert.Contains("@navLearnerNoun.PluralCapitalised", source);
+        Assert.Contains("navLearnerNoun.PluralCapitalised, ServiceNavSection.Pupils", source);
         Assert.DoesNotContain(">Pupils<", source);
     }
 }

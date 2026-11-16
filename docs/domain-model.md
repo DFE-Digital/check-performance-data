@@ -150,6 +150,9 @@ Session readiness for the journey requires only `SelectedWhatToChange` and `Chec
   A tab lists its datasets by the schema's `x-display.selectorOrder`, lowest first. A schema with
   none comes last, and ties keep the order the files were published. A schema with
   `x-download.columnVariant` exports only the fields that have a column letter under that key.
+  A schema's `x-ingress.codeDescriptions` lists the fields whose codes ingress describes. Ingress
+  writes the words for a record's code to the rule's description field. The 16-19 results schemas
+  use it for `R_INCL`, `R_INCL_EM` and `QUAL_KS4` (#843).
   All of this lives in Application — the controller reads session, calls the service, returns the
   view. Do not move it back into Web.
 - **A summary list is paged by group, not by row.** A schema's `x-display.groups` (`[{key, title}]`,

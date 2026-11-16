@@ -402,6 +402,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
 
         Assert.True(last.IsError);
         Assert.Contains("x-ingress.inclusion", last.Message);
+        Assert.Contains("402", last.Message);
     }
 
     [Fact]

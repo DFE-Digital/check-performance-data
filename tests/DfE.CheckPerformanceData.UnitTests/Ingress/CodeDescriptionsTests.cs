@@ -195,4 +195,26 @@ public sealed class CodeDescriptionsTests
         Assert.Contains("R_INCL_WORDS", error);
         Assert.Contains(InclusionPath, error);
     }
+
+    [Theory]
+    [InlineData("""{ "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "=1+1" } }""", "51")]
+    [InlineData("""{ "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "" } }""", "51")]
+    [InlineData("""{ "field": "R_INCL", "descriptionField": "R_INCL_WORDS" }""", "R_INCL")]
+    public void The_description_checks_name_the_key_that_holds_the_rule(string rule, string named)
+    {
+        var error = CodeDescriptionRule.Parse(JObject.Parse(rule)).DescriptionsErrorFor(InclusionPath);
+
+        Assert.NotNull(error);
+        Assert.Contains(InclusionPath, error);
+        Assert.Contains(named, error);
+    }
+
+    [Fact]
+    public void The_description_checks_pass_a_rule_with_words_for_each_code()
+    {
+        var rule = CodeDescriptionRule.Parse(JObject.Parse(
+            """{ "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "Words" } }"""));
+
+        Assert.Null(rule.DescriptionsErrorFor(InclusionPath));
+    }
 }

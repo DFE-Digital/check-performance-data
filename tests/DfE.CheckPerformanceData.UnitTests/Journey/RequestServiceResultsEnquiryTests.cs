@@ -10,7 +10,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 
@@ -36,6 +36,7 @@ public sealed class RequestServiceResultsEnquiryTests
     private readonly IQueueService _queue = Substitute.For<IQueueService>();
     private readonly IRequestNotificationService _notifications = Substitute.For<IRequestNotificationService>();
     private readonly ICheckYourPupilDataService _pupilData = Substitute.For<ICheckYourPupilDataService>();
+    private readonly ILogger<RequestService> _logger = Substitute.For<ILogger<RequestService>>();
     private readonly RequestService _sut;
 
     public RequestServiceResultsEnquiryTests()
@@ -53,7 +54,7 @@ public sealed class RequestServiceResultsEnquiryTests
 
         _sut = new RequestService(
             _flowService, _stateBlob, Substitute.For<IRequestBlobClient>(), _repository, _currentUser,
-            NullLogger<RequestService>.Instance, _queue, _notifications, _pupilData,
+            _logger, _queue, _notifications, _pupilData,
             new CheckingExerciseService(TimeProvider.System));
     }
 
@@ -570,7 +571,8 @@ public sealed class RequestServiceResultsEnquiryTests
         Assert.Equal("Pearson Edexcel GCSE (9-1) in Art and Design", enquiry.QualificationName);
         Assert.Equal("1AD0", enquiry.SyllabusCode);
         Assert.Equal("9", enquiry.CurrentGrade);
-        Assert.Equal(string.Empty, enquiry.AwardingOrganisation);
+        Assert.Equal("Pearson", enquiry.AwardingOrganisation);
+        Assert.Empty(Warnings());
     }
 
     [Fact]
@@ -586,6 +588,12 @@ public sealed class RequestServiceResultsEnquiryTests
         Assert.NotNull(enquiry);
         Assert.Equal("GCSE (9-1) Art&Des : Fine Art", enquiry.QualificationName);
         Assert.Equal("60180882", enquiry.Qan);
+        Assert.Equal(string.Empty, enquiry.AwardingOrganisation);
+        // The ticket is still queued, and the warning names the reference number.
+        await _queue.Received(1).EnqueueAsync<RequestDocument>(
+            QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>());
+        var warning = Assert.Single(Warnings());
+        Assert.Contains("CYPMD_16to19_RE_4F9C2A1", warning);
     }
 
     [Fact]
@@ -594,7 +602,7 @@ public sealed class RequestServiceResultsEnquiryTests
         var journey = ResultDoesNotBelongJourney();
         journey.SelectedResultQualification = new QualificationReference
         {
-            Qan = "60180882", QualificationTitle = "Pearson Edexcel GCSE (9-1) in Art and Design"
+            Qan = "60180882", QualificationTitle = "Pearson Edexcel GCSE (9-1) in Art and Design", AwardingOrganisation = "Pearson"
         };
 
         var enquiry = (await SubmitAndCapture(journey)).Enquiry;
@@ -602,9 +610,31 @@ public sealed class RequestServiceResultsEnquiryTests
         Assert.NotNull(enquiry);
         Assert.Equal("60180882", enquiry.Qan);
         Assert.Equal("Pearson Edexcel GCSE (9-1) in Art and Design", enquiry.QualificationName);
+        Assert.Equal("Pearson", enquiry.AwardingOrganisation);
         Assert.Equal("1AD0", enquiry.SyllabusCode);
         Assert.Equal("9", enquiry.CurrentGrade);
     }
+
+    [Fact]
+    public async Task A_result_does_not_belong_message_for_a_qan_not_in_the_reference_has_no_ao_name()
+    {
+        var journey = ResultDoesNotBelongJourney();
+        journey.SelectedResultQualification = null;
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal(string.Empty, enquiry.AwardingOrganisation);
+        var warning = Assert.Single(Warnings());
+        Assert.Contains("CYPMD_16to19_RE_9D8E7F6", warning);
+    }
+
+    // The rendered text of each warning that the service logged.
+    private List<string> Warnings() => _logger.ReceivedCalls()
+        .Where(c => c.GetMethodInfo().Name == nameof(ILogger.Log)
+            && c.GetArguments()[0] is LogLevel.Warning)
+        .Select(c => c.GetArguments()[2]?.ToString() ?? string.Empty)
+        .ToList();
 
     [Fact]
     public async Task A_missing_qualification_message_carries_the_qualification_and_the_selected_syllabus_code()

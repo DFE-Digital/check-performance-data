@@ -335,6 +335,20 @@ and a Scrutiny decision. It saves the journey JSON. It builds the `RequestDocume
 the Zendesk queue once. The `ZendeskConsumer` claims only `TicketQueued` rows, so it picks the
 enquiry up. This method is the only place that queues an enquiry.
 
+The `RequestDocument` of an enquiry has an `Enquiry` part (`EnquiryDetails`, #861). It holds each
+value that the ticket fields need in its own property. The ticket builder must not parse the
+challenged-subject answer text.
+
+| Property | Missing qualification | Incorrect grade, Result does not belong |
+| --- | --- | --- |
+| `Qan` | `SelectedQualification.Qan` | `SelectedResult.Qan` |
+| `QualificationName` | `SelectedQualification.QualificationTitle` | `SelectedResultQualification.QualificationTitle`, or `SelectedResult.QualificationName` when the QAN is not in the reference |
+| `AwardingOrganisation` | `SelectedQualification.AwardingOrganisation` | Empty (#862 adds it) |
+| `SyllabusCode` | The `SyllabusSelect` answer, when it is one of the qualification's codes | `SelectedResult.SyllabusCode` |
+| `CurrentGrade` | Empty | `SelectedResult.Grade` |
+
+An empty string means "no value". A pupil amendment has no `Enquiry` part.
+
 How a school sees its own enquiries is designed: AB#298325 added an Issues tab
 beside Requests on the Amendment request summary page (`AmendmentRequestsService.GetAmendmentRequestsAsync`,
 `GetSubmittedResultsEnquiriesAsync`), listing submitted enquiries with pupil-name search, enriched from

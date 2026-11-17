@@ -6,12 +6,6 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 /// <summary>Every code description a schema asks ingress to write.</summary>
 internal sealed class CodeDescriptions
 {
-    private const string IngressExtension = "x-ingress";
-    private const string RulesKey = "codeDescriptions";
-    private const string InclusionKey = "inclusion";
-    private const string RulesPath = IngressExtension + "." + RulesKey;
-    internal const string InclusionPath = IngressExtension + "." + InclusionKey;
-
     private readonly IReadOnlyList<CodeDescriptionRule> _schemaRules;
     private readonly CodeDescriptionRule? _inclusionDescription;
     private readonly IReadOnlyList<CodeDescriptionRule> _allRules;
@@ -33,8 +27,8 @@ internal sealed class CodeDescriptions
     /// </param>
     public static CodeDescriptions From(JSchema schema, CodeDescriptionRule? inclusionDescription = null)
     {
-        JToken? declared = schema.ExtensionData.TryGetValue(IngressExtension, out JToken? ingress) && ingress is JObject
-            ? ingress[RulesKey]
+        JToken? declared = schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) && ingress is JObject
+            ? ingress[IngressSchemaKeys.CodeDescriptions]
             : null;
 
         return declared switch
@@ -50,9 +44,9 @@ internal sealed class CodeDescriptions
     public string? ErrorFor(JSchema schema)
     {
         if (!_isList)
-            return $"{RulesPath} must be a list of rules.";
+            return $"{IngressSchemaKeys.CodeDescriptionsPath} must be a list of rules.";
 
-        return _schemaRules.Select(rule => rule.ErrorFor(schema, RulesPath)).FirstOrDefault(error => error is not null)
+        return _schemaRules.Select(rule => rule.ErrorFor(schema, IngressSchemaKeys.CodeDescriptionsPath)).FirstOrDefault(error => error is not null)
             ?? ConflictBetweenSchemaRules()
             ?? ConflictWithInclusionRule();
     }
@@ -62,12 +56,12 @@ internal sealed class CodeDescriptions
         HashSet<string> read = _schemaRules.Select(rule => rule.Field).ToHashSet(StringComparer.Ordinal);
         string? chained = _schemaRules.Select(rule => rule.DescriptionField).FirstOrDefault(read.Contains);
         if (chained is not null)
-            return $"{RulesPath} writes {chained}, a field that one of its rules reads.";
+            return $"{IngressSchemaKeys.CodeDescriptionsPath} writes {chained}, a field that one of its rules reads.";
 
         string? writtenTwice = _schemaRules
             .GroupBy(rule => rule.DescriptionField, StringComparer.Ordinal)
             .FirstOrDefault(written => written.Count() > 1)?.Key;
-        return writtenTwice is null ? null : $"{RulesPath} writes {writtenTwice} more than once.";
+        return writtenTwice is null ? null : $"{IngressSchemaKeys.CodeDescriptionsPath} writes {writtenTwice} more than once.";
     }
 
     private string? ConflictWithInclusionRule()
@@ -75,11 +69,11 @@ internal sealed class CodeDescriptions
         if (_inclusionDescription is not { } inclusion)
             return null;
         if (_schemaRules.Any(rule => rule.DescriptionField == inclusion.DescriptionField))
-            return $"{RulesPath} writes {inclusion.DescriptionField}, which {InclusionPath} writes too.";
+            return $"{IngressSchemaKeys.CodeDescriptionsPath} writes {inclusion.DescriptionField}, which {IngressSchemaKeys.InclusionPath} writes too.";
         if (_schemaRules.Any(rule => rule.DescriptionField == inclusion.Field))
-            return $"{RulesPath} writes {inclusion.Field}, the field that {InclusionPath} reads.";
+            return $"{IngressSchemaKeys.CodeDescriptionsPath} writes {inclusion.Field}, the field that {IngressSchemaKeys.InclusionPath} reads.";
         if (_schemaRules.Any(rule => rule.Field == inclusion.DescriptionField))
-            return $"{RulesPath} reads {inclusion.DescriptionField}, the field that {InclusionPath} writes.";
+            return $"{IngressSchemaKeys.CodeDescriptionsPath} reads {inclusion.DescriptionField}, the field that {IngressSchemaKeys.InclusionPath} writes.";
 
         return null;
     }

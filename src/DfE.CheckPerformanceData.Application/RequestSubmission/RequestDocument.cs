@@ -31,6 +31,38 @@ public class RequestDocument
     public required PupilDetails Pupil { get; init; }
     public PupilDetails? MatchedPupil { get; init; }
     public required List<AnswerRecord> Answers { get; init; }
+
+    /// <summary>
+    /// The qualification and result of a results enquiry, one value in each property (#861).
+    /// The enquiry ticket builder reads these values. It must not parse the challenged-subject
+    /// answer text. Null for a pupil amendment.
+    /// </summary>
+    public EnquiryDetails? Enquiry { get; init; }
+}
+
+/// <summary>
+/// The structured part of a results enquiry message. An empty string means that the journey has
+/// no value for the property. The worker then leaves the Zendesk field out.
+/// </summary>
+public sealed class EnquiryDetails
+{
+    public required string Qan { get; init; }
+
+    /// <summary>The qualification title from the qualification reference. For a result whose QAN
+    /// is not in the reference, the results file's (abbreviated) qualification name.</summary>
+    public required string QualificationName { get; init; }
+
+    /// <summary>The awarding organisation, from the qualification reference. Empty for a result
+    /// whose QAN is not in the reference: the results files carry no AO.</summary>
+    public string AwardingOrganisation { get; init; } = string.Empty;
+
+    /// <summary>The syllabus code that the school selected (missing qualification), or the result's
+    /// syllabus code. Empty when the qualification has no syllabus codes.</summary>
+    public string SyllabusCode { get; init; } = string.Empty;
+
+    /// <summary>The grade in the results file. Empty for a missing qualification, which has no
+    /// held grade.</summary>
+    public string CurrentGrade { get; init; } = string.Empty;
 }
 
 public sealed class UserDetails

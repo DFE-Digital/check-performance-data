@@ -10,7 +10,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
@@ -37,6 +37,7 @@ public sealed class RequestServiceResultsEnquiryTests
     private readonly IQueueService _queue = Substitute.For<IQueueService>();
     private readonly IRequestNotificationService _notifications = Substitute.For<IRequestNotificationService>();
     private readonly ICheckYourPupilDataService _pupilData = Substitute.For<ICheckYourPupilDataService>();
+    private readonly ILogger<RequestService> _logger = Substitute.For<ILogger<RequestService>>();
     private readonly RequestService _sut;
 
     public RequestServiceResultsEnquiryTests()
@@ -54,7 +55,7 @@ public sealed class RequestServiceResultsEnquiryTests
 
         _sut = new RequestService(
             _flowService, _stateBlob, Substitute.For<IRequestBlobClient>(), _repository, _currentUser,
-            NullLogger<RequestService>.Instance, _queue, _notifications, _pupilData,
+            _logger, _queue, _notifications, _pupilData,
             new CheckingExerciseService(TimeProvider.System));
     }
 
@@ -348,7 +349,11 @@ public sealed class RequestServiceResultsEnquiryTests
         {
             Qan = "60146084", QualificationTitle = "AQA Level 1/Level 2 GCSE (9-1) in Mathematics",
             AwardingOrganisation = "AQA", Grades = ["1", "2", "3"],
-            SyllabusCodes = [new SyllabusCode { Code = "8300H", Title = "Mathematics Higher Tier" }]
+            SyllabusCodes =
+            [
+                new SyllabusCode { Code = "8300F", Title = "Mathematics Foundation Tier" },
+                new SyllabusCode { Code = "8300H", Title = "Mathematics Higher Tier" }
+            ]
         },
         QuestionAnswers = new Dictionary<string, QuestionAnswer>
         {
@@ -357,6 +362,45 @@ public sealed class RequestServiceResultsEnquiryTests
         },
         QuestionHistory = ["select-qualification", "qualification-details", "additional-info"]
     };
+
+    /// <summary>
+    /// The page that holds the syllabus question. The service finds the answer by question type,
+    /// so the page and question ids here are test data only.
+    /// </summary>
+    private void UseMissingQualificationFlow() =>
+        _flowService.GetConfigAsync(WhatToChange.MissingQualification, Arg.Any<CheckingWindowType>())
+            .Returns(new QuestionFlowConfig
+            {
+                FirstPageId = "select-qualification",
+                Pages =
+                [
+                    new JourneyPage
+                    {
+                        Id = "qualification-details",
+                        Questions =
+                        [
+                            new Question { Id = "q-syllabus-code", Type = QuestionType.SyllabusSelect, Title = "Select syllabus code" },
+                            new Question { Id = "q-missing-grade", Type = QuestionType.GradeSelect, Title = "Select grade" }
+                        ]
+                    }
+                ]
+            });
+
+    /// <summary>Submits the journey and returns the one message put on the Zendesk queue.</summary>
+    private async Task<RequestDocument> SubmitAndCapture(RequestState journey)
+    {
+        RequestDocument? enqueued = null;
+        _queue.EnqueueAsync<RequestDocument>(
+                QueueOptions.ZendeskQueue,
+                Arg.Do<RequestDocument>(d => enqueued = d),
+                Arg.Any<CancellationToken>())
+            .Returns(Guid.NewGuid());
+
+        await _sut.SubmitResultsEnquiryAsync(WindowId, journey);
+
+        Assert.NotNull(enqueued);
+        return enqueued;
+    }
 
     /// <summary>Issue #577: a QAN with no syllabus codes, whose syllabus question is therefore hidden.</summary>
     private static RequestState MissingQualificationJourneyWithoutSyllabusCodes()
@@ -397,6 +441,7 @@ public sealed class RequestServiceResultsEnquiryTests
     [Fact]
     public async Task A_missing_qualification_enquiry_dispatches_one_message()
     {
+        UseMissingQualificationFlow();
         RequestDocument? enqueued = null;
         _queue.EnqueueAsync<RequestDocument>(
                 QueueOptions.ZendeskQueue,
@@ -547,6 +592,132 @@ public sealed class RequestServiceResultsEnquiryTests
         var challenged = Assert.Single(enqueued.Answers, a => a.QuestionId == "challenged-result");
         Assert.Contains("60180882", challenged.Value);
         Assert.Contains("1AD0", challenged.Value);
+    }
+
+    // ── #861: the structured enquiry part ───────────────────────────────────
+
+    [Fact]
+    public async Task An_incorrect_grade_message_carries_the_result_as_separate_values()
+    {
+        var journey = Journey();
+        journey.SelectedResultQualification = new QualificationReference
+        {
+            Qan = "60180882", QualificationTitle = "Pearson Edexcel GCSE (9-1) in Art and Design", AwardingOrganisation = "Pearson"
+        };
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal("60180882", enquiry.Qan);
+        Assert.Equal("Pearson Edexcel GCSE (9-1) in Art and Design", enquiry.QualificationName);
+        Assert.Equal("1AD0", enquiry.SyllabusCode);
+        Assert.Equal("9", enquiry.CurrentGrade);
+        Assert.Equal("Pearson", enquiry.AwardingOrganisation);
+        Assert.Empty(Warnings());
+    }
+
+    [Fact]
+    public async Task A_result_whose_qan_is_not_in_the_reference_sends_the_results_file_name()
+    {
+        // The results files and the qualification reference come from different teams, so a
+        // result can have no reference entry.
+        var journey = Journey();
+        journey.SelectedResultQualification = null;
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal("GCSE (9-1) Art&Des : Fine Art", enquiry.QualificationName);
+        Assert.Equal("60180882", enquiry.Qan);
+        Assert.Equal(string.Empty, enquiry.AwardingOrganisation);
+        // The ticket is still queued, and the warning names the reference number.
+        await _queue.Received(1).EnqueueAsync<RequestDocument>(
+            QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>());
+        var warning = Assert.Single(Warnings());
+        Assert.Contains("CYPMD_16to19_RE_4F9C2A1", warning);
+    }
+
+    [Fact]
+    public async Task A_result_does_not_belong_message_carries_the_result_as_separate_values()
+    {
+        var journey = ResultDoesNotBelongJourney();
+        journey.SelectedResultQualification = new QualificationReference
+        {
+            Qan = "60180882", QualificationTitle = "Pearson Edexcel GCSE (9-1) in Art and Design", AwardingOrganisation = "Pearson"
+        };
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal("60180882", enquiry.Qan);
+        Assert.Equal("Pearson Edexcel GCSE (9-1) in Art and Design", enquiry.QualificationName);
+        Assert.Equal("Pearson", enquiry.AwardingOrganisation);
+        Assert.Equal("1AD0", enquiry.SyllabusCode);
+        Assert.Equal("9", enquiry.CurrentGrade);
+    }
+
+    [Fact]
+    public async Task A_result_does_not_belong_message_for_a_qan_not_in_the_reference_has_no_ao_name()
+    {
+        var journey = ResultDoesNotBelongJourney();
+        journey.SelectedResultQualification = null;
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal(string.Empty, enquiry.AwardingOrganisation);
+        var warning = Assert.Single(Warnings());
+        Assert.Contains("CYPMD_16to19_RE_9D8E7F6", warning);
+    }
+
+    // The rendered text of each warning that the service logged.
+    private List<string> Warnings() => _logger.ReceivedCalls()
+        .Where(c => c.GetMethodInfo().Name == nameof(ILogger.Log)
+            && c.GetArguments()[0] is LogLevel.Warning)
+        .Select(c => c.GetArguments()[2]?.ToString() ?? string.Empty)
+        .ToList();
+
+    [Fact]
+    public async Task A_missing_qualification_message_carries_the_qualification_and_the_selected_syllabus_code()
+    {
+        UseMissingQualificationFlow();
+
+        var document = await SubmitAndCapture(MissingQualificationJourney());
+
+        var enquiry = document.Enquiry;
+        Assert.NotNull(enquiry);
+        Assert.Equal("60146084", enquiry.Qan);
+        Assert.Equal("AQA Level 1/Level 2 GCSE (9-1) in Mathematics", enquiry.QualificationName);
+        Assert.Equal("AQA", enquiry.AwardingOrganisation);
+        // The school's answer, not the qualification's first syllabus code.
+        Assert.Equal("8300H", enquiry.SyllabusCode);
+        Assert.Equal(string.Empty, enquiry.CurrentGrade);
+        var challenged = Assert.Single(document.Answers, a => a.QuestionId == "challenged-qualification");
+        Assert.Contains("syllabus 8300H", challenged.Value);
+    }
+
+    [Fact]
+    public async Task A_missing_qualification_without_syllabus_codes_sends_no_syllabus_code()
+    {
+        UseMissingQualificationFlow();
+
+        var enquiry = (await SubmitAndCapture(MissingQualificationJourneyWithoutSyllabusCodes())).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal(string.Empty, enquiry.SyllabusCode);
+    }
+
+    [Fact]
+    public async Task A_syllabus_answer_that_is_not_one_of_the_qualifications_codes_is_not_sent()
+    {
+        UseMissingQualificationFlow();
+        var journey = MissingQualificationJourney();
+        journey.QuestionAnswers["q-syllabus-code"] = new() { TextValue = "9999X" };
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal(string.Empty, enquiry.SyllabusCode);
     }
 
     // ── Guard rails ──────────────────────────────────────────────────────────

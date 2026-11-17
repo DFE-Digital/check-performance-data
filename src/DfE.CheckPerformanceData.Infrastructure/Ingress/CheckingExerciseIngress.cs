@@ -50,8 +50,8 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
 
         if (captureInputs.Count == 0 || !exercise.HasRequiredFiles)
         {
-            summaryCapture.SetFailure("configuration",
-                captureInputs.Count == 0 ? "no_datasets" : "required_file_missing");
+            summaryCapture.SetFailure(IngressFailureStage.Configuration,
+                captureInputs.Count == 0 ? IngressFailureCode.NoDatasets : IngressFailureCode.RequiredFileMissing);
             await TryWriteSummaryAsync(summaryCapture, "failed", null, cancellationToken);
             yield return new("Incomplete", "Supply a file and schema for every required ingress definition before processing.",
                 0, 0, 0, 1, true, true);
@@ -90,10 +90,11 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
             if (processingException is not null)
             {
                 var cancelled = processingException is OperationCanceledException;
-                summaryCapture.SetFailure(cancelled ? "cancelled" : "input_read",
-                    cancelled ? "operation_cancelled" : "input_read_failed");
+                var failureCode = cancelled ? IngressFailureCode.OperationCancelled : IngressFailureCode.InputReadFailed;
+                summaryCapture.SetFailure(cancelled ? IngressFailureStage.Cancelled : IngressFailureStage.InputRead,
+                    failureCode);
                 logger?.LogError("Ingress processing stopped ({ErrorCode}) for exercise {ExerciseId}",
-                    cancelled ? "operation_cancelled" : "input_read_failed", exercise.Id);
+                    failureCode, exercise.Id);
                 await TryWriteSummaryAsync(summaryCapture, cancelled ? "cancelled" : "failed", null,
                     cancelled ? CancellationToken.None : cancellationToken);
                 yield return new(cancelled ? "Cancelled" : "Failed",
@@ -140,14 +141,14 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
                 }
                 catch (OperationCanceledException)
                 {
-                    summaryCapture.SetFailure("cancelled", "operation_cancelled");
+                    summaryCapture.SetFailure(IngressFailureStage.Cancelled, IngressFailureCode.OperationCancelled);
                     failureOutcome = "cancelled";
                     publicationFailure = new("Cancelled", "Ingress was cancelled.", progress.RecordsRead,
                         progress.RecordsProcessed, progress.FilesWritten, 1, true, true, progress.SchoolSummary);
                 }
                 catch
                 {
-                    summaryCapture.SetFailure("publication", "publication_failed");
+                    summaryCapture.SetFailure(IngressFailureStage.Publication, IngressFailureCode.PublicationFailed);
                     publicationFailure = new("Failed", "Ingress publication failed.", progress.RecordsRead,
                         progress.RecordsProcessed, progress.FilesWritten, 1, true, true, progress.SchoolSummary);
                 }
@@ -165,8 +166,8 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
             else if (progress.IsComplete)
             {
                 if (summaryCapture.FailureCode is null)
-                    summaryCapture.SetFailure("validation", "record_validation_failed");
-                var outcome = summaryCapture.FailureStage == "cancelled" ? "cancelled" : "failed";
+                    summaryCapture.SetFailure(IngressFailureStage.Validation, IngressFailureCode.RecordValidationFailed);
+                var outcome = summaryCapture.FailureStage == IngressFailureStage.Cancelled ? "cancelled" : "failed";
                 await TryWriteSummaryAsync(summaryCapture, outcome, null, cancellationToken);
             }
 

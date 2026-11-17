@@ -343,7 +343,7 @@ challenged-subject answer text.
 | --- | --- | --- |
 | `Qan` | `SelectedQualification.Qan` | `SelectedResult.Qan` |
 | `QualificationName` | `SelectedQualification.QualificationTitle` | `SelectedResultQualification.QualificationTitle`, or `SelectedResult.QualificationName` when the QAN is not in the reference |
-| `AwardingOrganisation` | `SelectedQualification.AwardingOrganisation` | Empty (#862 adds it) |
+| `AwardingOrganisation` | `SelectedQualification.AwardingOrganisation` | `SelectedResultQualification.AwardingOrganisation`, or empty when the QAN is not in the reference. The service then logs a warning with the reference number. |
 | `SyllabusCode` | The `SyllabusSelect` answer, when it is one of the qualification's codes | `SelectedResult.SyllabusCode` |
 | `CurrentGrade` | Empty | `SelectedResult.Grade` |
 

@@ -481,7 +481,7 @@ public sealed class RequestService(
         return document;
     }
 
-    private static EnquiryDetails BuildEnquiryDetails(RequestState journey, QuestionFlowConfig config)
+    private EnquiryDetails BuildEnquiryDetails(RequestState journey, QuestionFlowConfig config)
     {
         if (journey.SelectedWhatToChange == WhatToChange.MissingQualification)
         {
@@ -496,14 +496,26 @@ public sealed class RequestService(
         }
 
         var result = journey.SelectedResult!;
+        var reference = journey.SelectedResultQualification;
+        if (reference is null)
+        {
+            // The results files and the qualification reference come from different teams, so a
+            // result can have no reference entry. The ticket is still created, without an AO name.
+            logger.LogWarning(
+                "Results enquiry {RefNumber}: the result's QAN is not in the qualification reference. The ticket has no AO name.",
+                journey.ReferenceNumber);
+        }
+
         return new EnquiryDetails
         {
             Qan = result.Qan,
             // The journey pages show the reference title. The results file name is abbreviated, so
             // it is used only when the QAN is not in the reference.
-            QualificationName = journey.SelectedResultQualification?.QualificationTitle is { Length: > 0 } title
+            QualificationName = reference?.QualificationTitle is { Length: > 0 } title
                 ? title
                 : result.QualificationName,
+            // The results files carry no AO, so it comes from the reference only.
+            AwardingOrganisation = reference?.AwardingOrganisation ?? string.Empty,
             SyllabusCode = result.SyllabusCode,
             CurrentGrade = result.Grade
         };

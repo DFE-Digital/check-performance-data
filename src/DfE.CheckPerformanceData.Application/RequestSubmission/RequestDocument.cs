@@ -52,8 +52,8 @@ public sealed class EnquiryDetails
     /// is not in the reference, the results file's (abbreviated) qualification name.</summary>
     public required string QualificationName { get; init; }
 
-    /// <summary>The awarding organisation. A missing qualification has it from the reference.
-    /// For a result it is empty: #862 adds it.</summary>
+    /// <summary>The awarding organisation, from the qualification reference. Empty for a result
+    /// whose QAN is not in the reference: the results files carry no AO.</summary>
     public string AwardingOrganisation { get; init; } = string.Empty;
 
     /// <summary>The syllabus code that the school selected (missing qualification), or the result's

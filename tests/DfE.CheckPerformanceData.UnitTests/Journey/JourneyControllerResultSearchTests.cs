@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http;
@@ -14,6 +15,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -114,6 +116,9 @@ public sealed class JourneyControllerResultSearchTests
             .Returns([BusStuds, French]);
         _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
             .Returns(QualificationReferenceLookup.Parse(QualificationReferenceJson));
+        _requestService.FindDuplicateResultsEnquiryAsync(
+                Arg.Any<Guid>(), Arg.Any<RequestState>(), Arg.Any<EnquirySubject>(), Arg.Any<CancellationToken>())
+            .Returns((string?)null);
 
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
@@ -644,6 +649,122 @@ public sealed class JourneyControllerResultSearchTests
 
         Assert.Equal(nameof(JourneyController.ResultSearchPage), redirect.ActionName);
         Assert.Equal("select-result", redirect.RouteValues!["pageId"]);
+    }
+
+    private const string ExistingReference = "CYPMD_16to19_RE_AAAAAA1";
+
+    private void SchoolAlreadyEnquiredAbout(ResultRecord result) =>
+        _requestService.FindDuplicateResultsEnquiryAsync(
+                WindowId, Arg.Any<RequestState>(), EnquirySubject.ForResult(result), Arg.Any<CancellationToken>())
+            .Returns(ExistingReference);
+
+    [Fact]
+    public async Task Post_refuses_a_result_the_school_already_has_an_enquiry_for()
+    {
+        ReadyJourney();
+        SchoolAlreadyEnquiredAbout(BusStuds);
+
+        var view = Assert.IsType<ViewResult>(await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey));
+
+        Assert.Equal("ResultSearch", view.ViewName);
+        Assert.Equal(
+            DuplicateEnquiryMessage.For(EnquirySubject.ForResult(BusStuds), ExistingReference),
+            _sut.ModelState["selectedResultKey"]!.Errors[0].ErrorMessage);
+        Assert.Null(_session.GetRequestState(WindowId).SelectedResult);
+    }
+
+    [Fact]
+    public async Task A_refused_duplicate_keeps_the_users_choice_on_the_page()
+    {
+        ReadyJourney();
+        SchoolAlreadyEnquiredAbout(BusStuds);
+
+        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey);
+
+        _vmBuilder.Received(1).BuildResultSearchVm(
+            WindowId, "select-result", SelectResultPage, Arg.Any<RequestState>(), Flow,
+            Arg.Any<IReadOnlyList<ResultRecord>>(), BusStudsKey);
+    }
+
+    [Fact]
+    public async Task A_refused_duplicate_reports_a_coded_validation_error()
+    {
+        ReadyJourney();
+        SchoolAlreadyEnquiredAbout(BusStuds);
+
+        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e =>
+                e.ErrorCodes!.Single() == ValidationErrorCoding.DuplicateEnquiry
+                && e.ErrorFields!.Single() == "selectedResultKey"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Post_asks_about_the_result_the_server_resolved_for_the_session_journey()
+    {
+        ReadyJourney();
+
+        await _sut.ResultSearchPost(WindowId, "select-result", FrenchKey);
+
+        await _requestService.Received(1).FindDuplicateResultsEnquiryAsync(
+            WindowId, Arg.Any<RequestState>(), EnquirySubject.ForResult(French), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Post_does_not_ask_about_a_key_the_student_does_not_hold()
+    {
+        ReadyJourney();
+
+        await _sut.ResultSearchPost(WindowId, "select-result", "00000000|S2024|16to19_MAIN");
+
+        await _requestService.DidNotReceiveWithAnyArgs()
+            .FindDuplicateResultsEnquiryAsync(default, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task Submitting_a_duplicate_enquiry_shows_the_summary_with_the_existing_reference()
+    {
+        ReadyJourney(s =>
+        {
+            s.SelectedResult = BusStuds;
+            s.ReferenceNumber = "CYPMD_16to19_RE_1A2B3C4";
+            s.QuestionHistory = ["select-result", "grade-details"];
+            s.QuestionAnswers["q-revised-grade"] = new QuestionAnswer { TextValue = "6" };
+        });
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DuplicateEnquiryException(ExistingReference));
+
+        var view = Assert.IsType<ViewResult>(await _sut.SummaryConfirm(WindowId));
+
+        Assert.Equal("Summary", view.ViewName);
+        _vmBuilder.Received(1).BuildSummaryVm(
+            WindowId, Arg.Any<RequestState>(), Flow,
+            DuplicateEnquiryMessage.For(EnquirySubject.ForResult(BusStuds), ExistingReference),
+            Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<bool>());
+        Assert.NotNull(_session.GetRequestState(WindowId).SelectedResult);
+        await _notifications.DidNotReceiveWithAnyArgs().NotifyResultsEnquirySubmittedAsync(default!);
+    }
+
+    [Fact]
+    public async Task Submitting_a_duplicate_enquiry_reports_a_coded_submission_failure()
+    {
+        ReadyJourney(s =>
+        {
+            s.SelectedResult = BusStuds;
+            s.ReferenceNumber = "CYPMD_16to19_RE_1A2B3C4";
+            s.QuestionHistory = ["select-result", "grade-details"];
+            s.QuestionAnswers["q-revised-grade"] = new QuestionAnswer { TextValue = "6" };
+        });
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DuplicateEnquiryException(ExistingReference));
+
+        await _sut.SummaryConfirm(WindowId);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<RequestSubmissionFailedEvent>(e => e.FailureReason == ValidationErrorCoding.DuplicateEnquiry),
+            Arg.Any<CancellationToken>());
     }
 
     private sealed class FakeSession : ISession

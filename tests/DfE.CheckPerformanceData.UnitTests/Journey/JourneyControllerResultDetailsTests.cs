@@ -39,6 +39,7 @@ public sealed class JourneyControllerResultDetailsTests
         Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
     private readonly IQualificationReferenceClient _qualificationReference = Substitute.For<IQualificationReferenceClient>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
+    private readonly IResultsClient _results = Substitute.For<IResultsClient>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
     private readonly JourneyController _sut;
@@ -99,6 +100,8 @@ public sealed class JourneyControllerResultDetailsTests
         // The lookup is a sealed class NSubstitute cannot auto-fake, so an unstubbed call would hand
         // the controller a null. Empty is the honest default: nothing resolves unless a fact says so.
         _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>()).Returns(QualificationReferenceLookup.Empty);
+        _results.GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>())
+            .Returns([Result()]);
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         var builder = new JourneyViewModelBuilder(_flowService, _journeyService, _optionVisibility, _currentUser, _optionality);
@@ -108,7 +111,7 @@ public sealed class JourneyControllerResultDetailsTests
             Substitute.For<IRequestService>(), Substitute.For<ICheckYourPupilDataService>(), builder,
             _analytics, _currentUser, _optionVisibility, _optionality,
             Substitute.For<IOriginCountryLanguageCapture>(),
-            Substitute.For<IResultsClient>(),
+            _results,
             _qualificationReference, _notifications,
             OpenCheckingExercises.AlwaysOpen(),
             Substitute.For<DfE.CheckPerformanceData.Application.CheckYourPupilData.INextStepsService>(),
@@ -387,6 +390,77 @@ public sealed class JourneyControllerResultDetailsTests
 
         Assert.Equal("additional-info", redirect.RouteValues!["pageId"]);
         Assert.Equal("D1", _session.GetRequestState(WindowId).QuestionAnswers["q-revised-grade"].TextValue);
+    }
+
+    private static ResultRecord InLateResults1(string grade, string session = "S2024") => new()
+    {
+        CypmdId = CypmdId, Qan = "60370683", QualificationName = "Pearson BTEC L1/L2 Tech Award in Sport",
+        SyllabusCode = "31525H", Session = session, Grade = grade, SourceFile = ResultsFileTags.Post16LateResults1
+    };
+
+    private void StudentHolds(params ResultRecord[] results) =>
+        _results.GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>()).Returns(results);
+
+    [Fact]
+    public async Task Post_refuses_a_grade_that_another_file_holds_for_the_same_result()
+    {
+        StudentHolds(Result(), InLateResults1("D1"));
+        Ready();
+        Post("D1");
+
+        var view = Assert.IsType<ViewResult>(await _sut.PagePost(WindowId, "grade-details", false));
+
+        Assert.Equal("ResultDetails", view.ViewName);
+        Assert.Equal(
+            string.Format(
+                JourneyValidationService.RevisedGradeAlreadyHeldMessage,
+                ResultsSources.LabelFor(ResultsFileTags.Post16LateResults1), "D1"),
+            _sut.ModelState["q-revised-grade"]!.Errors[0].ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Post_accepts_a_grade_that_another_file_holds_for_another_session()
+    {
+        StudentHolds(Result(), InLateResults1("D1", session: "S2023"));
+        Ready();
+        Post("D1");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.PagePost(WindowId, "grade-details", false));
+
+        Assert.Equal("additional-info", redirect.RouteValues!["pageId"]);
+    }
+
+    [Fact]
+    public async Task Post_accepts_a_grade_that_no_other_file_holds()
+    {
+        StudentHolds(Result(), InLateResults1("D1"));
+        Ready();
+        Post("D2");
+
+        Assert.IsType<RedirectToActionResult>(await _sut.PagePost(WindowId, "grade-details", false));
+    }
+
+    [Fact]
+    public async Task Post_reads_the_results_of_the_session_student_at_the_signed_in_school()
+    {
+        Ready();
+        Post("D1");
+
+        await _sut.PagePost(WindowId, "grade-details", false);
+
+        await _results.Received(1).GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Get_still_offers_a_grade_that_another_file_holds()
+    {
+        StudentHolds(Result(), InLateResults1("D1"));
+        Ready();
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+
+        var options = Assert.IsType<PageViewModel>(view.Model).NonFileUploadModels.Single().VisibleOptions;
+        Assert.Contains(options, o => o.Value == "D1");
     }
 
     [Fact]

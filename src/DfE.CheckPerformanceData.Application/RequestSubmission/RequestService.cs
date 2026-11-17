@@ -199,6 +199,7 @@ public sealed class RequestService(
             RequestTypeDescription = requestTypeDescription,
             AmendmentType = journey.SelectedWhatToChange.Value,
             OrganisationLaestab = OrganisationLaestabOrNull,
+            EnquirySubject = EnquirySubject.ForJourney(journey),
             // Queued for its ticket in this same write (#536): an enquiry never passes the Rules
             // Engine, and the worker claims only TicketQueued rows. Scrutiny is the decision
             // ZendeskConsumer.DeriveDecision always gave an enquiry.
@@ -220,6 +221,14 @@ public sealed class RequestService(
 
         return journey.ReferenceNumber;
     }
+
+    /// <inheritdoc cref="IRequestService.FindDuplicateResultsEnquiryAsync(Guid, RequestState, EnquirySubject, CancellationToken)" />
+    public async Task<string?> FindDuplicateResultsEnquiryAsync(
+        Guid windowId, RequestState journey, EnquirySubject subject, CancellationToken ct = default) =>
+        journey.SelectedPupil is { } student
+            ? await requestRepository.FindSubmittedResultsEnquiryReferenceAsync(
+                windowId, OrganisationUrnLong, student.Id, subject, journey.ReferenceNumber, ct)
+            : null;
 
     public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
     {

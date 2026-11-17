@@ -52,6 +52,8 @@ public sealed class JourneyController(
     internal const string MissingGradeQuestionId = EnquiryQuestionIds.MissingGrade;
 
     private const long MaxUploadBytes = 10 * 1024 * 1024; // 10 MB
+    private const string SelectedResultKeyField = "selectedResultKey";
+    private const string SelectedQanField = "selectedQan";
 
     // ── Page (GET) ──────────────────────────────────────────────────────────
 
@@ -488,16 +490,32 @@ public sealed class JourneyController(
             var validationMessage = page.ValidationFailure is not null
                 ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
                 : "Enter which result is incorrect";
-            ModelState.AddModelError("selectedResultKey", validationMessage);
+            ModelState.AddModelError(SelectedResultKeyField, validationMessage);
             await analytics.TrackSafeAsync(new ValidationErrorEvent
             {
                 ErrorCount = 1,
                 ErrorCodes = [ValidationErrorCoding.NoSelection],
-                ErrorFields = ["selectedResultKey"],
+                ErrorFields = [SelectedResultKeyField],
                 WhatToChange = journey.SelectedWhatToChange?.ToString(),
             });
             return View("ResultSearch",
                 viewModelBuilder.BuildResultSearchVm(windowId, pageId, page, journey, config, available));
+        }
+
+        var subject = EnquirySubject.ForResult(resolved);
+        var existingReference = await requestService.FindDuplicateResultsEnquiryAsync(windowId, journey, subject, ct);
+        if (existingReference is not null)
+        {
+            ModelState.AddModelError(SelectedResultKeyField, DuplicateEnquiryMessage.For(subject, existingReference));
+            await analytics.TrackSafeAsync(new ValidationErrorEvent
+            {
+                ErrorCount = 1,
+                ErrorCodes = [ValidationErrorCoding.DuplicateEnquiry],
+                ErrorFields = [SelectedResultKeyField],
+                WhatToChange = journey.SelectedWhatToChange?.ToString(),
+            });
+            return View("ResultSearch", viewModelBuilder.BuildResultSearchVm(
+                windowId, pageId, page, journey, config, available, resolved.CompositeKey));
         }
 
         // A revised grade belongs to one result. Changing the result must not carry a grade over to a
@@ -597,14 +615,24 @@ public sealed class JourneyController(
         if (string.IsNullOrWhiteSpace(selectedAo))
             ModelState.AddModelError("selectedAo", "Select the Awarding Organisation (AO) name");
         if (resolved is null)
-            ModelState.AddModelError("selectedQan", qanFailure);
+            ModelState.AddModelError(SelectedQanField, qanFailure);
+
+        var duplicateReference = ModelState.IsValid
+            ? await requestService.FindDuplicateResultsEnquiryAsync(
+                windowId, journey, EnquirySubject.ForQualification(resolved!), HttpContext.RequestAborted)
+            : null;
+        if (duplicateReference is not null)
+            ModelState.AddModelError(SelectedQanField,
+                DuplicateEnquiryMessage.For(EnquirySubject.ForQualification(resolved!), duplicateReference));
 
         if (!ModelState.IsValid)
         {
             await analytics.TrackSafeAsync(new ValidationErrorEvent
             {
                 ErrorCount = ModelState.ErrorCount,
-                ErrorCodes = [.. Enumerable.Repeat(ValidationErrorCoding.NoSelection, ModelState.ErrorCount)],
+                ErrorCodes = [.. Enumerable.Repeat(
+                    duplicateReference is null ? ValidationErrorCoding.NoSelection : ValidationErrorCoding.DuplicateEnquiry,
+                    ModelState.ErrorCount)],
                 ErrorFields = [.. ModelState.Keys],
                 WhatToChange = journey.SelectedWhatToChange?.ToString(),
             });
@@ -786,6 +814,17 @@ public sealed class JourneyController(
             windowId, currentUserService.OrganisationLaestab, cypmdId, ct);
     }
 
+    private async Task<IReadOnlyList<ResultRecord>> HeldInOtherFilesAsync(
+        Guid windowId, JourneyPage page, RequestState journey)
+    {
+        if (journey.SelectedResult is not { } selected
+            || page.Questions.All(q => q.Type != QuestionType.GradeSelect))
+            return [];
+
+        var studentResults = await GetPupilResultsAsync(windowId, journey, HttpContext.RequestAborted);
+        return HeldResults.InOtherFiles(selected, studentResults);
+    }
+
     // ── Page (POST — Continue) ──────────────────────────────────────────────
 
     [HttpPost]
@@ -809,6 +848,7 @@ public sealed class JourneyController(
         var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
         // Resolved once for the page rather than per question: a page has at most one grade picker.
         var gradeReference = ResolveGradeReference(page, journey);
+        var heldInOtherFiles = await HeldInOtherFilesAsync(windowId, page, journey);
         var isValid = true;
         var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, conditionContext);
@@ -878,13 +918,14 @@ public sealed class JourneyController(
                     var resolvedValidationFailure = question.ValidationFailure is not null
                         ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName) : null;
 
-                    // A grade picker has its own rules and its own inputs (the qualification's scale
-                    // and the grade the result already holds), so it does not go through the generic
-                    // answer validator. AB#296648.
+                    // A grade picker has its own rules and its own inputs (the qualification's scale,
+                    // the grade the result already holds and the same result in other files), so it
+                    // does not go through the generic answer validator. AB#296648.
                     var error = question.Type switch
                     {
                         QuestionType.GradeSelect => journeyService.ValidateGradeSelect(
-                            question, answer, gradeReference, journey.SelectedResult?.Grade, resolvedValidationFailure),
+                            question, answer, gradeReference, journey.SelectedResult?.Grade,
+                            resolvedValidationFailure, heldInOtherFiles),
                         // AB#297848: syllabus options live on the resolved qualification; a QAN
                         // with none (961 of 974 today) rejects everything and the page explains
                         // the gap. Membership is on the code alone — the title is display-only.
@@ -1318,9 +1359,8 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        // AB#296648/AB#297848/AB#298704: a results enquiry submits by a different route — no
-        // duplicate check (several enquiries about the same result are allowed) and no
-        // rules-engine enqueue.
+        // AB#296648/AB#297848/AB#298704: a results enquiry submits by a different route — its own
+        // duplicate rule (same student and subject) and no rules-engine enqueue.
         if (WhatToChangeCheckingExerciseMap.IsResultsEnquiry(journey.SelectedWhatToChange))
         {
             // The same completeness check the summary GET runs, repeated on POST. The GET's verdict
@@ -1350,7 +1390,14 @@ public sealed class JourneyController(
             if (incompletePage is not null)
                 return RedirectToJourneyAction(enquiryConfig!, windowId, incompletePage);
 
-            return await ConfirmResultsEnquiryAsync(windowId, journey);
+            try
+            {
+                return await ConfirmResultsEnquiryAsync(windowId, journey);
+            }
+            catch (DuplicateEnquiryException ex)
+            {
+                return await DuplicateEnquirySummaryAsync(windowId, journey, enquiryConfig, ex.ExistingReferenceNumber);
+            }
         }
 
         try
@@ -1457,6 +1504,25 @@ public sealed class JourneyController(
         HttpContext.Session.ClearSingleEditMode(windowId);
 
         return RedirectToAction(nameof(EnquiryConfirmation), new { windowId });
+    }
+
+    private async Task<IActionResult> DuplicateEnquirySummaryAsync(
+        Guid windowId, RequestState journey, QuestionFlowConfig? config, string existingReferenceNumber)
+    {
+        await analytics.TrackSafeAsync(new RequestSubmissionFailedEvent
+        {
+            FailureReason = ValidationErrorCoding.DuplicateEnquiry,
+            WhatToChange = journey.SelectedWhatToChange?.ToString() ?? "",
+            CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
+        });
+
+        if (config is null || EnquirySubject.ForJourney(journey) is not { } subject)
+            return RedirectToCheckYourData(windowId);
+
+        return View("Summary", viewModelBuilder.BuildSummaryVm(windowId, journey, config,
+            conflictError: DuplicateEnquiryMessage.For(subject, existingReferenceNumber),
+            fromBulk: HttpContext.Session.IsBulkEditMode(windowId),
+            fromEdit: HttpContext.Session.IsSingleEditMode(windowId)));
     }
 
     [Route("/Journey/{windowId}/enquiry-confirmation")]

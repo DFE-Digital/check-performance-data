@@ -116,6 +116,8 @@ on its way to a Zendesk ticket: null (undecided) → `Decided` (RulesConsumer, o
 `TicketCreated` + `CrmId` (ZendeskConsumer, which claims only `TicketQueued`). `CrmId` is the only
 record of which ticket exists. Never mark a request sent anywhere else.
 
+**Results enquiry subject (#844).** `ChangeRequest.EnquiryQan` and `EnquirySession` (nullable `text`) hold what a submitted results enquiry is about. Both are null on every other request. `EnquirySubject` (`Application/ResultsEnquiry/`) is the match key: the QAN and, for a held result, the session, trimmed and upper-cased. Two submitted enquiries for one student with equal subjects are duplicates. See [results-enquiry.md](results-enquiry.md#duplicate-enquiries).
+
 Session readiness for the journey requires only `SelectedWhatToChange` and `CheckingWindow` — the pupil is selected via in-journey `PupilSearch` pages and therefore need not be set before the journey begins.
 
 
@@ -196,7 +198,7 @@ Stateless rules applied while the user moves through the journey: check whether 
 `GetVisibleOptions(question, ctx)` returns the subset of a question's options that should be shown for the given `JourneyConditionContext`. It evaluates each option's `visibleWhen` with `JourneyConditionEvaluator`: each entry is a fact test on a registered `IJourneyCondition`, an answer test, or an any-of test (`JourneyConditionRef`), and an undecided entry hides the option (fail closed). `IQuestionOptionalityService` uses the same evaluator for `optionalWhen` and `requireAtLeastOneWhen`. See [Conditions](question-flows.md#conditions-visiblewhen-optionalwhen-requireatleastonewhen).
 
 **`IRequestService`** — change request lifecycle
-Two operations: `ConfirmRequestAsync` resolves the flow config, builds a `RequestDocument` (written to blob or queued), upserts a `ChangeRequest` DB row, and persists the full `RequestState` (stamped with `SubmittedByEmail`/`SubmittedAt`) to the requests blob so the read-only view can rebuild the summary without the `RequestDocument`. `SaveDraftAsync` writes the `RequestState` to the same requests blob and upserts the row with the draft status. Both use `IRequestStateBlobClient`.
+Two operations: `ConfirmRequestAsync` resolves the flow config, builds a `RequestDocument` (written to blob or queued), upserts a `ChangeRequest` DB row, and persists the full `RequestState` (stamped with `SubmittedByEmail`/`SubmittedAt`) to the requests blob so the read-only view can rebuild the summary without the `RequestDocument`. `SaveDraftAsync` writes the `RequestState` to the same requests blob and upserts the row with the draft status. Both use `IRequestStateBlobClient`. `FindDuplicateResultsEnquiryAsync` returns the reference of a matching submitted results enquiry, or null. It matches the signed-in school, the journey's student and an `EnquirySubject`.
 
 **`ISubmittedRequestService`** — read-only view of a submitted request
 `GetAsync(windowId, referenceNumber)` loads the persisted `RequestState` via `IRequestStateBlobClient.GetAsync` plus its `QuestionFlowConfig` and projects a `SubmittedRequestView` (Q&A rows, evidence files, merge displays, and the "Submitted by" email/when/reference). It never reads the `RequestDocument` (saved at submit as `request_{ref}.json` for the close sweep). Served by `SubmittedRequestController` → `Views/SubmittedRequest/View.cshtml` (the "View" link on the Amendment Requests submitted-requests grid).

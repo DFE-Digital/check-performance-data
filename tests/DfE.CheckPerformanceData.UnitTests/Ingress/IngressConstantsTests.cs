@@ -55,4 +55,30 @@ public sealed class IngressConstantsTests
 
         Assert.Equal(expected, ConstantsOf(typeof(IngressFailureCode)));
     }
+
+    [Fact]
+    public void EachSchemaKey_HasTheValueThatTheSchemasUse()
+    {
+        var expected = new Dictionary<string, string>
+        {
+            ["Extension"] = "x-ingress",
+            ["Inclusion"] = "inclusion",
+            ["Includable"] = "includable",
+            ["CodeDescriptions"] = "codeDescriptions",
+            ["InstitutionKey"] = "institutionKey",
+            ["UrnKey"] = "urnKey",
+            ["Source"] = "source",
+            ["Separator"] = "separator",
+            ["Field"] = "field",
+            ["Included"] = "included",
+            ["Codes"] = "codes",
+            ["DescriptionField"] = "descriptionField",
+            ["Descriptions"] = "descriptions",
+            ["InclusionPath"] = "x-ingress.inclusion",
+            ["IncludablePath"] = "x-ingress.includable",
+            ["CodeDescriptionsPath"] = "x-ingress.codeDescriptions"
+        };
+
+        Assert.Equal(expected, ConstantsOf(typeof(IngressSchemaKeys)));
+    }
 }

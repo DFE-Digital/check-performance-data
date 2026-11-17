@@ -14,9 +14,6 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 internal sealed record CodeDescriptionRule(
     string Field, string DescriptionField, IReadOnlyDictionary<string, string> Descriptions)
 {
-    internal const string DescriptionFieldKey = "descriptionField";
-    private const string FieldKey = "field";
-    private const string DescriptionsKey = "descriptions";
     private static readonly char[] FormulaPrefixes = ['=', '+', '-', '@', '\t', '\r'];
 
     /// <summary>A code the schema describes more than once when codes are trimmed, or null.</summary>
@@ -30,7 +27,7 @@ internal sealed record CodeDescriptionRule(
         Dictionary<string, string> descriptions = new(StringComparer.Ordinal);
         string? repeatedCode = null;
         string? codeWithoutWords = null;
-        foreach (JProperty words in (rule[DescriptionsKey] as JObject ?? []).Properties())
+        foreach (JProperty words in (rule[IngressSchemaKeys.Descriptions] as JObject ?? []).Properties())
         {
             string code = words.Name.Trim();
             if (descriptions.ContainsKey(code))
@@ -41,7 +38,7 @@ internal sealed record CodeDescriptionRule(
             descriptions[code] = words.Value.ToString();
         }
 
-        return new CodeDescriptionRule(Text(rule[FieldKey]), Text(rule[DescriptionFieldKey]), descriptions)
+        return new CodeDescriptionRule(Text(rule[IngressSchemaKeys.Field]), Text(rule[IngressSchemaKeys.DescriptionField]), descriptions)
         {
             RepeatedCode = repeatedCode,
             CodeWithoutWords = codeWithoutWords
@@ -57,7 +54,7 @@ internal sealed record CodeDescriptionRule(
         if (!schema.Properties.ContainsKey(Field))
             return $"{path} reads {Field}, which the schema does not declare.";
         if (string.IsNullOrWhiteSpace(DescriptionField))
-            return $"{path} has a rule for {Field} that names no descriptionField.";
+            return $"{path} has a rule for {Field} that names no {IngressSchemaKeys.DescriptionField}.";
         if (!schema.Properties.TryGetValue(DescriptionField, out JSchema? target))
             return $"{path} writes {DescriptionField}, which the schema does not declare.";
         if (target.Type is { } type && !type.HasFlag(JSchemaType.String))

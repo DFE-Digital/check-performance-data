@@ -199,7 +199,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                 && schema.Properties.ContainsKey("INCLUDED"))
             {
                 summaryCapture?.SetFailure(IngressFailureStage.Schema, IngressFailureCode.IdentifierMappingInvalid);
-                yield return Failed($"Schema '{dataset.SchemaFile}': x-ingress.inclusion gives descriptions only, so the data file's slot must say whether its file is included.");
+                yield return Failed($"Schema '{dataset.SchemaFile}': {IngressSchemaKeys.InclusionPath} gives descriptions only, so the data file's slot must say whether its file is included.");
                 yield break;
             }
 
@@ -808,15 +808,15 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
     }
 
     private static string InstitutionKey(JSchema schema) =>
-        schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) &&
-        ingress["institutionKey"] is JValue { Type: JTokenType.String } key &&
+        schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) &&
+        ingress[IngressSchemaKeys.InstitutionKey] is JValue { Type: JTokenType.String } key &&
         !string.IsNullOrWhiteSpace(key.Value<string>())
             ? key.Value<string>()!
             : "LAESTAB";
 
     private static string UrnKey(JSchema schema) =>
-        schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) &&
-        ingress["urnKey"] is JValue { Type: JTokenType.String } key &&
+        schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) &&
+        ingress[IngressSchemaKeys.UrnKey] is JValue { Type: JTokenType.String } key &&
         !string.IsNullOrWhiteSpace(key.Value<string>())
             ? key.Value<string>()!
             : "URN";
@@ -832,29 +832,29 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
     {
         public static InclusionRule? From(JSchema schema)
         {
-            if (!schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) ||
-                ingress["inclusion"] is not JObject rule)
+            if (!schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) ||
+                ingress[IngressSchemaKeys.Inclusion] is not JObject rule)
                 return null;
 
             return new InclusionRule(
-                rule["field"]?.Value<string>() ?? string.Empty,
-                rule["included"] is JArray codes
+                rule[IngressSchemaKeys.Field]?.Value<string>() ?? string.Empty,
+                rule[IngressSchemaKeys.Included] is JArray codes
                     ? codes.Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal)
                     : null,
-                rule[CodeDescriptionRule.DescriptionFieldKey] is null or { Type: JTokenType.Null } ? null : CodeDescriptionRule.Parse(rule));
+                rule[IngressSchemaKeys.DescriptionField] is null or { Type: JTokenType.Null } ? null : CodeDescriptionRule.Parse(rule));
         }
 
         /// <summary>The rule names included codes, so it can stamp INCLUDED.</summary>
         public bool DecidesInclusion => Included is not null;
 
         public string? ErrorFor(JSchema schema) =>
-            string.IsNullOrWhiteSpace(Field) ? "x-ingress.inclusion names no field."
-            : !schema.Properties.ContainsKey(Field) ? $"x-ingress.inclusion reads {Field}, which the schema does not declare."
-            : !DecidesInclusion && Description is null ? "x-ingress.inclusion names no included codes and no descriptionField, so it does nothing."
-            : DecidesInclusion && !schema.Properties.ContainsKey("INCLUDED") ? "x-ingress.inclusion needs the schema to declare INCLUDED, the stamp it writes."
+            string.IsNullOrWhiteSpace(Field) ? $"{IngressSchemaKeys.InclusionPath} names no field."
+            : !schema.Properties.ContainsKey(Field) ? $"{IngressSchemaKeys.InclusionPath} reads {Field}, which the schema does not declare."
+            : !DecidesInclusion && Description is null ? $"{IngressSchemaKeys.InclusionPath} names no included codes and no {IngressSchemaKeys.DescriptionField}, so it does nothing."
+            : DecidesInclusion && !schema.Properties.ContainsKey("INCLUDED") ? $"{IngressSchemaKeys.InclusionPath} needs the schema to declare INCLUDED, the stamp it writes."
             : Description is not null && !schema.Properties.ContainsKey(Description.DescriptionField)
-                ? $"x-ingress.inclusion writes {Description.DescriptionField}, which the schema does not declare."
-            : Description?.DescriptionsErrorFor(CodeDescriptions.InclusionPath);
+                ? $"{IngressSchemaKeys.InclusionPath} writes {Description.DescriptionField}, which the schema does not declare."
+            : Description?.DescriptionsErrorFor(IngressSchemaKeys.InclusionPath);
 
         public bool IsIncluded(JObject record) => Included is not null && Included.Contains(Code(record));
 
@@ -873,22 +873,22 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
     {
         public static IncludableRule? From(JSchema schema)
         {
-            if (!schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) ||
-                ingress["includable"] is not JObject rule)
+            if (!schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) ||
+                ingress[IngressSchemaKeys.Includable] is not JObject rule)
                 return null;
 
             return new IncludableRule(
-                rule["field"]?.Value<string>() ?? string.Empty,
-                (rule["codes"] as JArray ?? []).Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal));
+                rule[IngressSchemaKeys.Field]?.Value<string>() ?? string.Empty,
+                (rule[IngressSchemaKeys.Codes] as JArray ?? []).Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal));
         }
 
         public string? ErrorFor(JSchema schema) =>
-            string.IsNullOrWhiteSpace(Field) ? "x-ingress.includable names no field."
-            : !schema.Properties.ContainsKey(Field) ? $"x-ingress.includable reads {Field}, which the schema does not declare."
-            : !schema.Properties.ContainsKey("INCLUDABLE") ? "x-ingress.includable needs the schema to declare INCLUDABLE, the stamp it writes."
+            string.IsNullOrWhiteSpace(Field) ? $"{IngressSchemaKeys.IncludablePath} names no field."
+            : !schema.Properties.ContainsKey(Field) ? $"{IngressSchemaKeys.IncludablePath} reads {Field}, which the schema does not declare."
+            : !schema.Properties.ContainsKey("INCLUDABLE") ? $"{IngressSchemaKeys.IncludablePath} needs the schema to declare INCLUDABLE, the stamp it writes."
             // A rule with no codes makes nobody includable, and a blank code would match every empty field.
-            : Codes.Count == 0 ? "x-ingress.includable names no codes."
-            : Codes.Contains(string.Empty) ? "x-ingress.includable names a blank code."
+            : Codes.Count == 0 ? $"{IngressSchemaKeys.IncludablePath} names no codes."
+            : Codes.Contains(string.Empty) ? $"{IngressSchemaKeys.IncludablePath} names a blank code."
             : null;
 
         public bool Matches(JObject record) =>
@@ -900,16 +900,16 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         List<SourceColumn> sources = [];
         foreach (KeyValuePair<string, JSchema> property in schema.Properties)
         {
-            if (!property.Value.ExtensionData.TryGetValue("x-ingress", out JToken? ingress)) continue;
+            if (!property.Value.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress)) continue;
 
-            string[] columns = ingress["source"] switch
+            string[] columns = ingress[IngressSchemaKeys.Source] switch
             {
                 JArray list => [.. list.Values<string>().OfType<string>()],
                 JValue { Type: JTokenType.String } single => [single.Value<string>()!],
                 _ => []
             };
             if (columns.Length > 0)
-                sources.Add(new SourceColumn(property.Key, columns, ingress["separator"]?.Value<string>() ?? string.Empty));
+                sources.Add(new SourceColumn(property.Key, columns, ingress[IngressSchemaKeys.Separator]?.Value<string>() ?? string.Empty));
         }
         return sources;
     }

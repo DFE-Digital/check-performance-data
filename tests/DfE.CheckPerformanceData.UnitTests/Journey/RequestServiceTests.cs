@@ -113,6 +113,17 @@ public class RequestServiceTests
     // ── Document building ───────────────────────────────────────────────────
 
     [Fact]
+    public async Task ConfirmRequestAsync_SendsNoEnquiryPart_ForAPupilAmendment()
+    {
+        // #861: only a results enquiry carries the structured qualification and result.
+        var (journey, config) = MakeSubmission();
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Null(doc.Enquiry);
+    }
+
+    [Fact]
     public async Task ConfirmRequestAsync_MapsUserAndSchoolDetails()
     {
         var (journey, config) = MakeSubmission();

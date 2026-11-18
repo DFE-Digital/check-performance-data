@@ -195,7 +195,7 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
         catch
         {
             logger?.LogError("Ingress summary write failed ({ErrorCode}) for exercise {ExerciseId}",
-                "summary_write_failed", capture.ExerciseId);
+                IngressSummaryLogCode.SummaryWriteFailed, capture.ExerciseId);
         }
     }
 }

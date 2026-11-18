@@ -94,4 +94,16 @@ public sealed class IngressConstantsTests
 
         Assert.Equal(expected, ConstantsOf(typeof(IngressOutcome)));
     }
+
+    [Fact]
+    public void EachSummaryLogCode_HasTheValueThatTheLogHeldBeforeItHadAName()
+    {
+        var expected = new Dictionary<string, string>
+        {
+            ["SummaryWriteFailed"] = "summary_write_failed",
+            ["SummaryClearFailed"] = "summary_clear_failed"
+        };
+
+        Assert.Equal(expected, ConstantsOf(typeof(IngressSummaryLogCode)));
+    }
 }

@@ -43,4 +43,46 @@ public class PupilCsvGeneratorTests
 
         Assert.Equal("UPN,Surname" + Environment.NewLine, csv);
     }
+
+    [Theory]
+    [InlineData("=1+1", "'=1+1")]
+    [InlineData("+cmd", "'+cmd")]
+    [InlineData("-cmd", "'-cmd")]
+    [InlineData("@SUM(A1)", "'@SUM(A1)")]
+    [InlineData("\tcmd", "'\tcmd")]
+    [InlineData("\rcmd", "\"'\rcmd\"")]
+    [InlineData("\ncmd", "\"'\ncmd\"")]
+    [InlineData("＝1+1", "'＝1+1")]
+    [InlineData("=HYPERLINK(\"x\",\"y\")", "\"'=HYPERLINK(\"\"x\"\",\"\"y\"\")\"")]
+    public void A_value_that_a_spreadsheet_reads_as_a_formula_gets_an_apostrophe(string value, string cell)
+    {
+        var table = new PupilTable(["Notes"], [[value]]);
+
+        string csv = Encoding.UTF8.GetString(PupilCsvGenerator.Generate(table));
+
+        Assert.Equal(string.Concat("Notes", Environment.NewLine, cell, Environment.NewLine), csv);
+    }
+
+    [Theory]
+    [InlineData("-1.00")]
+    [InlineData("+0.35")]
+    [InlineData("-1.5E-07")]
+    public void A_signed_number_is_the_same_in_the_file(string number)
+    {
+        var table = new PupilTable(["Progress score"], [[number]]);
+
+        string csv = Encoding.UTF8.GetString(PupilCsvGenerator.Generate(table));
+
+        Assert.Equal(string.Concat("Progress score", Environment.NewLine, number, Environment.NewLine), csv);
+    }
+
+    [Fact]
+    public void A_heading_that_a_spreadsheet_reads_as_a_formula_gets_an_apostrophe()
+    {
+        var table = new PupilTable(["=1+1", "Surname"], [["x", "Smith"]]);
+
+        string csv = Encoding.UTF8.GetString(PupilCsvGenerator.Generate(table));
+
+        Assert.Equal(string.Concat("'=1+1,Surname", Environment.NewLine, "x,Smith", Environment.NewLine), csv);
+    }
 }

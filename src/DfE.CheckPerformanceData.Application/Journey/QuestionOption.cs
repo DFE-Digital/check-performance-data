@@ -10,6 +10,12 @@ public sealed class QuestionOption
     public string? NextPageId { get; init; }
 
     /// <summary>
+    /// What the option means, for code that reads the answer. Null for an option that no code
+    /// tests. Submission copies the chosen option's meaning onto the <c>AnswerRecord</c>.
+    /// </summary>
+    public OptionMeaning? Meaning { get; init; }
+
+    /// <summary>
     /// Conditions that must ALL hold for this option to be shown and selectable: condition
     /// names or answer tests (<see cref="JourneyConditionRef"/>). JSON accepts one entry or an
     /// array; see <see cref="VisibleWhenJsonConverter"/>. An undecided entry hides the option.

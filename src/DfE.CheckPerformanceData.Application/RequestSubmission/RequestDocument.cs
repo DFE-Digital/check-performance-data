@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Application.Journey;
+
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public class RequestDocument
@@ -112,6 +114,14 @@ public sealed class AnswerRecord
     public required string QuestionId { get; init; }
     public required string QuestionTitle { get; init; }
     public required string Type { get; init; }
+
+    /// <summary>The question's role, from the flow file. Null when the question has no role.
+    /// Code that maps answers to ticket fields reads this, never <see cref="QuestionId"/>.</summary>
+    public QuestionRole? Role { get; init; }
+
+    /// <summary>The meaning of the chosen radio option. Null when there is no answer, or the
+    /// option has no meaning.</summary>
+    public OptionMeaning? Meaning { get; init; }
 
     /// <summary>Display value (radio option label, dd/MM/yyyy date) — used in Zendesk ticket descriptions.</summary>
     public string? Value { get; init; }

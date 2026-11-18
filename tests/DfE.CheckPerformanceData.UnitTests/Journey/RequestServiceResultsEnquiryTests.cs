@@ -379,12 +379,86 @@ public sealed class RequestServiceResultsEnquiryTests
                         Id = "qualification-details",
                         Questions =
                         [
-                            new Question { Id = "q-syllabus-code", Type = QuestionType.SyllabusSelect, Title = "Select syllabus code" },
+                            new Question { Id = "q-syllabus-code", Type = QuestionType.SyllabusSelect, Title = "Select syllabus code", Role = QuestionRole.EnquirySyllabusCode },
                             new Question { Id = "q-missing-grade", Type = QuestionType.GradeSelect, Title = "Select grade" }
                         ]
                     }
                 ]
             });
+
+    // ── #863: roles and meanings on the answers ──────────────────────────────
+
+    [Theory]
+    [InlineData(true, OptionMeaning.Yes)]
+    [InlineData(false, OptionMeaning.No)]
+    public async Task Each_answer_carries_its_question_role_and_the_chosen_option_meaning(
+        bool cohortWide, OptionMeaning expected)
+    {
+        _flowService.GetConfigAsync(WhatToChange.IncorrectGrade, Arg.Any<CheckingWindowType>())
+            .Returns(new QuestionFlowConfig
+            {
+                FirstPageId = "cohort-scope",
+                Pages =
+                [
+                    new JourneyPage
+                    {
+                        Id = "cohort-scope",
+                        Questions =
+                        [
+                            new Question
+                            {
+                                Id = "q-cohort-scope", Type = QuestionType.Radio, Title = "Whole cohort?",
+                                Role = QuestionRole.EnquiryCohortScope,
+                                Options =
+                                [
+                                    new QuestionOption { Value = "yes", Label = "Yes", Meaning = OptionMeaning.Yes },
+                                    new QuestionOption { Value = "no", Label = "No", Meaning = OptionMeaning.No }
+                                ]
+                            }
+                        ]
+                    },
+                    new JourneyPage
+                    {
+                        Id = "grade-details",
+                        Questions =
+                        [
+                            new Question { Id = "q-revised-grade", Type = QuestionType.GradeSelect, Title = "Grade", Role = QuestionRole.EnquiryGrade }
+                        ]
+                    },
+                    new JourneyPage
+                    {
+                        Id = "additional-info",
+                        Questions = [new Question { Id = "q-additional-info", Type = QuestionType.TextArea, Title = "Anything else?" }]
+                    }
+                ]
+            });
+
+        var answers = (await SubmitAndCapture(Journey(cohortWide))).Answers;
+
+        var scope = Assert.Single(answers, a => a.Role == QuestionRole.EnquiryCohortScope);
+        Assert.Equal(expected, scope.Meaning);
+        var grade = Assert.Single(answers, a => a.Role == QuestionRole.EnquiryGrade);
+        Assert.Equal("U", grade.RawValue);
+        Assert.Null(grade.Meaning);
+        // A question with no role gives an answer with no role.
+        Assert.Null(Assert.Single(answers, a => a.QuestionId == "q-additional-info").Role);
+    }
+
+    [Fact]
+    public void A_role_and_a_meaning_are_written_to_the_queue_message_by_name()
+    {
+        // The worker reads the message. A name stays the same when the enum order changes.
+        var json = System.Text.Json.JsonSerializer.Serialize(new AnswerRecord
+        {
+            QuestionId = "q", QuestionTitle = "t", Type = "Radio",
+            Role = QuestionRole.EnquiryCohortScope, Meaning = OptionMeaning.Yes
+        });
+
+        Assert.Contains("\"Role\":\"Enquiry.CohortScope\"", json);
+        Assert.Contains("\"Meaning\":\"Yes\"", json);
+        var back = System.Text.Json.JsonSerializer.Deserialize<AnswerRecord>(json)!;
+        Assert.Equal(QuestionRole.EnquiryCohortScope, back.Role);
+    }
 
     /// <summary>Submits the journey and returns the one message put on the Zendesk queue.</summary>
     private async Task<RequestDocument> SubmitAndCapture(RequestState journey)
@@ -608,6 +682,7 @@ public sealed class RequestServiceResultsEnquiryTests
         var enquiry = (await SubmitAndCapture(journey)).Enquiry;
 
         Assert.NotNull(enquiry);
+        Assert.Equal(WhatToChange.IncorrectGrade, enquiry.Type);
         Assert.Equal("60180882", enquiry.Qan);
         Assert.Equal("Pearson Edexcel GCSE (9-1) in Art and Design", enquiry.QualificationName);
         Assert.Equal("1AD0", enquiry.SyllabusCode);
@@ -649,6 +724,7 @@ public sealed class RequestServiceResultsEnquiryTests
         var enquiry = (await SubmitAndCapture(journey)).Enquiry;
 
         Assert.NotNull(enquiry);
+        Assert.Equal(WhatToChange.ResultDoesNotBelong, enquiry.Type);
         Assert.Equal("60180882", enquiry.Qan);
         Assert.Equal("Pearson Edexcel GCSE (9-1) in Art and Design", enquiry.QualificationName);
         Assert.Equal("Pearson", enquiry.AwardingOrganisation);
@@ -686,6 +762,9 @@ public sealed class RequestServiceResultsEnquiryTests
 
         var enquiry = document.Enquiry;
         Assert.NotNull(enquiry);
+        Assert.Equal(WhatToChange.MissingQualification, enquiry.Type);
+        // #859: the ticket sends the school user's email address.
+        Assert.Equal("ada@school.test", document.SubmittedBy.Email);
         Assert.Equal("60146084", enquiry.Qan);
         Assert.Equal("AQA Level 1/Level 2 GCSE (9-1) in Mathematics", enquiry.QualificationName);
         Assert.Equal("AQA", enquiry.AwardingOrganisation);

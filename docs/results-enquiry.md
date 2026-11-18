@@ -402,6 +402,58 @@ challenged-subject answer text.
 
 An empty string means "no value". A pupil amendment has no `Enquiry` part.
 
+### The enquiry ticket (#859)
+
+`ZendeskConsumer` sends a message that has an `Enquiry` part to `ResultsEnquiryTicketBuilder`. That
+builder makes the ticket. `BuildTicket` makes the pupil-amendment ticket only. The enquiry ticket
+sends only the fields that the Results Enquiry DCI form needs, so that the ticket lands in the
+correct Zendesk view. The prod Zendesk views are the source of truth.
+
+| Setting | Value |
+| --- | --- |
+| `ticket_form_id` | `SchoolCheckingExercise__ResultsEnquiryTicketFormId`. 0 leaves the form out. |
+| `group_id` | `SchoolCheckingExercise__GroupId`. Never the Scrutiny group: the enquiry views accept only this group. |
+| `brand_id` | `SchoolCheckingExercise__BrandId` |
+| Status, type, priority | `new`, `question`, `low` |
+
+Routing fields (the views filter on these tag values):
+
+| Field | Value |
+| --- | --- |
+| Situation (CYPMD) | `missing_qualification_1`, `incorrect_grade` or `query_result`, from `Enquiry.Type` |
+| Key stage | `16-18` |
+| Graded exam (CYPMD) | Always `no_graded` |
+| T Level Exams (CYPMD) | `yes_tlevel_cypmd` when the QAN is on the T Level list, else `no_tlevel_cypmd` |
+| Withdrawal qualification (CYPMD) | Always `no_withdraw_cypmd`. DCI agents change it by hand. |
+| Type of Organisation | Always `training_provider` |
+| Whole cohort affected? (CYPMD) | `yes_re` or `no_re`, from the meaning of the answer with role `Enquiry.CohortScope`. Left out when there is no such answer (Result does not belong). |
+
+Data fields:
+
+| Field | Source |
+| --- | --- |
+| Customer name, Email address | `SubmittedBy.DisplayName`, `SubmittedBy.Email` |
+| School/college name, DfE Number (num) | `School.Name`, `School.Laestab` as digits |
+| DCI Ref | `ReferenceNumber` |
+| CYPMD_ID, LDS matched pupil ID, Forename, Surname, Date of birth, Age | `Pupil` |
+| QAN, Qualification name and subject, AO name, Syllabus code, Current grade | `Enquiry` |
+| Number of missing/incorrect qualifications | The answer with role `Enquiry.CohortCount`, only when the whole cohort is affected |
+| Award date, Revised/missing grade, NCN, Additional comments | The answers with roles `Enquiry.AwardDate`, `Enquiry.Grade`, `Enquiry.Ncn`, `Enquiry.AdditionalComments` |
+
+- An empty value leaves its field out. A field whose id is 0 is left out.
+- A value for an integer field (DfE number, CYPMD_ID, LDS matched pupil ID, Age, NCN) that is not
+  an integer is left out, and the worker logs a warning with the reference number. Zendesk would
+  reject the whole ticket.
+- The ticket leaves out the pupil-amendment fields (decision, cycle, correction), Matchreg, and the
+  fields that the matching process and DCI agents set (Matching outcome, Ready to solve,
+  Contingency).
+- The field ids are `ZendeskTicketFields__*Id` settings. The non-production config files hold the
+  pre-prod ids. `production.yml` holds 0 until the prod ids are confirmed.
+
+**The T Level list** is `Application/ResultsEnquiry/Data/t-level-qans.csv`, an embedded resource
+that `TLevelQualifications` reads. It holds the 21 T Levels that DCI gave for 2026. When DCI
+updates the list, update the CSV file.
+
 How a school sees its own enquiries is designed: AB#298325 added an Issues tab
 beside Requests on the Amendment request summary page (`AmendmentRequestsService.GetAmendmentRequestsAsync`,
 `GetSubmittedResultsEnquiriesAsync`), listing submitted enquiries with pupil-name search, enriched from

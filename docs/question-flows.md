@@ -128,6 +128,34 @@ A text question may set `"validator": "<Name>"` to enforce a reusable format rul
 - `JourneyValidationService` takes `IEnumerable<IFormatValidator>` and runs the named rule inside `ValidateAnswer`, *after* the required/type-specific checks pass and *only* when the value is non-empty (emptiness is the required rule's concern). An **unregistered** validator name fails **open** (the check is skipped) so a config typo cannot block every submission — `QuestionFlowValidatorAlignmentTests` guards that every referenced name has an implementation.
 - **Adding a new validator:** implement `IFormatValidator` in `Application/Journey/Validators/`, register it in the Application `DependencyManager`, and reference its `Name` from a question's `validator` field.
 
+### Question roles (`role`) and option meanings (`meaning`)
+
+A question can set `"role"` to say what it means to code. An option can set `"meaning"` in the same
+way. Code reads an answer by its role and tests an option by its meaning. Code never names a
+question id or an option value (see [journey-config-first.md](journey-config-first.md), patterns 4
+and 5).
+
+```json
+{
+  "id": "q-cohort-scope",
+  "type": "Radio",
+  "role": "Enquiry.CohortScope",
+  "options": [
+    { "value": "yes", "meaning": "Yes", "label": "Yes" },
+    { "value": "no", "meaning": "No", "label": "No" }
+  ]
+}
+```
+
+- `role` is a `QuestionRole` value. The JSON name is the dotted name, for example
+  `Enquiry.Grade`. An unknown role stops the flow file from loading.
+- `meaning` is an `OptionMeaning` value: `Yes` or `No`. Put a meaning on a `Radio` option only.
+- A role occurs at most once in a flow.
+- Submission copies the role, and the chosen option's meaning, onto the `AnswerRecord` in the
+  queue message (`AnswerRecord.Role`, `AnswerRecord.Meaning`). The message holds the dotted names.
+- Add a role or a meaning only when code reads it. The roles in use are listed in
+  [journey-config-first.md](journey-config-first.md).
+
 ### Date rules (`dateRules`)
 
 A `Date` question can have a `dateRules` list. Each rule compares the answer with a date. `DateRuleEvaluator` (Application, `Application/Journey/DateRules/`) runs the rules, and `JourneyValidationService.ValidatePageDates` calls it.

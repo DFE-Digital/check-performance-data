@@ -45,6 +45,36 @@ public static class ZendeskTicketFieldOptions
     }
 
     /// <summary>
+    /// Tag values for the results enquiry routing fields (#859). The Zendesk views filter on
+    /// these values. The tags are the same in pre-prod and prod.
+    /// </summary>
+    public static class ResultsEnquiry
+    {
+        /// <summary>"Situation (CYPMD)". Missing qualification uses <c>missing_qualification_1</c>,
+        /// as the old system did, not <c>missing_qualification</c>.</summary>
+        public static class Situation
+        {
+            public const string MissingQualification = "missing_qualification_1";
+            public const string IncorrectGrade = "incorrect_grade";
+            public const string ResultDoesNotBelong = "query_result";
+        }
+
+        /// <summary>"Graded exam (CYPMD)". A 16-19 enquiry is never a graded exam.</summary>
+        public const string NotGradedExam = "no_graded";
+
+        /// <summary>"T Level Exams (CYPMD)".</summary>
+        public const string TLevel = "yes_tlevel_cypmd";
+        public const string NotTLevel = "no_tlevel_cypmd";
+
+        /// <summary>"Withdrawal qualification (CYPMD)". DCI agents change it by hand.</summary>
+        public const string NotWithdrawn = "no_withdraw_cypmd";
+
+        /// <summary>"Whole cohort affected? (CYPMD)".</summary>
+        public const string WholeCohort = "yes_re";
+        public const string NotWholeCohort = "no_re";
+    }
+
+    /// <summary>
     /// Options for "Key stage" field (ID: 19058126549778)
     /// </summary>
     public static class KeyStage

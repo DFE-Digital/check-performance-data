@@ -417,7 +417,8 @@ public sealed class RequestService(
             SubmittedBy = new UserDetails
             {
                 UserId = currentUserService.UserId,
-                DisplayName = currentUserService.DisplayName
+                DisplayName = currentUserService.DisplayName,
+                Email = currentUserService.Email
             },
             CheckingWindowId = context.WindowId,
             CheckingWindowStartDate = context.CheckingWindow.StartDate,
@@ -497,6 +498,7 @@ public sealed class RequestService(
             var qualification = journey.SelectedQualification!;
             return new EnquiryDetails
             {
+                Type = WhatToChange.MissingQualification,
                 Qan = qualification.Qan,
                 QualificationName = qualification.QualificationTitle,
                 AwardingOrganisation = qualification.AwardingOrganisation,
@@ -517,6 +519,7 @@ public sealed class RequestService(
 
         return new EnquiryDetails
         {
+            Type = journey.SelectedWhatToChange!.Value,
             Qan = result.Qan,
             // The journey pages show the reference title. The results file name is abbreviated, so
             // it is used only when the QAN is not in the reference.
@@ -531,7 +534,7 @@ public sealed class RequestService(
     }
 
     /// <summary>
-    /// The syllabus code that the school selected, found by question type so the code names no
+    /// The syllabus code that the school selected, found by question role so the code names no
     /// flow id. Empty when the question was hidden (issue #577: the qualification has no syllabus
     /// codes), and empty when the answer is not one of the qualification's codes (fail closed).
     /// </summary>
@@ -542,7 +545,7 @@ public sealed class RequestService(
             .Select(pageId => config.Pages.FirstOrDefault(p => p.Id == pageId))
             .OfType<JourneyPage>()
             .SelectMany(p => p.Questions)
-            .Where(q => q.Type == QuestionType.SyllabusSelect)
+            .Where(q => q.Role == QuestionRole.EnquirySyllabusCode)
             .Select(q => journey.QuestionAnswers.TryGetValue(q.Id, out var a) ? a.TextValue : null)
             .FirstOrDefault(v => !string.IsNullOrEmpty(v));
 
@@ -590,6 +593,7 @@ public sealed class RequestService(
                 QuestionId = question.Id,
                 QuestionTitle = title,
                 Type = "FileUpload",
+                Role = question.Role,
                 Files = answer?.FileValues?.Select(f => new FileRecord
                 {
                     OriginalFileName = f.OriginalFileName,
@@ -629,6 +633,10 @@ public sealed class RequestService(
             QuestionId = question.Id,
             QuestionTitle = title,
             Type = question.Type.ToString(),
+            Role = question.Role,
+            Meaning = question.Type == QuestionType.Radio && answer?.TextValue is { } chosen
+                ? question.Options?.FirstOrDefault(o => o.Value == chosen)?.Meaning
+                : null,
             Value = value,
             RawValue = rawValue
         };

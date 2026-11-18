@@ -39,7 +39,7 @@ public sealed class ZendeskConsumerEnquiryMessageTests
     }
 
     [Fact]
-    public async Task Enquiry_ticket_has_Scrutiny_status_and_names_the_QAN()
+    public async Task Enquiry_ticket_is_a_low_priority_question_in_the_main_group_and_names_the_QAN()
     {
         var harness = new ConsumerHarness([NewEnquiryRow(Reference, ProcessingStatus.TicketQueued)]);
         harness.StubTicketCreation();
@@ -47,16 +47,17 @@ public sealed class ZendeskConsumerEnquiryMessageTests
         await harness.Consumer.ProcessMessageBodyAsync(
             Serialize(NewEnquiryMessage(Reference)), CancellationToken.None);
 
+        // #859: an enquiry has its own ticket (ResultsEnquiryTicketBuilder), not the amendment
+        // ticket. It has no decision, so it never goes to the Scrutiny group.
         var ticket = harness.CreatedTicket!.Ticket;
         Assert.Equal("new", ticket.Status);
-        Assert.Equal("high", ticket.Priority);
+        Assert.Equal("low", ticket.Priority);
         Assert.Equal("question", ticket.Type);
-        Assert.Contains("CPMD Requires Scrutiny", ticket.Subject);
+        Assert.Equal(5678, ticket.GroupId);
+        Assert.DoesNotContain("Scrutiny", ticket.Subject);
         Assert.Contains("Results enquiry - Incorrect grade", ticket.Subject);
 
-        // DeriveDecision uses null Outcome → Scrutiny fallback, and null OutcomeKey → falls
-        // back to the message's RequestTypeCode, so the description must carry the message
-        // outcome and the synthetic challenged-result answer block (FR-003).
+        // The description carries the synthetic challenged-result answer block (FR-003).
         Assert.Contains("Results enquiry - Incorrect grade", ticket.Description);
         Assert.Contains("Challenged result", ticket.Description);
         Assert.Contains("60180882", ticket.Description); // QAN from the seeded result
@@ -118,7 +119,12 @@ public sealed class ZendeskConsumerEnquiryMessageTests
                 Type = "ResultsEnquiry",
                 Value = "GCSE (9-1) Art&Des : Fine Art — QAN 60180882, syllabus 1AD0, session S2024, held grade 9"
             }
-        ]
+        ],
+        Enquiry = new EnquiryDetails
+        {
+            Type = WhatToChange.IncorrectGrade, Qan = "60180882", QualificationName = "GCSE (9-1) Art&Des : Fine Art",
+            SyllabusCode = "1AD0", CurrentGrade = "9"
+        }
     };
 
     private static ChangeRequest NewEnquiryRow(string referenceNumber, ProcessingStatus? processingStatus = null, string? crmId = null) => new()
@@ -181,7 +187,8 @@ public sealed class ZendeskConsumerEnquiryMessageTests
                 {
                     TargetViewTitle = "School Checking Exercise",
                     BrandId = 1234,
-                    GroupId = 5678
+                    GroupId = 5678,
+                    ScrutinyGroupId = 9012
                 });
         }
 

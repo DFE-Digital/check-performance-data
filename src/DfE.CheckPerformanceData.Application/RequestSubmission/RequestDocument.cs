@@ -1,3 +1,7 @@
+using System.Text.Json.Serialization;
+using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public class RequestDocument
@@ -46,6 +50,12 @@ public class RequestDocument
 /// </summary>
 public sealed class EnquiryDetails
 {
+    /// <summary>The enquiry type: <c>MissingQualification</c>, <c>IncorrectGrade</c> or
+    /// <c>ResultDoesNotBelong</c>. It sets the Situation field on the ticket. The message holds the
+    /// name, so a change to the enum order does not change it.</summary>
+    [JsonConverter(typeof(JsonStringEnumConverter<WhatToChange>))]
+    public required WhatToChange Type { get; init; }
+
     public required string Qan { get; init; }
 
     /// <summary>The qualification title from the qualification reference. For a result whose QAN
@@ -69,6 +79,10 @@ public sealed class UserDetails
 {
     public required string UserId { get; init; }
     public required string DisplayName { get; init; }
+
+    /// <summary>The email address of the school user who submitted the request. The enquiry
+    /// ticket sends it in "Email address (CYPMD)". Empty when not supplied.</summary>
+    public string Email { get; init; } = string.Empty;
 }
 
 public sealed class SchoolDetails
@@ -112,6 +126,14 @@ public sealed class AnswerRecord
     public required string QuestionId { get; init; }
     public required string QuestionTitle { get; init; }
     public required string Type { get; init; }
+
+    /// <summary>The question's role, from the flow file. Null when the question has no role.
+    /// Code that maps answers to ticket fields reads this, never <see cref="QuestionId"/>.</summary>
+    public QuestionRole? Role { get; init; }
+
+    /// <summary>The meaning of the chosen radio option. Null when there is no answer, or the
+    /// option has no meaning.</summary>
+    public OptionMeaning? Meaning { get; init; }
 
     /// <summary>Display value (radio option label, dd/MM/yyyy date) — used in Zendesk ticket descriptions.</summary>
     public string? Value { get; init; }

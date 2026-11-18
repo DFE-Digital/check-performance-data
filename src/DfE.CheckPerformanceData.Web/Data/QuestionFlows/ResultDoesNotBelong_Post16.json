@@ -29,6 +29,7 @@
         {
           "id": "q-additional-info",
           "type": "TextArea",
+          "role": "Enquiry.AdditionalComments",
           "title": "Additional information",
           "hint": "If there is more than one result that does not belong to the student, you can enter the QAN and grade for each result below. You can also provide us with any additional information to support your query if you need to.",
           "optional": true,

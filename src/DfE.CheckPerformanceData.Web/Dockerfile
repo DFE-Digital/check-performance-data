@@ -9,7 +9,7 @@
 # docker-compose.vscode.yml override builds `debug-runtime`. Keep it that way:
 # the debug stage ships a debugger and download tooling that must not reach a
 # deployed environment.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:1a48394b6f29d3a32c79d9edecd4abda0ecbe8776d567dbfc4590ed6979c740c AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:12b1135f5f8b3c0a214f2a680ff2033dff4f684f445d6c697d9524ceeb303586 AS base
 # Apply Ubuntu security updates on top of the base image. Microsoft rebuilds
 # the aspnet image on its own cadence, so between rebuilds it can ship packages
 # with published fixes outstanding (e.g. libssl3t64 3.0.13-0ubuntu3.15 against

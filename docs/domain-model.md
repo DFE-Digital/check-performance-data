@@ -141,12 +141,12 @@ Session readiness for the journey requires only `SelectedWhatToChange` and `Chec
 - Pupils are split into included (`IsIncluded`, the `INCLUDED` stamp) and non-included (all others) tabs. A second stamp, `INCLUDABLE` (#711), says who a school may ask to include; only the Include journey reads it.
 - **Every CSV file a school downloads goes through `PupilCsvGenerator.Generate`.** It puts an
   apostrophe before a heading or a value that starts with a formula character, so a spreadsheet
-  shows the text and does not calculate it (OWASP CSV injection, #856). The rule is
-  `SpreadsheetFormula.Neutralise` (`Application/Common`). The characters are `=`, `+`, `-`, `@`,
-  tab, carriage return, line feed, and the full-width forms of `=`, `+`, `-` and `@`. These
-  supplier forms stay as they are: a signed number (`-1.00`, `-1.5E-07`), a signed number
-  with a `%` sign (`-5%`), a signed number with a bracketed interval (`-1.10 (-2.35 to 0.15)`),
-  and a lone `+` or `-`.
+  does not calculate it (OWASP CSV injection, #856). The spreadsheet shows the apostrophe in the
+  cell. The rule is `SpreadsheetFormula.Neutralise` (`Application/Common`). The characters are `=`,
+  `+`, `-`, `@`, tab, carriage return, line feed, and the full-width forms of `=`, `+`, `-` and
+  `@`. These supplier forms stay as they are: a signed number (`-1.00`, `-1.5E-07`), a signed
+  number with a `%` sign (`-5%`), a signed number with a bracketed interval
+  (`-1.10 (-2.35 to 0.15)`), and a lone `+` or `-`.
 - **Since #466 the tabs can be exercise-driven.** `IExerciseTabBuilder` (Application) returns one
   tab per *visible* exercise — enabled, within `VisibleFrom`/`VisibleUntil` (exclusive at the end),
   and every exercise has a `TabName`. When no exercise is visible the list is empty and the page

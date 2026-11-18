@@ -10,9 +10,9 @@ namespace DfE.CheckPerformanceData.Application.Common;
 /// </summary>
 public static partial class SpreadsheetFormula
 {
-    private const string TriggerCharacters = "=+-@\t\r\n＝＋－＠";
+    private const string TriggerCharacters = "=+-@\t\r\n\uFF1D\uFF0B\uFF0D\uFF20";
     private const char TextMarker = '\'';
-    private const string Number = @"(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?";
+    private const string Number = @"(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?";
     private const string Interval = @" \([+-]?" + Number + " to [+-]?" + Number + @"\)";
 
     /// <summary>Says if the text starts with a trigger character.</summary>

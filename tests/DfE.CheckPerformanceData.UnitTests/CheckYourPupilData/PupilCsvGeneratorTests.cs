@@ -52,7 +52,7 @@ public class PupilCsvGeneratorTests
     [InlineData("\tcmd", "'\tcmd")]
     [InlineData("\rcmd", "\"'\rcmd\"")]
     [InlineData("\ncmd", "\"'\ncmd\"")]
-    [InlineData("＝1+1", "'＝1+1")]
+    [InlineData("\uFF1D1+1", "'\uFF1D1+1")]
     [InlineData("=HYPERLINK(\"x\",\"y\")", "\"'=HYPERLINK(\"\"x\"\",\"\"y\"\")\"")]
     public void A_value_that_a_spreadsheet_reads_as_a_formula_gets_an_apostrophe(string value, string cell)
     {

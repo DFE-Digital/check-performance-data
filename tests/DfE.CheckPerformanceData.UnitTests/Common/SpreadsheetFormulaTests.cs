@@ -1,9 +1,13 @@
+using System.Diagnostics;
 using DfE.CheckPerformanceData.Application.Common;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Common;
 
 public sealed class SpreadsheetFormulaTests
 {
+    private const int LongRunLength = 250;
+    private static readonly TimeSpan QuickCheckLimit = TimeSpan.FromSeconds(2);
+
     [Theory]
     [InlineData("=1+1")]
     [InlineData("+cmd|' /C calc'!A0")]
@@ -12,13 +16,13 @@ public sealed class SpreadsheetFormulaTests
     [InlineData("\tx")]
     [InlineData("\rx")]
     [InlineData("\nx")]
-    [InlineData("＝1+1")]
-    [InlineData("＋1")]
-    [InlineData("－1")]
-    [InlineData("＠x")]
+    [InlineData("\uFF1D1+1")]
+    [InlineData("\uFF0B1")]
+    [InlineData("\uFF0D1")]
+    [InlineData("\uFF20x")]
     [InlineData("=")]
     [InlineData("@")]
-    [InlineData("＋")]
+    [InlineData("\uFF0B")]
     public void Text_that_starts_with_a_trigger_character_gets_an_apostrophe(string text)
     {
         Assert.True(SpreadsheetFormula.StartsWithTrigger(text));
@@ -68,7 +72,7 @@ public sealed class SpreadsheetFormulaTests
     [InlineData("-1e")]
     [InlineData("-e5")]
     [InlineData("-1e5+1")]
-    [InlineData("-١")]
+    [InlineData("-\u0661")]
     [InlineData("--")]
     [InlineData("-\n")]
     [InlineData("-%")]
@@ -98,5 +102,28 @@ public sealed class SpreadsheetFormulaTests
     {
         Assert.False(SpreadsheetFormula.StartsWithTrigger(text));
         Assert.Equal(text, SpreadsheetFormula.Neutralise(text));
+    }
+
+    [Fact]
+    public void A_long_cell_that_is_not_in_a_supplier_form_is_checked_quickly()
+    {
+        string digits = new('1', LongRunLength);
+        string text = $"-{digits} ({digits} to {digits}x";
+        var watch = Stopwatch.StartNew();
+
+        string result = SpreadsheetFormula.Neutralise(text);
+
+        watch.Stop();
+        Assert.Equal("'" + text, result);
+        Assert.True(watch.Elapsed < QuickCheckLimit, $"The check took {watch.Elapsed}.");
+    }
+
+    [Fact]
+    public void A_long_signed_number_stays_as_it_is()
+    {
+        string digits = new('1', LongRunLength);
+        string number = $"-{digits}.{digits}";
+
+        Assert.Equal(number, SpreadsheetFormula.Neutralise(number));
     }
 }

@@ -112,7 +112,7 @@ public sealed class ImpersonationController(
                 continue;
             }
 
-            if (summary is null || !string.Equals(summary.Outcome, "succeeded", StringComparison.OrdinalIgnoreCase)) continue;
+            if (summary is null || !string.Equals(summary.Outcome, IngressOutcome.Succeeded, StringComparison.OrdinalIgnoreCase)) continue;
 
             var files = summary.Files.Select(file =>
             {

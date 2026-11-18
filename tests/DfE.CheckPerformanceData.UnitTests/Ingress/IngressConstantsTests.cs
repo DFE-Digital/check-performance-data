@@ -81,4 +81,17 @@ public sealed class IngressConstantsTests
 
         Assert.Equal(expected, ConstantsOf(typeof(IngressSchemaKeys)));
     }
+
+    [Fact]
+    public void EachOutcome_HasTheValueThatTheSummaryHeldBeforeItHadAName()
+    {
+        var expected = new Dictionary<string, string>
+        {
+            ["Succeeded"] = "succeeded",
+            ["Failed"] = "failed",
+            ["Cancelled"] = "cancelled"
+        };
+
+        Assert.Equal(expected, ConstantsOf(typeof(IngressOutcome)));
+    }
 }

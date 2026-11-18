@@ -65,8 +65,10 @@ and the [OWASP Top 10 (2025)](https://owasp.org/Top10/). Each rule below applies
 - Use EF Core LINQ or parameters for SQL. Do not build SQL from strings.
 - Render markdown and content-managed HTML only through `HtmlRenderingService`, which sanitises
   it. Do not use `Html.Raw` on text that a user or an admin typed.
-- **A CSV that contains text someone typed must neutralise formula prefixes** (`=`, `+`, `-`,
-  `@`, tab, CR), as `AuditLogCsv.Field` does.
+- **A CSV that contains text from a person or a supplier file must neutralise formula
+  prefixes** (`=`, `+`, `-`, `@`, tab, CR, LF, and the full-width forms of `=`, `+`, `-`, `@`).
+  Use `SpreadsheetFormula.Neutralise` (Application), as `PupilCsvGenerator` does. It does not
+  change a signed number such as `-1.00`.
 
 ### Security headers and the browser (OWASP A02)
 

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Common;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Schema;
 
@@ -14,8 +15,6 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 internal sealed record CodeDescriptionRule(
     string Field, string DescriptionField, IReadOnlyDictionary<string, string> Descriptions)
 {
-    private static readonly char[] FormulaPrefixes = ['=', '+', '-', '@', '\t', '\r'];
-
     /// <summary>A code the schema describes more than once when codes are trimmed, or null.</summary>
     public string? RepeatedCode { get; private init; }
 
@@ -77,7 +76,7 @@ internal sealed record CodeDescriptionRule(
             return $"{path} gives no words for the {Field} code {CodeWithoutWords}.";
 
         string? formulaCode = Descriptions
-            .Where(words => words.Value.Length > 0 && FormulaPrefixes.Contains(words.Value[0]))
+            .Where(words => SpreadsheetFormula.StartsWithTrigger(words.Value))
             .Select(words => words.Key)
             .FirstOrDefault();
         return formulaCode is null

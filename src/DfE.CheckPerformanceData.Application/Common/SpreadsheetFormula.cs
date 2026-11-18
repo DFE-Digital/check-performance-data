@@ -12,6 +12,8 @@ public static partial class SpreadsheetFormula
 {
     private const string TriggerCharacters = "=+-@\t\r\n＝＋－＠";
     private const char TextMarker = '\'';
+    private const string Number = @"(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?";
+    private const string Interval = @" \([+-]?" + Number + " to [+-]?" + Number + @"\)";
 
     /// <summary>Says if the text starts with a trigger character.</summary>
     /// <param name="text">The text of one cell. It must not be null.</param>
@@ -22,14 +24,16 @@ public static partial class SpreadsheetFormula
     /// <summary>Gives the text in a form that a spreadsheet shows and does not calculate.</summary>
     /// <param name="text">The text of one cell. It must not be null.</param>
     /// <returns>
-    /// The text with an apostrophe before it when it starts with a trigger character. A signed
-    /// number, for example <c>-1.00</c> or <c>-1.5E-07</c>, and text with no trigger character
-    /// at its start come back as they are.
+    /// The text with an apostrophe before it when it starts with a trigger character. Text with
+    /// no trigger character at its start comes back as it is. So do the supplier's signed value
+    /// forms, which cannot be a formula: a signed number (<c>-1.00</c>, <c>-1.5E-07</c>), a
+    /// signed number with a percent sign (<c>-5%</c>), a signed number with a bracketed interval
+    /// (<c>-1.10 (-2.35 to 0.15)</c>), and a lone <c>+</c> or <c>-</c>.
     /// </returns>
     public static string Neutralise(string text) =>
-        StartsWithTrigger(text) && !SignedNumber().IsMatch(text) ? TextMarker + text : text;
+        StartsWithTrigger(text) && !SupplierSignedValue().IsMatch(text) ? TextMarker + text : text;
 
-    // An ASCII sign, ASCII digits with at most one decimal point, and an optional exponent.
-    [GeneratedRegex(@"\A[+-](?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\z")]
-    private static partial Regex SignedNumber();
+    // A lone ASCII sign, or a signed number that can end with a percent sign or a bracketed interval.
+    [GeneratedRegex(@"\A[+-](?:" + Number + "(?:%|" + Interval + @")?)?\z")]
+    private static partial Regex SupplierSignedValue();
 }

@@ -68,7 +68,7 @@ and the [OWASP Top 10 (2025)](https://owasp.org/Top10/). Each rule below applies
 - **A CSV that contains text from a person or a supplier file must neutralise formula
   prefixes** (`=`, `+`, `-`, `@`, tab, CR, LF, and the full-width forms of `=`, `+`, `-`, `@`).
   Use `SpreadsheetFormula.Neutralise` (Application), as `PupilCsvGenerator` does. It does not
-  change a signed number such as `-1.00`.
+  change the supplier's signed value forms, such as `-1.00` or `-1.10 (-2.35 to 0.15)`.
 
 ### Security headers and the browser (OWASP A02)
 

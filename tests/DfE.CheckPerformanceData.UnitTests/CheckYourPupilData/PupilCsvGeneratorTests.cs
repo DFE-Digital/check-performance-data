@@ -85,4 +85,17 @@ public class PupilCsvGeneratorTests
 
         Assert.Equal(string.Concat("'=1+1,Surname", Environment.NewLine, "x,Smith", Environment.NewLine), csv);
     }
+
+    [Theory]
+    [InlineData("-1.10 (-2.35 to 0.15)")]
+    [InlineData("+")]
+    [InlineData("-5%")]
+    public void A_signed_value_in_a_supplier_form_is_the_same_in_the_file(string value)
+    {
+        var table = new PupilTable(["Progress score"], [[value]]);
+
+        string csv = Encoding.UTF8.GetString(PupilCsvGenerator.Generate(table));
+
+        Assert.Equal(string.Concat("Progress score", Environment.NewLine, value, Environment.NewLine), csv);
+    }
 }

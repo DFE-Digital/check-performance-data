@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
@@ -48,6 +50,12 @@ public class RequestDocument
 /// </summary>
 public sealed class EnquiryDetails
 {
+    /// <summary>The enquiry type: <c>MissingQualification</c>, <c>IncorrectGrade</c> or
+    /// <c>ResultDoesNotBelong</c>. It sets the Situation field on the ticket. The message holds the
+    /// name, so a change to the enum order does not change it.</summary>
+    [JsonConverter(typeof(JsonStringEnumConverter<WhatToChange>))]
+    public required WhatToChange Type { get; init; }
+
     public required string Qan { get; init; }
 
     /// <summary>The qualification title from the qualification reference. For a result whose QAN
@@ -71,6 +79,10 @@ public sealed class UserDetails
 {
     public required string UserId { get; init; }
     public required string DisplayName { get; init; }
+
+    /// <summary>The email address of the school user who submitted the request. The enquiry
+    /// ticket sends it in "Email address (CYPMD)". Empty when not supplied.</summary>
+    public string Email { get; init; } = string.Empty;
 }
 
 public sealed class SchoolDetails

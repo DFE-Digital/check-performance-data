@@ -72,6 +72,8 @@ SchoolCheckingExercise__TargetViewTitle: Schools checking exercise View
 SchoolCheckingExercise__GroupId: 16886472637330
 SchoolCheckingExercise__ScrutinyGroupId: 19477734979474
 SchoolCheckingExercise__BrandId: 16853215883538
+# The "Results Enquiry DCI form". A results enquiry ticket uses it (#859). 0 leaves the form out.
+SchoolCheckingExercise__ResultsEnquiryTicketFormId: 28923213553682
  
 # Zendesk Ticket Field IDs
  
@@ -121,4 +123,23 @@ ZendeskTicketFields__CorrectionReason21Id: 19058760113298
 ZendeskTicketFields__LdsMatchedPupilId2Id: 19269521160978
 ZendeskTicketFields__PupilYearGroupCypmdId: 19269588914066
 ZendeskTicketFields__AdditionalCommentsCypmdId: 28923073020818
+# Results enquiry ticket fields (#859)
+ZendeskTicketFields__CustomerNameCypmdId: 17208014017042
+ZendeskTicketFields__EmailAddressCypmdId: 26026521110802
+ZendeskTicketFields__SchoolNameCypmdId: 26024268310034
+ZendeskTicketFields__DfeNumberCypmdId: 26684339499154
+ZendeskTicketFields__SituationCypmdId: 28922838452370
+ZendeskTicketFields__GradedExamCypmdId: 28923016349586
+ZendeskTicketFields__TLevelExamsCypmdId: 38951552435474
+ZendeskTicketFields__WithdrawalQualificationCypmdId: 38951562177042
+ZendeskTicketFields__WholeCohortAffectedCypmdId: 28922965623442
+ZendeskTicketFields__NumberOfQualificationsCypmdId: 28922893198738
+ZendeskTicketFields__AoNameCypmdId: 28922951358994
+ZendeskTicketFields__QanCypmdId: 29486353791122
+ZendeskTicketFields__QualificationNameCypmdId: 21400086269970
+ZendeskTicketFields__SyllabusCodeCypmdId: 21400041152146
+ZendeskTicketFields__AwardDateCypmdId: 28922994600722
+ZendeskTicketFields__NcnCypmdId: 28923065019282
+ZendeskTicketFields__CurrentGradeCypmdId: 28923058135314
+ZendeskTicketFields__RevisedGradeCypmdId: 29316133980946
 ZendeskTicketFields__PopulateDecisionReasonForAutoRejected: true

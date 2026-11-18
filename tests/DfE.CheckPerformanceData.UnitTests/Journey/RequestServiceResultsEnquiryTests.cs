@@ -682,6 +682,7 @@ public sealed class RequestServiceResultsEnquiryTests
         var enquiry = (await SubmitAndCapture(journey)).Enquiry;
 
         Assert.NotNull(enquiry);
+        Assert.Equal(WhatToChange.IncorrectGrade, enquiry.Type);
         Assert.Equal("60180882", enquiry.Qan);
         Assert.Equal("Pearson Edexcel GCSE (9-1) in Art and Design", enquiry.QualificationName);
         Assert.Equal("1AD0", enquiry.SyllabusCode);
@@ -723,6 +724,7 @@ public sealed class RequestServiceResultsEnquiryTests
         var enquiry = (await SubmitAndCapture(journey)).Enquiry;
 
         Assert.NotNull(enquiry);
+        Assert.Equal(WhatToChange.ResultDoesNotBelong, enquiry.Type);
         Assert.Equal("60180882", enquiry.Qan);
         Assert.Equal("Pearson Edexcel GCSE (9-1) in Art and Design", enquiry.QualificationName);
         Assert.Equal("Pearson", enquiry.AwardingOrganisation);
@@ -760,6 +762,9 @@ public sealed class RequestServiceResultsEnquiryTests
 
         var enquiry = document.Enquiry;
         Assert.NotNull(enquiry);
+        Assert.Equal(WhatToChange.MissingQualification, enquiry.Type);
+        // #859: the ticket sends the school user's email address.
+        Assert.Equal("ada@school.test", document.SubmittedBy.Email);
         Assert.Equal("60146084", enquiry.Qan);
         Assert.Equal("AQA Level 1/Level 2 GCSE (9-1) in Mathematics", enquiry.QualificationName);
         Assert.Equal("AQA", enquiry.AwardingOrganisation);

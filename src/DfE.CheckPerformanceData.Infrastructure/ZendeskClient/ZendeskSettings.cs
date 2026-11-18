@@ -87,6 +87,11 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
         /// </summary>
         public long? BrandId { get; set; }
 
+        /// <summary>
+        /// The Zendesk ticket form for a results enquiry ticket (the "Results Enquiry DCI form").
+        /// The Zendesk views filter on the form. Null or 0 leaves the form out of the ticket.
+        /// </summary>
+        public long? ResultsEnquiryTicketFormId { get; set; }
 
     }
 }

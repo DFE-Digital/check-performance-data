@@ -40,5 +40,11 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
 
         [JsonPropertyName("brand_id")]
         public long? BrandId { get; set; }
+
+        /// <summary>The ticket form. Only a results enquiry ticket sets it. Null is left out of
+        /// the request, so Zendesk uses its default form.</summary>
+        [JsonPropertyName("ticket_form_id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public long? TicketFormId { get; set; }
     }
 }

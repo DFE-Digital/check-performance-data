@@ -139,6 +139,14 @@ Session readiness for the journey requires only `SelectedWhatToChange` and `Chec
 - Displays paged, searchable pupil lists for a given checking window and school (by `laestab`).
 - `CheckYourPupilDataRepository` loads the school's pupil JSON (cached) and filters/searches/sorts/pages **in memory** — sorted by surname/firstname. **The pupil search boxes share one rule, `PupilSearchTerms`** (parse the query once with `Parse`, then `Matches` per row): the query splits on spaces, tabs and commas, and each word must match the start of a word in some field (words start after a space, tab, hyphen or apostrophe), ignoring case, in any order ("John Smith", "Smith, John"; "ohn" finds nothing). Identifiers match from their start too ("A860" finds a UPN, "8604" does not). The journey autocomplete checks names, UPN/ULN, CYPMD ID and displayed DOB; the pupil tabs check names; the results table checks names, CYPMD ID and subject; the schema-driven tabs check the schema's `searchable` columns. Only the Add-pupil duplicate check (fuzzy on purpose, not a search box) does not use it.
 - Pupils are split into included (`IsIncluded`, the `INCLUDED` stamp) and non-included (all others) tabs. A second stamp, `INCLUDABLE` (#711), says who a school may ask to include; only the Include journey reads it.
+- **Every CSV file a school downloads goes through `PupilCsvGenerator.Generate`.** It puts an
+  apostrophe before a heading or a value that starts with a formula character. A spreadsheet then
+  shows the text with its apostrophe and does not calculate it (OWASP CSV injection, #856). The
+  rule is `SpreadsheetFormula.Neutralise` (`Application/Common`). The characters are `=`, `+`,
+  `-`, `@`, tab, carriage return, line feed, and the full-width forms of `=`, `+`, `-` and `@`.
+  These supplier forms stay as they are: a signed number (`-1.00`, `-1.5E-07`), a signed number
+  with a `%` sign (`-5%`), a signed number with a bracketed interval (`-1.10 (-2.35 to 0.15)`),
+  and a lone `+` or `-`.
 - **Since #466 the tabs can be exercise-driven.** `IExerciseTabBuilder` (Application) returns one
   tab per *visible* exercise — enabled, within `VisibleFrom`/`VisibleUntil` (exclusive at the end),
   and every exercise has a `TabName`. When no exercise is visible the list is empty and the page

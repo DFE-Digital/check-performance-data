@@ -143,6 +143,8 @@ public sealed class CodeDescriptionsTests
     [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "  " } } ]""", "51")]
     [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "=1+1" } } ]""", "51")]
     [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "Words", "52": "@Words" } } ]""", "52")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "\nWords" } } ]""", "51")]
+    [InlineData("""[ { "field": "R_INCL", "descriptionField": "R_INCL_WORDS", "descriptions": { "51": "\uFF20Words" } } ]""", "51")]
     public void Rules_the_schema_cannot_honour_have_an_error_that_names_the_key(string rules, string named)
     {
         var schema = Schema(rules);

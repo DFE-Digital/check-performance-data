@@ -368,6 +368,28 @@ public class ExerciseDisplayServiceTests
         Assert.Equal(["ordered", "first-added", "second-added"], view.Datasets.Select(d => d.Key));
     }
 
+    [Fact]
+    public void A_download_neutralises_a_schema_heading_and_a_value_and_keeps_a_signed_number()
+    {
+        using var json = JsonDocument.Parse("""
+            {
+              "x-ingress": { "collection": "pupils" },
+              "properties": {
+                "SURNAME": { "x-csv": { "columns": { "default": "A" }, "heading": "=Surname" } },
+                "PROGRESS": { "x-csv": { "columns": { "default": "B" }, "heading": "Progress" } }
+              }
+            }
+            """);
+        var definition = Service().ParseDefinition("pupils", null, json.RootElement);
+
+        var csv = System.Text.Encoding.UTF8.GetString(Service().Csv(definition with
+        {
+            Rows = [new Dictionary<string, string> { ["SURNAME"] = "@Smith", ["PROGRESS"] = "-1.20" }]
+        }));
+
+        Assert.Equal(string.Concat("'=Surname,Progress", Environment.NewLine, "'@Smith,-1.20", Environment.NewLine), csv);
+    }
+
     private static ExerciseDataset Ordered(string key, int? selectorOrder)
     {
         var order = selectorOrder is { } value ? $", \"selectorOrder\": {value}" : "";

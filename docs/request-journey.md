@@ -446,6 +446,18 @@ From the Summary, the user can:
 
 ---
 
+## Impersonation preview
+
+During administrator impersonation, journey answers and evidence stay in process memory. The
+preview store is scoped to the authenticated session and impersonation generation. It expires
+after 15 minutes without activity and is removed when impersonation ends. A restart or a request
+handled by another application instance can lose the preview.
+
+Preview journeys do not write draft or submission records, request blobs, evidence blobs, queue
+messages, or notifications. The final submit action shows a preview-only message. Pupil and results
+reads continue through the selected establishment and existing read-only access checks. Request
+logs carry an impersonation marker and do not include journey answers or pupil data.
+
 ## Stage 5b — Save Draft
 
 **URL:** `POST /Journey/{windowId}/draft`  

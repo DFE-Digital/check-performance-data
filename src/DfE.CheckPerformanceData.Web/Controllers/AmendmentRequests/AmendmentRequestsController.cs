@@ -24,8 +24,10 @@ public sealed class AmendmentRequestsController(
     IQuestionFlowService flowService,
     ICheckingExerciseService checkingExercises,
     ICurrentUserService currentUserService,
-    IJourneyViewModelBuilder viewModelBuilder) : Controller
+    IJourneyViewModelBuilder viewModelBuilder,
+    DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : Controller
 {
+    private string EstablishmentLaestab => viewContext?.OrganisationLaestab ?? currentUserService.OrganisationLaestab;
     private const string BulkSubmittedRefsKey = "BulkSubmittedRefs";
 
     private async Task<AmendmentRequestsViewModel> BuildIndexViewModelAsync(Guid windowId)
@@ -187,7 +189,7 @@ public sealed class AmendmentRequestsController(
         // on a 16-19 window the outer end is the results-enquiry close, months later. AB#307773:
         // the signed-in school's end, which its extension may make later than the exercise's own.
         var deadline = checkingExercises.EndDateFor(
-            window.Exercises, CheckingExerciseType.PupilData, currentUserService.OrganisationLaestab);
+            window.Exercises, CheckingExerciseType.PupilData, EstablishmentLaestab);
 
         return View("BulkConfirmation", new BulkConfirmationViewModel
         {
@@ -223,7 +225,7 @@ public sealed class AmendmentRequestsController(
         {
             var draftExercise = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(draftChange);
             if (!checkingExercises.IsOpen(
-                    journey.CheckingWindow.Exercises, draftExercise, currentUserService.OrganisationLaestab))
+                    journey.CheckingWindow.Exercises, draftExercise, EstablishmentLaestab))
                 return this.RedirectExerciseClosed(windowId, draftExercise, journey.LearnerNoun);
         }
 

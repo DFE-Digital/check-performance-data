@@ -35,4 +35,7 @@ public static class RequestLogEnrichment
         context.User.Identity?.IsAuthenticated == true
             ? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             : null;
+
+    public static bool IsImpersonating(HttpContext context) =>
+        context.Items[DfE.CheckPerformanceData.Web.Middleware.ImpersonationContextMiddleware.ReadOnlyItemKey] is true;
 }

@@ -46,6 +46,8 @@ public static class RequestPipelineExtensions
                 diagnosticContext.Set("StatusCode", httpContext.Response.StatusCode);
                 diagnosticContext.Set("RequestMethod", httpContext.Request.Method);
                 diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
+            diagnosticContext.Set("IsImpersonating",
+                DfE.CheckPerformanceData.Web.Diagnostics.RequestLogEnrichment.IsImpersonating(httpContext));
                 // Runs once the response is complete, so HttpContext.User is whatever
                 // authentication decided. IsAuthenticated false on a 302 marks a sign-in challenge.
                 diagnosticContext.Set("IsAuthenticated", httpContext.User.Identity?.IsAuthenticated == true);

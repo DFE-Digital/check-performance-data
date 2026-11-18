@@ -11,6 +11,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
+using DfE.CheckPerformanceData.Web.Impersonation;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
@@ -19,6 +20,7 @@ using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Caching.Memory;
 using NSubstitute;
 using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 // Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
@@ -43,6 +45,8 @@ public class JourneyControllerTests
     private readonly DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService _requestNotificationService =
         Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
     private readonly FakeSession _session = new();
+    private readonly IImpersonationPreviewStore _previewStore = new InMemoryImpersonationPreviewStore(
+        new MemoryCache(new MemoryCacheOptions()), TimeProvider.System);
     private readonly DefaultHttpContext _httpContext = new();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
     private readonly INextStepsService _nextSteps = Substitute.For<INextStepsService>();
@@ -136,7 +140,8 @@ public class JourneyControllerTests
             _requestNotificationService,
             _checkingExercises,
             _nextSteps,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance,
+            _previewStore)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -698,6 +703,41 @@ public class JourneyControllerTests
         Assert.Null(remaining.MatchedPupil);
         Assert.Null(remaining.MatchedPupilId);
         Assert.Null(remaining.MatchedPupilLabel);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_DuringImpersonationDoesNotSubmitOrNotify()
+    {
+        SetupPreviewSession(ValidSession(history: ["page-1", "page-2"]));
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("PreviewSubmissionBlocked", view.ViewName);
+        await _requestService.DidNotReceiveWithAnyArgs().ConfirmRequestAsync(default, default!);
+        await _requestService.DidNotReceiveWithAnyArgs().SubmitResultsEnquiryAsync(default, default!);
+        await _requestNotificationService.DidNotReceiveWithAnyArgs()
+            .NotifyResultsEnquirySubmittedAsync(default!);
+        Assert.False(_session.TryGetValue($"request_{WindowId}", out _));
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_DuringResultsEnquiryPreviewDoesNotSubmitOrNotify()
+    {
+        var state = ValidSession(history: ["page-1", "page-2"]);
+        state.SelectedWhatToChange = WhatToChange.IncorrectGrade;
+        SetupPreviewSession(state);
+        _flowService.GetConfigAsync(WhatToChange.IncorrectGrade, CheckingWindowType.KS4June)
+            .Returns((QuestionFlowConfig?)null);
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("PreviewSubmissionBlocked", view.ViewName);
+        await _requestService.DidNotReceiveWithAnyArgs().ConfirmRequestAsync(default, default!);
+        await _requestService.DidNotReceiveWithAnyArgs().SubmitResultsEnquiryAsync(default, default!);
+        await _requestNotificationService.DidNotReceiveWithAnyArgs()
+            .NotifyResultsEnquirySubmittedAsync(default!);
     }
 
     [Fact]
@@ -1898,6 +1938,20 @@ public class JourneyControllerTests
     }
 
     [Fact]
+    public async Task SaveDraft_DuringImpersonationKeepsAnswersInPreviewMemory()
+    {
+        SetupPreviewSession(ValidSession(history: ["page-1", "page-2"]));
+
+        var result = await _sut.SaveDraft(WindowId, pageId: null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.Summary), redirect.ActionName);
+        await _requestService.DidNotReceiveWithAnyArgs().SaveDraftAsync(default, default!, default);
+        Assert.False(_session.TryGetValue($"request_{WindowId}", out _));
+        Assert.NotNull(_httpContext.Session.GetRequestState(WindowId).SelectedPupil);
+    }
+
+    [Fact]
     public async Task SaveDraft_WhenBulkEdit_RedirectsToBulkDetailedReview()
     {
         SetupSession(ValidSession());
@@ -2641,6 +2695,18 @@ public class JourneyControllerTests
     {
         var json = JsonSerializer.Serialize(state);
         _session.Set($"request_{WindowId}", Encoding.UTF8.GetBytes(json));
+    }
+
+    private void SetupPreviewSession(RequestState state)
+    {
+        const string binding = "admin-binding";
+        const string generation = "preview-generation";
+        var previewSession = new ImpersonationPreviewSession(_session, _previewStore, binding, generation);
+        _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(previewSession));
+        _httpContext.Items[DfE.CheckPerformanceData.Web.Middleware.ImpersonationContextMiddleware.ReadOnlyItemKey] = true;
+        _httpContext.Items[DfE.CheckPerformanceData.Web.Middleware.ImpersonationContextMiddleware.PreviewBindingItemKey] = binding;
+        _httpContext.Items[DfE.CheckPerformanceData.Web.Middleware.ImpersonationContextMiddleware.PreviewGenerationItemKey] = generation;
+        _httpContext.Session.SetRequestState(WindowId, state);
     }
 
     private static RequestState ValidSession(

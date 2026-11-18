@@ -20,9 +20,12 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// answers project to <see cref="FieldValue.Unknown"/>.
 /// </param>
 /// <param name="WindowStartDate">
-/// The checking window's start date (#800), the anchor for window-relative
-/// date literals. Null when the message carries no start date; a relative
-/// literal then resolves to no date and the engine makes no decision on it.
+/// The window's PupilData exercise start date (#800), the anchor for
+/// window-relative date literals. Anchoring on it (not the window's start
+/// date) keeps the year fixed when an earlier data-share exercise moves the
+/// window's earliest start date. Null when the window has no PupilData
+/// exercise; a relative literal then resolves to no date and the engine
+/// makes no decision on it.
 /// </param>
 public sealed record RuleContext(
     string OutcomeKey,

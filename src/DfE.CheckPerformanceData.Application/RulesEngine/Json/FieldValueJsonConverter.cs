@@ -36,16 +36,25 @@ public sealed class FieldValueJsonConverter : JsonConverter<FieldValue>
             case JsonTokenType.Null:
                 return FieldValue.Unknown.Instance;
             case JsonTokenType.StartObject:
-                // A window-relative date literal, or a malformed object.
-                var el = JsonDocument.ParseValue(ref reader).RootElement;
-                return ReadRelativeDateSpec(el) is { } spec
-                    ? new FieldValue.RelativeDate(spec)
-                    : throw new JsonException(
-                        "Unsupported object literal; expected a window-relative date with a 'windowRelative' token of dayMonthOfWindowYear, firstSeptemberMinusYears, or secondMondayOfMay.");
+                return ReadObjectLiteral(ref reader);
             default:
                 throw new JsonException(
                     $"Unsupported literal type {reader.TokenType}; expected string, bool, number, null, or a window-relative date object.");
         }
+    }
+
+    /// <summary>
+    /// An object literal is a window-relative date (#800), or a malformed object.
+    /// A local function, not a switch case: the pool-borrowed document must be
+    /// disposed on every exit, so it needs its own <c>using</c> scope.
+    /// </summary>
+    private static FieldValue ReadObjectLiteral(ref Utf8JsonReader reader)
+    {
+        using var doc = JsonDocument.ParseValue(ref reader);
+        return ReadRelativeDateSpec(doc.RootElement) is { } spec
+            ? new FieldValue.RelativeDate(spec)
+            : throw new JsonException(
+                "Unsupported object literal; expected a window-relative date with a 'windowRelative' token of dayMonthOfWindowYear, firstSeptemberMinusYears, or secondMondayOfMay.");
     }
 
     public override void Write(Utf8JsonWriter writer, FieldValue value, JsonSerializerOptions options)
@@ -70,7 +79,7 @@ public sealed class FieldValueJsonConverter : JsonConverter<FieldValue>
     /// or an unexpected extra property. Ranges (month, day, years) are the
     /// validator's job.
     /// </summary>
-    private static RelativeDateSpec? ReadRelativeDateSpec(JsonElement el)
+    internal static RelativeDateSpec? ReadRelativeDateSpec(JsonElement el)
     {
         if (el.ValueKind != JsonValueKind.Object
             || !el.TryGetProperty("windowRelative", out var tokenEl)

@@ -67,7 +67,7 @@ public static class RulesAdminViewModelFactory
             Key = outcome.Key,
             Label = outcome.Label,
             Branches = outcome.Rules
-                .Select(b => new BranchViewModel(b.Id, b.Status, PredicateDescriber.Describe(b.When), b.When is Predicate.Otherwise))
+                .Select(b => MapBranch(b, windowStartDate: null))
                 .ToList()
         };
     }
@@ -75,15 +75,19 @@ public static class RulesAdminViewModelFactory
     /// <summary>
     /// #800: the window rules page. Every branch condition is described with the
     /// window-aware describer, resolving window-relative dates against the window's
-    /// start date. A missing or empty rules set yields the "no rules configured" state.
+    /// PupilData exercise start date. Branches whose <c>checkingWindowType</c> condition
+    /// can never match this window's type are hidden: their dates do not apply here.
+    /// A missing or empty rules set yields the "no rules configured" state.
     /// </summary>
     public static WindowRulesViewModel WindowRules(
-        string windowTitle, Guid windowId, DateOnly windowStartDate, RuleSet? rules) => new()
+        string windowTitle, Guid windowId, DateOnly? windowStartDate,
+        CheckingWindowType windowType, RuleSet? rules) => new()
     {
         Title = $"{windowTitle} rules",
         WindowTitle = windowTitle,
         WindowId = windowId,
         StartDate = windowStartDate,
+        WindowType = windowType,
         RulesVersion = rules?.Version,
         HasRules = rules is not null && rules.Outcomes.Count > 0,
         Outcomes = rules is null
@@ -91,12 +95,52 @@ public static class RulesAdminViewModelFactory
             : rules.Outcomes
                 .Select(o => new WindowOutcomeRules(o.Label,
                     o.Rules
-                        .Select(b => new BranchViewModel(
-                            b.Id, b.Status, PredicateDescriber.Describe(b.When, windowStartDate),
-                            b.When is Predicate.Otherwise))
+                        .Where(b => AppliesToWindowType(b.When, windowType))
+                        .Select(b => MapBranch(b, windowStartDate))
                         .ToList()))
                 .ToList()
     };
+
+    /// <summary>Maps one branch to its view model, describing the condition with the
+    /// window-aware describer when an anchor date is available.</summary>
+    private static BranchViewModel MapBranch(RuleBranch branch, DateOnly? windowStartDate) =>
+        new(branch.Id, branch.Status, PredicateDescriber.Describe(branch.When, windowStartDate),
+            branch.When is Predicate.Otherwise);
+
+    /// <summary>
+    /// True when a branch's <c>checkingWindowType</c> condition can match
+    /// <paramref name="windowType"/>. Only the top-level shape is checked, so a branch is
+    /// hidden when it is provably never matched (a direct
+    /// <c>checkingWindowType</c> equality/membership test, or one such test inside the
+    /// branch's top-level <c>all</c>, excludes the window's type). Anything the check cannot
+    /// prove keeps the branch, so a branch is never hidden by accident.
+    /// </summary>
+    private static bool AppliesToWindowType(Predicate when, CheckingWindowType windowType)
+    {
+        var target = AnswerFieldMap.NormaliseCheckingWindowType(windowType.ToString());
+
+        if (when is Predicate.AllOf { Items: { Count: > 0 } } allOf)
+        {
+            return allOf.Items.All(i => AppliesToWindowType(i, windowType));
+        }
+
+        // A field test on another field cannot exclude this window.
+        var test = when switch
+        {
+            Predicate.FieldEq f when f.Field == "checkingWindowType" => new[] { f.Value },
+            Predicate.FieldNeq f when f.Field == "checkingWindowType" => new[] { f.Value },
+            Predicate.FieldCompare f when f.Field == "checkingWindowType" => new[] { f.Value },
+            Predicate.FieldIn f when f.Field == "checkingWindowType" => f.Values,
+            _ => null
+        };
+        if (test is null) return true;
+
+        var constrained = test
+            .OfType<FieldValue.Str>()
+            .Select(v => AnswerFieldMap.NormaliseCheckingWindowType(v.Value))
+            .ToHashSet(StringComparer.Ordinal);
+        return constrained.Count == 0 || constrained.Contains(target);
+    }
 
     public static LookupsViewModel Lookups(Lookups? lookups) => new()
     {

@@ -191,6 +191,48 @@ public sealed class RulesEngineRelativeDateTests
         Assert.Contains(d.Trace, line => line.Contains("window-relative: secondMondayOfMay", StringComparison.Ordinal));
     }
 
+    // A resolved relative literal keeps its note in the matched-branch trace, so an
+    // auditor can tell the cutoff came from the window, not a fixed date (#800).
+    [Fact]
+    public void Resolved_RelativeLiteral_RendersTheResolvedDateAndTheFormNameInTheTrace()
+    {
+        var rules = OneOutcome("X",
+            Branch("R1", DecisionStatus.AutoApproved,
+                new Predicate.FieldCompare("dateOfRemoval", CompareOp.Gte, new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay()))),
+            Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
+
+        // secondMondayOfMay with a 2027 window resolves to 2027-05-10.
+        var ctx = Ctx("X", "KS2", new DateOnly(2027, 9, 3),
+            ("dateOfRemoval", new FieldValue.Date(new DateOnly(2027, 5, 10))));
+
+        var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
+
+        Assert.Equal(DecisionStatus.AutoApproved, d.Status);
+        Assert.Equal("R1", d.MatchedRuleId);
+        Assert.Contains(d.Trace, line =>
+            line.Contains("2027-05-10", StringComparison.Ordinal)
+            && line.Contains("window-relative: secondMondayOfMay", StringComparison.Ordinal));
+    }
+
+    // A window start date whose year is not far enough ahead of the offset has no date.
+    // Year 1 with a 3-year offset lands in year -2, which DateOnly cannot hold, so the
+    // resolver returns false instead of throwing (the worker must not crash on it).
+    [Fact]
+    public void FirstSeptemberMinusYears_OffsetBeyondYearOne_DoesNotResolve()
+    {
+        Assert.False(RelativeDateResolver.TryResolve(
+            new RelativeDateSpec.FirstSeptemberMinusYears(3), new DateOnly(1, 9, 1), out _));
+    }
+
+    [Fact]
+    public void FirstSeptemberMinusYears_JustBeyondYearOne_DoesResolve()
+    {
+        // Year 3 minus 3 is year 0... which is invalid; year 4 minus 3 is year 1, valid.
+        Assert.True(RelativeDateResolver.TryResolve(
+            new RelativeDateSpec.FirstSeptemberMinusYears(3), new DateOnly(4, 9, 1), out var date));
+        Assert.Equal(new DateOnly(1, 9, 1), date);
+    }
+
     // --- fixed date literals are unchanged ---
 
     [Fact]

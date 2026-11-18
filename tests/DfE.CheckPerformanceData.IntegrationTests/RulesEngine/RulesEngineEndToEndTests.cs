@@ -541,6 +541,7 @@ public sealed class RulesEngineEndToEndTests
                       "ChangeRequestId": "11111111-2222-3333-4444-555555555555",
                       "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
                       "CheckingWindowStartDate": "2026-01-01T00:00:00Z",
+                      "PupilDataExerciseStartDate": "2026-01-01T00:00:00Z",
                       "CheckingWindowType": "{{CheckingWindowType}}",
                       "RequestTypeCode": "{{RequestTypeCode}}",
                       "School": { "Urn": "123456", "Name": "Test School" },

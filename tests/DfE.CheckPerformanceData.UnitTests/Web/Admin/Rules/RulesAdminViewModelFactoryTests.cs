@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Admin.Rules;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Admin.Rules;
@@ -170,14 +171,43 @@ public sealed class RulesAdminViewModelFactoryTests
         var windowId = Guid.NewGuid();
         var startDate = new DateOnly(2026, 9, 1);
 
-        var vm = RulesAdminViewModelFactory.WindowRules("Main 2027", windowId, startDate, SampleRules());
+        var vm = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", windowId, startDate, CheckingWindowType.KS4June, SampleRules());
 
         Assert.Equal("Main 2027 rules", vm.Title);
         Assert.Equal("Main 2027", vm.WindowTitle);
         Assert.Equal(windowId, vm.WindowId);
         Assert.Equal(startDate, vm.StartDate);
+        Assert.Equal(CheckingWindowType.KS4June, vm.WindowType);
         Assert.Equal("v3", vm.RulesVersion);
         Assert.True(vm.HasRules);
+    }
+
+    [Fact]
+    public void WindowRules_hides_branches_for_other_window_types()
+    {
+        // A KS4June window: a branch gated on checkingWindowType == KS2 never applies, so it
+        // is hidden. A branch with no window-type gate, and one gated on the window's own
+        // type, both stay.
+        var rules = new RuleSet("v1", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero),
+            new[]
+            {
+                Outcome("Inclusion", "Inclusion",
+                    new RuleBranch("INC-KS2", DecisionStatus.AutoApproved,
+                        new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2"))),
+                    new RuleBranch("INC-KS4", DecisionStatus.AutoApproved,
+                        new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))),
+                    Otherwise("INC-DEF"))
+            });
+
+        var vm = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", Guid.NewGuid(), new DateOnly(2026, 9, 1),
+            CheckingWindowType.KS4June, rules);
+
+        var ids = vm.Outcomes.Single().Branches.Select(b => b.Id).ToHashSet();
+        Assert.DoesNotContain("INC-KS2", ids);
+        Assert.Contains("INC-KS4", ids);
+        Assert.Contains("INC-DEF", ids);
     }
 
     [Fact]
@@ -193,10 +223,10 @@ public sealed class RulesAdminViewModelFactoryTests
             });
 
         var vm = RulesAdminViewModelFactory.WindowRules("Main 2027", Guid.NewGuid(),
-            new DateOnly(2026, 9, 1), rules);
+            new DateOnly(2026, 9, 1), CheckingWindowType.KS2, rules);
 
-        // The second Monday of May 2026 is 11 May 2026; the anchor is the window's
-        // start-date year, not the year the page is viewed in.
+        // The second Monday of May 2026 is 11 May 2026; the anchor is the PupilData
+        // exercise start-date year, not the year the page is viewed in.
         var branch = vm.Outcomes.Single().Branches.Single();
         Assert.Contains("11 May 2026", branch.Condition.Text);
         Assert.Contains("window-relative: second Monday of May", branch.Condition.Text);
@@ -208,12 +238,14 @@ public sealed class RulesAdminViewModelFactoryTests
         var windowId = Guid.NewGuid();
         var startDate = new DateOnly(2026, 9, 1);
 
-        var missing = RulesAdminViewModelFactory.WindowRules("Main 2027", windowId, startDate, null);
+        var missing = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", windowId, startDate, CheckingWindowType.KS4June, null);
         Assert.False(missing.HasRules);
         Assert.Null(missing.RulesVersion);
         Assert.Empty(missing.Outcomes);
 
         var empty = RulesAdminViewModelFactory.WindowRules("Main 2027", windowId, startDate,
+            CheckingWindowType.KS4June,
             new RuleSet("v0", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero), Array.Empty<OutcomeRules>()));
         Assert.False(empty.HasRules);
         Assert.Empty(empty.Outcomes);

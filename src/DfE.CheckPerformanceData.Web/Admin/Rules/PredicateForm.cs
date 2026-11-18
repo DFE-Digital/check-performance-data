@@ -132,18 +132,15 @@ public static class PredicateForm
             case Predicate.AnyOf: node.Kind = PredicateKind.AnyOf; break;
             case Predicate.Not: node.Kind = PredicateKind.Not; break;
             case Predicate.FieldEq eq:
-                node.Kind = PredicateKind.FieldEq; node.Field = eq.Field; node.Value = Scalar(eq.Value);
-                node.RelativeDate = eq.Value is FieldValue.RelativeDate; break;
+                node.Kind = PredicateKind.FieldEq; node.Field = eq.Field; node.Value = Scalar(eq.Value); break;
             case Predicate.FieldNeq neq:
-                node.Kind = PredicateKind.FieldNeq; node.Field = neq.Field; node.Value = Scalar(neq.Value);
-                node.RelativeDate = neq.Value is FieldValue.RelativeDate; break;
+                node.Kind = PredicateKind.FieldNeq; node.Field = neq.Field; node.Value = Scalar(neq.Value); break;
             case Predicate.FieldIn fin:
                 node.Kind = PredicateKind.FieldIn; node.Field = fin.Field;
                 node.Values = fin.Values.Select(Scalar).ToList(); break;
             case Predicate.FieldCompare cmp:
                 node.Kind = PredicateKind.FieldCompare; node.Field = cmp.Field;
-                node.Op = cmp.Op.ToString(); node.Value = Scalar(cmp.Value);
-                node.RelativeDate = cmp.Value is FieldValue.RelativeDate; break;
+                node.Op = cmp.Op.ToString(); node.Value = Scalar(cmp.Value); break;
             case Predicate.IsKnownAndCertain k:
                 node.Kind = PredicateKind.IsKnownAndCertain; node.Field = k.Field; break;
             case Predicate.OfficialLanguageIs l:

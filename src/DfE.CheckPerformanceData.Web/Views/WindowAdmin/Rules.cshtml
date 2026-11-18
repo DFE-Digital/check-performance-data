@@ -45,14 +45,17 @@
 <h1 class="govuk-heading-xl">@Model.Title</h1>
 
 <p class="govuk-body">
-    Window-relative dates resolve to the concrete date they take for this window.
-    A date that cannot resolve for this window shows the form name only.
+    Window-relative dates resolve to the concrete date they take for this window,
+    from its pupil data start date. A date that cannot resolve shows the form name
+    only. Branches for other window types are hidden.
 </p>
 
 <govuk-summary-list>
     <govuk-summary-list-row>
-        <govuk-summary-list-row-key>Start Date</govuk-summary-list-row-key>
-        <govuk-summary-list-row-value>@Model.StartDate.ToString("dd MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</govuk-summary-list-row-value>
+        <govuk-summary-list-row-key>Pupil data start date</govuk-summary-list-row-key>
+        <govuk-summary-list-row-value>@(Model.StartDate is { } start
+            ? start.ToString("dd MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)
+            : "not set")</govuk-summary-list-row-value>
     </govuk-summary-list-row>
     <govuk-summary-list-row>
         <govuk-summary-list-row-key>Rules version</govuk-summary-list-row-key>

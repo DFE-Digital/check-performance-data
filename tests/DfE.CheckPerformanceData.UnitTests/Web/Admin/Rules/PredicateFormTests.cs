@@ -204,15 +204,16 @@ public sealed class PredicateFormTests
     }
 
     [Fact]
-    public void Flatten_Marks_A_Relative_Leaf_And_Puts_The_Token_In_Its_Value()
+    public void Flatten_Puts_The_Token_In_The_Leaf_Value()
     {
+        // The relative date is carried by its canonical token in the value; the form keeps
+        // no separate flag (the token in the value is the only state).
         var leaf = new Predicate.FieldEq("dateOfRemoval",
             new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay()));
 
         var node = PredicateForm.Flatten(leaf).Single();
 
         Assert.Equal("window:secondMondayOfMay", node.Value);
-        Assert.True(node.RelativeDate);
     }
 
     [Fact]
@@ -252,7 +253,7 @@ public sealed class PredicateFormTests
             var flat = new List<PredicateNodeForm>
             {
                 new() { Id = 1, ParentId = null, Kind = PredicateKind.FieldEq,
-                        Field = "dateOfRemoval", Operator = "eq", Value = token, RelativeDate = true }
+                        Field = "dateOfRemoval", Operator = "eq", Value = token }
             };
 
             var rebuilt = PredicateForm.RebuildPredicate(flat);

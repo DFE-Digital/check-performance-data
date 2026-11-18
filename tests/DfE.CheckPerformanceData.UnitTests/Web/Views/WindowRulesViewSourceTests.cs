@@ -3,11 +3,11 @@ using System.Runtime.CompilerServices;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Views;
 
 // Pins the per-window rules page contracts (#800, contracts/window-rules-page.md): the header
-// carries the window title, start date and rules version; each outcome gets one summary card
-// whose branches show the described condition; window-relative dates resolve against the
-// window's start date via the window-aware describer; and a missing rules blob shows the
-// "no rules configured" state. Hostless pattern, same as WindowSummaryViewSourceTests: read
-// the .cshtml as text and assert on the source.
+// carries the window title, PupilData exercise start date and rules version; each outcome
+// gets one summary card whose branches show the described condition; window-relative dates
+// resolve against the PupilData exercise start date via the window-aware describer; and a
+// missing rules blob shows the "no rules configured" state. Hostless pattern, same as
+// WindowSummaryViewSourceTests: read the .cshtml as text and assert on the source.
 public sealed class WindowRulesViewSourceTests
 {
     private static string View() => File.ReadAllText(Path.Combine(
@@ -49,7 +49,7 @@ public sealed class WindowRulesViewSourceTests
     {
         var view = View();
         var header = Between(view, "govuk-summary-list", "</govuk-summary-list>");
-        Assert.Contains("Start Date", header);
+        Assert.Contains("Pupil data start date", header);
         Assert.Contains("Model.StartDate", header);
         Assert.Contains("Rules version", header);
         Assert.Contains("Model.RulesVersion", header);

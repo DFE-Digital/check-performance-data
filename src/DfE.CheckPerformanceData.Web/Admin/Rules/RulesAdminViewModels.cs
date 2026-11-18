@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Web.Admin.Rules;
 
@@ -60,8 +61,15 @@ public sealed record WindowRulesViewModel
 
     public required Guid WindowId { get; init; }
 
-    /// <summary>The window's start date — the anchor a window-relative date resolves from.</summary>
-    public required DateOnly StartDate { get; init; }
+    /// <summary>
+    /// The window's PupilData exercise start date — the anchor a window-relative date
+    /// resolves from (#800). Null when the window has no PupilData exercise; relative
+    /// dates then show as unresolvable.
+    /// </summary>
+    public DateOnly? StartDate { get; init; }
+
+    /// <summary>The window's type — used to hide branches whose condition excludes it.</summary>
+    public required CheckingWindowType WindowType { get; init; }
 
     /// <summary>The serving rules file's version, or null when no rules are configured.</summary>
     public string? RulesVersion { get; init; }

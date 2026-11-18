@@ -289,7 +289,9 @@ public sealed class RuleSetValidator
                 {
                     errors.Add($"Outcome '{outcomeKey}' branch '{branchId}' dayMonthOfWindowYear on '{field}' has month {d.Month}; expected 1-12.");
                 }
-                else if (d.Day < 1 || d.Day > LeapYearDays(d.Month))
+                // 2024 is a leap year: a day that is valid in a leap year is valid in
+                // at least one window year.
+                else if (d.Day < 1 || d.Day > DateTime.DaysInMonth(2024, d.Month))
                 {
                     errors.Add($"Outcome '{outcomeKey}' branch '{branchId}' dayMonthOfWindowYear on '{field}' has day {d.Day} for month {d.Month}; not a valid date in a leap year.");
                 }
@@ -302,15 +304,6 @@ public sealed class RuleSetValidator
                 break;
         }
     }
-
-    /// <summary>Days in the given month of a leap year (29 for February).</summary>
-    private static int LeapYearDays(int month) => month switch
-    {
-        1 or 3 or 5 or 7 or 8 or 10 or 12 => 31,
-        4 or 6 or 9 or 11 => 30,
-        2 => 29,
-        _ => 0,
-    };
 
     private static T Fail<T>(string message, List<string> errors, Func<T> fallback) where T : FieldValue
     {

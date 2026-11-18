@@ -34,13 +34,13 @@ public sealed class LeafEditorOptionsTests
     [Fact]
     public void ValueEditor_Reflects_Operator_And_Type()
     {
-        Assert.Equal(ValueEditorKind.None, LeafEditorOptions.ValueEditor("checkingWindowType", "known"));
-        Assert.Equal(ValueEditorKind.List, LeafEditorOptions.ValueEditor("checkingWindowType", "in"));
-        Assert.Equal(ValueEditorKind.Language, LeafEditorOptions.ValueEditor("checkingWindowType", "lang"));
-        Assert.Equal(ValueEditorKind.BoolSelect, LeafEditorOptions.ValueEditor("isAddBack", "eq"));
-        Assert.Equal(ValueEditorKind.Number, LeafEditorOptions.ValueEditor("pupilAge", "gte"));
-        Assert.Equal(ValueEditorKind.Date, LeafEditorOptions.ValueEditor("schoolAdmissionDate", "lt"));
-        Assert.Equal(ValueEditorKind.Text, LeafEditorOptions.ValueEditor("checkingWindowType", "eq"));
+        Assert.Equal(ValueEditorKind.None, LeafEditorOptions.ValueEditor("checkingWindowType", "known", null));
+        Assert.Equal(ValueEditorKind.List, LeafEditorOptions.ValueEditor("checkingWindowType", "in", null));
+        Assert.Equal(ValueEditorKind.Language, LeafEditorOptions.ValueEditor("checkingWindowType", "lang", null));
+        Assert.Equal(ValueEditorKind.BoolSelect, LeafEditorOptions.ValueEditor("isAddBack", "eq", null));
+        Assert.Equal(ValueEditorKind.Number, LeafEditorOptions.ValueEditor("pupilAge", "gte", null));
+        Assert.Equal(ValueEditorKind.Date, LeafEditorOptions.ValueEditor("schoolAdmissionDate", "lt", null));
+        Assert.Equal(ValueEditorKind.Text, LeafEditorOptions.ValueEditor("checkingWindowType", "eq", null));
     }
 
     // #800: a date field holding a window-relative date token gets the read-only

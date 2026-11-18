@@ -186,6 +186,8 @@ public static class SeedChangeRequests
                     SubmittedBy = new UserDetails { UserId = SubmittedById.ToString(), DisplayName = SubmittedByName },
                     CheckingWindowId = windowId,
                     CheckingWindowStartDate = window.StartDate,
+                    PupilDataExerciseStartDate = window.Exercises
+                        .FirstOrDefault(e => e.ExerciseType == CheckingExerciseType.PupilData)?.StartDate,
                     CheckingWindowType = CheckingWindowType.KS4June.ToString(),
                     RequestTypeCode = $"Remove - {ReasonValue}",
                     School = new SchoolDetails { Urn = Urn.ToString(), Name = "Kingsmead School", Laestab = Laestab.Replace("/", "") },

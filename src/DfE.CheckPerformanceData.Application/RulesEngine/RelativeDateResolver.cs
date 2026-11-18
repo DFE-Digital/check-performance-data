@@ -9,8 +9,9 @@ public static class RelativeDateResolver
 {
     /// <summary>
     /// Resolves <paramref name="spec"/> against <paramref name="windowStartDate"/>.
-    /// Returns false when the window start date is null or the form has no date
-    /// in the window's year (for example 29 February in a non-leap year).
+    /// Returns false when the window start date is null, the form has no date in
+    /// the window's year (for example 29 February in a non-leap year), or the
+    /// offset lands before year 1 (for example a 3-year offset from a year-1 start).
     /// </summary>
     public static bool TryResolve(RelativeDateSpec spec, DateOnly? windowStartDate, out DateOnly date)
     {
@@ -30,6 +31,9 @@ public static class RelativeDateResolver
             }
 
             case RelativeDateSpec.FirstSeptemberMinusYears y:
+                // DateOnly has no year 0: a start date whose year is not far enough
+                // ahead of the offset has no date (for example year 1 with a 3-year spec).
+                if (year - y.Years < 1) return false;
                 date = new DateOnly(year - y.Years, 9, 1);
                 return true;
 

@@ -561,11 +561,12 @@ public sealed class RuleContextMapperTests
     // --- WindowStartDate (#800) ---
 
     [Fact]
-    public void Map_CopiesCheckingWindowStartDate_OntoWindowStartDate()
+    public void Map_CopiesPupilDataExerciseStartDate_OntoWindowStartDate()
     {
+        // #800: the anchor is the PupilData exercise's start date, not the window's.
         // Only the date part carries over; the time of day does not.
         var msg = NewMessage("Remove - pupil-died",
-            checkingWindowStartDate: new DateTime(2027, 9, 3, 9, 30, 0, DateTimeKind.Unspecified));
+            pupilDataExerciseStartDate: new DateTime(2027, 9, 3, 9, 30, 0, DateTimeKind.Unspecified));
 
         var ctx = _sut.Map(msg);
 
@@ -573,7 +574,7 @@ public sealed class RuleContextMapperTests
     }
 
     [Fact]
-    public void Map_WindowStartDate_IsNull_WhenMessageHasNoCheckingWindowStartDate()
+    public void Map_WindowStartDate_IsNull_WhenMessageHasNoPupilDataExerciseStartDate()
     {
         var msg = NewMessage("Remove - pupil-died");
 
@@ -596,7 +597,7 @@ public sealed class RuleContextMapperTests
         IEnumerable<AnswerRecord>? answers = null,
         int pupilAge = 0,
         int pupilPincl = 0,
-        DateTime? checkingWindowStartDate = null) =>
+        DateTime? pupilDataExerciseStartDate = null) =>
         new()
         {
             ChangeRequestId    = Guid.NewGuid(),
@@ -604,7 +605,7 @@ public sealed class RuleContextMapperTests
             RequestTypeCode    = whatToChange,
             CheckingWindowType = checkingWindowType,
             CheckingWindowId   = Guid.NewGuid(),
-            CheckingWindowStartDate = checkingWindowStartDate,
+            PupilDataExerciseStartDate = pupilDataExerciseStartDate,
             SubmittedAt        = DateTime.UtcNow,
             SubmittedBy        = new UserDetails { UserId = "u", DisplayName = "x" },
             School             = new SchoolDetails { Urn = "1", Name = "S" },

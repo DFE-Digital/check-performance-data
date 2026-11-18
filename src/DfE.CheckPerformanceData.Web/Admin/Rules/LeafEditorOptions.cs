@@ -55,8 +55,6 @@ public static class LeafEditorOptions
         };
     }
 
-    public static ValueEditorKind ValueEditor(string? field, string? op) => ValueEditor(field, op, value: null);
-
     /// <summary>
     /// Picks the value editor, given the node's current value (#800): a date field holding a
     /// window-relative date token gets the read-only relative-date editor; everything else

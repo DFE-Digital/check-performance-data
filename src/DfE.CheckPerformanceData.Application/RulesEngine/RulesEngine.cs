@@ -119,7 +119,7 @@ public sealed class RulesEngine : IRulesEngine
             return TriResult.Unknown;
         }
         var result = Equal(actual, literal);
-        Append(trace, $"{field} == {Render(literal, windowStartDate)} → {Lower(result)} (got {Render(actual, windowStartDate)})");
+        Append(trace, $"{field} == {RenderLiteral(value, literal, windowStartDate)} → {Lower(result)} (got {Render(actual, windowStartDate)})");
         return result ? TriResult.True : TriResult.False;
     }
 
@@ -139,7 +139,7 @@ public sealed class RulesEngine : IRulesEngine
             return TriResult.Unknown;
         }
         var result = !Equal(actual, literal);
-        Append(trace, $"{field} != {Render(literal, windowStartDate)} → {Lower(result)} (got {Render(actual, windowStartDate)})");
+        Append(trace, $"{field} != {RenderLiteral(value, literal, windowStartDate)} → {Lower(result)} (got {Render(actual, windowStartDate)})");
         return result ? TriResult.True : TriResult.False;
     }
 
@@ -159,7 +159,9 @@ public sealed class RulesEngine : IRulesEngine
             }
             resolved.Add(r);
         }
-        var literals = string.Join(",", resolved.Select(x => Render(x, windowStartDate)));
+        var literals = string.Join(
+            ",",
+            resolved.Zip(values).Select(p => RenderLiteral(p.Second, p.First, windowStartDate)));
         if (!actual.IsKnownAndCertain)
         {
             Append(trace, $"{field} in [{literals}] → unknown (got {Render(actual, windowStartDate)})");
@@ -209,7 +211,7 @@ public sealed class RulesEngine : IRulesEngine
             CompareOp.Gte => cmp >= 0,
             _ => false,
         };
-        Append(trace, $"{field} {opSym} {Render(literal, windowStartDate)} → {Lower(pass)} (got {Render(actual, windowStartDate)})");
+        Append(trace, $"{field} {opSym} {RenderLiteral(value, literal, windowStartDate)} → {Lower(pass)} (got {Render(actual, windowStartDate)})");
         return pass ? TriResult.True : TriResult.False;
     }
 
@@ -246,9 +248,27 @@ public sealed class RulesEngine : IRulesEngine
     };
 
     /// <summary>
-    /// A field value or rule literal in trace text. A relative date shows
-    /// the form name and, when it resolves in this window, the resolved
-    /// date (#800).
+    /// A rule literal in trace text, next to the value the engine actually
+    /// compared. A relative date that resolved shows the resolved date plus
+    /// the window-relative form name, so an auditor can tell the cutoff came
+    /// from the window, not a fixed date (#800). Any other literal renders
+    /// plain.
+    /// </summary>
+    private static string RenderLiteral(FieldValue original, FieldValue? resolved, DateOnly? windowStartDate)
+    {
+        // A resolved relative literal is always a concrete date here; a null would mean the
+        // form did not resolve, and those leaves trace through the unresolvable path instead.
+        if (resolved is not { } value) return "unknown";
+        if (original is FieldValue.RelativeDate rd)
+            return $"{Render(value, windowStartDate)} (window-relative: {rd.Spec.WindowRelative})";
+        return Render(value, windowStartDate);
+    }
+
+    /// <summary>
+    /// A field value or rule literal in trace text. A relative date that
+    /// cannot resolve in this window shows the form name only; a resolved
+    /// literal never reaches this method (the leaf renders it through
+    /// <see cref="RenderLiteral"/> with the form name) (#800).
     /// </summary>
     private static string Render(FieldValue v, DateOnly? windowStartDate) => v switch
     {

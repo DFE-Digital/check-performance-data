@@ -2,12 +2,18 @@ using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Web.Impersonation;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.Controllers;
+using Serilog.Context;
 
 namespace DfE.CheckPerformanceData.Web.Middleware;
 
 public sealed class ImpersonationContextMiddleware(RequestDelegate next)
 {
+    public const string ReadOnlyItemKey = "CPD.Impersonation.ReadOnly";
+    public const string PreviewBindingItemKey = "CPD.Impersonation.PreviewBinding";
+    public const string PreviewGenerationItemKey = "CPD.Impersonation.PreviewGeneration";
+
     public async Task InvokeAsync(HttpContext context, ImpersonationSessionService session,
         IImpersonationSessionLock gate, IImpersonationAuditWriter audit, ICurrentUserService original)
     {
@@ -16,7 +22,23 @@ public sealed class ImpersonationContextMiddleware(RequestDelegate next)
         // Hold through MVC session commit. Writes and transitions on another replica cannot race.
         await using var lease = await gate.AcquireAsync(binding, context.RequestAborted);
         await session.InitialiseAsync(binding, context.RequestAborted);
-        if (session.IsImpersonating) context.Items["CPD.Impersonation.ReadOnly"] = true;
+        using var impersonationLogScope = LogContext.PushProperty("IsImpersonating", session.IsImpersonating);
+        if (session.IsImpersonating)
+        {
+            context.Items[ReadOnlyItemKey] = true;
+            if (session.Binding is { } previewBinding && session.State is { } previewState)
+            {
+                context.Items[PreviewBindingItemKey] = previewBinding;
+                context.Items[PreviewGenerationItemKey] = previewState.Generation;
+            }
+
+        if (session.PreviewStore is { } previewStore && session.Binding is { } activeBinding && session.State is { } activeState
+                && context.Features.Get<ISessionFeature>() is { } sessionFeature)
+            {
+                sessionFeature.Session = new ImpersonationPreviewSession(
+                    sessionFeature.Session, previewStore, activeBinding, activeState.Generation);
+            }
+        }
         if (session.IsImpersonating && !ImpersonationAccessPolicy.CanAccess(context.User))
         {
             await audit.RecordAsync(new(original.UserId, session.OrganisationLaestab,

@@ -1,0 +1,8 @@
+@model Guid
+@{
+    ViewData["Title"] = "Preview only";
+}
+
+<h1 class="govuk-heading-l">Preview only</h1>
+<p class="govuk-body">This request was not submitted. You can review your answers, but impersonation cannot send a request or change establishment data.</p>
+<a class="govuk-link" asp-action="Summary" asp-route-windowId="@Model">Return to the request summary</a>

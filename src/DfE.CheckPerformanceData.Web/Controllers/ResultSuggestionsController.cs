@@ -15,8 +15,10 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 /// </summary>
 public sealed class ResultSuggestionsController(
     IResultsClient results,
-    ICurrentUserService currentUser) : Controller
+    ICurrentUserService currentUser,
+    DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : Controller
 {
+    private string EstablishmentLaestab => viewContext?.OrganisationLaestab ?? currentUser.OrganisationLaestab;
     // Matches PupilSuggestionsController: below two characters a search is noise, and an
     // over-long query is not a real search.
     private const int MinQueryLength = 2;
@@ -34,7 +36,7 @@ public sealed class ResultSuggestionsController(
         if (string.IsNullOrWhiteSpace(cypmdId))
             return Json(Array.Empty<object>());
 
-        var held = await results.GetResultsAsync(windowId, currentUser.OrganisationLaestab, cypmdId, ct);
+        var held = await results.GetResultsAsync(windowId, EstablishmentLaestab, cypmdId, ct);
 
         return Json(held
             .Where(r => Matches(r, query))

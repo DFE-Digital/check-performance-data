@@ -11,12 +11,14 @@ namespace DfE.CheckPerformanceData.Web.Impersonation;
 public sealed class ImpersonationSessionService(
     IHttpContextAccessor accessor, ICurrentUserService original,
     IImpersonationSessionStore store, IDataProtectionProvider protection,
-    DfE.CheckPerformanceData.Application.CheckYourPupilData.ICheckYourPupilDataRepository pupils) : IEstablishmentViewContext, IImpersonationWriteGuard
+    DfE.CheckPerformanceData.Application.CheckYourPupilData.ICheckYourPupilDataRepository pupils,
+    IImpersonationPreviewStore? previewStore = null) : IEstablishmentViewContext, IImpersonationWriteGuard
 {
     private readonly IDataProtector _stamps = protection.CreateProtector("CPD.Impersonation.FormContext.v1");
     public ImpersonationSessionState? State { get; private set; }
     public string? Binding { get; private set; }
     public bool IsImpersonating => State?.Selection is not null;
+    public IImpersonationPreviewStore? PreviewStore => previewStore;
     public EstablishmentSelection? PendingSelection => State?.PendingSelection;
     public string OrganisationLaestab => State?.Selection?.Laestab ?? original.OrganisationLaestab;
     public string OrganisationUrn => State?.Selection?.Urn ?? original.OrganisationUrn;
@@ -42,6 +44,7 @@ public sealed class ImpersonationSessionService(
     public async Task SetSelectionAsync(EstablishmentSelection? selection, CancellationToken ct)
     {
         if (Binding is null) throw new ImpersonationWriteDeniedException();
+        if (State is not null) previewStore?.RemoveSession(Binding, State.Generation);
         State = new(Guid.NewGuid().ToString("N"), selection, null);
         await store.SetAsync(Binding, State, ct);
         var session = accessor.HttpContext!.Session;

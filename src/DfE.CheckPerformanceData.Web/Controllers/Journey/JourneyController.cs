@@ -1402,6 +1402,8 @@ public sealed class JourneyController(
             if (incompletePage is not null)
                 return RedirectToJourneyAction(enquiryConfig!, windowId, incompletePage);
 
+            if (IsImpersonating) return PreviewSubmissionBlocked(windowId);
+
             try
             {
                 return await ConfirmResultsEnquiryAsync(windowId, journey);
@@ -1410,8 +1412,6 @@ public sealed class JourneyController(
             {
                 return await DuplicateEnquirySummaryAsync(windowId, journey, enquiryConfig, ex.ExistingReferenceNumber);
             }
-            if (IsImpersonating) return PreviewSubmissionBlocked(windowId);
-            return await ConfirmResultsEnquiryAsync(windowId, journey);
         }
 
         if (IsImpersonating) return PreviewSubmissionBlocked(windowId);

@@ -16,10 +16,11 @@ public sealed class ImpersonationJourneyPreviewStorageTests(PlaywrightFixture fi
     [Trait("Category", "Smoke")]
     public async Task Impersonated_journey_draft_upload_and_submit_leave_request_storage_unchanged()
     {
-        var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
-        await AttachCookieToContextAsync(adminCookie);
+        var editorCookie = await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        await AttachCookieToContextAsync(editorCookie);
 
-        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/impersonation");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/dev/e2e/admin-session");
+        await Page.WaitForURLAsync("**/admin/impersonation");
         await Page.Locator("#Laestab").FillAsync("8604070");
         await Page.Locator("#Urn").FillAsync("142313");
         await Page.Locator("#LowestAge").FillAsync("4");

@@ -444,7 +444,7 @@ public sealed class JourneyViewModelBuilder(
                 .Select(g => new QuestionOption { Value = g, Label = g })];
 
     private JourneyConditionContext BuildConditionContext(RequestState journey) =>
-        JourneyConditionContextFactory.Create(journey, currentUserService);
+        JourneyConditionContextFactory.Create(journey, currentUserService, viewContext);
 
     internal static string GetPupilName(RequestState journey) =>
         journey.SelectedPupil is { } p ? $"{p.Firstname} {p.Surname}".Trim() : string.Empty;

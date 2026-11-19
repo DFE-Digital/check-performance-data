@@ -10,7 +10,7 @@ public static class ImpersonationEndpointPolicy
         "LandingPage.Index", "Home.Index", "Home.Error", "Home.NotFound",
         "CheckYourPupilData.Index", "CheckYourPupilData.DownloadAll", "CheckYourPupilData.DownloadIncluded",
         "CheckYourPupilData.DownloadNonIncluded", "CheckYourPupilData.DownloadResults",
-        "WhatToChange.Index", "ConfirmCorrect.Index", "ResultIssue.Index",
+        "WhatToChange.Index", "ConfirmCorrect.Index", "ResultIssue.Index", "ResultIssue.Cancel",
         "Journey.Page", "Journey.PupilSearchPage", "Journey.ResultSearchPage",
         "Journey.QualificationSearchPage", "Journey.Summary", "Journey.DownloadEvidence",
         "Journey.EnquiryConfirmation", "Journey.Confirmation", "Journey.DuplicateCheck",

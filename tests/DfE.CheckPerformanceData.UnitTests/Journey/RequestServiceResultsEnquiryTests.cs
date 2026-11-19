@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Notify;
@@ -34,6 +35,7 @@ public sealed class RequestServiceResultsEnquiryTests
     private readonly IRequestStateBlobClient _stateBlob = Substitute.For<IRequestStateBlobClient>();
     private readonly IRequestRepository _repository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly IEstablishmentViewContext _establishmentViewContext = Substitute.For<IEstablishmentViewContext>();
     private readonly IQueueService _queue = Substitute.For<IQueueService>();
     private readonly IRequestNotificationService _notifications = Substitute.For<IRequestNotificationService>();
     private readonly ICheckYourPupilDataService _pupilData = Substitute.For<ICheckYourPupilDataService>();
@@ -45,6 +47,7 @@ public sealed class RequestServiceResultsEnquiryTests
         _currentUser.UserId.Returns(UserId.ToString());
         _currentUser.OrganisationUrn.Returns("142313");
         _currentUser.OrganisationLaestab.Returns("860/4070");
+        _establishmentViewContext.OrganisationUrn.Returns("142313");
         _currentUser.DisplayName.Returns("Ada Editor");
         _currentUser.Email.Returns("ada@school.test");
         _repository.UpsertAsync(Arg.Any<ChangeRequestData>()).Returns(ChangeRequestId);
@@ -56,7 +59,7 @@ public sealed class RequestServiceResultsEnquiryTests
         _sut = new RequestService(
             _flowService, _stateBlob, Substitute.For<IRequestBlobClient>(), _repository, _currentUser,
             _logger, _queue, _notifications, _pupilData,
-            new CheckingExerciseService(TimeProvider.System));
+            new CheckingExerciseService(TimeProvider.System), null, null, _establishmentViewContext);
     }
 
     private static ResultRecord Result() => new()
@@ -313,6 +316,39 @@ public sealed class RequestServiceResultsEnquiryTests
             .Returns("CYPMD_16to19_RE_AAAAAA1");
 
         Assert.Equal("CYPMD_16to19_RE_AAAAAA1", await _sut.FindDuplicateResultsEnquiryAsync(WindowId, journey, subject));
+    }
+
+    [Fact]
+    public async Task The_duplicate_lookup_uses_the_selected_establishments_urn_during_preview()
+    {
+        _currentUser.OrganisationUrn.Returns(string.Empty);
+        _establishmentViewContext.OrganisationUrn.Returns("243546");
+        var journey = Journey();
+        var subject = EnquirySubject.ForResult(Result());
+        _repository.FindSubmittedResultsEnquiryReferenceAsync(
+            WindowId, 243546, journey.SelectedPupil!.Id, subject, journey.ReferenceNumber, Arg.Any<CancellationToken>())
+            .Returns("CYPMD_16to19_RE_BBBBBB2");
+
+        var duplicate = await _sut.FindDuplicateResultsEnquiryAsync(WindowId, journey, subject);
+
+        Assert.Equal("CYPMD_16to19_RE_BBBBBB2", duplicate);
+        await _repository.Received(1).FindSubmittedResultsEnquiryReferenceAsync(
+            WindowId, 243546, journey.SelectedPupil.Id, subject, journey.ReferenceNumber, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task The_duplicate_lookup_returns_nothing_when_neither_establishment_has_a_usable_urn()
+    {
+        _currentUser.OrganisationUrn.Returns(string.Empty);
+        _establishmentViewContext.OrganisationUrn.Returns(string.Empty);
+        var journey = Journey();
+
+        var duplicate = await _sut.FindDuplicateResultsEnquiryAsync(
+            WindowId, journey, EnquirySubject.ForResult(Result()));
+
+        Assert.Null(duplicate);
+        await _repository.DidNotReceiveWithAnyArgs().FindSubmittedResultsEnquiryReferenceAsync(
+            default, default, default, default!, default, default);
     }
 
     [Fact]

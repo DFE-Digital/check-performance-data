@@ -311,7 +311,7 @@ public sealed class ResultIssueControllerTests
     {
         // TrackSafeAsync is meant to swallow, but the journey must not depend on that.
         SecondLateResultsAvailable(true);
-        _analytics.TrackSafeAsync(Arg.Any<ResultsEnquiryStartedEvent>())
+        _analytics.TrackAsync(Arg.Any<ResultsEnquiryStartedEvent>(), Arg.Any<CancellationToken>())
             .Returns(_ => throw new InvalidOperationException("BigQuery is down"));
 
         var result = await _sut.Confirm(WindowId, ValidPost());

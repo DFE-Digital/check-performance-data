@@ -12,6 +12,10 @@
 # unchanged. The `web` dependency, the `cypd` network and the `cpd-nuget-cache`
 # volume all resolve from docker-compose.yaml on merge.
 services:
+  web:
+    environment:
+      - E2E__TestAdminAuthenticationEnabled=true
+
   e2e-tests:
     profiles: [e2e]
     container_name: cypd_e2e_tests

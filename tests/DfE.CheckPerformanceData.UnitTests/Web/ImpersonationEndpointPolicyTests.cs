@@ -15,6 +15,7 @@ public sealed class ImpersonationEndpointPolicyTests
     [InlineData("WhatToChange", "Index", "GET", true)]
     [InlineData("WhatToChange", "Confirm", "POST", true)]
     [InlineData("ResultIssue", "Confirm", "POST", true)]
+[InlineData("ResultIssue", "Cancel", "GET", true)]
     [InlineData("Journey", "Page", "GET", true)]
     [InlineData("Journey", "PupilSearchPost", "POST", true)]
     [InlineData("Journey", "UploadFile", "POST", true)]

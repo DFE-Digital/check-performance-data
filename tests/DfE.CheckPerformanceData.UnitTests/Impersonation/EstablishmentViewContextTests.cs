@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Infrastructure.Authentication;
 using DfE.CheckPerformanceData.Infrastructure.Impersonation;
 using DfE.CheckPerformanceData.Web.Impersonation;
+using DfE.CheckPerformanceData.Web.Middleware;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Distributed;
@@ -20,6 +21,7 @@ public sealed class EstablishmentViewContextTests
     private readonly ICurrentUserService _original = Substitute.For<ICurrentUserService>();
     private readonly ICheckYourPupilDataRepository _pupils = Substitute.For<ICheckYourPupilDataRepository>();
     private readonly IImpersonationSessionStore _store;
+    private readonly InMemoryImpersonationPreviewStore _previewStore = new(new MemoryCache(new MemoryCacheOptions()), TimeProvider.System);
     public EstablishmentViewContextTests()
     {
         _original.UserId.Returns("original-admin");
@@ -29,7 +31,7 @@ public sealed class EstablishmentViewContextTests
     }
     private ImpersonationSessionService Create(HttpContext? context = null) => new(
         new HttpContextAccessor { HttpContext = context ?? new DefaultHttpContext { Session = new TestSession() } },
-        _original, _store, _protection, _pupils);
+        _original, _store, _protection, _pupils, _previewStore);
 
     [Fact]
     public async Task Selection_changes_reads_but_never_original_login_authority()
@@ -45,6 +47,25 @@ public sealed class EstablishmentViewContextTests
         Assert.Equal("1234567", _original.OrganisationLaestab);
         Assert.Equal("100001", _original.OrganisationUrn);
         await Assert.ThrowsAsync<ImpersonationWriteDeniedException>(() => view.EnsureCanWriteAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task Ending_or_changing_selection_removes_preview_state_for_the_previous_generation()
+    {
+        var view = Create();
+        await view.InitialiseAsync("session-a", default);
+        var initialGeneration = view.State!.Generation;
+        _previewStore.Set("session-a", initialGeneration, "request_window", [1]);
+
+        await view.SetSelectionAsync(new("7654321", "100002", 11, 18), default);
+
+        Assert.False(_previewStore.TryGet("session-a", initialGeneration, "request_window", out _));
+        var activeGeneration = view.State!.Generation;
+        _previewStore.Set("session-a", activeGeneration, "request_window", [2]);
+
+        await view.SetSelectionAsync(null, default);
+
+        Assert.False(_previewStore.TryGet("session-a", activeGeneration, "request_window", out _));
     }
 
     [Fact]

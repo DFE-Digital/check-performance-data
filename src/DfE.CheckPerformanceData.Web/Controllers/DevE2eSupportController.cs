@@ -3,10 +3,14 @@ using System.Text.Encodings.Web;
 using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.Media.Serving;
 using DfE.CheckPerformanceData.Application.Media.Upload;
+using System.Security.Claims;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
+using DfE.CheckPerformanceData.Web.Impersonation;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +41,32 @@ public sealed class DevE2eSupportController(
     private bool IsAllowed =>
         configuration.GetValue<bool>(SettingKeys.DevToolsEnabled)
         && !env.IsProduction();
+
+    [HttpGet("dev/e2e/admin-session")]
+    public async Task<IActionResult> AdminSession()
+    {
+        if (!IsAllowed || !configuration.GetValue<bool>("E2E:TestAdminAuthenticationEnabled"))
+            return NotFound();
+
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, "00000000-0000-0000-0000-000000000002"),
+            new Claim(ClaimTypes.GivenName, "E2E"),
+            new Claim(ClaimTypes.Surname, "Administrator"),
+            new Claim("organisation_id", "e2e-admin"),
+            new Claim("organisation_name", "E2E Administrator"),
+            new Claim("organisation_urn", string.Empty),
+            new Claim("organisation_laestab", string.Empty),
+            new Claim("organisation_type_id", string.Empty),
+            new Claim(ClaimTypes.Role, ImpersonationAccessPolicy.AdminRole),
+            new Claim(ClaimTypes.Role, WikiConstants.EditorRole)
+        };
+
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+            claims, CookieAuthenticationDefaults.AuthenticationScheme));
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+        return Redirect("/admin/impersonation");
+    }
 
     [HttpGet("dev/antiforgery-token")]
     public ContentResult AntiforgeryToken([FromServices] IAntiforgery antiforgery)

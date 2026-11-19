@@ -43,6 +43,9 @@ public sealed class JourneyController(
 {
     private string EstablishmentLaestab => viewContext?.OrganisationLaestab ?? currentUserService.OrganisationLaestab;
     private string EstablishmentUrn => viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn;
+    private JourneyConditionContext BuildConditionContext(RequestState journey) =>
+        JourneyConditionContextFactory.Create(journey, currentUserService, viewContext);
+
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
     /// <summary>
@@ -754,7 +757,7 @@ public sealed class JourneyController(
         var syllabusQuestion = detailsPage?.Questions.FirstOrDefault(q => q.Id == SyllabusQuestionId);
         var syllabusOwed = syllabusQuestion is not null
             && optionVisibilityService.IsQuestionVisible(
-                syllabusQuestion, JourneyConditionContextFactory.Create(journey, currentUserService));
+                syllabusQuestion, BuildConditionContext(journey));
 
         return Has(MissingGradeQuestionId) && (!syllabusOwed || Has(SyllabusQuestionId))
             ? null
@@ -855,7 +858,7 @@ public sealed class JourneyController(
         var gradeReference = ResolveGradeReference(page, journey);
         var heldInOtherFiles = await HeldInOtherFilesAsync(windowId, page, journey);
         var isValid = true;
-        var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
+        var conditionContext = BuildConditionContext(journey);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, conditionContext);
         bool IsMandatory(Question q) => !q.Optional && !conditionallyOptional.Contains(q.Id) && optionVisibilityService.IsQuestionVisible(q, conditionContext);
 
@@ -1656,7 +1659,7 @@ public sealed class JourneyController(
 
     private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName)
     {
-        var ctx = JourneyConditionContextFactory.Create(journey, currentUserService);
+        var ctx = BuildConditionContext(journey);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, ctx);
         return journeyService.ValidateEvidencePage(page, journey, pupilName, conditionallyOptional,
             optionalityService.IsRequireAtLeastOneActive(page, ctx)) is null;

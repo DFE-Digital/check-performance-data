@@ -1,5 +1,5 @@
 # Each base image is pinned by digest, which Dependabot keeps current (docs/dependabot.md#pins).
-FROM nginxinc/nginx-unprivileged:1.28.0-alpine3.21@sha256:c97ff0bf7cbae369953c6da1232ec14ad9f971d66360c5698db0856a4cd657a0
+FROM nginx/nginx-unprivileged:1.30.7-alpine3.24@sha256:0c53a1f2890c3526bfd201440f0fd3970e5b78f80630f58284aad0d34b5ec7bd
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY ./html/ /usr/share/nginx/html

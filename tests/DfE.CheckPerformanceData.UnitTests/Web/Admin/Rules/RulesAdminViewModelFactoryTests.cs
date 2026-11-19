@@ -211,6 +211,60 @@ public sealed class RulesAdminViewModelFactoryTests
     }
 
     [Fact]
+    public void WindowRules_keeps_neq_branches_even_when_they_exclude_the_window_type()
+    {
+        // A neq test cannot prove a branch never applies, so it is never hidden. On a
+        // Post16 window the branch "checkingWindowType neq Post16" does not apply, but the
+        // page still shows it (fail safe). An eq branch for another type is hidden, and a
+        // neq branch that does apply is shown.
+        var rules = new RuleSet("v1", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero),
+            new[]
+            {
+                Outcome("Nor", "Nor",
+                    new RuleBranch("NOR-NONPOST16", DecisionStatus.AutoApproved,
+                        new Predicate.FieldNeq("checkingWindowType", new FieldValue.Str("Post16"))),
+                    new RuleBranch("NOR-NEQKS2", DecisionStatus.AutoApproved,
+                        new Predicate.FieldNeq("checkingWindowType", new FieldValue.Str("KS2"))),
+                    new RuleBranch("NOR-KS2", DecisionStatus.AutoApproved,
+                        new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2"))),
+                    Otherwise("NOR-DEF"))
+            });
+
+        var vm = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", Guid.NewGuid(), new DateOnly(2026, 9, 1),
+            CheckingWindowType.Post16, rules);
+
+        var ids = vm.Outcomes.Single().Branches.Select(b => b.Id).ToHashSet();
+        Assert.Contains("NOR-NONPOST16", ids);  // neq of this type: does not apply, but shown
+        Assert.Contains("NOR-NEQKS2", ids);     // neq of another type: applies, shown
+        Assert.DoesNotContain("NOR-KS2", ids);  // eq of another type: never applies, hidden
+        Assert.Contains("NOR-DEF", ids);
+    }
+
+    [Fact]
+    public void WindowRules_keeps_comparison_branches_even_when_the_value_differs()
+    {
+        // A comparison (lt/gt) on the window type is not an equality test, so it cannot
+        // prove that a branch does not apply. The branch stays visible.
+        var rules = new RuleSet("v1", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero),
+            new[]
+            {
+                Outcome("Nor", "Nor",
+                    new RuleBranch("NOR-GE", DecisionStatus.AutoApproved,
+                        new Predicate.FieldCompare("checkingWindowType", CompareOp.Gte, new FieldValue.Str("KS2"))),
+                    Otherwise("NOR-DEF"))
+            });
+
+        var vm = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", Guid.NewGuid(), new DateOnly(2026, 9, 1),
+            CheckingWindowType.Post16, rules);
+
+        var ids = vm.Outcomes.Single().Branches.Select(b => b.Id).ToHashSet();
+        Assert.Contains("NOR-GE", ids);
+        Assert.Contains("NOR-DEF", ids);
+    }
+
+    [Fact]
     public void WindowRules_describes_each_branch_with_the_window_relative_date()
     {
         var rules = new RuleSet("v1", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero),

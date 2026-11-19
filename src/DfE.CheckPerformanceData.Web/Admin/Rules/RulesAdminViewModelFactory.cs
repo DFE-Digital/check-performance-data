@@ -109,11 +109,11 @@ public static class RulesAdminViewModelFactory
 
     /// <summary>
     /// True when a branch's <c>checkingWindowType</c> condition can match
-    /// <paramref name="windowType"/>. Only the top-level shape is checked, so a branch is
-    /// hidden when it is provably never matched (a direct
-    /// <c>checkingWindowType</c> equality/membership test, or one such test inside the
-    /// branch's top-level <c>all</c>, excludes the window's type). Anything the check cannot
-    /// prove keeps the branch, so a branch is never hidden by accident.
+    /// <paramref name="windowType"/>. Only equality tests can prove the opposite: a branch
+    /// is hidden when a direct <c>checkingWindowType</c> <c>eq</c> or <c>in</c> test (or one
+    /// such test inside the branch's top-level <c>all</c>) lists values that all exclude
+    /// the window's type. <c>neq</c> and comparison shapes are kept (fail safe): they cannot
+    /// prove a branch never applies, so showing it is the safe direction.
     /// </summary>
     private static bool AppliesToWindowType(Predicate when, CheckingWindowType windowType)
     {
@@ -124,12 +124,11 @@ public static class RulesAdminViewModelFactory
             return allOf.Items.All(i => AppliesToWindowType(i, windowType));
         }
 
-        // A field test on another field cannot exclude this window.
+        // Only eq and in can prove a branch never applies. A field test on another field,
+        // a neq, or a comparison cannot, so the branch stays visible.
         var test = when switch
         {
             Predicate.FieldEq f when f.Field == "checkingWindowType" => new[] { f.Value },
-            Predicate.FieldNeq f when f.Field == "checkingWindowType" => new[] { f.Value },
-            Predicate.FieldCompare f when f.Field == "checkingWindowType" => new[] { f.Value },
             Predicate.FieldIn f when f.Field == "checkingWindowType" => f.Values,
             _ => null
         };

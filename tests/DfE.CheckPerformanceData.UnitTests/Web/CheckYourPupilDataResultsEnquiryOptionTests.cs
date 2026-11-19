@@ -415,8 +415,9 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
 
         await _sut.NextStep(WindowId, Posted(NextSteps.ResultsEnquiry));
 
-        await _analytics.Received(1).TrackSafeAsync(Arg.Is<ValidationErrorEvent>(e =>
-            e.ErrorCodes.Contains("no_selection")));
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e => e.ErrorCodes.Contains("no_selection")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

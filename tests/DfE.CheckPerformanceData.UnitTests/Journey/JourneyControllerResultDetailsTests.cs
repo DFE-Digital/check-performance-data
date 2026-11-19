@@ -556,8 +556,9 @@ public sealed class JourneyControllerResultDetailsTests
 
         await _sut.PagePost(WindowId, "grade-details", false);
 
-        await _analytics.Received(1).TrackSafeAsync(Arg.Is<ValidationErrorEvent>(e =>
-            e.ErrorFields.Contains("q-revised-grade")));
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e => e.ErrorFields.Contains("q-revised-grade")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

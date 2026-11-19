@@ -334,8 +334,10 @@ public sealed class JourneyControllerResultSearchTests
 
         await _sut.ResultSearchPost(WindowId, "select-result", "");
 
-        await _analytics.Received(1).TrackSafeAsync(Arg.Is<ValidationErrorEvent>(e =>
-            e.ErrorCodes.Contains("no_selection") && e.ErrorFields.Contains("selectedResultKey")));
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e =>
+                e.ErrorCodes.Contains("no_selection") && e.ErrorFields.Contains("selectedResultKey")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

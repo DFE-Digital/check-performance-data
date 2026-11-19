@@ -44,8 +44,28 @@ The eventual goal is to fold this seed upload into the CI deploy pipeline (`.git
 
 - Every outcome's last branch is `"otherwise"`.
 - Every `field` reference exists in `FieldCatalogue` and matches its declared type.
-- Date literals are ISO `yyyy-MM-dd`.
+- Date literals are an ISO `yyyy-MM-dd` string or a window-relative object (below).
 - Branch IDs are unique within an outcome.
+
+### Window-relative dates
+
+A date literal may be a window-relative object instead of a fixed date. An absolute date stays an ISO `yyyy-MM-dd` string. The window year is the calendar year of the checking window start date. The engine resolves the date from the window the request belongs to. It never uses the current date.
+
+| Token | Parameters | Resolves to |
+|---|---|---|
+| `dayMonthOfWindowYear` | `month` 1–12, `day` (valid in a leap year) | the named day-month of the window year |
+| `firstSeptemberMinusYears` | `years` 0–99 | 1 September of the window year, minus `years` |
+| `secondMondayOfMay` | none | the second Monday of May of the window year |
+
+JSON shape:
+
+```json
+{ "field": "dateOfRemoval", "gt": { "windowRelative": "dayMonthOfWindowYear", "month": 1, "day": 16 } }
+{ "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } }
+{ "field": "dateOfRemoval", "gte": { "windowRelative": "secondMondayOfMay" } }
+```
+
+If a date cannot resolve for a window, the rule matches nothing and the request goes to manual handling. This happens when 29 February falls in a non-leap window year.
 
 If you change a field name or add a new field, also update:
 

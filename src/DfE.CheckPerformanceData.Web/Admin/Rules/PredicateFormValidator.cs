@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Application.RulesEngine;
+
 namespace DfE.CheckPerformanceData.Web.Admin.Rules;
 
 /// <summary>
@@ -35,6 +37,9 @@ public static class PredicateFormValidator
                         errors.Add("A condition needs a field.");
                     if (node.Values.Count == 0 || node.Values.All(string.IsNullOrWhiteSpace))
                         errors.Add($"'{node.Field}' must list at least one value.");
+                    else
+                        foreach (var v in node.Values)
+                            AddRelativeDateTokenError(errors, node.Field, v);
                     break;
                 case PredicateKind.IsKnownAndCertain:
                     if (string.IsNullOrWhiteSpace(node.Field))
@@ -53,9 +58,27 @@ public static class PredicateFormValidator
                         errors.Add("A condition needs a field.");
                     if (string.IsNullOrWhiteSpace(node.Value))
                         errors.Add($"'{node.Field}' needs a value.");
+                    else
+                        AddRelativeDateTokenError(errors, node.Field, node.Value);
                     break;
             }
         }
         return errors;
+    }
+
+    /// <summary>
+    /// A window-relative date token (for example <c>window:secondMondayOfMay</c>) is only
+    /// meaningful on a Date field. Saved against any other field it becomes a plain string
+    /// no request can match, so the rule would silently never fire (#800).
+    /// </summary>
+    private static void AddRelativeDateTokenError(List<string> errors, string? field, string? value)
+    {
+        if (!PredicateForm.IsRelativeDateToken(value)) return;
+        if (field is not null
+            && FieldCatalogue.TryGetType(field, out var type)
+            && type != FieldType.Date)
+        {
+            errors.Add($"'{field}' is not a date field; a window-relative date cannot match it. Use a fixed value.");
+        }
     }
 }

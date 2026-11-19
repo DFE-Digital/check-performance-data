@@ -169,6 +169,65 @@ public sealed class SeedRulesValidationTests
         }
     }
 
+    [Fact]
+    public void SeedRulesJson_EveryRelativeDateLiteral_ResolvesForARepresentativeWindowStart()
+    {
+        // Generic validity: every window-relative form the seed carries must resolve
+        // to a concrete date for a representative window start. A leap-year window
+        // start is used so a dayMonthOfWindowYear that needs 29 February also
+        // resolves. No branch id or resolved date is pinned here (AGENTS.md: test
+        // that the config is valid, not what one set of rules contains).
+        var parsed = LoadSeed();
+        var windowStart = new DateOnly(2028, 9, 1);
+
+        var specs = parsed.Outcomes
+            .SelectMany(o => o.Rules)
+            .SelectMany(b => RelativeDateLiterals(b.When))
+            .ToList();
+
+        Assert.NotEmpty(specs);
+        foreach (var spec in specs)
+        {
+            var ok = RelativeDateResolver.TryResolve(spec, windowStart, out _);
+            Assert.True(ok, $"Seed rules.json: {spec} did not resolve for window start {windowStart}.");
+        }
+    }
+
+    /// <summary>Window-relative date specs, walked over the whole predicate tree.</summary>
+    private static IEnumerable<RelativeDateSpec> RelativeDateLiterals(Predicate p)
+    {
+        switch (p)
+        {
+            case Predicate.FieldEq eq:
+                if (eq.Value is FieldValue.RelativeDate rd) yield return rd.Spec;
+                break;
+            case Predicate.FieldNeq neq:
+                if (neq.Value is FieldValue.RelativeDate rd2) yield return rd2.Spec;
+                break;
+            case Predicate.FieldCompare cmp:
+                if (cmp.Value is FieldValue.RelativeDate rd3) yield return rd3.Spec;
+                break;
+            case Predicate.FieldIn inP:
+                foreach (var v in inP.Values.OfType<FieldValue.RelativeDate>()) yield return v.Spec;
+                break;
+            case Predicate.AllOf all:
+                foreach (var i in all.Items) foreach (var x in RelativeDateLiterals(i)) yield return x;
+                break;
+            case Predicate.AnyOf any:
+                foreach (var i in any.Items) foreach (var x in RelativeDateLiterals(i)) yield return x;
+                break;
+            case Predicate.Not not:
+                foreach (var x in RelativeDateLiterals(not.Inner)) yield return x;
+                break;
+        }
+    }
+
+    private static RuleSet LoadSeed()
+    {
+        var json = File.ReadAllText(Path.Combine(SeedDir, "rules.json"));
+        return JsonSerializer.Deserialize<RuleSet>(json, RulesJson.Options)!;
+    }
+
     // --- helpers ---
 
     private static string LocateSeedDirectory()

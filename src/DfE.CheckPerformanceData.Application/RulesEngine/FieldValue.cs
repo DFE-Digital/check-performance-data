@@ -17,6 +17,13 @@ public abstract record FieldValue
     public sealed record Num(decimal Value)   : FieldValue;
     public sealed record Date(DateOnly Value) : FieldValue;
 
+    /// <summary>
+    /// A window-relative date literal in a rule (#800): a <see cref="RelativeDateSpec"/>
+    /// resolved against the request's checking-window start date at evaluation. A field
+    /// value in a context is never one of these; only rule literals are.
+    /// </summary>
+    public sealed record RelativeDate(RelativeDateSpec Spec) : FieldValue;
+
     /// <summary>Field was not supplied at all (e.g. answer missing from the message).</summary>
     public sealed record Unknown : FieldValue
     {
@@ -33,5 +40,5 @@ public abstract record FieldValue
     public sealed record Uncertain(FieldValue Inner) : FieldValue;
 
     /// <summary>True when this is a concrete typed value (not Unknown, not Uncertain).</summary>
-    public bool IsKnownAndCertain => this is Str or Bool or Num or Date;
+    public bool IsKnownAndCertain => this is Str or Bool or Num or Date or RelativeDate;
 }

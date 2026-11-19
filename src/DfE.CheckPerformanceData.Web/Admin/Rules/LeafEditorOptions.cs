@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.Application.RulesEngine;
 
 namespace DfE.CheckPerformanceData.Web.Admin.Rules;
 
-public enum ValueEditorKind { Text, Number, Date, BoolSelect, List, Language, None }
+public enum ValueEditorKind { Text, Number, Date, RelativeDate, BoolSelect, List, Language, None }
 
 public sealed record OperatorOption(string Token, string Label);
 
@@ -55,7 +55,12 @@ public static class LeafEditorOptions
         };
     }
 
-    public static ValueEditorKind ValueEditor(string? field, string? op) => op switch
+    /// <summary>
+    /// Picks the value editor, given the node's current value (#800): a date field holding a
+    /// window-relative date token gets the read-only relative-date editor; everything else
+    /// is unchanged.
+    /// </summary>
+    public static ValueEditorKind ValueEditor(string? field, string? op, string? value) => op switch
     {
         "known" => ValueEditorKind.None,
         "in" => ValueEditorKind.List,
@@ -64,6 +69,7 @@ public static class LeafEditorOptions
         {
             FieldType.Bool => ValueEditorKind.BoolSelect,
             FieldType.Number => ValueEditorKind.Number,
+            FieldType.Date when PredicateForm.IsRelativeDateToken(value) => ValueEditorKind.RelativeDate,
             FieldType.Date => ValueEditorKind.Date,
             _ => ValueEditorKind.Text
         },

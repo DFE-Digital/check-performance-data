@@ -77,4 +77,42 @@ public sealed class PredicateFormValidatorTests
         };
         Assert.Empty(PredicateFormValidator.Validate(nodes));
     }
+
+    // #800: a window-relative date token is only meaningful on a Date field. A non-date
+    // field would compare a plain string against a request that can never carry one, so
+    // the rule would silently never fire. The validator must stop it before save.
+
+    [Fact]
+    public void RelativeDateToken_On_NonDateField_Is_Rejected()
+    {
+        var nodes = new List<PredicateNodeForm>
+        {
+            new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "window:secondMondayOfMay" },
+        };
+        Assert.Contains(PredicateFormValidator.Validate(nodes), e => e.Contains("is not a date field"));
+    }
+
+    [Fact]
+    public void RelativeDateToken_In_Values_On_NonDateField_Is_Rejected()
+    {
+        var nodes = new List<PredicateNodeForm>
+        {
+            new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldIn, Field = "checkingWindowType", Operator = "in",
+                Values = ["KS4June", "window:secondMondayOfMay"] },
+        };
+        Assert.Contains(PredicateFormValidator.Validate(nodes), e => e.Contains("is not a date field"));
+    }
+
+    [Fact]
+    public void RelativeDateToken_On_DateField_Is_Allowed()
+    {
+        var nodes = new List<PredicateNodeForm>
+        {
+            new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "dateOfRemoval", Operator = "eq", Value = "window:secondMondayOfMay" },
+        };
+        Assert.Empty(PredicateFormValidator.Validate(nodes));
+    }
 }

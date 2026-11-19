@@ -7,10 +7,13 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
 
 /// <summary>
 /// #813: KS2 September removal rules that the business answers changed. Runs the real engine
-/// over the shipped seed rules.json with a hand-built context.
+/// over the shipped seed rules.json with a hand-built context. The EAL cutoff is
+/// window-relative (#800): 1 September of three years before the window year. A 2027
+/// window therefore gets the 2024 cutoff these dates are written for.
 /// </summary>
 public sealed class Ks2RemovalRulesTests
 {
+    private static readonly DateOnly WindowStart = new(2027, 1, 1);
     private static readonly DateOnly BeforeCutoff = new(2024, 8, 31);
     private static readonly DateOnly OnCutoff = new(2024, 9, 1);
 
@@ -112,7 +115,7 @@ public sealed class Ks2RemovalRulesTests
     };
 
     private static Decision Evaluate(string outcomeKey, Dictionary<string, FieldValue> fields) =>
-        new RulesEngineImpl().Evaluate(LoadSeedRules(), new RuleContext(outcomeKey, "KS2", fields), Lookups.Empty);
+        new RulesEngineImpl().Evaluate(LoadSeedRules(), new RuleContext(outcomeKey, "KS2", fields, WindowStart), Lookups.Empty);
 
     private static RuleSet LoadSeedRules()
     {

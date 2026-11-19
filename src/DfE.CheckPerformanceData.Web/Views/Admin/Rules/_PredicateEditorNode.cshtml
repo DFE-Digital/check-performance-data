@@ -7,7 +7,12 @@
     var isComposite = node.Kind is PredicateKind.AllOf or PredicateKind.AnyOf or PredicateKind.Not;
     var children = Model.ChildrenOf(node.Id);
     var ops = node.Field is null ? Array.Empty<OperatorOption>() : LeafEditorOptions.OperatorTokensFor(node.Field);
-    var valueEditor = LeafEditorOptions.ValueEditor(node.Field, node.Operator);
+    var valueEditor = LeafEditorOptions.ValueEditor(node.Field, node.Operator, node.Value);
+    // #800: the name of a window-relative date form, for the read-only value editor's hint.
+    var relativeFormName = node.Value is not null
+        && PredicateForm.TryParseRelativeDateToken(node.Value, out var relativeSpec)
+        ? PredicateDescriber.FormName(relativeSpec)
+        : "window-relative date";
     var combinatorLabel = node.Kind switch
     {
         PredicateKind.AllOf => "All of these",
@@ -151,6 +156,20 @@ else
                         <label class="govuk-label govuk-label--s" for="Nodes_@(i)__Value">Value</label>
                         <input class="govuk-input govuk-input--width-10" type="date"
                                id="Nodes_@(i)__Value" name="Nodes[@i].Value" value="@node.Value" />
+                    </div>
+                    break;
+                case ValueEditorKind.RelativeDate:
+                    @* #800: the value is read-only (not disabled, so the token posts back
+                       unchanged). It names a window-relative date form; the change goes
+                       through a new rules upload. *@
+                    <div class="govuk-form-group govuk-!-margin-bottom-0 rules-condition__value">
+                        <label class="govuk-label govuk-label--s" for="Nodes_@(i)__Value">Value</label>
+                    <p class="govuk-hint govuk-!-margin-bottom-2" id="Nodes_@(i)__Value-hint">
+                            Window-relative date: @relativeFormName. You cannot change it on this page.
+                        </p>
+                        <input class="govuk-input govuk-input--width-20" type="text" readonly
+                           id="Nodes_@(i)__Value" name="Nodes[@i].Value" value="@node.Value"
+                           aria-describedby="Nodes_@(i)__Value-hint" />
                     </div>
                     break;
                 case ValueEditorKind.Language:

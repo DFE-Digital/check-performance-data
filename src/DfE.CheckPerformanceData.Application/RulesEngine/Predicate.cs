@@ -49,3 +49,34 @@ public abstract record Predicate
         private Otherwise() { }
     }
 }
+
+/// <summary>
+/// Closed union of the three window-relative date forms a rule's date literal may
+/// take (#800). A date literal may be one of these instead of a fixed ISO date;
+/// the engine resolves it against the request's checking-window start date at
+/// evaluation. Serialized as <c>{"windowRelative":"&lt;token&gt;", ...}</c>.
+/// </summary>
+public abstract record RelativeDateSpec
+{
+    /// <summary>The <c>windowRelative</c> JSON discriminator for this form.</summary>
+    public abstract string WindowRelative { get; }
+
+    /// <summary>A day and month in the window's year: the start date's year, with the
+    /// given month and day.</summary>
+    public sealed record DayMonthOfWindowYear(int Month, int Day) : RelativeDateSpec
+    {
+        public override string WindowRelative => "dayMonthOfWindowYear";
+    }
+
+    /// <summary>1 September of the window's year, minus the given whole years.</summary>
+    public sealed record FirstSeptemberMinusYears(int Years) : RelativeDateSpec
+    {
+        public override string WindowRelative => "firstSeptemberMinusYears";
+    }
+
+    /// <summary>The second Monday of May in the window's year.</summary>
+    public sealed record SecondMondayOfMay : RelativeDateSpec
+    {
+        public override string WindowRelative => "secondMondayOfMay";
+    }
+}

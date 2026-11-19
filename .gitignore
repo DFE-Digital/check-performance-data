@@ -536,3 +536,4 @@ src/DfE.CheckPerformanceData.Web/wwwroot/assets/images/govuk-icon-mask.svg
 src/DfE.CheckPerformanceData.Web/wwwroot/assets/images/govuk-opengraph-image.png
 # The unit-test project uses the Web SDK, so the same copy lands there too.
 tests/DfE.CheckPerformanceData.UnitTests/wwwroot/
+/.github

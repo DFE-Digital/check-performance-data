@@ -140,6 +140,7 @@ classDiagram
     class FieldValue {
         <<abstract>>
         +Str / Bool / Num / Date
+        +RelativeDate
         +Unknown
         +Uncertain
         +bool IsKnownAndCertain
@@ -151,7 +152,7 @@ classDiagram
 ```
 
 - **`RuleBranch.Id`** (e.g. `EHE-KS4`) is a stable identifier that appears in the audit trace and the ticket, so a business decision can always be traced back to the exact rule that fired.
-- **`FieldValue`** is the tri-state value. `IsKnownAndCertain` is `true` only for a concrete `Str`/`Bool`/`Num`/`Date` — deliberately `false` for `Unknown` and for `Uncertain` (a value supplied with low confidence). This is what stops a low-confidence answer from driving an automatic decision.
+- **`FieldValue`** is the tri-state value. `IsKnownAndCertain` is `true` only for a concrete `Str`/`Bool`/`Num`/`Date`/`RelativeDate` — deliberately `false` for `Unknown` and for `Uncertain` (a value supplied with low confidence). This is what stops a low-confidence answer from driving an automatic decision. A context field is never a `RelativeDate`; only a rule literal is.
 
 ---
 
@@ -183,6 +184,7 @@ Every outcome **must end with an `"otherwise"` branch** — the validator enforc
 | `{ "field": "x", "neq": "ENG" }` | field does not equal the literal |
 | `{ "field": "x", "in": ["a","b"] }` | field equals any value in the list |
 | `{ "field": "x", "lt": "2024-09-01" }` | numeric or date comparison (`lt` / `lte` / `gt` / `gte`) |
+| `{ "field": "x", "lt": { "windowRelative": "secondMondayOfMay" } }` | window-relative date comparison; the engine resolves the date from the PupilData exercise's start date (below) |
 | `{ "isKnownAndCertain": "pupilAge" }` | true only if the field is a concrete, certain value |
 | `{ "officialLanguageIs": "English", "countryField": "countryOfOrigin" }` | looks the country up in `country-languages.json` |
 | `{ "all": [ … ] }` | every child must be true (short-circuits on first false) |
@@ -190,9 +192,19 @@ Every outcome **must end with an `"otherwise"` branch** — the validator enforc
 | `{ "not": { … } }` | negation (`Unknown` stays `Unknown`) |
 | `"otherwise"` | terminal catch-all, always true, always last |
 
+A date literal is either an ISO date string or a window-relative object. "Window year" means the calendar year of the checking window's **PupilData exercise** start date. Anchoring on that exercise — not the earliest exercise in the window — means adding or removing a display-only data share never moves a rule's date. The three relative forms all resolve from the window year:
+
+| Form | Resolves to |
+|---|---|
+| `{ "windowRelative": "secondMondayOfMay" }` | the second Monday of May of the window year |
+| `{ "windowRelative": "firstSeptemberMinusYears", "years": 3 }` | 1 September of the window year, minus `years` |
+| `{ "windowRelative": "dayMonthOfWindowYear", "month": 4, "day": 1 }` | that month and day of the window year |
+
+The engine holds the window start date on the rule context, so it resolves a relative date without a clock. A request whose window has no PupilData exercise, or whose window start date is before year 1 plus the offset, cannot resolve the form: the comparison is `Unknown`, the branch cannot match, and the request falls to `otherwise` → Scrutiny.
+
 ### When a condition is `Unknown`
 
-A comparison returns `Unknown` (rather than `False`) whenever the field is **not known and certain** — i.e. the answer was missing, or supplied with low confidence, or `lt`/`gt` is asked of a value that isn't a number or date. `Unknown` then propagates: `all` becomes `Unknown` if no child is false but some are unknown; `any` becomes `Unknown` if no child is true but some are unknown. The net effect is the fail-safe rule — uncertainty drifts down to `otherwise` → Scrutiny.
+A comparison returns `Unknown` (rather than `False`) whenever the field is **not known and certain** — i.e. the answer was missing, or supplied with low confidence, or `lt`/`gt` is asked of a value that isn't a number or date. A window-relative date that cannot resolve, because the window has no PupilData exercise start date, is `Unknown` too. `Unknown` then propagates: `all` becomes `Unknown` if no child is false but some are unknown; `any` becomes `Unknown` if no child is true but some are unknown. The net effect is the fail-safe rule — uncertainty drifts down to `otherwise` → Scrutiny.
 
 ---
 
@@ -207,7 +219,7 @@ The mapper (`RuleContextMapper`) turns a submitted `RequestDocument` into the ty
 | **Vocabulary translation** | Journey answer values mapped to canonical values; a "believed" answer becomes `Uncertain`; anything unlisted becomes `Unknown`. | `first-language: believed-english` → `Uncertain("ENG")` |
 | **Window-resolved** | One question resolves to different fields depending on the checking window. | the SAT-exams question → `hasSatExamsAsYear11` (KS4) or `hasSatExamsAsYear6` (KS2) |
 
-Two fields come straight from the message **envelope** rather than an answer: `checkingWindowType` (normalised — see below) and `requestType` (the raw reason code). Other fields are calculated from the pupil record on the message, with a deliberate fail-safe guard: `pupilAge` (only when `Age > 0`), `inclusionFlag` and `isAddBack` (only when the inclusion code `Pincl > 0`). A missing or zero value is left `Unknown` rather than read as `0`.
+Two fields come straight from the message **envelope** rather than an answer: `checkingWindowType` (normalised — see below) and `requestType` (the raw reason code). The envelope's PupilData exercise start date lands on the context as `WindowStartDate`; the engine resolves window-relative rule dates from it. Other fields are calculated from the pupil record on the message, with a deliberate fail-safe guard: `pupilAge` (only when `Age > 0`), `inclusionFlag` and `isAddBack` (only when the inclusion code `Pincl > 0`). A missing or zero value is left `Unknown` rather than read as `0`.
 
 `hasSupportingEvidence` is calculated from the answer types, not from question ids. It is `true` when a `FileUpload` answer has a file or a `TextArea` answer has text. It is `false` when neither has content. It is `Unknown` when the request has no `FileUpload` answer, because no evidence page was on the path. `EAL-REJ-KS2-NOEVIDENCE` reads it (#813).
 
@@ -223,6 +235,7 @@ Rules are configuration, not code — they are loaded from blob storage and refr
 
 - **Self-seeding** (`RulesConfigSeeder`, on worker startup): real environments get only an *empty* `rules-config` container from Terraform, so the worker uploads its image-bundled seed when the blob is missing. `rules.json` is version-gated (a newer bundled seed upgrades the stored blob; admin edits stamped later always survive); `country-languages.json` is never overwritten. A stored blob that no longer validates against the current field catalogue is restored from the seed, which self-heals an environment stranded on a superseded schema.
 - **Hot reload** (`BlobRulesProvider`): refreshes on a timer (default every 300s) using blob ETags, so an unchanged blob costs nothing. A new rule set is **validated before it is installed**, and swapped in atomically — no request ever sees a half-applied update. If a blob is broken, the previous good rule set keeps serving.
+- **Relative dates fail install validation.** A `windowRelative` literal is checked when a rule set is installed. The checks are: a known token, no extra properties, a `Date` field, a month of 1-12, a day that exists in a leap year, and years of 0-99. A failure rejects the set before install. The error names the outcome and the branch. The previous good rule set keeps serving.
 
 ```mermaid
 stateDiagram-v2

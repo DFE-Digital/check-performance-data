@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.10-01",
-  "updatedAt": "2026-11-10T12:00:00Z",
+  "version": "2026.11.11-01",
+  "updatedAt": "2026-11-12T12:00:00Z",
   "outcomes": [
 
     {
@@ -27,7 +27,7 @@
         { "id": "AFE-KS2", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS2" },
-            { "field": "dateOfPermanentExclusion", "lt": "2025-09-01" }
+            { "field": "dateOfPermanentExclusion", "lt": { "windowRelative": "firstSeptemberMinusYears", "years": 2 } }
           ] } },
         { "id": "AFE-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
@@ -51,8 +51,8 @@
             { "field": "isAddBack", "eq": false },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
-            { "field": "schoolAdmissionDate", "gte": "2022-09-01" },
-            { "field": "firstSchoolAdmissionDate", "gte": "2022-09-01" }
+            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } },
+            { "field": "firstSchoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } }
           ] } },
         { "id": "EAL-ACC-NEWADM-2022-ARRIVAL", "status": "AutoApproved",
           "when": { "all": [
@@ -60,9 +60,9 @@
             { "field": "isAddBack", "eq": false },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
-            { "field": "schoolAdmissionDate", "gte": "2022-09-01" },
+            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } },
             { "isKnownAndCertain": "dateOfArrivalInEngland" },
-            { "field": "dateOfArrivalInEngland", "gte": "2022-09-01" }
+            { "field": "dateOfArrivalInEngland", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } }
           ] } },
 
         { "id": "EAL-ACC-ADDBACK-2021-ALL", "status": "AutoApproved",
@@ -71,8 +71,8 @@
             { "field": "isAddBack", "eq": true },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
-            { "field": "schoolAdmissionDate", "gte": "2021-09-01" },
-            { "field": "firstSchoolAdmissionDate", "gte": "2021-09-01" }
+            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } },
+            { "field": "firstSchoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } }
           ] } },
         { "id": "EAL-ACC-ADDBACK-2021-ARRIVAL", "status": "AutoApproved",
           "when": { "all": [
@@ -80,9 +80,9 @@
             { "field": "isAddBack", "eq": true },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
-            { "field": "schoolAdmissionDate", "gte": "2021-09-01" },
+            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } },
             { "isKnownAndCertain": "dateOfArrivalInEngland" },
-            { "field": "dateOfArrivalInEngland", "gte": "2021-09-01" }
+            { "field": "dateOfArrivalInEngland", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } }
           ] } },
 
         { "id": "EAL-ACC-KS2-ALL", "status": "AutoApproved",
@@ -90,17 +90,17 @@
             { "field": "checkingWindowType", "eq": "KS2" },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
-            { "field": "schoolAdmissionDate", "gte": "2024-09-01" },
-            { "field": "firstSchoolAdmissionDate", "gte": "2024-09-01" }
+            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } },
+            { "field": "firstSchoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } }
           ] } },
         { "id": "EAL-ACC-KS2-ARRIVAL", "status": "AutoApproved",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS2" },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
-            { "field": "schoolAdmissionDate", "gte": "2024-09-01" },
+            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } },
             { "isKnownAndCertain": "dateOfArrivalInEngland" },
-            { "field": "dateOfArrivalInEngland", "gte": "2024-09-01" }
+            { "field": "dateOfArrivalInEngland", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } }
           ] } },
 
         { "id": "EAL-REJ-KS2-NOEVIDENCE", "status": "AutoRejected",
@@ -108,8 +108,8 @@
             { "field": "checkingWindowType", "eq": "KS2" },
             { "field": "hasSupportingEvidence", "eq": false },
             { "any": [
-              { "field": "schoolAdmissionDate", "lt": "2024-09-01" },
-              { "field": "firstSchoolAdmissionDate", "lt": "2024-09-01" }
+              { "field": "schoolAdmissionDate", "lt": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } },
+              { "field": "firstSchoolAdmissionDate", "lt": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } }
             ] }
           ] } },
 
@@ -234,12 +234,12 @@
         { "id": "EHE-KS4", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS4June" },
-            { "field": "dateOfRemoval", "gt": "2025-01-16" }
+            { "field": "dateOfRemoval", "gt": { "windowRelative": "dayMonthOfWindowYear", "month": 1, "day": 16 } }
           ] } },
         { "id": "EHE-KS2", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS2" },
-            { "field": "dateOfRemoval", "gte": "2027-05-10" }
+            { "field": "dateOfRemoval", "gte": { "windowRelative": "secondMondayOfMay" } }
           ] } },
         { "id": "EHE-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
@@ -275,12 +275,12 @@
         { "id": "PEX-KS4", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS4June" },
-            { "field": "dateOfPermanentExclusion", "gt": "2025-01-16" }
+            { "field": "dateOfPermanentExclusion", "gt": { "windowRelative": "dayMonthOfWindowYear", "month": 1, "day": 16 } }
           ] } },
         { "id": "PEX-KS2", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS2" },
-            { "field": "dateOfPermanentExclusion", "gte": "2027-05-10" }
+            { "field": "dateOfPermanentExclusion", "gte": { "windowRelative": "secondMondayOfMay" } }
           ] } },
         { "id": "PEX-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
@@ -298,7 +298,7 @@
         { "id": "PLE-KS2", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS2" },
-            { "field": "dateOfRemoval", "gte": "2027-05-10" }
+            { "field": "dateOfRemoval", "gte": { "windowRelative": "secondMondayOfMay" } }
           ] } },
         { "id": "PLE-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
@@ -334,7 +334,7 @@
         { "id": "PAS-REJ", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS2" },
-            { "field": "dateAddedToRoll", "lt": "2027-04-01" }
+            { "field": "dateAddedToRoll", "lt": { "windowRelative": "dayMonthOfWindowYear", "month": 4, "day": 1 } }
           ] } },
         { "id": "PAS-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]

@@ -19,6 +19,15 @@ public sealed class PupilSearchViewSourceTests
             RepoRoot, "src", "DfE.CheckPerformanceData.Web", "Views", "Journey", "PupilSearch.cshtml"));
 
     [Fact]
+    public void A_first_page_pupil_search_goes_back_through_the_what_to_change_back_action()
+    {
+        var view = ViewSource();
+
+        Assert.Contains("asp-action=\"Back\" asp-controller=\"WhatToChange\"", view);
+        Assert.DoesNotContain("asp-action=\"Index\" asp-controller=\"WhatToChange\"", view);
+    }
+
+    [Fact]
     public void The_suggestions_request_carries_the_pages_results_restriction()
     {
         var view = ViewSource();

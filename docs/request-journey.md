@@ -46,17 +46,18 @@ From here, the user clicks a "Request change" or equivalent link, which takes th
 **URL:** `GET /WhatToChange/{windowId}`  
 **Controller:** `WhatToChangeController.Index` / `Confirm`
 
-The user selects what they want to change (e.g. `Remove`). On POST:
+The user selects what they want to change (e.g. `Remove`). When the window type offers one change
+type, the GET selects it and the page is not shown (#874). In both cases
+`IChangeTypeSelectionService.StartJourneyAsync` updates the session state, and the controller
+saves it:
 
 ```csharp
-HttpContext.Session.SaveRequestState(windowId, s =>
-{
-    s.SelectedWhatToChange = vm.SelectedWhatToChange;
-    s.CheckingWindow = window;          // CheckingWindowDto loaded from DB
-});
+journey.SelectedWhatToChange = change;
+journey.CheckingWindow = window;    // CheckingWindowDto loaded from DB
 ```
 
-The controller then fetches the question flow config for the selected `WhatToChange` + window type combination and redirects to the config's first page:
+The service reads the question flow config for the selected `WhatToChange` + window type
+combination. The controller redirects to the config's first page:
 
 **Redirects to:** `GET /Journey/{windowId}/page/{config.FirstPageId}`
 

@@ -159,7 +159,7 @@ public sealed class ImageWidgetE2ETests(PlaywrightFixture fixture) : SeedingPage
 
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/pages/{id}/edit");
         var widget = Page.Locator("[id='widget-0.0']");
-        await widget.Locator("summary").ClickAsync();
+        await widget.Locator("summary").First.ClickAsync();
         await widget.Locator("[id='wf-alt-0.0']").FillAsync("");
         await widget.Locator("[id='wf-caption-0.0']").FillAsync("A caption that is not saved");
         await widget.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();

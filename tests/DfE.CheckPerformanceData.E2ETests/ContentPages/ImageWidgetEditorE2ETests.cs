@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
@@ -54,7 +55,7 @@ public sealed class ImageWidgetEditorE2ETests(PlaywrightFixture fixture) : Seedi
         await CmsSeedHelpers.AddWidgetAsync(Fixture.SeedClient, id, "0.0", "image");
 
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/pages/{id}/edit");
-        await Widget.Locator("summary").ClickAsync();
+        await Widget.Locator("summary").First.ClickAsync();
         await Expect(Widget.Locator("[data-image-editor-init='true']")).ToBeAttachedAsync();
         return (id, $"{FixtureContent.RootPath}/{segment}");
     }
@@ -221,5 +222,61 @@ public sealed class ImageWidgetEditorE2ETests(PlaywrightFixture fixture) : Seedi
         await Expect(Dialog).Not.ToBeVisibleAsync();
         await Expect(ChooseButton).ToBeFocusedAsync();
         await Expect(Field("mediaId")).ToHaveValueAsync(chosen);
+    }
+
+    // A refused save of a newly chosen image shows the errors, and the editor still shows that
+    // image and its tools, not the stored (empty) widget.
+    [Fact]
+    public async Task ARefusedSave_AfterChoosingAnImage_KeepsTheChosenImageInTheEditor()
+    {
+        var sample = await MediaSeedHelpers.SeedSampleAsync(Fixture.SeedClient, "png");
+        await OpenEditorOnANewImagePageAsync();
+        await ChooseThroughThePickerAsync(sample.Id, "sample");
+        await Field("alt").FillAsync("");
+        await Widget.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+
+        await Expect(Page.Locator(".govuk-error-summary")).ToContainTextAsync("Enter alt text");
+        await Expect(Widget.Locator("[data-image-editor-init='true']")).ToBeAttachedAsync();
+        await Expect(Field("mediaId")).ToHaveValueAsync(sample.Id.ToString());
+        await Expect(ChooseButton).ToHaveTextAsync("Change image");
+        await Expect(Widget.Locator("[data-image-editor-name]")).Not.ToBeEmptyAsync();
+        await Expect(Widget.GetByRole(AriaRole.Button, new() { Name = "Crop image" })).ToBeVisibleAsync();
+    }
+
+    // The crop box is dragged with a mouse, so the same values can be typed. A typed crop moves
+    // the crop box.
+    [Fact]
+    public async Task TheCrop_CanBeTyped_AndTheCropBoxFollows()
+    {
+        var sample = await MediaSeedHelpers.SeedSampleAsync(Fixture.SeedClient, "png");
+        await OpenEditorOnANewImagePageAsync();
+        await ChooseThroughThePickerAsync(sample.Id, "sample");
+        await Widget.GetByRole(AriaRole.Button, new() { Name = "Crop image" }).ClickAsync();
+        await Expect(Widget.Locator("[data-image-editor-cropper='ready']")).ToBeAttachedAsync();
+
+        await Widget.Locator("[data-image-editor-manual] summary").ClickAsync();
+        await Field("crop").FillAsync("0,0,0.5,1");
+        await Field("crop").PressAsync("Tab");
+
+        await Page.WaitForFunctionAsync(
+            "() => { const b = document.querySelector('[id=\"widget-0.0\"] .cropper-crop-box'); const c = document.querySelector('[id=\"widget-0.0\"] .cropper-canvas');"
+            + " return b && c && Math.abs(b.getBoundingClientRect().width / c.getBoundingClientRect().width - 0.5) < 0.02; }");
+        await Expect(Field("crop")).ToHaveValueAsync("0,0,0.5,1");
+    }
+
+    [SkippableFact]
+    public async Task TheEditorAndThePicker_HaveNoWcagViolations()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), "Playwright browser test Linux-only");
+        var sample = await MediaSeedHelpers.SeedSampleAsync(Fixture.SeedClient, "png");
+        await OpenEditorOnANewImagePageAsync();
+        await ChooseThroughThePickerAsync(sample.Id, "sample");
+        await Widget.GetByRole(AriaRole.Button, new() { Name = "Crop image" }).ClickAsync();
+        await Expect(Widget.Locator("[data-image-editor-cropper='ready']")).ToBeAttachedAsync();
+        await AxeChecks.ExpectNoViolationsAsync(Page, "image widget editor");
+
+        await ChooseButton.ClickAsync();
+        await Expect(Dialog.Locator("input[type='radio']").First).ToBeAttachedAsync();
+        await AxeChecks.ExpectNoViolationsAsync(Page, "media picker");
     }
 }

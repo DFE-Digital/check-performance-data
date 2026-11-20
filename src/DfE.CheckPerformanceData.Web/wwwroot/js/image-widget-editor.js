@@ -63,7 +63,6 @@
         var focalImg = q('[data-image-editor-focal-img]');
         var focalMarker = q('[data-image-editor-focal-marker]');
         var focalStatus = q('[data-image-editor-focal-status]');
-        var manual = q('[data-image-editor-manual]');
         var aspectField = q('[data-image-editor-aspect]');
         var cropField = q('[data-image-editor-crop]');
         var focalField = q('[data-image-editor-focal]');
@@ -88,10 +87,10 @@
             };
         }
 
-        // A field with an error stays in view, so the error summary link can reach it.
+        // An id field with an error stays in view, so the error summary link can reach it. The
+        // typed crop and focal point stay in their details section, for people who cannot drag.
         var mediaIdHasError = !!fallback.querySelector('.govuk-error-message');
         fallback.hidden = !mediaIdHasError;
-        manual.hidden = manual.getAttribute('data-has-error') !== 'true';
         chooseButton.hidden = false;
 
         function showChosen() {
@@ -200,6 +199,28 @@
             schedulePreview();
         });
 
+        // A typed crop or aspect ratio moves the crop box, and a typed focal point moves the marker.
+        function applyTypedCrop() {
+            syncShapeRadios();
+            if (!cropper) { return; }
+            cropper.setAspectRatio(PRESETS[aspectField.value] || NaN);
+            var typed = parseFractions(cropField.value, 4);
+            var image = cropper.getImageData();
+            if (typed && image.naturalWidth) {
+                cropper.setData({
+                    x: typed[0] * image.naturalWidth,
+                    y: typed[1] * image.naturalHeight,
+                    width: typed[2] * image.naturalWidth,
+                    height: typed[3] * image.naturalHeight
+                });
+            } else if (!cropField.value.trim()) {
+                cropper.reset();
+            }
+        }
+        cropField.addEventListener('change', applyTypedCrop);
+        aspectField.addEventListener('change', applyTypedCrop);
+        focalField.addEventListener('change', function () { if (!focalPanel.hidden) { showFocal(readFocal()); } });
+
         function readFocal() {
             var focal = parseFractions(focalField.value, 2);
             return focal ? { x: focal[0], y: focal[1] } : null;
@@ -302,7 +323,8 @@
             });
             var request = ++previewRequest;
             fetch(previewUrl + '?' + params.toString(), { credentials: 'same-origin', headers: { 'Accept': 'text/html' } })
-                .then(function (response) { return response.ok ? response.text() : null; })
+                // A redirect means the session ended: do not show the sign-in page as a preview.
+                .then(function (response) { return response.ok && !response.redirected ? response.text() : null; })
                 .then(function (html) {
                     if (request !== previewRequest || html === null) { return; }
                     // Server-rendered markup from the widget's own Razor view, which encodes every value.

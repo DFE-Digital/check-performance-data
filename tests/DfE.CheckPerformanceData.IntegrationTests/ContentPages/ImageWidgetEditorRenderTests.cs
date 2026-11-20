@@ -138,6 +138,17 @@ public sealed class ImageWidgetEditorRenderTests
         Assert.DoesNotMatch("\\son[a-z]+=\"", html);
     }
 
+    // The crop and focal point can always be typed, so they do not need a mouse. The section
+    // opens when one of them was refused.
+    [Fact]
+    public async Task TheTypedCropAndFocalPoint_SitInADetailsSection()
+    {
+        var html = await RenderAsync(Widget(PngId));
+
+        Assert.Matches("<details class=\"govuk-details\" data-image-editor-manual>\\s*<summary", html);
+        Assert.Contains("Enter the crop and focal point as numbers", html);
+    }
+
     private async Task<string> RenderAsync(WidgetNode widget)
     {
         using var host = await new HostBuilder()

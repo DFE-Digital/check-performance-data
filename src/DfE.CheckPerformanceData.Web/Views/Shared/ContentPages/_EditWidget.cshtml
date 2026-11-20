@@ -513,8 +513,8 @@
                                             </div>
                                             <div class="app-image-editor__panel" id="ie-focal-@Model.Path" data-image-editor-focal-panel hidden>
                                                 <div class="govuk-hint" id="ie-focal-@Model.Path-hint">
-                                                    Select the part of the whole image to keep in view when a crop shape cuts it,
-                                                    or use the arrow keys. Hold Shift to move further.
+                                                    Select the part of the image to keep in view, or use the arrow keys. Hold Shift to move further.
+                                                    The focal point is used only when an aspect ratio cuts the image or a crop of another shape.
                                                 </div>
                                                 <div class="app-image-editor__focal" tabindex="0" role="group" aria-label="Focal point"
                                                      aria-describedby="ie-focal-@Model.Path-hint" data-image-editor-focal-area>
@@ -526,34 +526,40 @@
                                         </div>
                                     </div>
 
-                                    @* The values the tools write. Without the script they are typed in here. *@
-                                    <div data-image-editor-manual data-has-error="@(imgManualError ? "true" : "false")">
-                                        <div class="@GroupClass("aspect")">
-                                            <label class="govuk-label" for="@FieldId("aspect")">Aspect ratio</label>
-                                            @{ ErrorMessage("aspect"); }
-                                            <select class="govuk-select" id="@FieldId("aspect")" name="props[aspect]" aria-describedby="@DescribedBy("aspect")" data-image-editor-aspect>
-                                                <option value="" selected="@(imgAspect == "" ? "selected" : null)">The image's own shape</option>
-                                                <option value="16:9" selected="@(imgAspect == "16:9" ? "selected" : null)">16:9</option>
-                                                <option value="4:3" selected="@(imgAspect == "4:3" ? "selected" : null)">4:3</option>
-                                                <option value="1:1" selected="@(imgAspect == "1:1" ? "selected" : null)">1:1 (square)</option>
-                                                <option value="3:2" selected="@(imgAspect == "3:2" ? "selected" : null)">3:2</option>
-                                            </select>
+                                    @* The values the tools write. They can always be typed here too, so the crop and
+                                       focal point do not need a mouse. The section opens when one of them has an error. *@
+                                    <details class="govuk-details" data-image-editor-manual open="@(imgManualError ? "open" : null)">
+                                        <summary class="govuk-details__summary">
+                                            <span class="govuk-details__summary-text">Enter the crop and focal point as numbers</span>
+                                        </summary>
+                                        <div class="govuk-details__text">
+                                            <div class="@GroupClass("aspect")">
+                                                <label class="govuk-label" for="@FieldId("aspect")">Aspect ratio</label>
+                                                @{ ErrorMessage("aspect"); }
+                                                <select class="govuk-select" id="@FieldId("aspect")" name="props[aspect]" aria-describedby="@DescribedBy("aspect")" data-image-editor-aspect>
+                                                    <option value="" selected="@(imgAspect == "" ? "selected" : null)">The image's own shape</option>
+                                                    <option value="16:9" selected="@(imgAspect == "16:9" ? "selected" : null)">16:9</option>
+                                                    <option value="4:3" selected="@(imgAspect == "4:3" ? "selected" : null)">4:3</option>
+                                                    <option value="1:1" selected="@(imgAspect == "1:1" ? "selected" : null)">1:1 (square)</option>
+                                                    <option value="3:2" selected="@(imgAspect == "3:2" ? "selected" : null)">3:2</option>
+                                                </select>
+                                            </div>
+                                            <div class="@GroupClass("crop")">
+                                                <label class="govuk-label" for="@FieldId("crop")">Crop (optional)</label>
+                                                <div class="govuk-hint" id="@FieldId("crop")-hint">x,y,width,height as fractions from 0 to 1, for example 0,0,0.5,1 for the left half.</div>
+                                                @{ ErrorMessage("crop"); }
+                                                <input class="govuk-input govuk-input--width-20@(ErrorFor("crop") is null ? "" : " govuk-input--error")" id="@FieldId("crop")" name="props[crop]"
+                                                       value="@FieldValue("crop")" aria-describedby="@FieldId("crop")-hint @DescribedBy("crop")" spellcheck="false" data-image-editor-crop />
+                                            </div>
+                                            <div class="@GroupClass("focal")">
+                                                <label class="govuk-label" for="@FieldId("focal")">Focal point (optional)</label>
+                                                <div class="govuk-hint" id="@FieldId("focal")-hint">x,y as fractions of the whole image, from 0 to 1. It is used only when an aspect ratio is set: it keeps this point in view when that shape cuts the image or the crop.</div>
+                                                @{ ErrorMessage("focal"); }
+                                                <input class="govuk-input govuk-input--width-10@(ErrorFor("focal") is null ? "" : " govuk-input--error")" id="@FieldId("focal")" name="props[focal]"
+                                                       value="@FieldValue("focal")" aria-describedby="@FieldId("focal")-hint @DescribedBy("focal")" spellcheck="false" data-image-editor-focal />
+                                            </div>
                                         </div>
-                                        <div class="@GroupClass("crop")">
-                                            <label class="govuk-label" for="@FieldId("crop")">Crop (optional)</label>
-                                            <div class="govuk-hint" id="@FieldId("crop")-hint">x,y,width,height as fractions from 0 to 1, for example 0,0,0.5,1 for the left half.</div>
-                                            @{ ErrorMessage("crop"); }
-                                            <input class="govuk-input govuk-input--width-20@(ErrorFor("crop") is null ? "" : " govuk-input--error")" id="@FieldId("crop")" name="props[crop]"
-                                                   value="@FieldValue("crop")" aria-describedby="@FieldId("crop")-hint @DescribedBy("crop")" spellcheck="false" data-image-editor-crop />
-                                        </div>
-                                        <div class="@GroupClass("focal")">
-                                            <label class="govuk-label" for="@FieldId("focal")">Focal point (optional)</label>
-                                            <div class="govuk-hint" id="@FieldId("focal")-hint">x,y as fractions from 0 to 1. Keeps this point in view when an aspect ratio cuts the image.</div>
-                                            @{ ErrorMessage("focal"); }
-                                            <input class="govuk-input govuk-input--width-10@(ErrorFor("focal") is null ? "" : " govuk-input--error")" id="@FieldId("focal")" name="props[focal]"
-                                                   value="@FieldValue("focal")" aria-describedby="@FieldId("focal")-hint @DescribedBy("focal")" spellcheck="false" data-image-editor-focal />
-                                        </div>
-                                    </div>
+                                    </details>
 
                                     <div class="app-image-editor__preview" data-image-editor-preview hidden>
                                         <h3 class="govuk-heading-s">Preview (not saved yet)</h3>

@@ -11,6 +11,7 @@ using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using SkiaSharp;
@@ -41,6 +42,7 @@ public sealed class MediaUploadServiceTests(PostgresFixture postgres, AzuriteFix
         new MediaFileCleaner(new SkiaRasterImageCleaner()),
         repository ?? new MediaAssetRepository(ctx, new FakeCurrentUserService()),
         BlobStore,
+        new MediaProcessingGate(Options.Create(new MediaProcessingOptions())),
         NullLogger<MediaUploadService>.Instance);
 
     private static byte[] Png(int width, int height, SKColor colour)

@@ -18,11 +18,15 @@ namespace DfE.CheckPerformanceData.Application.Media.Upload;
 /// uploads that differ only in metadata (for example the same photo with and without GPS data)
 /// count as one image, and the stored hash always matches the stored file. Only an image whose
 /// current version has the hash is a duplicate.
+///
+/// Cleaning decodes the whole image, so it runs inside <see cref="MediaProcessingGate"/>: parallel
+/// uploads from the library page wait there instead of all decoding at once.
 /// </summary>
 public sealed class MediaUploadService(
     IMediaFileCleaner cleaner,
     IMediaAssetRepository assets,
     IMediaBlobStore blobs,
+    MediaProcessingGate gate,
     ILogger<MediaUploadService> logger) : IMediaUploadService
 {
     private const int MaxFileNameLength = 255;
@@ -31,7 +35,7 @@ public sealed class MediaUploadService(
 
     public async Task<MediaUploadResult> UploadAsync(Stream content, string fileName, CancellationToken ct = default)
     {
-        var check = await cleaner.CleanAsync(content, ct);
+        var check = await CleanAsync(content, ct);
         if (!check.IsAccepted)
         {
             logger.LogInformation("Media upload refused: {Reason}", check.Rejection);
@@ -70,7 +74,7 @@ public sealed class MediaUploadService(
         var asset = await assets.GetAsync(assetId, ct);
         if (asset is null) return MediaReplaceResult.NotFound();
 
-        var check = await cleaner.CleanAsync(content, ct);
+        var check = await CleanAsync(content, ct);
         if (!check.IsAccepted)
         {
             logger.LogInformation("Media replace for {AssetId} refused: {Reason}", assetId, check.Rejection);
@@ -109,6 +113,12 @@ public sealed class MediaUploadService(
             await DeleteQuietlyAsync(key);
             throw;
         }
+    }
+
+    private async Task<MediaCheckResult> CleanAsync(Stream content, CancellationToken ct)
+    {
+        using var place = await gate.EnterAsync(ct);
+        return await cleaner.CleanAsync(content, ct);
     }
 
     private static NewMediaAssetVersion Version(string key, CleanedMediaFile file, string sha256) =>

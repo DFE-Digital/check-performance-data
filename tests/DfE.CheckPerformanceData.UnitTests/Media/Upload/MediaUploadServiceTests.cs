@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.Media.Upload;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
@@ -17,12 +18,13 @@ public sealed class MediaUploadServiceTests
     private readonly IMediaFileCleaner _cleaner = Substitute.For<IMediaFileCleaner>();
     private readonly IMediaAssetRepository _assets = Substitute.For<IMediaAssetRepository>();
     private readonly IMediaBlobStore _blobs = Substitute.For<IMediaBlobStore>();
+    private readonly MediaProcessingGate _gate = new(Options.Create(new MediaProcessingOptions { MaxConcurrentProcessing = 2 }));
     private readonly MediaUploadService _sut;
     private readonly List<string> _calls = [];
 
     public MediaUploadServiceTests()
     {
-        _sut = new MediaUploadService(_cleaner, _assets, _blobs, NullLogger<MediaUploadService>.Instance);
+        _sut = new MediaUploadService(_cleaner, _assets, _blobs, _gate, NullLogger<MediaUploadService>.Instance);
         _cleaner.CleanAsync(Arg.Any<Stream>(), Arg.Any<CancellationToken>())
             .Returns(MediaCheckResult.Accept(new CleanedMediaFile(CleanBytes, MediaFormat.Png, 30, 20, false)));
         _assets.FindBySha256Async(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
@@ -246,5 +248,67 @@ public sealed class MediaUploadServiceTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.ReplaceAsync(id, new MemoryStream([1])));
 
         await _blobs.Received(1).DeleteAsync(MediaBlobKeys.Original(id, 2), Arg.Any<CancellationToken>());
+    }
+
+    // Cleaning decodes the whole image, so parallel uploads from the library page queue at the
+    // gate instead of all decoding at once.
+    [Fact]
+    public async Task Uploads_BeyondTheLimit_WaitForACleanToFinish()
+    {
+        var release = new TaskCompletionSource();
+        var started = 0;
+        _cleaner.CleanAsync(Arg.Any<Stream>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            Interlocked.Increment(ref started);
+            await release.Task;
+            return MediaCheckResult.Reject(MediaRejections.SvgUnreadable);
+        });
+
+        var uploads = Enumerable.Range(0, 3).Select(_ => _sut.UploadAsync(new MemoryStream([1]), "a.png")).ToList();
+        await Task.Delay(100);
+        Assert.Equal(2, Volatile.Read(ref started));
+
+        release.SetResult();
+        await Task.WhenAll(uploads).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(3, Volatile.Read(ref started));
+    }
+
+    [Fact]
+    public async Task Replaces_ShareTheSameLimit()
+    {
+        var id = Guid.NewGuid();
+        _assets.GetAsync(id, Arg.Any<CancellationToken>()).Returns(Dto(id));
+        var release = new TaskCompletionSource();
+        var started = 0;
+        _cleaner.CleanAsync(Arg.Any<Stream>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            Interlocked.Increment(ref started);
+            await release.Task;
+            return MediaCheckResult.Reject(MediaRejections.SvgUnreadable);
+        });
+
+        var work = new Task[]
+        {
+            _sut.UploadAsync(new MemoryStream([1]), "a.png"),
+            _sut.ReplaceAsync(id, new MemoryStream([1])),
+            _sut.ReplaceAsync(id, new MemoryStream([1]))
+        };
+        await Task.Delay(100);
+        Assert.Equal(2, Volatile.Read(ref started));
+
+        release.SetResult();
+        await Task.WhenAll(work).WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task ACleanThatThrows_GivesItsPlaceBack()
+    {
+        _cleaner.CleanAsync(Arg.Any<Stream>(), Arg.Any<CancellationToken>()).ThrowsAsync(new IOException("read failed"));
+
+        for (var i = 0; i < 3; i++)
+            await Assert.ThrowsAsync<IOException>(() => _sut.UploadAsync(new MemoryStream([1]), "a.png"));
+
+        using var place = await _gate.EnterAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        using var second = await _gate.EnterAsync().WaitAsync(TimeSpan.FromSeconds(5));
     }
 }

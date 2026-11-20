@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Startup;
@@ -34,6 +35,29 @@ public sealed class MediaUploadRegistrationTests
 
         Assert.IsType<MediaUploadService>(scope.ServiceProvider.GetRequiredService<IMediaUploadService>());
         Assert.IsType<SkiaRasterImageCleaner>(scope.ServiceProvider.GetRequiredService<IRasterImageCleaner>());
+    }
+
+    // One gate for the whole process, so the limit holds across requests, read from Media settings.
+    [Fact]
+    public void TheProcessingGateIsOneSharedInstance_WithTheConfiguredLimit()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:AzureStorage"] = "UseDevelopmentStorage=true",
+                ["Media:MaxConcurrentProcessing"] = "3"
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IHostEnvironment>(new StubHostEnvironment());
+        services.AddApplicationDependencies();
+        services.AddCpdBlobStorage(configuration);
+
+        using var provider = services.BuildServiceProvider(validateScopes: true);
+
+        Assert.Same(provider.GetRequiredService<MediaProcessingGate>(), provider.GetRequiredService<MediaProcessingGate>());
+        Assert.Equal(3, provider.GetRequiredService<IOptions<MediaProcessingOptions>>().Value.MaxConcurrentProcessing);
     }
 
     private sealed class StubHostEnvironment : IHostEnvironment

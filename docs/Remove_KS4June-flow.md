@@ -153,7 +153,7 @@ No evidence step.
 
 | Question | Type | Notes |
 |---|---|---|
-| `dual-registered-moved-dfe-number` | FreeText | DfE number of the school the pupil's exam results should be transferred to. Includes help text. |
+| `dual-registered-moved-dfe-number` | FreeText | DfE number of the school where accountability for the pupil should be transferred to. Includes help text. |
 
 ### `dual-registered-moved-evidence` → *end*  (terminal, `EvidenceUpload`)
 

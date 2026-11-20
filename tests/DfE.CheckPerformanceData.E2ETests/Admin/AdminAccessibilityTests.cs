@@ -28,6 +28,7 @@ public sealed class AdminAccessibilityTests(PlaywrightFixture fixture) : Seeding
     [InlineData("/admin/Search/ZeroResults")]
     [InlineData("/admin/messages")]
     [InlineData("/admin/storage/app/rules-config")]
+    [InlineData("/admin/media")]
     public async Task AdminPage_HasNoWcagViolations(string path)
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),

@@ -5,7 +5,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Media.Upload;
 
 // SVG is markup a browser can run, so uploads are rebuilt from an allow-list: anything that could
 // run script, load another file or reach outside the image is removed, and a file that will not
-// parse, or uses a DTD, is refused outright.
+// parse, or declares anything in a DTD, is refused outright.
 public sealed class SvgSanitiserTests
 {
     private const string Ns = "xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\"";
@@ -131,11 +131,49 @@ public sealed class SvgSanitiserTests
     [InlineData("<?xml version=\"1.0\"?><!DOCTYPE svg [<!ENTITY a \"aaaaaaaaaa\"><!ENTITY b \"&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;\"><!ENTITY c \"&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;\">]><svg xmlns=\"http://www.w3.org/2000/svg\"><text>&c;</text></svg>")]
     // An external entity (XXE) that would read a local file.
     [InlineData("<?xml version=\"1.0\"?><!DOCTYPE svg [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><svg xmlns=\"http://www.w3.org/2000/svg\"><text>&xxe;</text></svg>")]
-    // Any DOCTYPE at all.
-    [InlineData("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"><svg xmlns=\"http://www.w3.org/2000/svg\"/>")]
+    // An internal subset is refused even when nothing uses what it declares.
+    [InlineData("<!DOCTYPE svg [<!ENTITY unused \"x\">]><svg xmlns=\"http://www.w3.org/2000/svg\"/>")]
+    [InlineData("<!DOCTYPE svg [<!ELEMENT svg ANY>]><svg xmlns=\"http://www.w3.org/2000/svg\"/>")]
+    [InlineData("<!DOCTYPE svg [<!ATTLIST svg onload CDATA \"alert(1)\">]><svg xmlns=\"http://www.w3.org/2000/svg\"/>")]
+    [InlineData("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\" [<!ENTITY a \"b\">]><svg xmlns=\"http://www.w3.org/2000/svg\"/>")]
+    [InlineData("<!DOCTYPE svg [ ]><svg xmlns=\"http://www.w3.org/2000/svg\"/>")]
+    // A parameter-entity bomb, expanded inside the subset itself.
+    [InlineData("<!DOCTYPE svg [<!ENTITY % a \"aaaaaaaaaa\"><!ENTITY % b \"%a;%a;%a;%a;%a;%a;%a;%a;%a;%a;\"><!ENTITY % c \"%b;%b;%b;%b;%b;%b;%b;%b;%b;%b;\">%c;]><svg xmlns=\"http://www.w3.org/2000/svg\"/>")]
+    // An external parameter entity.
+    [InlineData("<!DOCTYPE svg [<!ENTITY % ext SYSTEM \"file:///etc/passwd\">%ext;]><svg xmlns=\"http://www.w3.org/2000/svg\"/>")]
+    // An entity reference with no declaration.
+    [InlineData("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"><svg xmlns=\"http://www.w3.org/2000/svg\"><text>&nbsp;</text></svg>")]
     public void RefusesDtdsAndEntities(string svg)
     {
         AssertRefused(svg);
+    }
+
+    // Illustrator and Inkscape exports carry the standard SVG 1.1 public DOCTYPE. It declares
+    // nothing in the file, the external DTD is never fetched, and the DOCTYPE is left out of the
+    // stored file.
+    [Theory]
+    [InlineData("<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<!-- Generator: Adobe Illustrator 27.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->\r\n<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\r\n<svg version=\"1.1\" id=\"Layer_1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" x=\"0px\" y=\"0px\" width=\"100px\" height=\"50px\" viewBox=\"0 0 100 50\" xml:space=\"preserve\">\r\n<rect x=\"1\" y=\"2\" width=\"3\" height=\"4\" fill=\"#00703C\"/>\r\n</svg>")]
+    [InlineData("<!DOCTYPE svg><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"50\"><rect x=\"1\" y=\"2\" width=\"3\" height=\"4\"/></svg>")]
+    [InlineData("<!DOCTYPE svg SYSTEM \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"50\"><rect x=\"1\" y=\"2\" width=\"3\" height=\"4\"/></svg>")]
+    public void AcceptsAStandardDoctypeAndDropsIt(string svg)
+    {
+        var output = Clean(svg);
+
+        Assert.StartsWith("<svg", output);
+        Assert.DoesNotContain("DOCTYPE", output);
+        Assert.DoesNotContain("svg11.dtd", output);
+        Assert.Contains("<rect x=\"1\" y=\"2\" width=\"3\" height=\"4\"", output);
+    }
+
+    [Fact]
+    public void ReadsTheSizeOfAFileWithADoctype()
+    {
+        var result = SvgSanitiser.Sanitise(Encoding.UTF8.GetBytes(
+            "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"50\"/>"));
+
+        Assert.True(result.IsAccepted, result.Rejection);
+        Assert.Equal(100, result.File!.Width);
+        Assert.Equal(50, result.File.Height);
     }
 
     [Theory]

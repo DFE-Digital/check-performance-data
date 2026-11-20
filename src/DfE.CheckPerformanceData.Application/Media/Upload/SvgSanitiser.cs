@@ -10,8 +10,10 @@ namespace DfE.CheckPerformanceData.Application.Media.Upload;
 /// from it or load anything else through it.
 ///
 /// The file is streamed through an XmlReader into a new document; nothing is copied unless it is
-/// on the lists below. DTDs (and so entities, entity bombs and XXE) make the file unreadable, as do
-/// a broken structure, a root that is not an SVG svg element, more than
+/// on the lists below. A DOCTYPE that only names a DTD, as Illustrator and Inkscape exports do, is
+/// allowed and left out of the output; the external DTD is never fetched. A DOCTYPE with an
+/// internal subset (so any entity, element or attribute declaration, entity bombs and XXE) makes
+/// the file unreadable, as does an entity reference, a broken structure, a root that is not an SVG svg element, more than
 /// <see cref="MediaUploadLimits.MaxSvgCharacters"/> characters or nesting deeper than
 /// <see cref="MediaUploadLimits.MaxSvgDepth"/>. Processing instructions (xml-stylesheet) and
 /// comments are dropped. Elements outside the SVG namespace or the list go with their whole
@@ -111,7 +113,10 @@ public static partial class SvgSanitiser
     {
         var readerSettings = new XmlReaderSettings
         {
-            DtdProcessing = DtdProcessing.Prohibit,
+            // Parse rather than Prohibit so a plain DOCTYPE can be read and dropped. With no
+            // resolver nothing outside the file is loaded, and the entity limit stops any
+            // expansion while the subset is read; ReadToRoot then refuses the subset itself.
+            DtdProcessing = DtdProcessing.Parse,
             XmlResolver = null,
             MaxCharactersInDocument = MediaUploadLimits.MaxSvgCharacters,
             MaxCharactersFromEntities = 1,
@@ -129,7 +134,8 @@ public static partial class SvgSanitiser
         using var reader = XmlReader.Create(input, readerSettings);
         using var output = new MemoryStream();
 
-        if (reader.MoveToContent() != XmlNodeType.Element || reader.LocalName != "svg" || reader.NamespaceURI != SvgNs)
+        ReadToRoot(reader);
+        if (reader.LocalName != "svg" || reader.NamespaceURI != SvgNs)
             throw new InvalidDataException("The root element is not an SVG svg element.");
         var (width, height) = ReadSize(reader);
 
@@ -141,6 +147,24 @@ public static partial class SvgSanitiser
         while (reader.Read()) { }
 
         return new CleanedMediaFile(output.ToArray(), MediaFormat.Svg, width, height, IsAnimated: false);
+    }
+
+    // Moves to the root element. MoveToContent would step over the DOCTYPE unseen, so the nodes
+    // before the root are read one by one. A DOCTYPE's value is its internal subset: any content
+    // there, even whitespace, refuses the file.
+    private static void ReadToRoot(XmlReader reader)
+    {
+        while (reader.Read())
+        {
+            switch (reader.NodeType)
+            {
+                case XmlNodeType.DocumentType when reader.Value.Length > 0:
+                    throw new InvalidDataException("The SVG declares a DTD internal subset.");
+                case XmlNodeType.Element:
+                    return;
+            }
+        }
+        throw new InvalidDataException("The SVG has no root element.");
     }
 
     private static void CopyDocument(XmlReader reader, XmlWriter writer)

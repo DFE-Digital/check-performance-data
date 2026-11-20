@@ -1,11 +1,13 @@
 using System.Net;
 using System.Text;
+using System.Text.Encodings.Web;
+using DfE.CheckPerformanceData.Web.Impersonation;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
 namespace DfE.CheckPerformanceData.Web.TagHelpers;
 
 [HtmlTargetElement("govuk-confirm-modal", TagStructure = TagStructure.NormalOrSelfClosing)]
-public sealed class GovukConfirmModalTagHelper : TagHelper
+public sealed class GovukConfirmModalTagHelper(ImpersonationSessionService? session = null) : TagHelper
 {
     [HtmlAttributeName("id")]
     public string Id { get; set; } = string.Empty;
@@ -74,6 +76,13 @@ public sealed class GovukConfirmModalTagHelper : TagHelper
 
         sb.Append($"<form action=\"{encodedFormAction}\" method=\"{encodedFormMethod}\">");
         sb.Append(childHtml);
+        // Built as a string, so the form tag helper never adds the establishment context.
+        if (EstablishmentContextFormTagHelper.HiddenInput(session) is { } contextInput)
+        {
+            using var writer = new StringWriter();
+            contextInput.WriteTo(writer, HtmlEncoder.Default);
+            sb.Append(writer);
+        }
 
         if (Destructive)
         {

@@ -266,9 +266,9 @@
                         </div>
                     </form>
 
-                    @* Modal's own form POSTs directly to /rename. Hidden mirrors of the outer
-                       form's Title / Subtitle / Page name / Segment inputs are populated by JS
-                       just before the modal opens. *@
+                    @* Modal's own form POSTs directly to /rename. Hidden mirrors of every field
+                       of the outer form are populated by JS just before the modal opens. The
+                       rename action saves keywords on every call, so a missing mirror clears them. *@
                     <govuk-confirm-modal id="cpb-rename-confirm"
                                          title="Change page URL?"
                                          warning-text="Changing the URL segment will change this page's URL and every child page's URL."
@@ -282,6 +282,9 @@
                         <input type="hidden" name="subtitle" id="cpb-rename-modal-subtitle" value="" />
                         <input type="hidden" name="pageName" id="cpb-rename-modal-pagename" value="" />
                         <input type="hidden" name="segment" id="cpb-rename-modal-segment" value="" />
+                        <input type="hidden" name="showInMenu" id="cpb-rename-modal-showinmenu" value="" />
+                        <input type="hidden" name="appearInSearch" id="cpb-rename-modal-appearinsearch" value="" />
+                        <input type="hidden" name="keywords" id="cpb-rename-modal-keywords" value="" />
                     </govuk-confirm-modal>
                 }
             </div>
@@ -452,8 +455,8 @@
 </script>
 
 @* URL-change confirmation. When the segment field differs from the value the page loaded
-   with, the outer form's submit is cancelled, the current title / subtitle / page name / segment
-   are copied into the modal's hidden inputs, and the govuk-confirm-modal is opened. Title-only
+   with, the outer form's submit is cancelled, every field of the outer form is copied into the
+   modal's hidden inputs, and the govuk-confirm-modal is opened. Title-only
    edits skip the modal and submit as normal. *@
 <script>
     (function () {
@@ -470,6 +473,12 @@
         var modalSubtitleHidden = document.getElementById('cpb-rename-modal-subtitle');
         var modalPageNameHidden = document.getElementById('cpb-rename-modal-pagename');
         var modalSegmentHidden  = document.getElementById('cpb-rename-modal-segment');
+        var showInMenuInput     = document.getElementById('cpb-showinmenu');
+        var appearInSearchInput = document.getElementById('cpb-appearinsearch');
+        var keywordsInput       = document.getElementById('cpb-keywords');
+        var modalShowInMenuHidden     = document.getElementById('cpb-rename-modal-showinmenu');
+        var modalAppearInSearchHidden = document.getElementById('cpb-rename-modal-appearinsearch');
+        var modalKeywordsHidden       = document.getElementById('cpb-rename-modal-keywords');
         var originalSegment = form.getAttribute('data-original-segment') || '';
 
         form.addEventListener('submit', function (e) {
@@ -481,6 +490,9 @@
             if (modalSubtitleHidden) modalSubtitleHidden.value = subtitleInput ? subtitleInput.value : '';
             if (modalPageNameHidden) modalPageNameHidden.value = pageNameInput ? pageNameInput.value : '';
             if (modalSegmentHidden)  modalSegmentHidden.value  = current;
+            if (modalShowInMenuHidden && showInMenuInput) modalShowInMenuHidden.value = showInMenuInput.checked ? 'true' : 'false';
+            if (modalAppearInSearchHidden && appearInSearchInput) modalAppearInSearchHidden.value = appearInSearchInput.checked ? 'true' : 'false';
+            if (modalKeywordsHidden) modalKeywordsHidden.value = keywordsInput ? keywordsInput.value : '';
 
             if (typeof dialog.showModal === 'function') {
                 dialog.showModal();

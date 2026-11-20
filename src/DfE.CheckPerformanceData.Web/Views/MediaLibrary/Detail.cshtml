@@ -9,7 +9,7 @@
     var fileField = MediaLibraryController.ReplaceFileField;
     var fileHasError = ViewData.ModelState.TryGetValue(fileField, out var fileState) && fileState.Errors.Count > 0;
     var maxFile = MediaFileSize.Format(MediaUploadLimits.MaxFileBytes);
-    var usedOn = Model.UsagePages.Count == 1 ? "1 page" : $"{Model.UsagePages.Count} pages";
+    var usage = Model.Usage;
 }
 
 @* No hand-written error summary: GovUk.Frontend.AspNetCore prepends one to <main> listing every
@@ -80,7 +80,7 @@
             </div>
             <div class="govuk-summary-list__row">
                 <dt class="govuk-summary-list__key">Used on</dt>
-                <dd class="govuk-summary-list__value" data-media-used-on>@usedOn</dd>
+                <dd class="govuk-summary-list__value" data-media-used-on>@usage.UsedOn</dd>
             </div>
         </dl>
 
@@ -192,14 +192,25 @@
 </table>
 </div>
 
+<h2 class="govuk-heading-l">Where the image is used</h2>
+@if (!usage.IsUsed)
+{
+    <p class="govuk-body" data-media-usage-none>No page uses this image.</p>
+}
+<partial name="~/Views/MediaLibrary/_MediaUsageLists.cshtml" model="usage" />
+
 <h2 class="govuk-heading-l">Delete the image</h2>
-@if (Model.UsagePages.Count == 0)
+@if (!usage.IsUsed)
 {
     <p class="govuk-body">No page uses this image, so you can delete it.</p>
 }
+else if (usage.OnlyInOlderVersions)
+{
+    <p class="govuk-body">@MediaUsageSummary.OnlyInOlderVersionsMessage</p>
+}
 else
 {
-    <p class="govuk-body">This image is used on @usedOn. You cannot delete it until no page uses it.</p>
+    <p class="govuk-body">This image is used on @usage.UsedOn. You cannot delete it until no page uses it.</p>
 }
 <a href="@Model.DeleteUrl" class="govuk-button govuk-button--warning" role="button" draggable="false" data-module="govuk-button">
     Delete image<span class="govuk-visually-hidden"> @Model.FileName</span>

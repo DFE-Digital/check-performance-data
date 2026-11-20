@@ -443,13 +443,15 @@ public sealed class MediaAssetRepositoryTests(PostgresFixture fixture) : IAsyncL
             var pages = await sutRead.GetUsagePagesAsync(id);
 
             Assert.Collection(pages,
-                p => { Assert.Equal(deleted, p.PageNodeId); Assert.Equal("Attendance", p.Title); Assert.True(p.IsDeleted); },
+                p => { Assert.Equal(deleted, p.PageNodeId); Assert.Equal("Attendance", p.Title); Assert.True(p.IsDeleted); Assert.True(p.InCurrentVersion); },
                 p =>
                 {
                     Assert.Equal(live, p.PageNodeId);
                     Assert.Equal("Zebra crossings", p.Title);
                     Assert.False(p.IsDeleted);
                     Assert.Equal($"media-{live:N}", p.Path);
+                    // v2 is the working draft; v1 is an older version.
+                    Assert.True(p.InCurrentVersion);
                 });
             Assert.Empty(await sutRead.GetUsagePagesAsync(Guid.NewGuid()));
         }

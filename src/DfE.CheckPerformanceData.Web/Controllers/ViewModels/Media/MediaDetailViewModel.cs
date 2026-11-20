@@ -26,6 +26,8 @@ public sealed class MediaDetailViewModel
 
     public required IReadOnlyList<MediaUsagePage> UsagePages { get; init; }
 
+    public MediaUsageSummary Usage => new(UsagePages);
+
     public required MediaMetadataForm Metadata { get; init; }
 
     public string DeleteUrl => $"{Item.DetailUrl}/delete";

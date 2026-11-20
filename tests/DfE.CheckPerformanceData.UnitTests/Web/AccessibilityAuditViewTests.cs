@@ -834,9 +834,27 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("<span class=\"govuk-visually-hidden\">Warning</span>", view);
 		Assert.Contains("@if (Model.CanDelete)", view);
 		Assert.Contains("@Html.AntiForgeryToken()", view);
-		Assert.Contains("This image is used on @Model.PageCount", view);
-		Assert.Contains("href=\"/admin/pages/@usage.PageNodeId\"", view);
+		Assert.Contains("This image is used on @Model.Usage.UsedOn", view);
+		Assert.Contains("@MediaUsageSummary.OnlyInOlderVersionsMessage", view);
+		Assert.Contains("<partial name=\"~/Views/MediaLibrary/_MediaUsageLists.cshtml\" model=\"Model.Usage\" />", view);
 		Assert.DoesNotContain("Html.Raw", view);
 		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	// Both groups have a heading under the page's h2, and each repeated "edit" link names its page.
+	[Fact]
+	public void MediaUsageLists_GroupPagesUnderHeadings_AndNameEachLink()
+	{
+		var view = ReadView("Views", "MediaLibrary", "_MediaUsageLists.cshtml");
+
+		Assert.Contains("<h3 class=\"govuk-heading-m\">Used on these pages</h3>", view);
+		Assert.Contains("<h3 class=\"govuk-heading-m\">Only in older versions of these pages</h3>", view);
+		Assert.Contains("href=\"/admin/pages/@usagePage.PageNodeId\">@usagePage.Title<span class=\"govuk-visually-hidden\"> (edit page)</span>", view);
+		Assert.DoesNotContain("Html.Raw", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+
+		var detail = ReadView("Views", "MediaLibrary", "Detail.cshtml");
+		Assert.Contains("<h2 class=\"govuk-heading-l\">Where the image is used</h2>", detail);
+		Assert.Contains("<partial name=\"~/Views/MediaLibrary/_MediaUsageLists.cshtml\" model=\"usage\" />", detail);
 	}
 }

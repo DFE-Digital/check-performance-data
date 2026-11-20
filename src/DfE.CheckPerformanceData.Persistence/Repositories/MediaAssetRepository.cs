@@ -55,6 +55,14 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
         asset.UpdatedAtUtc = now;
         asset.UpdatedBy = currentUser.Email;
 
+        // Live, scheduled and draft page versions show the newest file, so their usages move to
+        // it in the same save. Older page versions keep the file they were saved with.
+        var currentPageVersions = PageVersionStates.CurrentVersionIds(context, now);
+        var repinned = await context.MediaUsages
+            .Where(u => u.AssetId == assetId && currentPageVersions.Contains(u.PageNodeVersionId))
+            .ToListAsync(ct);
+        foreach (var usage in repinned) usage.AssetVersion = version;
+
         try
         {
             await context.SaveChangesAsync(ct);
@@ -153,13 +161,17 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
     }
 
     // Pages are read without the soft-delete filter: a deleted page's versions keep their usages.
+    // A page uses the image in its current version when its live, scheduled or draft version does.
     public async Task<IReadOnlyList<MediaUsagePage>> GetUsagePagesAsync(Guid assetId, CancellationToken ct = default)
     {
-        var pageIds = context.MediaUsages.Where(u => u.AssetId == assetId).Select(u => u.PageNodeId);
+        var usages = context.MediaUsages.Where(u => u.AssetId == assetId);
+        var currentPageVersions = PageVersionStates.CurrentVersionIds(context, DateTime.UtcNow);
+        var pageIds = usages.Select(u => u.PageNodeId);
+        var currentPageIds = usages.Where(u => currentPageVersions.Contains(u.PageNodeVersionId)).Select(u => u.PageNodeId);
         return await context.PageNodes.IgnoreQueryFilters().AsNoTracking()
             .Where(n => pageIds.Contains(n.Id))
             .OrderBy(n => n.Title).ThenBy(n => n.Id)
-            .Select(n => new MediaUsagePage(n.Id, n.Title, n.Path, n.DeletedDate != null))
+            .Select(n => new MediaUsagePage(n.Id, n.Title, n.Path, n.DeletedDate != null, currentPageIds.Contains(n.Id)))
             .ToListAsync(ct);
     }
 

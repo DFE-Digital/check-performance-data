@@ -1,0 +1,35 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaUsageSummary
+@* The pages that use an image, in two groups: pages whose live, scheduled or draft version shows
+   it, and pages where only older versions (or a deleted page) still hold it. Each link opens the
+   page in the editor. *@
+
+@if (Model.CurrentPages.Count > 0)
+{
+    <h3 class="govuk-heading-m">Used on these pages</h3>
+    <ul class="govuk-list govuk-list--bullet" data-media-usage-current>
+        @foreach (var usagePage in Model.CurrentPages)
+        {
+            <li><a class="govuk-link" href="/admin/pages/@usagePage.PageNodeId">@usagePage.Title<span class="govuk-visually-hidden"> (edit page)</span></a></li>
+        }
+    </ul>
+}
+
+@if (Model.OlderPages.Count > 0)
+{
+    <h3 class="govuk-heading-m">Only in older versions of these pages</h3>
+    <ul class="govuk-list govuk-list--bullet" data-media-usage-older>
+        @foreach (var usagePage in Model.OlderPages)
+        {
+            <li>
+                @if (usagePage.IsDeleted)
+                {
+                    @usagePage.Title <strong class="govuk-tag govuk-tag--grey">Deleted page</strong>
+                }
+                else
+                {
+                    <a class="govuk-link" href="/admin/pages/@usagePage.PageNodeId">@usagePage.Title<span class="govuk-visually-hidden"> (edit page)</span></a>
+                }
+            </li>
+        }
+    </ul>
+}

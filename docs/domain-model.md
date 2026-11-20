@@ -106,6 +106,12 @@ The JSON Schema marks several fields nullable, so the model is hardened for null
 
 **WikiPage / ContentBlock** — CMS content entities with full version history. Changes create new version records rather than updating in place.
 
+**MediaUsage** — one use of a media library image on one page version (`media_usages`). `PageNodeRepository` writes the rows in the same save as the page version, on every path that creates a version or changes its content: save draft, publish, copy, and content import. `MediaReferenceExtractor` (Application) finds the images in the content: a widget's `mediaId` prop, and an `<img>` with `data-media-id` or a `/media/{id}/` src in rich-text HTML. A wiki body is read as rich text. An image id that is not in the library is skipped, so a save never fails on it.
+- Each row pins the image version that was current when the page version was saved. A historic page version shows that file.
+- Replacing an image moves the pins of current page versions to the new file, in the same save. Current means live, scheduled or the working draft (`PageVersionStates`). Older versions keep their pins.
+- The image page lists pages whose current version uses the image, and pages where only older versions do. Any usage blocks a delete.
+- `IPageNodeRepository.RebuildMediaUsagesAsync` rebuilds every row from the content. It keeps existing pins, and a second run changes nothing.
+
 **RequestState** — session state for an in-progress change request (`Application/Journey/RequestState.cs`). Holds the selected pupil, checking window, what-to-change, question answers, and question history. For Merge journeys, also holds `MatchedPupil` / `MatchedPupilId` / `MatchedPupilLabel` — the second record being merged. Stored in `ISession` via `SessionExtensions` (Web layer).
 
 **Request statuses (#536).** Two columns, one job each. `ChangeRequest.Status` is what the school

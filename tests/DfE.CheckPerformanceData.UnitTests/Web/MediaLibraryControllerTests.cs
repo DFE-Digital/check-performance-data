@@ -131,7 +131,7 @@ public sealed class MediaLibraryControllerTests
         var v2 = asset.Latest with { Version = 2, UploadedBy = "editor@education.gov.uk", Width = 800, Height = 600 };
         var v1 = asset.Latest with { Version = 1, UploadedBy = "first@education.gov.uk" };
         asset = asset with { Latest = v2 };
-        var page = new MediaUsagePage(Guid.NewGuid(), "Attendance", "attendance", false);
+        var page = new MediaUsagePage(Guid.NewGuid(), "Attendance", "attendance", false, true);
         _media.GetAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(asset);
         _media.GetVersionsAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([v2, v1]);
         _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([page]);
@@ -296,13 +296,14 @@ public sealed class MediaLibraryControllerTests
     {
         var asset = Known();
         _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(
-            [new MediaUsagePage(Guid.NewGuid(), "Attendance", "attendance", false), new MediaUsagePage(Guid.NewGuid(), "Old", "old", true)]);
+            [new MediaUsagePage(Guid.NewGuid(), "Attendance", "attendance", false, true), new MediaUsagePage(Guid.NewGuid(), "Old", "old", true, false)]);
 
         var model = Assert.IsType<MediaDeleteViewModel>(Assert.IsType<ViewResult>(await _sut.DeleteConfirm(asset.Id, CancellationToken.None)).Model);
 
         Assert.False(model.CanDelete);
-        Assert.Equal("2 pages", model.PageCount);
-        Assert.Equal(2, model.UsagePages.Count);
+        Assert.Equal("1 page", model.Usage.UsedOn);
+        Assert.Equal(["Attendance"], model.Usage.CurrentPages.Select(p => p.Title));
+        Assert.Equal(["Old"], model.Usage.OlderPages.Select(p => p.Title));
     }
 
     [Fact]
@@ -329,14 +330,14 @@ public sealed class MediaLibraryControllerTests
     {
         var asset = Known();
         _deletions.DeleteAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(MediaDeleteOutcome.InUse);
-        _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([new MediaUsagePage(Guid.NewGuid(), "Attendance", "attendance", false)]);
+        _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([new MediaUsagePage(Guid.NewGuid(), "Attendance", "attendance", false, true)]);
 
         var view = Assert.IsType<ViewResult>(await _sut.Delete(asset.Id, CancellationToken.None));
 
         Assert.Equal("Delete", view.ViewName);
         var model = Assert.IsType<MediaDeleteViewModel>(view.Model);
         Assert.False(model.CanDelete);
-        Assert.Equal("1 page", model.PageCount);
+        Assert.Equal("1 page", model.Usage.UsedOn);
         Assert.Equal(409, _sut.HttpContext.Response.StatusCode);
     }
 

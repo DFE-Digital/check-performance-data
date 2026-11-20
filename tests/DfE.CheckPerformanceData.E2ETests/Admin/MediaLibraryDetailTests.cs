@@ -142,7 +142,7 @@ public sealed class MediaLibraryDetailTests(PlaywrightFixture fixture) : Seeding
         Assert.Equal(404, gone!.Status);
     }
 
-    // Pages do not record their images yet, so a dev endpoint records the use directly.
+    // The dev endpoint records the use directly, so this test does not depend on the page editor.
     [SkippableFact]
     public async Task AUsedImage_ListsThePagesThatUseIt_AndCannotBeDeleted()
     {
@@ -161,12 +161,67 @@ public sealed class MediaLibraryDetailTests(PlaywrightFixture fixture) : Seeding
 
         await OpenAsync($"{LibraryUrl}/{id}/delete");
         await Expect(Page.Locator("[data-media-in-use]")).ToContainTextAsync("This image is used on 1 page");
-        await Expect(Page.Locator("[data-media-usages] a", new() { HasText = title })).ToHaveAttributeAsync("href", $"/admin/pages/{pageId}");
+        await Expect(Page.Locator("[data-media-usage-current] a", new() { HasText = title })).ToHaveAttributeAsync("href", $"/admin/pages/{pageId}");
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Delete image" })).ToHaveCountAsync(0);
 
         // A post made anyway is refused, and the image stays.
         Assert.Equal(HttpStatusCode.Conflict, await MediaSeedHelpers.DeleteAsync(Fixture.SeedClient, id));
         await OpenAsync($"{LibraryUrl}/{id}");
+    }
+
+    private async Task<(Guid Id, string Title)> PageWithImageAsync(Guid imageId, string name)
+    {
+        var title = $"E2E media {name} {Guid.NewGuid():N}";
+        var pageId = await CmsSeedHelpers.CreatePageNodeAsync(Fixture.SeedClient, FixtureContent.RootId, "content",
+            $"e2e-{Guid.NewGuid():N}-media-{name}", title);
+        _pages.Add(pageId);
+        await CmsSeedHelpers.AddWidgetAsync(Fixture.SeedClient, pageId, "0.0", "richtext");
+        await SetRichTextAsync(pageId, $"<p>Intro</p><img data-media-id=\"{imageId}\" src=\"/media/{imageId}/1/photo.png\" alt=\"A test image\">");
+        return (pageId, title);
+    }
+
+    private Task SetRichTextAsync(Guid pageId, string html) =>
+        CmsSeedHelpers.UpdateWidgetAsync(Fixture.SeedClient, pageId, "0.0", "richtext",
+            new Dictionary<string, string> { ["html"] = html });
+
+    // The usages come from real page content saved through the editor: a rich-text image with
+    // data-media-id. One page's draft uses the image; the other page used it in a version that a
+    // newer published version replaced.
+    [SkippableFact]
+    public async Task TheImagePage_ListsCurrentPages_AndPagesWhereOnlyOlderVersionsUseIt()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), "Playwright interaction test Linux-only");
+        var (id, _) = await UploadAsAdminAsync();
+        _usedImages.Add(id);
+        var (current, currentTitle) = await PageWithImageAsync(id, "current");
+        var (older, olderTitle) = await PageWithImageAsync(id, "older");
+        await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, older);
+        await SetRichTextAsync(older, "<p>The image is gone.</p>");
+        await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, older);
+
+        await OpenAsync($"{LibraryUrl}/{id}");
+        await Expect(Page.Locator("[data-media-used-on]")).ToHaveTextAsync("1 page");
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Used on these pages" })).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-media-usage-current] a", new() { HasText = currentTitle }))
+            .ToHaveAttributeAsync("href", $"/admin/pages/{current}");
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Only in older versions of these pages" })).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-media-usage-older] a", new() { HasText = olderTitle }))
+            .ToHaveAttributeAsync("href", $"/admin/pages/{older}");
+        await Expect(Page.Locator("[data-media-usage-current]")).Not.ToContainTextAsync(olderTitle);
+
+        // Editing the draft to take the image out removes that page's use. Only the older version is left.
+        await SetRichTextAsync(current, "<p>No image now.</p>");
+
+        await OpenAsync($"{LibraryUrl}/{id}");
+        await Expect(Page.Locator("[data-media-used-on]")).ToHaveTextAsync("Only in older versions of 1 page");
+        await Expect(Page.Locator("[data-media-usage-current]")).ToHaveCountAsync(0);
+        await Expect(Page.Locator("[data-media-usage-older]")).ToContainTextAsync(olderTitle);
+
+        await OpenAsync($"{LibraryUrl}/{id}/delete");
+        await Expect(Page.Locator("[data-media-in-use]")).ToContainTextAsync(
+            "This image is only used in older versions of pages. It can't be deleted while those versions are kept.");
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Delete image" })).ToHaveCountAsync(0);
+        Assert.Equal(HttpStatusCode.Conflict, await MediaSeedHelpers.DeleteAsync(Fixture.SeedClient, id));
     }
 
     [SkippableFact]

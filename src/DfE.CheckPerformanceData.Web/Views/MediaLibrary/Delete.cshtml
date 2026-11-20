@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaDeleteViewModel
 @{
     ViewData["Title"] = "Delete image";
@@ -39,26 +40,19 @@
                 <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
                 <strong class="govuk-warning-text__text">
                     <span class="govuk-visually-hidden">Warning</span>
-                    This image is used on @Model.PageCount. You cannot delete it.
+                    @if (Model.Usage.OnlyInOlderVersions)
+                    {
+                        @MediaUsageSummary.OnlyInOlderVersionsMessage
+                    }
+                    else
+                    {
+                        @:This image is used on @Model.Usage.UsedOn. You cannot delete it.
+                    }
                 </strong>
             </div>
 
             <p class="govuk-body">Remove the image from these pages first. A deleted page still counts until it is removed for good.</p>
-            <ul class="govuk-list govuk-list--bullet" data-media-usages>
-                @foreach (var usage in Model.UsagePages)
-                {
-                    <li>
-                        @if (usage.IsDeleted)
-                        {
-                            @usage.Title <span class="govuk-tag govuk-tag--grey">Deleted page</span>
-                        }
-                        else
-                        {
-                            <a class="govuk-link" href="/admin/pages/@usage.PageNodeId">@usage.Title<span class="govuk-visually-hidden"> (edit page)</span></a>
-                        }
-                    </li>
-                }
-            </ul>
+            <partial name="~/Views/MediaLibrary/_MediaUsageLists.cshtml" model="Model.Usage" />
 
             <a class="govuk-link" href="@item.DetailUrl">Back to the image</a>
         }

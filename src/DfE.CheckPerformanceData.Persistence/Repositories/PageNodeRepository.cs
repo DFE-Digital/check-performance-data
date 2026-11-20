@@ -290,7 +290,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             .MaxAsync(v => (int?)v.VersionId) ?? 0;
         var versionId = max + 1;
 
-        context.PageNodeVersions.Add(new PageNodeVersion
+        var version = new PageNodeVersion
         {
             Id = Guid.NewGuid(),
             PageNodeId = nodeId,
@@ -304,7 +304,9 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             UpdatedDate = DateTime.UtcNow,
             CreatedBy = userId,
             UpdatedBy = userId
-        });
+        };
+        context.PageNodeVersions.Add(version);
+        await MediaUsageWriter.StageAsync(context, version, keepPins: false);
         await context.SaveChangesAsync();
         await RecomputeCurrentAsync(nodeId, DateTime.UtcNow);
         return versionId;
@@ -323,6 +325,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         entity.MinorVersion += 1;           // each working-draft save bumps the minor counter
         entity.UpdatedDate = DateTime.UtcNow;
         entity.UpdatedBy = userId;
+        // The draft's usages are replaced and pinned to the current files, in the same save.
+        await MediaUsageWriter.StageAsync(context, entity, keepPins: false);
         await context.SaveChangesAsync();
     }
 
@@ -654,11 +658,14 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         };
         context.PageNodes.Add(newNode);
 
+        var copiedIds = new Dictionary<Guid, Guid>();
         foreach (var v in source.Versions)
         {
+            var copyId = Guid.NewGuid();
+            copiedIds[v.Id] = copyId;
             context.PageNodeVersions.Add(new PageNodeVersion
             {
-                Id = Guid.NewGuid(),
+                Id = copyId,
                 PageNodeId = newId,
                 VersionId = v.VersionId,
                 MinorVersion = v.MinorVersion,
@@ -671,6 +678,25 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 CreatedBy = userId,
                 UpdatedDate = now,
                 UpdatedBy = userId,
+            });
+        }
+
+        // The copy has the source's history, so its usages keep the source's pinned image versions.
+        var sourceVersionIds = copiedIds.Keys.ToList();
+        var sourceUsages = await context.MediaUsages.AsNoTracking()
+            .Where(u => sourceVersionIds.Contains(u.PageNodeVersionId))
+            .ToListAsync();
+        foreach (var u in sourceUsages)
+        {
+            context.MediaUsages.Add(new MediaUsage
+            {
+                Id = Guid.NewGuid(),
+                AssetId = u.AssetId,
+                AssetVersion = u.AssetVersion,
+                PageNodeId = newId,
+                PageNodeVersionId = copiedIds[u.PageNodeVersionId],
+                Location = u.Location,
+                WidgetId = u.WidgetId,
             });
         }
 
@@ -741,11 +767,16 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             .ToListAsync();
         context.PageNodeVersions.RemoveRange(existing);
 
+        // The old versions' usages go with them (cascade). The new versions get usages from their
+        // content, pinned to the current files: a bundle carries no image versions.
+        var added = new List<MediaUsageWriter.VersionContent>();
         foreach (var v in versions)
         {
+            var versionRowId = Guid.NewGuid();
+            added.Add(new MediaUsageWriter.VersionContent(versionRowId, nodeId, v.Content));
             context.PageNodeVersions.Add(new PageNodeVersion
             {
-                Id = Guid.NewGuid(),
+                Id = versionRowId,
                 PageNodeId = nodeId,
                 VersionId = v.VersionId,
                 MinorVersion = v.MinorVersion,
@@ -760,8 +791,32 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 UpdatedBy = userId
             });
         }
+        await MediaUsageWriter.StageAsync(context, added, keepPins: false);
         await context.SaveChangesAsync();
         await RecomputeCurrentAsync(nodeId, now);
+    }
+
+    // Works through the versions in batches, each its own save, so a large site does not hold
+    // every version's content in memory. Each batch is complete on its own, so a stopped run is
+    // finished by running it again.
+    public async Task<int> RebuildMediaUsagesAsync(CancellationToken ct = default)
+    {
+        const int batchSize = 200;
+        var allIds = await context.PageNodeVersions.AsNoTracking().Select(v => v.Id).ToListAsync(ct);
+
+        var changed = 0;
+        foreach (var ids in allIds.Chunk(batchSize))
+        {
+            var batch = await context.PageNodeVersions.AsNoTracking()
+                .Where(v => ids.Contains(v.Id))
+                .Select(v => new MediaUsageWriter.VersionContent(v.Id, v.PageNodeId, v.Content))
+                .ToListAsync(ct);
+
+            changed += await MediaUsageWriter.StageAsync(context, batch, keepPins: true, ct);
+            await context.SaveChangesAsync(ct);
+            context.ChangeTracker.Clear();
+        }
+        return changed;
     }
 
     // ── projections ──────────────────────────────────────────────────────────

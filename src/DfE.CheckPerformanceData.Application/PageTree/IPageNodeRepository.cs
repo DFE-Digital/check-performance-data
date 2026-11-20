@@ -159,4 +159,12 @@ public interface IPageNodeRepository
     /// insert starts at 1.
     /// </summary>
     Task TruncateAllContentAsync();
+
+    /// <summary>
+    /// Rebuilds the media library usages of every page version from its content. A usage that
+    /// already exists keeps the image version it pins; a new one pins the image's current version;
+    /// a usage that the content no longer holds is removed. Safe to run again: a second run
+    /// changes nothing. Returns the number of usage rows added and removed.
+    /// </summary>
+    Task<int> RebuildMediaUsagesAsync(CancellationToken ct = default);
 }

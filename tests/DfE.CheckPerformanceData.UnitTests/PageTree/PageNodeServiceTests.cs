@@ -1106,6 +1106,9 @@ public class PageNodeServiceTests
         public Task TruncateAllContentAsync() =>
             throw new NotSupportedException("wipe");
 
+        public Task<int> RebuildMediaUsagesAsync(CancellationToken ct = default) =>
+            throw new NotSupportedException("media usages");
+
         public Task SetPageTypeAsync(Guid id, string pageType, string? userId)
         {
             var node = _nodes.First(n => n.Id == id);

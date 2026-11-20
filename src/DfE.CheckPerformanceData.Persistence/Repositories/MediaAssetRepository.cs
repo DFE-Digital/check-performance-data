@@ -119,8 +119,11 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
         var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
         var page = Math.Clamp(query.Page, 1, totalPages);
 
-        var items = await WithLatest(assets
-                .OrderByDescending(a => a.UpdatedAtUtc).ThenBy(a => a.Id)
+        var ordered = query.Sort == MediaAssetSort.Name
+            ? assets.OrderBy(a => a.FileName.ToLower()).ThenBy(a => a.Id)
+            : assets.OrderByDescending(a => a.UpdatedAtUtc).ThenBy(a => a.Id);
+
+        var items = await WithLatest(ordered
                 .Skip((page - 1) * pageSize).Take(pageSize))
             .ToListAsync(ct);
 

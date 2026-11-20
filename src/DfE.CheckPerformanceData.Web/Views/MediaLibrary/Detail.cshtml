@@ -1,0 +1,51 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaLibraryItemViewModel
+@{
+    ViewData["Title"] = Model.FileName;
+}
+
+<a href="/admin/media" class="govuk-back-link">Back to media library</a>
+
+<h1 class="govuk-heading-xl app-media-detail__title">@Model.FileName</h1>
+
+<p class="govuk-body">
+    @* Alt text describes the image where a page uses it; here the heading already names the file. *@
+    <img src="@Model.ThumbnailUrl" alt="" class="@(Model.IsShownAsStored ? "app-media-grid__img app-media-grid__img--fixed" : "app-media-detail__img")" />
+</p>
+
+<dl class="govuk-summary-list" data-media-detail>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Alt text</dt>
+        <dd class="govuk-summary-list__value">
+            @if (Model.MissingAltText)
+            {
+                <strong class="govuk-tag govuk-tag--yellow">No alt text</strong>
+            }
+            else
+            {
+                @Model.AltText
+            }
+        </dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Dimensions</dt>
+        <dd class="govuk-summary-list__value">@(Model.Dimensions ?? "Not known")</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Size</dt>
+        <dd class="govuk-summary-list__value">@Model.Size</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">File type</dt>
+        <dd class="govuk-summary-list__value">@Model.ContentType</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Version</dt>
+        <dd class="govuk-summary-list__value">@Model.Version</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Last updated (UTC)</dt>
+        <dd class="govuk-summary-list__value">@Model.UpdatedAtUtc.ToString("d MMM yyyy, HH:mm")</dd>
+    </div>
+</dl>
+
+<p class="govuk-body"><a class="govuk-link" href="@Model.OriginalUrl">Open the original file<span class="govuk-visually-hidden"> of @Model.FileName</span></a></p>

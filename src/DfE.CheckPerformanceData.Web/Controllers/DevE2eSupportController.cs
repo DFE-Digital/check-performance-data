@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Encodings.Web;
+using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.Media.Serving;
 using DfE.CheckPerformanceData.Application.Media.Upload;
 using DfE.CheckPerformanceData.Application.Settings;
@@ -20,7 +21,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 //     endpoints (e.g. /content-block/save) without scraping a real form.
 //   * POST /dev/media/sample?kind=png|svg — puts a fixed sample image in the media library through
 //     the real upload pipeline and returns its id, version, URL and signed srcset. The same file each time, so a
-//     second call returns the image the first one made.
+//     second call returns the image the first one made. An optional alt= sets the image's alt text,
+//     so the library's "Missing alt text" filter has an image to leave out.
 [Authorize(Roles = WikiConstants.EditorRole)]
 public sealed class DevE2eSupportController(
     IConfiguration configuration,
@@ -53,8 +55,10 @@ public sealed class DevE2eSupportController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> MediaSample(
         string? kind,
+        string? alt,
         [FromServices] IMediaUploadService uploads,
         [FromServices] IMediaUrlBuilder urls,
+        [FromServices] IMediaAssetRepository assets,
         CancellationToken ct)
     {
         if (!IsAllowed) return NotFound();
@@ -68,6 +72,8 @@ public sealed class DevE2eSupportController(
 
         var result = await uploads.UploadAsync(new MemoryStream(sample.Value.Bytes), sample.Value.Name, ct);
         if (result.Asset is not { } asset) return UnprocessableEntity(result.Rejection);
+        if (!string.IsNullOrWhiteSpace(alt))
+            await assets.UpdateMetadataAsync(asset.Id, new MediaAssetMetadata(alt, asset.Caption, asset.Credit, asset.Tags), ct);
         return Json(new { asset.Id, Version = asset.CurrentVersion, Url = urls.Original(asset, asset.Latest), SrcSet = urls.SrcSet(asset, asset.Latest) });
     }
 }

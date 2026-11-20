@@ -16,6 +16,7 @@ public sealed class DevE2eSupportControllerTests
 {
     private readonly IMediaUploadService _uploads = Substitute.For<IMediaUploadService>();
     private readonly IMediaUrlBuilder _urls = Substitute.For<IMediaUrlBuilder>();
+    private readonly IMediaAssetRepository _assets = Substitute.For<IMediaAssetRepository>();
 
     private static DevE2eSupportController Controller(bool devTools, string environment = "Development")
     {
@@ -39,7 +40,7 @@ public sealed class DevE2eSupportControllerTests
     [InlineData(true, "Production")]
     public async Task MediaSample_IsNotFound_OutsideDevTools(bool devTools, string environment)
     {
-        var result = await Controller(devTools, environment).MediaSample("png", _uploads, _urls, CancellationToken.None);
+        var result = await Controller(devTools, environment).MediaSample("png", null, _uploads, _urls, _assets, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await _uploads.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default);
@@ -61,7 +62,7 @@ public sealed class DevE2eSupportControllerTests
         _uploads.UploadAsync(Arg.Any<Stream>(), "sample.svg", Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Created(asset));
         _urls.Original(asset, asset.Latest).Returns("/media/x/1/sample.svg");
 
-        var result = await Controller(devTools: true).MediaSample("svg", _uploads, _urls, CancellationToken.None);
+        var result = await Controller(devTools: true).MediaSample("svg", null, _uploads, _urls, _assets, CancellationToken.None);
 
         var json = Assert.IsType<JsonResult>(result);
         Assert.Contains("/media/x/1/sample.svg", System.Text.Json.JsonSerializer.Serialize(json.Value));
@@ -70,8 +71,35 @@ public sealed class DevE2eSupportControllerTests
     [Fact]
     public async Task MediaSample_RefusesAnUnknownKind()
     {
-        var result = await Controller(devTools: true).MediaSample("exe", _uploads, _urls, CancellationToken.None);
+        var result = await Controller(devTools: true).MediaSample("exe", null, _uploads, _urls, _assets, CancellationToken.None);
 
         Assert.IsType<BadRequestResult>(result);
+    }
+
+    // The library list's "Missing alt text" filter needs an image that has alt text, and no page
+    // sets alt text yet, so the seed can give the sample some.
+    [Fact]
+    public async Task MediaSample_SetsTheAltText_WhenOneIsGiven()
+    {
+        var asset = Asset();
+        _uploads.UploadAsync(Arg.Any<Stream>(), "sample.svg", Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Duplicate(asset));
+        _assets.UpdateMetadataAsync(asset.Id, Arg.Any<MediaAssetMetadata>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await Controller(devTools: true).MediaSample("svg", "Green and blue blocks", _uploads, _urls, _assets, CancellationToken.None);
+
+        Assert.IsType<JsonResult>(result);
+        await _assets.Received(1).UpdateMetadataAsync(
+            asset.Id, Arg.Is<MediaAssetMetadata>(m => m.DefaultAltText == "Green and blue blocks"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task MediaSample_LeavesTheMetadataAlone_WithoutAltText()
+    {
+        var asset = Asset();
+        _uploads.UploadAsync(Arg.Any<Stream>(), "sample.png", Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Created(asset));
+
+        await Controller(devTools: true).MediaSample("png", null, _uploads, _urls, _assets, CancellationToken.None);
+
+        await _assets.DidNotReceiveWithAnyArgs().UpdateMetadataAsync(default, default!, default);
     }
 }

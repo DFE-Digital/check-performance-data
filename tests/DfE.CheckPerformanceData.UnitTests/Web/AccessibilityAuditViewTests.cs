@@ -744,15 +744,44 @@ public sealed class AccessibilityAuditViewTests
 	// ── Media library index ─────────────────────────────────────────────────────────────
 
 	[Fact]
-	public void MediaLibraryIndex_TitleMatchesTheH1_AndTheTableHasACaption()
+	public void MediaLibraryIndex_TitleMatchesTheH1_AndEveryControlHasALabel()
 	{
 		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
 
 		Assert.Contains("ViewData[\"Title\"] = \"Media library\"", view);
 		Assert.Contains("<h1 class=\"govuk-heading-xl\">Media library</h1>", view);
-		Assert.Contains("<caption class=\"govuk-table__caption", view);
-		Assert.Contains("scope=\"col\"", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"files\">", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"search\">", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"sort\">", view);
+		Assert.Contains("for=\"missingAlt\"", view);
+		Assert.Contains("for=\"unused\"", view);
 		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
+	public void MediaLibraryIndex_HasAnErrorSummary_ALiveRegion_AndPaginationWindow()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		// The error summary links to the file control, and comes before the h1.
+		Assert.Contains("class=\"govuk-error-summary\"", view);
+		Assert.Contains("<a href=\"#files\">", view);
+		Assert.True(view.IndexOf("govuk-error-summary", StringComparison.Ordinal) < view.IndexOf("<h1", StringComparison.Ordinal));
+		// Upload progress and outcomes are announced.
+		Assert.Contains("role=\"status\" aria-live=\"polite\"", view);
+		Assert.Contains("PaginationWindow.Build", view);
+		// The file name is the link text, so the thumbnail is decorative.
+		Assert.Contains("alt=\"\"", view);
+	}
+
+	[Fact]
+	public void MediaLibraryDetail_TitleMatchesTheH1()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Detail.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = Model.FileName", view);
+		Assert.Contains(">@Model.FileName</h1>", view);
 		Assert.DoesNotContain("Html.Raw", view);
 	}
 }

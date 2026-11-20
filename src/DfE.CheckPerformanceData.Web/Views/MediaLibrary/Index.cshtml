@@ -1,42 +1,210 @@
+@using DfE.CheckPerformanceData.Application.Media.Upload
+@using DfE.CheckPerformanceData.Web.Common
+@using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaLibraryIndexViewModel
 @{
     ViewData["Title"] = "Media library";
     var library = Model.Page;
+    // One message per problem: no file chosen, or a refused file with its name.
+    var errors = Model.UploadResults
+        .Where(r => r.Outcome == MediaUploadOutcome.Rejected)
+        .Select(r => $"{r.FileName}: {r.Rejection}")
+        .Prepend(Model.UploadError)
+        .OfType<string>()
+        .ToList();
+    var hasErrors = errors.Count > 0;
+    if (hasErrors) ViewData["HasError"] = true;
+    var maxFile = MediaFileSize.Format(MediaUploadLimits.MaxFileBytes);
+    var maxRequest = MediaFileSize.Format(MediaLibraryController.MaxUploadRequestBytes);
+    // Zero-based for PaginationWindow; the list and its links are 1-based.
+    var currentIndex = library.Page - 1;
 }
 
 <a href="/admin" class="govuk-back-link">Back to administration</a>
+
+@* The script fills this summary for files refused during a script upload; after a plain form
+   post the server renders it. Either way it links to the file control. *@
+<div class="govuk-error-summary" data-module="govuk-error-summary" data-media-upload-errors @(hasErrors ? "" : "hidden")>
+    <div role="alert">
+        <h2 class="govuk-error-summary__title">There is a problem</h2>
+        <div class="govuk-error-summary__body">
+            <ul class="govuk-list govuk-error-summary__list" data-media-upload-error-list>
+                @foreach (var error in errors)
+                {
+                    <li><a href="#files">@error</a></li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
 
 <h1 class="govuk-heading-xl">Media library</h1>
 
 <p class="govuk-body">Upload images once and reuse them on any page.</p>
 
-@if (library.TotalCount == 0)
-{
-    <p class="govuk-body" data-media-library-empty>The media library is empty.</p>
-}
-else
-{
-    <p class="govuk-body">Showing @library.Items.Count of @library.TotalCount images, most recently changed first.</p>
-    <table class="govuk-table" data-media-library-list>
-        <caption class="govuk-table__caption govuk-visually-hidden">Images in the media library</caption>
-        <thead class="govuk-table__head">
-            <tr class="govuk-table__row">
-                <th scope="col" class="govuk-table__header">File name</th>
-                <th scope="col" class="govuk-table__header">Alt text</th>
-                <th scope="col" class="govuk-table__header">Version</th>
-                <th scope="col" class="govuk-table__header">Last updated (UTC)</th>
-            </tr>
-        </thead>
-        <tbody class="govuk-table__body">
-            @foreach (var item in library.Items)
+<form id="media-upload-form" method="post" enctype="multipart/form-data" action="/admin/media/upload"
+      data-max-bytes="@MediaUploadLimits.MaxFileBytes" data-too-large-message="@MediaRejections.TooLarge">
+    @Html.AntiForgeryToken()
+    <h2 class="govuk-heading-m">Upload images</h2>
+    <div class="govuk-form-group @(hasErrors ? "govuk-form-group--error" : "")">
+        <label class="govuk-label" for="files">Images</label>
+        <div id="files-hint" class="govuk-hint">
+            PNG, JPEG, GIF, WebP or SVG. Each file must be smaller than @maxFile.
+            You can choose more than one file. Together they must be smaller than @maxRequest.
+        </div>
+        @if (hasErrors)
+        {
+            <p id="files-error" class="govuk-error-message">
+                @foreach (var error in errors)
+                {
+                    <span class="govuk-visually-hidden">Error:</span> @error<br />
+                }
+            </p>
+        }
+        @* GOV.UK's JavaScript-enhanced File upload adds the drop zone. It moves id="files" to its
+           button (the error summary's link target) and hides this input, so the upload script
+           reaches the input by its name. *@
+        <div class="govuk-file-upload-wrapper" data-module="govuk-file-upload">
+            <input class="govuk-file-upload" id="files" name="files" type="file" multiple
+                   accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,.svg"
+                   aria-describedby="files-hint@(hasErrors ? " files-error" : "")" />
+        </div>
+    </div>
+    <button type="submit" class="govuk-button" data-prevent-double-click="true" data-media-upload-submit>Upload</button>
+</form>
+
+@* Progress and results. role="status" announces each file's start and end; the list keeps a
+   row per file with its own progress bar while the script uploads. *@
+<div class="govuk-body" role="status" aria-live="polite" data-media-upload-status></div>
+<ul class="govuk-list app-media-upload-results" data-media-upload-results>
+    @foreach (var result in Model.UploadResults)
+    {
+        <li class="app-media-upload-result" data-media-upload-result="@result.OutcomeName">
+            @switch (result.Outcome)
             {
-                <tr class="govuk-table__row">
-                    <td class="govuk-table__cell">@item.FileName</td>
-                    <td class="govuk-table__cell">@(item.DefaultAltText ?? "None")</td>
-                    <td class="govuk-table__cell">@item.CurrentVersion</td>
-                    <td class="govuk-table__cell">@item.UpdatedAtUtc.ToString("d MMM yyyy, HH:mm")</td>
-                </tr>
+                case MediaUploadOutcome.Created:
+                    <strong class="govuk-tag govuk-tag--green">Uploaded</strong>
+                    <a class="govuk-link" href="@result.DetailUrl">@result.FileName</a>
+                    break;
+                case MediaUploadOutcome.Duplicate:
+                    <strong class="govuk-tag govuk-tag--yellow">Already in the library</strong>
+                    <span>This image is already in the library as @result.ExistingFileName.</span>
+                    <a class="govuk-link" href="@result.DetailUrl">Use the existing image<span class="govuk-visually-hidden"> for @result.FileName</span></a>
+                    break;
+                default:
+                    <strong class="govuk-tag govuk-tag--red">Not uploaded</strong>
+                    <span>@result.FileName: @result.Rejection</span>
+                    break;
             }
-        </tbody>
-    </table>
+        </li>
+    }
+</ul>
+
+<h2 class="govuk-heading-m">Find images</h2>
+<form method="get" action="/admin/media" class="app-media-filters" data-media-library-filters>
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="search">Search by file name, alt text or tag</label>
+        <input class="govuk-input govuk-!-width-two-thirds" id="search" name="search" type="search" value="@Model.Search" />
+    </div>
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Show only</legend>
+            <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                <div class="govuk-checkboxes__item">
+                    <input class="govuk-checkboxes__input" id="missingAlt" name="missingAlt" type="checkbox" value="true" @(Model.MissingAlt ? "checked" : "") />
+                    <label class="govuk-label govuk-checkboxes__label" for="missingAlt">Missing alt text</label>
+                </div>
+                <div class="govuk-checkboxes__item">
+                    <input class="govuk-checkboxes__input" id="unused" name="unused" type="checkbox" value="true" @(Model.Unused ? "checked" : "") />
+                    <label class="govuk-label govuk-checkboxes__label" for="unused">Not used on any page</label>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="sort">Sort by</label>
+        <select class="govuk-select" id="sort" name="sort">
+            <option value="newest" selected="@(Model.Sort == "newest")">Newest first</option>
+            <option value="name" selected="@(Model.Sort == "name")">File name (A to Z)</option>
+        </select>
+    </div>
+    <div class="govuk-button-group">
+        <button type="submit" class="govuk-button govuk-button--secondary">Apply</button>
+        @if (Model.IsFiltered)
+        {
+            <a class="govuk-link" href="/admin/media">Clear search and filters</a>
+        }
+    </div>
+</form>
+
+@* The upload script reloads this region after its uploads finish, so new images appear. *@
+<div data-media-library-region>
+    @if (library.TotalCount == 0)
+    {
+        <p class="govuk-body" data-media-library-empty>
+            @(Model.IsFiltered ? "No images match your search and filters." : "The media library is empty.")
+        </p>
+    }
+    else
+    {
+        <p class="govuk-body" data-media-library-count>
+            Showing @((library.Page - 1) * library.PageSize + 1) to @((library.Page - 1) * library.PageSize + library.Items.Count) of @library.TotalCount images.
+        </p>
+        <ul class="govuk-list app-media-grid" data-media-library-list>
+            @foreach (var item in Model.Items)
+            {
+                <li class="app-media-grid__item" data-media-item="@item.Id">
+                    <a class="govuk-link app-media-grid__link" href="@item.DetailUrl">
+                        <span class="app-media-grid__thumb">
+                            @* The file name is the link text, so the thumbnail adds nothing for a screen reader. *@
+                            <img src="@item.ThumbnailUrl" alt="" loading="lazy" decoding="async"
+                                 class="@(item.IsShownAsStored ? "app-media-grid__img app-media-grid__img--fixed" : "app-media-grid__img")" />
+                        </span>
+                        <span class="app-media-grid__name">@item.FileName</span>
+                    </a>
+                    <span class="govuk-body-s app-media-grid__meta">
+                        @if (item.Dimensions is not null)
+                        {
+                            @item.Dimensions<br />
+                        }
+                        @item.Size
+                    </span>
+                    @if (item.MissingAltText)
+                    {
+                        <strong class="govuk-tag govuk-tag--yellow" data-media-missing-alt>No alt text</strong>
+                    }
+                </li>
+            }
+        </ul>
+
+        @if (library.TotalPages > 1)
+        {
+            <govuk-pagination>
+                @if (currentIndex > 0)
+                {
+                    <govuk-pagination-previous href="@Model.PageUrl(library.Page - 1)" />
+                }
+                @foreach (var index in PaginationWindow.Build(currentIndex, library.TotalPages))
+                {
+                    if (index is null)
+                    {
+                        <govuk-pagination-ellipsis />
+                    }
+                    else
+                    {
+                        <govuk-pagination-item href="@Model.PageUrl(index.Value + 1)" current="@(index.Value == currentIndex)">@(index.Value + 1)</govuk-pagination-item>
+                    }
+                }
+                @if (currentIndex < library.TotalPages - 1)
+                {
+                    <govuk-pagination-next href="@Model.PageUrl(library.Page + 1)" />
+                }
+            </govuk-pagination>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/media-library-upload.js" defer asp-append-version="true"></script>
 }

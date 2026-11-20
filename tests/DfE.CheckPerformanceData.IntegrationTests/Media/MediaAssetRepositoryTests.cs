@@ -262,6 +262,28 @@ public sealed class MediaAssetRepositoryTests(PostgresFixture fixture) : IAsyncL
     }
 
     [Fact]
+    public async Task List_SortedByName_IgnoresCase_AndBreaksTiesById()
+    {
+        var zebra = Guid.NewGuid();
+        var apple = Guid.NewGuid();
+        var twinA = new Guid("00000000-0000-0000-0000-000000000001");
+        var twinB = new Guid("00000000-0000-0000-0000-000000000002");
+        foreach (var (id, name) in new[] { (zebra, "zebra.png"), (twinB, "Middle.png"), (apple, "Apple.png"), (twinA, "middle.png") })
+        {
+            await using var ctx = fixture.CreateContext();
+            await new MediaAssetRepository(ctx, new FakeCurrentUserService()).CreateAsync(Asset(id, name));
+        }
+
+        await using var read = fixture.CreateContext();
+        var sut = new MediaAssetRepository(read, new FakeCurrentUserService());
+        var byName = await sut.ListAsync(new MediaAssetQuery(Sort: MediaAssetSort.Name));
+        var newest = await sut.ListAsync(new MediaAssetQuery(Sort: MediaAssetSort.Newest));
+
+        Assert.Equal([apple, twinA, twinB, zebra], byName.Items.Select(i => i.Id));
+        Assert.Equal([twinA, apple, twinB, zebra], newest.Items.Select(i => i.Id));
+    }
+
+    [Fact]
     public async Task List_UnusedOnly_LeavesOutImagesAPageVersionUses()
     {
         var used = Guid.NewGuid();

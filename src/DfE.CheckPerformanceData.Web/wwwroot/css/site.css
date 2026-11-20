@@ -2367,3 +2367,75 @@ dialog.seed-progress-modal {
   content: url(/images/department-for-education_black.png);
   height: 30px;
 }
+
+/* Media library grid. Each thumbnail sits in a fixed box, so rows line up whatever the image
+   shape. An SVG or an animation is the stored file, not a resized copy, so it gets a fixed size. */
+.app-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 20px;
+}
+
+.app-media-grid__item {
+  margin: 0;
+}
+
+.app-media-grid__link {
+  display: block;
+}
+
+.app-media-grid__thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 10rem;
+  margin-bottom: 5px;
+  background: #f3f2f1;
+  border: 1px solid #b1b4b6;
+}
+
+.app-media-grid__img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.app-media-grid__img--fixed {
+  width: 9rem;
+  height: 9rem;
+}
+
+.app-media-grid__name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.app-media-grid__meta {
+  display: block;
+  margin: 5px 0;
+  color: #505a5f;
+}
+
+.app-media-detail__img {
+  max-width: 100%;
+  height: auto;
+}
+
+.app-media-upload-results .app-media-upload-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-media-upload-results progress {
+  width: 12rem;
+  height: 1.25rem;
+}
+
+/* The idle upload controls and the empty error summary use [hidden]; GOV.UK rules that set
+   display would otherwise beat the browser's own rule. Scoped on purpose. */
+[data-media-upload-errors][hidden],
+.app-media-upload-results [hidden] {
+  display: none !important;
+}

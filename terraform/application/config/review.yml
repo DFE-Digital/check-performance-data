@@ -34,6 +34,10 @@ SeedDevelopmentData: true
 # hard-guards against Production regardless of this flag.
 Dev__ToolsEnabled: true
 
+# The PR smoke job uses this cookie-backed administrator for impersonation.
+# The endpoint also checks Dev__ToolsEnabled and refuses Production.
+E2E__TestAdminAuthenticationEnabled: true
+
 # Review apps create real Zendesk tickets in esfa-preprod so PR deploys exercise the live
 # ticket pipeline end to end: Zendesk__UseFake=false selects the real client in the worker's
 # ticket-WRITE path (ZendeskServiceRegistration -> ZendeskService).

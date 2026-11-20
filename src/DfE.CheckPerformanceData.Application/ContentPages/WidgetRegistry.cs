@@ -17,7 +17,9 @@ public static class WidgetRegistry
         new("published", "Published callout", ContributesToNav: false, """{"text":""}"""),
         new("search",    "Search",            ContributesToNav: false, """{"label":"Search","placeholder":"","action":"/search","buttonText":"Search","scope":"","scopePageIds":"","searchIn":"site","instant":"false","showButton":"true","buttonBelow":"false","clearButton":"false","noResultsText":"No results found"}"""),
         new("results",   "Search results",    ContributesToNav: false, """{"scope":"","scopePageIds":"","emptyText":"No results found."}"""),
-        new("pagenav",   "Page navigation",   ContributesToNav: false, """{"mode":"headings","childrenParentPath":"","showSearch":false,"searchPath":"","searchLabel":"Search","h1":"false","h2":"true","h3":"true","h4":"false","h5":"false","h6":"false"}""")
+        new("pagenav",   "Page navigation",   ContributesToNav: false, """{"mode":"headings","childrenParentPath":"","showSearch":false,"searchPath":"","searchLabel":"Search","h1":"false","h2":"true","h3":"true","h4":"false","h5":"false","h6":"false"}"""),
+        // Image: a media library image by id. The version shown is chosen when the page renders.
+        new("image",     "Image",             ContributesToNav: false, """{"mediaId":"","alt":"","decorative":"false","caption":"","credit":"","width":"full","align":"","href":"","crop":"","aspect":"","focal":""}""")
     ];
 
     private static readonly Dictionary<string, WidgetDefinition> ByType =

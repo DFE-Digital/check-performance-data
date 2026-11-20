@@ -20,6 +20,16 @@ public interface IMediaAssetRepository
 
     Task<MediaAssetDto?> GetAsync(Guid assetId, CancellationToken ct = default);
 
+    /// <summary>The images with these ids, in one query. Ids that are not in the library are left out.</summary>
+    Task<IReadOnlyList<MediaAssetDto>> GetManyAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// The image versions recorded for one page version (its row id), for the given images, in one
+    /// query. An image the page version uses in two places can give two rows.
+    /// </summary>
+    Task<IReadOnlyList<MediaAssetVersionDto>> GetPinnedVersionsAsync(
+        Guid pageNodeVersionId, IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default);
+
     Task<MediaAssetVersionDto?> GetVersionAsync(Guid assetId, int version, CancellationToken ct = default);
 
     /// <summary>Every version of one image, newest first.</summary>

@@ -82,6 +82,26 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
     public async Task<MediaAssetDto?> GetAsync(Guid assetId, CancellationToken ct = default) =>
         await WithLatest(context.MediaAssets.AsNoTracking().Where(a => a.Id == assetId)).FirstOrDefaultAsync(ct);
 
+    public async Task<IReadOnlyList<MediaAssetDto>> GetManyAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
+    {
+        if (assetIds.Count == 0) return [];
+        return await WithLatest(context.MediaAssets.AsNoTracking().Where(a => assetIds.Contains(a.Id))).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<MediaAssetVersionDto>> GetPinnedVersionsAsync(
+        Guid pageNodeVersionId, IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
+    {
+        if (assetIds.Count == 0) return [];
+        return await (from u in context.MediaUsages
+                      join v in context.MediaAssetVersions on new { u.AssetId, Version = u.AssetVersion } equals new { v.AssetId, v.Version }
+                      where u.PageNodeVersionId == pageNodeVersionId && assetIds.Contains(u.AssetId)
+                      select v)
+            .AsNoTracking()
+            .Distinct()
+            .Select(VersionProjection)
+            .ToListAsync(ct);
+    }
+
     public async Task<MediaAssetVersionDto?> GetVersionAsync(Guid assetId, int version, CancellationToken ct = default) =>
         await context.MediaAssetVersions.AsNoTracking()
             .Where(v => v.AssetId == assetId && v.Version == version)

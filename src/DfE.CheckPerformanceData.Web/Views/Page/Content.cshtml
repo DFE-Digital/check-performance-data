@@ -1,5 +1,8 @@
 @using DfE.CheckPerformanceData.Application.ContentPages
 @using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Application.Media.Widget
+@using DfE.CheckPerformanceData.Web.PageTree
+@inject IMediaVersionResolver MediaResolver
 @model DfE.CheckPerformanceData.Web.Models.PageTree.RenderedPageViewModel
 @{
     ViewData["Title"] = Model.Title;
@@ -104,6 +107,13 @@
 @* .cpb-content marks where the authored tree starts. The breadcrumb used to sit directly
    above it and the spacing rules keyed off that adjacency; now that the breadcrumb renders
    before <main> (audit #377), this wrapper is what those rules anchor on. *@
+@{
+    // Library images: a version-history preview shows the image versions recorded for that page
+    // version; every other view shows the current ones. Previews warn about a missing image, and a
+    // public page shows nothing for it. All the page's images load in one call here.
+    ViewData[MediaRenderContext.ViewDataKey] = new MediaRenderContext(Model.MediaPageVersionId, Model.IsPreview);
+    await MediaResolver.PrimeAsync(content, Model.MediaPageVersionId);
+}
 <div class="cpb-content">
     @await Html.PartialAsync("ContentPages/_ContentNodes", content)
 </div>

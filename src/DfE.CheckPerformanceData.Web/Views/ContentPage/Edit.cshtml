@@ -1,9 +1,17 @@
 @using DfE.CheckPerformanceData.Application.ContentPages
 @using DfE.CheckPerformanceData.Web.Models.Guidance
 @using DfE.CheckPerformanceData.Web.Models.PageTree
+@using DfE.CheckPerformanceData.Application.Media.Widget
+@using DfE.CheckPerformanceData.Web.PageTree
+@inject IMediaVersionResolver MediaResolver
 @model ContentPageEditViewModel
 @{
     ViewData["Title"] = $"Edit: {Model.Title}";
+    // A refused widget save: the layout adds "Error: " to the page title.
+    if (WidgetEditError.Read(TempData) is not null) ViewData["HasError"] = true;
+    // The editor previews the draft with each image's current version, and warns about a missing one.
+    ViewData[MediaRenderContext.ViewDataKey] = new MediaRenderContext(null, ShowEditorNotices: true);
+    await MediaResolver.PrimeAsync(Model.Content, null);
     var renameResult = TempData["RenameResult"] as string;
     var renameUrl = $"/admin/pages/{Model.NodeId}/rename";
 }
@@ -88,6 +96,7 @@
 <div class="govuk-grid-row" data-cpb-node-id="@Model.NodeId">
     <div class="govuk-grid-column-full">
         @await Html.PartialAsync("~/Views/PageTreeAdmin/_PublishWindowErrorSummary.cshtml")
+        @await Html.PartialAsync("~/Views/PageTreeAdmin/_WidgetEditErrorSummary.cshtml")
         <span class="govuk-caption-l">Content page editor</span>
         <h1 class="govuk-heading-l">@Model.Title</h1>
 

@@ -56,6 +56,32 @@ public static class MediaSeedHelpers
         return Guid.Parse(match.Groups[1].Value);
     }
 
+    // Posts the image page's replace form with a new file. The library redirects to the image page
+    // when the new version is stored.
+    public static async Task ReplaceAsync(TestHttpClient client, Guid id, string fileName, byte[] bytes, string contentType = "image/png")
+    {
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, LibraryPath);
+        var file = new ByteArrayContent(bytes);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(client.BaseAddress!, $"{LibraryPath}/{id:D}/replace"))
+        {
+            Content = new MultipartFormDataContent
+            {
+                { new StringContent(token), "__RequestVerificationToken" },
+                { file, "file", fileName },
+            },
+        };
+        request.Headers.Add("Cookie", cookie);
+
+        using var response = await client.SendAsync(request);
+        if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.Redirect)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            throw new InvalidOperationException(
+                $"POST {LibraryPath}/{{id}}/replace returned {(int)response.StatusCode}. Body head: {body[..Math.Min(400, body.Length)]}");
+        }
+    }
+
     // Posts the library's own delete form. Returns the status: 302 when deleted, 409 when a page
     // uses the image, 404 when it is not there.
     public static async Task<HttpStatusCode> DeleteAsync(TestHttpClient client, Guid id)

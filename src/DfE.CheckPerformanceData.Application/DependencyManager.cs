@@ -52,6 +52,9 @@ public static class DependencyManager
         services.AddScoped<Media.Serving.IMediaDeliveryService, Media.Serving.MediaDeliveryService>();
         services.AddScoped<Media.Upload.IMediaUploadService, Media.Upload.MediaUploadService>();
         services.AddScoped<Media.IMediaDeletionService, Media.MediaDeletionService>();
+        // The Image widget: props checked on save, and image versions resolved once per request.
+        services.AddScoped<ContentPages.IWidgetPropsValidator, Media.Widget.ImageWidgetValidator>();
+        services.AddScoped<Media.Widget.IMediaVersionResolver, Media.Widget.MediaVersionResolver>();
         services.AddScoped<IPageNodeContentEditor, PageNodeContentEditor>();
         services.AddScoped<DefaultPageNodeSeeder>();
         services.AddScoped<SamplePageNodeSeeder>();

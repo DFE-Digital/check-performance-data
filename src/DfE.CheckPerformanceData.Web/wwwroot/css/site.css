@@ -2455,3 +2455,51 @@ dialog.seed-progress-modal {
 .app-media-upload-results [hidden] {
   display: none !important;
 }
+
+/* Image widget. Full width on a phone. From the GOV.UK tablet break, the image takes its grid
+   width (of the column it sits in) and can float left or right with text beside it, or sit in
+   the centre. The width and height attributes keep the space, so the page does not move. */
+.app-image {
+  margin: 0 0 20px;
+  max-width: 100%;
+}
+
+.app-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.app-image figcaption {
+  margin-top: 5px;
+  margin-bottom: 0;
+}
+
+@media (min-width: 40.0625em) {
+  .app-image--two-thirds {
+    max-width: 66.6667%;
+  }
+
+  .app-image--one-half {
+    max-width: 50%;
+  }
+
+  .app-image--one-third {
+    max-width: 33.3333%;
+  }
+
+  .app-image--align-left {
+    float: left;
+    margin-right: 30px;
+  }
+
+  .app-image--align-right {
+    float: right;
+    margin-left: 30px;
+  }
+
+  .app-image--align-centre {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}

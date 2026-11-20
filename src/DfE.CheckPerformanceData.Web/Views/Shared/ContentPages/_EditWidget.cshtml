@@ -1,5 +1,7 @@
 @using System.Text.Json.Nodes
 @using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Application.Media.Widget
+@using DfE.CheckPerformanceData.Web.PageTree
 @using DfE.CheckPerformanceData.Web.Models.Guidance
 @model EditWidgetModel
 @{
@@ -13,8 +15,27 @@
         return string.Join("\n", rows.OfType<JsonObject>()
             .Select(r => $"{(string?)r["key"]}|{(string?)r["value"]}"));
     }
+
+    // A save of this widget that was refused: its errors, and the values the editor posted.
+    var rejected = WidgetEditError.Read(TempData) is { } refused && refused.Path == Model.Path ? refused : null;
+    string FieldId(string field) => $"wf-{field}-{Model.Path}";
+    string? ErrorFor(string field) => rejected?.MessageFor(field);
+    string GroupClass(string field) => ErrorFor(field) is null ? "govuk-form-group" : "govuk-form-group govuk-form-group--error";
+    string? DescribedBy(string field) => ErrorFor(field) is null ? null : $"{FieldId(field)}-error";
+    // What a field shows: the posted value after a refused save, else the stored value.
+    string FieldValue(string field) => rejected is not null
+        ? rejected.Props.GetValueOrDefault(field) ?? string.Empty
+        : ImageWidgetProps.Text(w.Props, field);
+
+    void ErrorMessage(string field)
+    {
+        if (ErrorFor(field) is { } message)
+        {
+            <p id="@FieldId(field)-error" class="govuk-error-message"><span class="govuk-visually-hidden">Error:</span> @message</p>
+        }
+    }
 }
-<div class="cpb-widget">
+<div class="cpb-widget" id="widget-@Model.Path">
     <span class="govuk-caption-m cpb-drag-handle" draggable="true" title="Drag to reorder">@label</span>
     <div class="cpb-preview">
         @await Html.PartialAsync("ContentPages/_Widget", w)
@@ -22,7 +43,7 @@
 
     @if (w.Type != "divider")
     {
-        <details class="govuk-details">
+        <details class="govuk-details" open="@(rejected is not null ? "open" : null)">
             <summary class="govuk-details__summary" title="Edit @label.ToLowerInvariant()">
                 <span class="govuk-details__summary-text">
                     @await Html.PartialAsync("PageTree/_ActionIcon", "edit")
@@ -322,6 +343,105 @@
                                 Results per page is controlled by the <strong>CMS:PageLength</strong>
                                 setting on the admin Settings page (default 20).
                             </p>
+                            break;
+
+                        case "image":
+                            {
+                                // Plain fields for every prop. The form posts all of them, because the
+                                // props builder resets a prop it does not see.
+                                var imgDecorative = string.Equals(FieldValue("decorative"), "true", StringComparison.OrdinalIgnoreCase);
+                                var imgWidth = FieldValue("width");
+                                var imgAlign = FieldValue("align");
+                                var imgAspect = FieldValue("aspect");
+                                <div class="@GroupClass("mediaId")">
+                                    <label class="govuk-label" for="@FieldId("mediaId")">Image ID</label>
+                                    <div class="govuk-hint" id="@FieldId("mediaId")-hint">The ID of an image in the media library.</div>
+                                    @{ ErrorMessage("mediaId"); }
+                                    <input class="govuk-input@(ErrorFor("mediaId") is null ? "" : " govuk-input--error")" id="@FieldId("mediaId")" name="props[mediaId]"
+                                           value="@FieldValue("mediaId")" aria-describedby="@FieldId("mediaId")-hint @DescribedBy("mediaId")" spellcheck="false" />
+                                </div>
+                                <div class="@GroupClass("alt")">
+                                    <label class="govuk-label" for="@FieldId("alt")">Alt text</label>
+                                    <div class="govuk-hint" id="@FieldId("alt")-hint">Describe the image for people who cannot see it.</div>
+                                    @{ ErrorMessage("alt"); }
+                                    <input class="govuk-input@(ErrorFor("alt") is null ? "" : " govuk-input--error")" id="@FieldId("alt")" name="props[alt]"
+                                           value="@FieldValue("alt")" aria-describedby="@FieldId("alt")-hint @DescribedBy("alt")" />
+                                </div>
+                                <div class="govuk-form-group">
+                                    <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                                        <div class="govuk-checkboxes__item">
+                                            <input class="govuk-checkboxes__input" id="@FieldId("decorative")" name="props[decorative]"
+                                                   type="checkbox" value="true" @(imgDecorative ? "checked" : null) />
+                                            <label class="govuk-label govuk-checkboxes__label" for="@FieldId("decorative")">
+                                                The image is decorative (screen readers skip it)
+                                            </label>
+                                            @* An unticked box posts nothing, so this hidden "false" makes unticking
+                                               stick. It follows the label: the first posted value wins. *@
+                                            <input type="hidden" name="props[decorative]" value="false" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="govuk-form-group">
+                                    <label class="govuk-label" for="@FieldId("caption")">Caption (optional)</label>
+                                    <input class="govuk-input" id="@FieldId("caption")" name="props[caption]" value="@FieldValue("caption")" />
+                                </div>
+                                <div class="govuk-form-group">
+                                    <label class="govuk-label" for="@FieldId("credit")">Credit (optional)</label>
+                                    <input class="govuk-input" id="@FieldId("credit")" name="props[credit]" value="@FieldValue("credit")" />
+                                </div>
+                                <div class="@GroupClass("width")">
+                                    <label class="govuk-label" for="@FieldId("width")">Width</label>
+                                    @{ ErrorMessage("width"); }
+                                    <select class="govuk-select" id="@FieldId("width")" name="props[width]" aria-describedby="@DescribedBy("width")">
+                                        <option value="full" selected="@(imgWidth == "full" ? "selected" : null)">Full width</option>
+                                        <option value="two-thirds" selected="@(imgWidth == "two-thirds" ? "selected" : null)">Two-thirds</option>
+                                        <option value="one-half" selected="@(imgWidth == "one-half" ? "selected" : null)">One-half</option>
+                                        <option value="one-third" selected="@(imgWidth == "one-third" ? "selected" : null)">One-third</option>
+                                    </select>
+                                </div>
+                                <div class="@GroupClass("align")">
+                                    <label class="govuk-label" for="@FieldId("align")">Alignment</label>
+                                    @{ ErrorMessage("align"); }
+                                    <select class="govuk-select" id="@FieldId("align")" name="props[align]" aria-describedby="@DescribedBy("align")">
+                                        <option value="" selected="@(imgAlign == "" ? "selected" : null)">None</option>
+                                        <option value="left" selected="@(imgAlign == "left" ? "selected" : null)">Left, with text beside it</option>
+                                        <option value="right" selected="@(imgAlign == "right" ? "selected" : null)">Right, with text beside it</option>
+                                        <option value="centre" selected="@(imgAlign == "centre" ? "selected" : null)">Centre</option>
+                                    </select>
+                                </div>
+                                <div class="@GroupClass("href")">
+                                    <label class="govuk-label" for="@FieldId("href")">Link (optional)</label>
+                                    <div class="govuk-hint" id="@FieldId("href")-hint">A web address, or a page on this site that starts with /.</div>
+                                    @{ ErrorMessage("href"); }
+                                    <input class="govuk-input@(ErrorFor("href") is null ? "" : " govuk-input--error")" id="@FieldId("href")" name="props[href]"
+                                           value="@FieldValue("href")" aria-describedby="@FieldId("href")-hint @DescribedBy("href")" spellcheck="false" />
+                                </div>
+                                <div class="@GroupClass("aspect")">
+                                    <label class="govuk-label" for="@FieldId("aspect")">Aspect ratio</label>
+                                    @{ ErrorMessage("aspect"); }
+                                    <select class="govuk-select" id="@FieldId("aspect")" name="props[aspect]" aria-describedby="@DescribedBy("aspect")">
+                                        <option value="" selected="@(imgAspect == "" ? "selected" : null)">The image's own shape</option>
+                                        <option value="16:9" selected="@(imgAspect == "16:9" ? "selected" : null)">16:9</option>
+                                        <option value="4:3" selected="@(imgAspect == "4:3" ? "selected" : null)">4:3</option>
+                                        <option value="1:1" selected="@(imgAspect == "1:1" ? "selected" : null)">1:1 (square)</option>
+                                        <option value="3:2" selected="@(imgAspect == "3:2" ? "selected" : null)">3:2</option>
+                                    </select>
+                                </div>
+                                <div class="@GroupClass("crop")">
+                                    <label class="govuk-label" for="@FieldId("crop")">Crop (optional)</label>
+                                    <div class="govuk-hint" id="@FieldId("crop")-hint">x,y,width,height as fractions from 0 to 1, for example 0,0,0.5,1 for the left half.</div>
+                                    @{ ErrorMessage("crop"); }
+                                    <input class="govuk-input govuk-input--width-20@(ErrorFor("crop") is null ? "" : " govuk-input--error")" id="@FieldId("crop")" name="props[crop]"
+                                           value="@FieldValue("crop")" aria-describedby="@FieldId("crop")-hint @DescribedBy("crop")" spellcheck="false" />
+                                </div>
+                                <div class="@GroupClass("focal")">
+                                    <label class="govuk-label" for="@FieldId("focal")">Focal point (optional)</label>
+                                    <div class="govuk-hint" id="@FieldId("focal")-hint">x,y as fractions from 0 to 1. Keeps this point in view when an aspect ratio cuts the image.</div>
+                                    @{ ErrorMessage("focal"); }
+                                    <input class="govuk-input govuk-input--width-10@(ErrorFor("focal") is null ? "" : " govuk-input--error")" id="@FieldId("focal")" name="props[focal]"
+                                           value="@FieldValue("focal")" aria-describedby="@FieldId("focal")-hint @DescribedBy("focal")" spellcheck="false" />
+                                </div>
+                            }
                             break;
                     }
 

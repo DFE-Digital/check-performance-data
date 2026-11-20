@@ -2,6 +2,8 @@ using System.Text.Json.Nodes;
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.HomeBanners;
+using DfE.CheckPerformanceData.Application.Media.Serving;
+using DfE.CheckPerformanceData.Application.Media.Widget;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
 using Microsoft.AspNetCore.Hosting;
@@ -27,6 +29,51 @@ namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;
 // the always-on template concerns only.
 public sealed class ContentTemplateRenderTests
 {
+    private readonly IMediaVersionResolver _mediaResolver = EmptyResolver();
+
+    private static IMediaVersionResolver EmptyResolver()
+    {
+        var resolver = Substitute.For<IMediaVersionResolver>();
+        resolver.ResolveAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, ResolvedMedia>());
+        return resolver;
+    }
+
+    private static WidgetNode ImageWidget(Guid id) =>
+        new() { Type = "image", Props = new JsonObject { ["mediaId"] = id.ToString(), ["alt"] = "x" } };
+
+    [Fact]
+    public async Task APage_LoadsAllItsImagesInOneCall_WithTheCurrentVersions_AndHidesAMissingOne()
+    {
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+
+        var html = await RenderContentViewAsync(new RenderedPageViewModel
+        {
+            Title = "Images", PageType = "content", Content = [ImageWidget(first), ImageWidget(second)]
+        });
+
+        await _mediaResolver.Received(1).ResolveAsync(
+            Arg.Is<IEnumerable<Guid>>(ids => ids.Count() == 2), null, Arg.Any<CancellationToken>());
+        Assert.DoesNotContain("no longer in the media library", html);
+    }
+
+    [Fact]
+    public async Task AVersionHistoryPreview_AsksForTheImageVersionsRecordedForThatPageVersion_AndWarnsAboutAMissingOne()
+    {
+        var pageVersion = Guid.NewGuid();
+
+        var html = await RenderContentViewAsync(new RenderedPageViewModel
+        {
+            Title = "Images", PageType = "content", Content = [ImageWidget(Guid.NewGuid())],
+            IsPreview = true, MediaPageVersionId = pageVersion
+        });
+
+        await _mediaResolver.Received().ResolveAsync(Arg.Any<IEnumerable<Guid>>(), pageVersion, Arg.Any<CancellationToken>());
+        await _mediaResolver.DidNotReceive().ResolveAsync(Arg.Any<IEnumerable<Guid>>(), null, Arg.Any<CancellationToken>());
+        Assert.Contains("This image is no longer in the media library", html);
+    }
+
     [Fact]
     public async Task RendersHeadingNavWidgetsAndSanitisesRichText()
     {
@@ -165,7 +212,7 @@ public sealed class ContentTemplateRenderTests
 
     // Spins up a minimal MVC host to obtain a wired view engine, then renders
     // Views/Page/Content.cshtml with isMainPage:false (bypasses _ViewStart / layout lookup).
-    private static async Task<string> RenderContentViewAsync(
+    private async Task<string> RenderContentViewAsync(
         RenderedPageViewModel model, IReadOnlyList<HomeBannerDto>? banners = null)
     {
         using var host = await new HostBuilder()
@@ -182,6 +229,9 @@ public sealed class ContentTemplateRenderTests
                     var bannerService = Substitute.For<IHomeBannerService>();
                     bannerService.GetLiveAsync().Returns(banners ?? []);
                     services.AddScoped(_ => bannerService);
+                    // The Image widget resolves library images and builds their URLs.
+                    services.AddSingleton(_mediaResolver);
+                    services.AddSingleton(Substitute.For<IMediaUrlBuilder>());
                 });
                 web.Configure(_ => { });
             })

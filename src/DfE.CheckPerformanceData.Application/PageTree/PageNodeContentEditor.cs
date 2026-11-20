@@ -11,8 +11,12 @@ namespace DfE.CheckPerformanceData.Application.PageTree;
 // no draft, it adds one as a new version. Nothing is published here.
 public sealed class PageNodeContentEditor(
     IPageNodeService pageNodes,
-    IHtmlRenderingService htmlRenderer) : IPageNodeContentEditor
+    IHtmlRenderingService htmlRenderer,
+    IEnumerable<IWidgetPropsValidator>? validators = null) : IPageNodeContentEditor
 {
+    private readonly Dictionary<string, IWidgetPropsValidator> _validators =
+        (validators ?? []).ToDictionary(v => v.WidgetType, StringComparer.Ordinal);
+
     public Task AddWidgetAsync(Guid nodeId, IReadOnlyList<TreeStep> path, string type, string? userId) =>
         MutateAsync(nodeId, userId, tree => ContentTreeEditor.InsertAt(tree, path, new WidgetNode
         {
@@ -36,12 +40,27 @@ public sealed class PageNodeContentEditor(
     public Task DeleteAsync(Guid nodeId, IReadOnlyList<TreeStep> path, string? userId) =>
         MutateAsync(nodeId, userId, tree => ContentTreeEditor.Remove(tree, path));
 
-    public Task UpdateWidgetAsync(Guid nodeId, IReadOnlyList<TreeStep> path, JsonObject props, string? userId) =>
-        MutateAsync(nodeId, userId, tree =>
+    // The validator is chosen by the type of the widget already stored at the path, not by anything
+    // the editor posted. Only this action validates: adding a widget saves its empty default props,
+    // and a save, publish or import keeps the props it has.
+    public async Task<WidgetPropsValidation> UpdateWidgetAsync(Guid nodeId, IReadOnlyList<TreeStep> path, JsonObject props, string? userId)
+    {
+        var json = await pageNodes.GetWorkingOrLatestContentAsync(nodeId) ?? "[]";
+        var stored = ContentTreeEditor.NodeAt((ContentPageJson.Deserialize(json) ?? []).ToList(), path) as WidgetNode;
+        var validator = stored is null ? null : _validators.GetValueOrDefault(stored.Type);
+
+        var result = validator is null
+            ? new WidgetPropsValidation(props, [])
+            : await validator.ValidateAsync(props);
+        if (!result.IsValid) return result;
+
+        await MutateAsync(nodeId, userId, tree =>
         {
             if (ContentTreeEditor.NodeAt(tree, path) is WidgetNode widget)
-                widget.Props = props;
+                widget.Props = result.Props;
         });
+        return result;
+    }
 
     public Task MoveToAsync(Guid nodeId, IReadOnlyList<TreeStep> fromPath, IReadOnlyList<TreeStep> toPath, string? userId) =>
         MutateAsync(nodeId, userId, tree => ContentTreeEditor.MoveTo(tree, fromPath, toPath));
@@ -72,8 +91,8 @@ public sealed class PageNodeContentEditor(
     // Derives a searchable plain-text body from the widget tree for FTS indexing.
     // No content-page → plain-text helper existed in the codebase; IHtmlRenderingService.StripTagsToPlainText
     // is reused for richtext HTML. Concatenates heading text, stripped richtext HTML, card title+body,
-    // and published callout text. Dividers contribute nothing. Summary-list rows hold text, and they are
-    // not indexed today.
+    // published callout text, and an image's alt text and caption. Dividers contribute nothing.
+    // Summary-list rows hold text, and they are not indexed today.
     private string ExtractPlainText(IReadOnlyList<ContentNode> tree)
     {
         var parts = new List<string>();
@@ -86,6 +105,8 @@ public sealed class PageNodeContentEditor(
                 "richtext"  => htmlRenderer.StripTagsToPlainText(widget.GetString("html")),
                 "card"      => JoinNonEmpty(widget.GetString("title"), widget.GetString("body")),
                 "published" => widget.GetString("text"),
+                // The alt text and caption describe the image; the credit names who made it.
+                "image"     => JoinNonEmpty(widget.GetString("alt"), widget.GetString("caption")),
                 _           => null
             };
 

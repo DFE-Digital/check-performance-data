@@ -857,4 +857,62 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("<h2 class=\"govuk-heading-l\">Where the image is used</h2>", detail);
 		Assert.Contains("<partial name=\"~/Views/MediaLibrary/_MediaUsageLists.cshtml\" model=\"usage\" />", detail);
 	}
+
+	// ── Image widget ────────────────────────────────────────────────────────────────────
+
+	// The Image widget's edit form posts every prop, because the props builder resets any prop it
+	// does not see. Each visible control has a label, and a refused save shows the GOV.UK error
+	// message beside the field the error summary links to.
+	[Fact]
+	public void ImageWidgetEditForm_LabelsEveryControl_PostsEveryProp_AndShowsFieldErrors()
+	{
+		var view = ReadView("Views", "Shared", "ContentPages", "_EditWidget.cshtml");
+		var start = view.IndexOf("case \"image\":", StringComparison.Ordinal);
+		Assert.True(start > 0, "_EditWidget.cshtml has no image case.");
+		var image = view[start..view.IndexOf("break;", start, StringComparison.Ordinal)];
+
+		foreach (var prop in new[] { "mediaId", "alt", "decorative", "caption", "credit", "width", "align", "href", "crop", "aspect", "focal" })
+			Assert.Contains($"\"{prop}\"", image);
+		foreach (var labelled in new[] { "mediaId", "alt", "caption", "credit", "width", "align", "href", "crop", "aspect", "focal", "decorative" })
+			Assert.Contains($"for=\"@FieldId(\"{labelled}\")\"", image);
+
+		Assert.Contains("id=\"@FieldId(", view);
+		Assert.Contains("govuk-form-group--error", view);
+		Assert.Contains("<p id=\"@FieldId(field)-error\" class=\"govuk-error-message\">", view);
+		Assert.Contains("<span class=\"govuk-visually-hidden\">Error:</span>", view);
+		// A refused widget opens its edit form so the editor sees the errors.
+		Assert.Contains("open=\"@(rejected is not null ? \"open\" : null)\"", view);
+	}
+
+	[Fact]
+	public void ContentEditor_ShowsAnErrorSummary_ForARefusedWidget()
+	{
+		var summary = ReadView("Views", "PageTreeAdmin", "_WidgetEditErrorSummary.cshtml");
+		Assert.Contains("class=\"govuk-error-summary\" data-module=\"govuk-error-summary\"", summary);
+		Assert.Contains("<h2 class=\"govuk-error-summary__title\">There is a problem</h2>", summary);
+		Assert.Contains("href=\"#wf-@error.Field-@rejected.Path\"", summary);
+		Assert.DoesNotContain("Html.Raw", summary);
+
+		var edit = ReadView("Views", "ContentPage", "Edit.cshtml");
+		Assert.Contains("@await Html.PartialAsync(\"~/Views/PageTreeAdmin/_WidgetEditErrorSummary.cshtml\")", edit);
+		// The layout adds "Error: " to the page title.
+		Assert.Contains("if (WidgetEditError.Read(TempData) is not null) ViewData[\"HasError\"] = true;", edit);
+	}
+
+	[Fact]
+	public void ImageWidget_IsAFigureWithAnAltAttribute_AndTheSiteCssSizesIt()
+	{
+		var view = ReadView("Views", "Shared", "ContentPages", "Widgets", "_Image.cshtml");
+		Assert.Contains("<figure class=\"@image.CssClass\">", view);
+		Assert.Contains("alt=\"@image.Alt\"", view);
+		Assert.Contains("loading=\"lazy\" decoding=\"async\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+
+		var css = ReadCss();
+		foreach (var rule in new[] { ".app-image {", ".app-image img {", ".app-image--two-thirds", ".app-image--one-half",
+			".app-image--one-third", ".app-image--align-left", ".app-image--align-right", ".app-image--align-centre" })
+			Assert.Contains(rule, css);
+		// Full width on a phone; the grid widths apply from the GOV.UK tablet break.
+		Assert.Contains("@media (min-width: 40.0625em)", css[css.IndexOf(".app-image {", StringComparison.Ordinal)..]);
+	}
 }

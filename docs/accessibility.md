@@ -162,6 +162,10 @@ The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cp
 
 **A visible `<hr class="govuk-section-break--visible">` used as decoration is `aria-hidden="true"`.** An `<hr>` maps to the separator role, and VoiceOver and TalkBack announce it — noise, when the heading either side already carries the structure (audit #386). This covers the landing page, the amendment requests page, `_FileUpload.cshtml` and the CMS Divider widget. The footer's `govuk-footer__section-break` is left alone: it is part of the GOV.UK Frontend footer markup.
 
+## Images in content pages
+
+**Every Image widget has alt text, unless the editor marks it decorative.** The save check refuses an image with no alt text. A decorative image renders `alt=""`, so screen readers skip it. Each image has `width` and `height`, so the page does not move as it loads. A caption and credit go in a `<figcaption>`. A refused save shows a GOV.UK error summary, and the error message sits beside its field. `AccessibilityAuditViewTests` pins the markup.
+
 ## Option groups
 
 **A radio or checkbox fieldset names its own hint and error through `aria-describedby`, and each option names its own hint on its own input.** `_Radio.cshtml` had neither, so the group's hint and its error message were never announced with the group, and every option's `SubLabel` was rendered with an id that nothing referenced (audit #383). `_Checkbox.cshtml` and `_Date.cshtml` already described the group; both option partials now describe the per-option hint too.

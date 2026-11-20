@@ -588,7 +588,7 @@ public sealed class WidgetTestPagesE2ETests(PlaywrightFixture fixture) : Seeding
 
         var links = await LinksAsync(Navigations.Nth(3));
 
-        Assert.Equal(9, links.Count);
+        Assert.Equal(10, links.Count);
         Assert.Contains($"{FixtureContent.WidgetsPath}/heading-test-page", links);
         Assert.Contains($"{FixtureContent.WidgetsPath}/page-navigation-test-page", links);
         Assert.All(links, link => Assert.StartsWith($"{FixtureContent.WidgetsPath}/", link));

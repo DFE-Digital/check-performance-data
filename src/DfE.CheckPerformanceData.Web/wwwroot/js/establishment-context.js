@@ -10,6 +10,25 @@
         headers.set('X-Establishment-Context', stamp);
         return originalFetch.call(this, input, { ...init, headers });
     };
+    // Forms built in script miss the form tag helper. Add the field when such a form posts to this
+    // site. form.submit() fires no submit event, so it is wrapped too.
+    const addToForm = (form) => {
+        if ((form.getAttribute('method') || '').toLowerCase() !== 'post') return;
+        const action = new URL(form.getAttribute('action') || '', window.location.href);
+        if (action.origin !== window.location.origin) return;
+        if (form.querySelector('input[name="EstablishmentContext"]')) return;
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'EstablishmentContext';
+        input.value = stamp;
+        form.appendChild(input);
+    };
+    document.addEventListener('submit', (event) => addToForm(event.target), true);
+    const originalSubmit = HTMLFormElement.prototype.submit;
+    HTMLFormElement.prototype.submit = function () {
+        addToForm(this);
+        return originalSubmit.call(this);
+    };
     const originalOpen = XMLHttpRequest.prototype.open;
     const originalSend = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.open = function (method, url, ...rest) {

@@ -22,4 +22,8 @@ public static class MediaBlobKeys
 
     public static string RenditionsPrefix(Guid assetId, int version) =>
         $"renditions/{assetId:D}/{version}/";
+
+    /// <summary>The prefixes that hold every stored file of one image: its originals and its renditions.</summary>
+    public static IReadOnlyList<string> AssetPrefixes(Guid assetId) =>
+        [$"originals/{assetId:D}/", $"renditions/{assetId:D}/"];
 }

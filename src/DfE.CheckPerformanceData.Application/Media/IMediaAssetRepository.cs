@@ -32,4 +32,17 @@ public interface IMediaAssetRepository
 
     /// <summary>Images with any version whose stored file has this SHA-256, so an upload can offer the existing one.</summary>
     Task<IReadOnlyList<MediaAssetDto>> FindBySha256Async(string sha256, CancellationToken ct = default);
+
+    /// <summary>
+    /// The pages that use the image in any page version, once each, by title. Deleted pages are
+    /// included and marked, because their versions still hold the image.
+    /// </summary>
+    Task<IReadOnlyList<MediaUsagePage>> GetUsagePagesAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes the image and every version row, when no page version uses it. Removes no files:
+    /// the caller deletes those after the rows. On <see cref="MediaDeleteOutcome.InUse"/> the
+    /// scoped context's change tracker is cleared.
+    /// </summary>
+    Task<MediaDeleteOutcome> DeleteAsync(Guid assetId, CancellationToken ct = default);
 }

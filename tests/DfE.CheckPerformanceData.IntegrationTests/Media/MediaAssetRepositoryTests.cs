@@ -415,18 +415,144 @@ public sealed class MediaAssetRepositoryTests(PostgresFixture fixture) : IAsyncL
         }
     }
 
-    private static MediaUsage Usage(Guid assetId, int version, Guid nodeId, Guid versionId) => new()
+    // "Used on N pages" counts pages, not page versions or image versions, and a deleted page that
+    // still holds the image is listed so the editor can see why the image cannot be deleted.
+    [Fact]
+    public async Task GetUsagePages_ListsEachPageOnce_ByTitle_AndMarksDeletedPages()
+    {
+        var id = Guid.NewGuid();
+        var (live, liveV1) = await SeedPageVersionAsync("Zebra crossings");
+        var (deleted, deletedV1) = await SeedPageVersionAsync("Attendance", deleted: true);
+        try
+        {
+            var liveV2 = await AddPageVersionAsync(live, 2);
+            await using (var ctx = fixture.CreateContext())
+            {
+                var sut = new MediaAssetRepository(ctx, new FakeCurrentUserService());
+                await sut.CreateAsync(Asset(id));
+                await sut.AddVersionAsync(id, 2, File(id, 2, 'b'));
+                ctx.MediaUsages.Add(Usage(id, 1, live, liveV1));
+                ctx.MediaUsages.Add(Usage(id, 2, live, liveV2));
+                ctx.MediaUsages.Add(Usage(id, 2, live, liveV2, MediaUsageLocations.RichText));
+                ctx.MediaUsages.Add(Usage(id, 1, deleted, deletedV1));
+                await ctx.SaveChangesAsync();
+            }
+
+            await using var read = fixture.CreateContext();
+            var sutRead = new MediaAssetRepository(read, new FakeCurrentUserService());
+            var pages = await sutRead.GetUsagePagesAsync(id);
+
+            Assert.Collection(pages,
+                p => { Assert.Equal(deleted, p.PageNodeId); Assert.Equal("Attendance", p.Title); Assert.True(p.IsDeleted); },
+                p =>
+                {
+                    Assert.Equal(live, p.PageNodeId);
+                    Assert.Equal("Zebra crossings", p.Title);
+                    Assert.False(p.IsDeleted);
+                    Assert.Equal($"media-{live:N}", p.Path);
+                });
+            Assert.Empty(await sutRead.GetUsagePagesAsync(Guid.NewGuid()));
+        }
+        finally
+        {
+            await DeletePageAsync(live);
+            await DeletePageAsync(deleted);
+        }
+    }
+
+    // A deleted image leaves no rows, and the generic capture records the delete.
+    [Fact]
+    public async Task Delete_RemovesTheImageAndEveryVersion_AndTheAuditLogRecordsIt()
+    {
+        var id = Guid.NewGuid();
+        var keep = Guid.NewGuid();
+        await using (var ctx = fixture.CreateContext())
+        {
+            var sut = new MediaAssetRepository(ctx, new FakeCurrentUserService());
+            await sut.CreateAsync(Asset(id));
+            await sut.AddVersionAsync(id, 2, File(id, 2, 'b'));
+            await sut.CreateAsync(Asset(keep, sha: 'c'));
+        }
+
+        await using (var ctx = fixture.CreateContext())
+            Assert.Equal(MediaDeleteOutcome.Deleted, await new MediaAssetRepository(ctx, new FakeCurrentUserService()).DeleteAsync(id));
+
+        await using var read = fixture.CreateContext();
+        Assert.False(await read.MediaAssets.AnyAsync(a => a.Id == id));
+        Assert.False(await read.MediaAssetVersions.AnyAsync(v => v.AssetId == id));
+        Assert.True(await read.MediaAssets.AnyAsync(a => a.Id == keep));
+        var idText = id.ToString();
+        Assert.True(await read.AuditEntries.AnyAsync(a =>
+            a.EntityType == nameof(MediaAsset) && a.Action == "Delete" && a.EntityId == idText));
+        Assert.True(await read.AuditEntries.AnyAsync(a =>
+            a.EntityType == nameof(MediaAssetVersion) && a.Action == "Delete" && a.EntityId == $"{id},2"));
+    }
+
+    // The page here is deleted but its version remains, so the image is still in use.
+    [Fact]
+    public async Task Delete_IsRefused_WhileAPageVersionUsesTheImage()
+    {
+        var id = Guid.NewGuid();
+        var (nodeId, versionId) = await SeedPageVersionAsync(deleted: true);
+        try
+        {
+            await using (var ctx = fixture.CreateContext())
+            {
+                await new MediaAssetRepository(ctx, new FakeCurrentUserService()).CreateAsync(Asset(id));
+                ctx.MediaUsages.Add(Usage(id, 1, nodeId, versionId));
+                await ctx.SaveChangesAsync();
+            }
+
+            await using (var ctx = fixture.CreateContext())
+                Assert.Equal(MediaDeleteOutcome.InUse, await new MediaAssetRepository(ctx, new FakeCurrentUserService()).DeleteAsync(id));
+
+            await using var read = fixture.CreateContext();
+            Assert.True(await read.MediaAssets.AnyAsync(a => a.Id == id));
+            Assert.True(await read.MediaAssetVersions.AnyAsync(v => v.AssetId == id));
+        }
+        finally
+        {
+            await DeletePageAsync(nodeId);
+        }
+    }
+
+    [Fact]
+    public async Task Delete_ReturnsNotFound_ForAnUnknownImage()
+    {
+        await using var ctx = fixture.CreateContext();
+        Assert.Equal(MediaDeleteOutcome.NotFound,
+            await new MediaAssetRepository(ctx, new FakeCurrentUserService()).DeleteAsync(Guid.NewGuid()));
+    }
+
+    private static MediaUsage Usage(Guid assetId, int version, Guid nodeId, Guid versionId, string location = MediaUsageLocations.Widget) => new()
     {
         Id = Guid.NewGuid(),
         AssetId = assetId,
         AssetVersion = version,
         PageNodeId = nodeId,
         PageNodeVersionId = versionId,
-        Location = MediaUsageLocations.Widget,
+        Location = location,
         WidgetId = "0.0"
     };
 
-    private async Task<(Guid NodeId, Guid VersionId)> SeedPageVersionAsync()
+    private async Task<Guid> AddPageVersionAsync(Guid nodeId, int versionNumber)
+    {
+        var versionId = Guid.NewGuid();
+        await using var ctx = fixture.CreateContext();
+        ctx.PageNodeVersions.Add(new PageNodeVersion
+        {
+            Id = versionId,
+            PageNodeId = nodeId,
+            VersionId = versionNumber,
+            Content = "{}",
+            CreatedDate = DateTime.UtcNow,
+            UpdatedDate = DateTime.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+        return versionId;
+    }
+
+    private async Task<(Guid NodeId, Guid VersionId)> SeedPageVersionAsync(string title = "Media test page", bool deleted = false)
     {
         var nodeId = Guid.NewGuid();
         var versionId = Guid.NewGuid();
@@ -437,7 +563,8 @@ public sealed class MediaAssetRepositoryTests(PostgresFixture fixture) : IAsyncL
             Id = nodeId,
             Segment = segment,
             Path = segment,
-            Title = "Media test page",
+            Title = title,
+            DeletedDate = deleted ? DateTime.UtcNow : null,
             PageType = "content",
             CreatedDate = DateTime.UtcNow,
             UpdatedDate = DateTime.UtcNow

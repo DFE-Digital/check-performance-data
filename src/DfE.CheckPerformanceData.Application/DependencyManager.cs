@@ -51,6 +51,7 @@ public static class DependencyManager
         services.AddSingleton<Media.Serving.IMediaUrlBuilder, Media.Serving.MediaUrlBuilder>();
         services.AddScoped<Media.Serving.IMediaDeliveryService, Media.Serving.MediaDeliveryService>();
         services.AddScoped<Media.Upload.IMediaUploadService, Media.Upload.MediaUploadService>();
+        services.AddScoped<Media.IMediaDeletionService, Media.MediaDeletionService>();
         services.AddScoped<IPageNodeContentEditor, PageNodeContentEditor>();
         services.AddScoped<DefaultPageNodeSeeder>();
         services.AddScoped<SamplePageNodeSeeder>();

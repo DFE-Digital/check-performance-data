@@ -152,6 +152,41 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
             .ToListAsync(ct);
     }
 
+    // Pages are read without the soft-delete filter: a deleted page's versions keep their usages.
+    public async Task<IReadOnlyList<MediaUsagePage>> GetUsagePagesAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var pageIds = context.MediaUsages.Where(u => u.AssetId == assetId).Select(u => u.PageNodeId);
+        return await context.PageNodes.IgnoreQueryFilters().AsNoTracking()
+            .Where(n => pageIds.Contains(n.Id))
+            .OrderBy(n => n.Title).ThenBy(n => n.Id)
+            .Select(n => new MediaUsagePage(n.Id, n.Title, n.Path, n.DeletedDate != null))
+            .ToListAsync(ct);
+    }
+
+    // A tracked remove, so the generic audit capture writes a row for the image and each version.
+    // The usage check runs first; the foreign key from media_usages catches a usage saved after it.
+    public async Task<MediaDeleteOutcome> DeleteAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var asset = await context.MediaAssets.Include(a => a.Versions).FirstOrDefaultAsync(a => a.Id == assetId, ct);
+        if (asset is null) return MediaDeleteOutcome.NotFound;
+        if (await context.MediaUsages.AnyAsync(u => u.AssetId == assetId, ct)) return MediaDeleteOutcome.InUse;
+
+        context.MediaAssetVersions.RemoveRange(asset.Versions);
+        context.MediaAssets.Remove(asset);
+        try
+        {
+            await context.SaveChangesAsync(ct);
+            return MediaDeleteOutcome.Deleted;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+        {
+            // A page version started to use the image after the check. Clear the tracker so a
+            // later save on this context does not try the delete again.
+            context.ChangeTracker.Clear();
+            return MediaDeleteOutcome.InUse;
+        }
+    }
+
     // Blank text is stored as null, so "missing alt text" has one meaning. Tags are trimmed, blank
     // ones dropped and repeats (ignoring case) removed, keeping the first spelling.
     private static void Apply(MediaAsset asset, MediaAssetMetadata metadata)

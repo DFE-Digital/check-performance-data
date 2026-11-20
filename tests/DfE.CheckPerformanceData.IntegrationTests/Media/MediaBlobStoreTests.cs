@@ -86,4 +86,45 @@ public sealed class MediaBlobStoreTests(AzuriteFixture fixture)
         Assert.False(await sut.DeleteAsync(key));
         Assert.False(await _blobs.GetBlobContainerClient(container).ExistsAsync());
     }
+
+    // Deleting an image removes all its files by prefix and leaves every other image's files.
+    [Fact]
+    public async Task DeleteByPrefix_RemovesEveryFileUnderThePrefix_AndNothingElse()
+    {
+        var sut = NewStore(out _);
+        var id = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        string[] mine = [MediaBlobKeys.Original(id, 1), MediaBlobKeys.Original(id, 2), MediaBlobKeys.Rendition(id, 1, "abc"), MediaBlobKeys.Rendition(id, 2, "def")];
+        foreach (var key in mine) await sut.PutAsync(key, Bytes("x"), "image/png");
+        await sut.PutAsync(MediaBlobKeys.Original(other, 1), Bytes("y"), "image/png");
+        await sut.PutAsync(MediaBlobKeys.Rendition(other, 1, "abc"), Bytes("y"), "image/webp");
+
+        var removed = 0;
+        foreach (var prefix in MediaBlobKeys.AssetPrefixes(id)) removed += await sut.DeleteByPrefixAsync(prefix);
+
+        Assert.Equal(4, removed);
+        foreach (var key in mine) Assert.False(await sut.ExistsAsync(key));
+        Assert.True(await sut.ExistsAsync(MediaBlobKeys.Original(other, 1)));
+        Assert.True(await sut.ExistsAsync(MediaBlobKeys.Rendition(other, 1, "abc")));
+    }
+
+    [Fact]
+    public async Task DeleteByPrefix_OnAMissingContainer_RemovesNothing_AndDoesNotCreateIt()
+    {
+        var sut = NewStore(out var container);
+
+        Assert.Equal(0, await sut.DeleteByPrefixAsync(MediaBlobKeys.AssetPrefixes(Guid.NewGuid())[0]));
+        Assert.False(await _blobs.GetBlobContainerClient(container).ExistsAsync());
+    }
+
+    // An empty prefix would match the whole container.
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task DeleteByPrefix_RefusesAnEmptyPrefix(string prefix)
+    {
+        var sut = NewStore(out _);
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => sut.DeleteByPrefixAsync(prefix));
+    }
 }

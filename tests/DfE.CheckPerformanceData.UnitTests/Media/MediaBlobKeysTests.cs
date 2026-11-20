@@ -32,4 +32,20 @@ public sealed class MediaBlobKeysTests
     {
         Assert.ThrowsAny<ArgumentException>(() => MediaBlobKeys.Rendition(Id, 1, hash));
     }
+
+    // Deleting an image removes every file under these two prefixes: all its originals and all
+    // its renditions. The trailing slash stops one id matching another that starts the same way.
+    [Fact]
+    public void AssetPrefixes_CoverEveryOriginalAndRenditionOfTheImage_AndNothingElse()
+    {
+        var prefixes = MediaBlobKeys.AssetPrefixes(Id);
+
+        Assert.Equal(
+            ["originals/0f8fad5b-d9cb-469f-a165-70867728950e/", "renditions/0f8fad5b-d9cb-469f-a165-70867728950e/"],
+            prefixes);
+        Assert.Contains(prefixes, p => MediaBlobKeys.Original(Id, 7).StartsWith(p, StringComparison.Ordinal));
+        Assert.Contains(prefixes, p => MediaBlobKeys.Rendition(Id, 7, "abc").StartsWith(p, StringComparison.Ordinal));
+        var other = Guid.NewGuid();
+        Assert.DoesNotContain(prefixes, p => MediaBlobKeys.Original(other, 1).StartsWith(p, StringComparison.Ordinal));
+    }
 }

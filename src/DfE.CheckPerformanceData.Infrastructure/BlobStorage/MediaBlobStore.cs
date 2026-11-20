@@ -72,4 +72,25 @@ public sealed class MediaBlobStore(BlobServiceClient service, string containerNa
             return false;
         }
     }
+
+    // Lists the matching files, then deletes each one. A file that has gone in between does not
+    // count. A missing container has nothing to list and is not created.
+    public async Task<int> DeleteByPrefixAsync(string prefix, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(prefix);
+        var removed = 0;
+        try
+        {
+            await foreach (var item in Container.GetBlobsAsync(new GetBlobsOptions { Prefix = prefix }, ct))
+            {
+                if ((await Container.GetBlobClient(item.Name).DeleteIfExistsAsync(cancellationToken: ct)).Value)
+                    removed++;
+            }
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            // The container does not exist, so there is nothing to remove.
+        }
+        return removed;
+    }
 }

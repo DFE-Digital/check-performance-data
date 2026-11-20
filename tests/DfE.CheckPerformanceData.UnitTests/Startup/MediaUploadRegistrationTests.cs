@@ -37,6 +37,7 @@ public sealed class MediaUploadRegistrationTests
 
         Assert.IsType<MediaUploadService>(scope.ServiceProvider.GetRequiredService<IMediaUploadService>());
         Assert.IsType<SkiaRasterImageCleaner>(scope.ServiceProvider.GetRequiredService<IRasterImageCleaner>());
+        Assert.IsType<MediaDeletionService>(scope.ServiceProvider.GetService<IMediaDeletionService>());
     }
 
     // One gate for the whole process, so the limit holds across requests, read from Media settings.

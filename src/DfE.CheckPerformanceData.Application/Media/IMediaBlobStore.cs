@@ -18,4 +18,10 @@ public interface IMediaBlobStore
 
     /// <summary>Removes the file. Returns false when there was nothing to remove.</summary>
     Task<bool> DeleteAsync(string key, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes every file whose key starts with <paramref name="prefix"/> and returns how many it
+    /// removed. Refuses an empty prefix, which would match the whole container.
+    /// </summary>
+    Task<int> DeleteByPrefixAsync(string prefix, CancellationToken ct = default);
 }

@@ -873,8 +873,15 @@ public sealed class AccessibilityAuditViewTests
 
 		foreach (var prop in new[] { "mediaId", "alt", "decorative", "caption", "credit", "width", "align", "href", "crop", "aspect", "focal" })
 			Assert.Contains($"\"{prop}\"", image);
-		foreach (var labelled in new[] { "mediaId", "alt", "caption", "credit", "width", "align", "href", "crop", "aspect", "focal", "decorative" })
+		foreach (var labelled in new[] { "mediaId", "alt", "caption", "credit", "href", "crop", "aspect", "focal", "decorative" })
 			Assert.Contains($"for=\"@FieldId(\"{labelled}\")\"", image);
+		// Width and alignment are radios in a fieldset named by its legend. Each radio has its own
+		// label, and the first radio has the field id, so the error summary link lands on it.
+		Assert.Contains(">Width</legend>", image);
+		Assert.Contains(">Alignment</legend>", image);
+		Assert.Contains("var id = value == ImageWidgetProps.FullWidth ? FieldId(\"width\")", image);
+		Assert.Contains("var id = value == \"\" ? FieldId(\"align\")", image);
+		Assert.Contains("<label class=\"govuk-label govuk-radios__label\" for=\"@id\">", image);
 
 		Assert.Contains("id=\"@FieldId(", view);
 		Assert.Contains("govuk-form-group--error", view);

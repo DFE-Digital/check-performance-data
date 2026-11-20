@@ -3,6 +3,10 @@
 @using DfE.CheckPerformanceData.Application.Media.Widget
 @using DfE.CheckPerformanceData.Web.PageTree
 @using DfE.CheckPerformanceData.Web.Models.Guidance
+@using DfE.CheckPerformanceData.Application.Media.Serving
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
+@inject IMediaVersionResolver MediaResolver
+@inject IMediaUrlBuilder MediaUrls
 @model EditWidgetModel
 @{
     var w = Model.Widget;
@@ -26,6 +30,16 @@
     string FieldValue(string field) => rejected is not null
         ? rejected.Props.GetValueOrDefault(field) ?? string.Empty
         : ImageWidgetProps.Text(w.Props, field);
+
+    // The library image an Image widget names, as the image editor script needs it. Null when
+    // the id is empty, not valid or not in the library. The editor page primes the resolver.
+    async Task<MediaPickerItem?> ChosenImageAsync(string mediaId)
+    {
+        if (!Guid.TryParse(mediaId.Trim(), out var id) || id == Guid.Empty) return null;
+        return (await MediaResolver.ResolveAsync([id], null)).TryGetValue(id, out var media)
+            ? MediaPickerItem.From(media.Asset, MediaUrls)
+            : null;
+    }
 
     void ErrorMessage(string field)
     {
@@ -347,99 +361,204 @@
 
                         case "image":
                             {
-                                // Plain fields for every prop. The form posts all of them, because the
-                                // props builder resets a prop it does not see.
+                                // Every prop is a plain named field, so the form works without
+                                // JavaScript and posts all of them: the props builder resets a prop
+                                // it does not see. image-widget-editor.js adds the media picker, the
+                                // crop and focal point tools and a live preview, and writes their
+                                // results into these same fields.
                                 var imgDecorative = string.Equals(FieldValue("decorative"), "true", StringComparison.OrdinalIgnoreCase);
                                 var imgWidth = FieldValue("width");
+                                if (!ImageWidgetProps.Widths.Contains(imgWidth)) imgWidth = ImageWidgetProps.FullWidth;
                                 var imgAlign = FieldValue("align");
                                 var imgAspect = FieldValue("aspect");
-                                <div class="@GroupClass("mediaId")">
-                                    <label class="govuk-label" for="@FieldId("mediaId")">Image ID</label>
-                                    <div class="govuk-hint" id="@FieldId("mediaId")-hint">The ID of an image in the media library.</div>
-                                    @{ ErrorMessage("mediaId"); }
-                                    <input class="govuk-input@(ErrorFor("mediaId") is null ? "" : " govuk-input--error")" id="@FieldId("mediaId")" name="props[mediaId]"
-                                           value="@FieldValue("mediaId")" aria-describedby="@FieldId("mediaId")-hint @DescribedBy("mediaId")" spellcheck="false" />
-                                </div>
-                                <div class="@GroupClass("alt")">
-                                    <label class="govuk-label" for="@FieldId("alt")">Alt text</label>
-                                    <div class="govuk-hint" id="@FieldId("alt")-hint">Describe the image for people who cannot see it.</div>
-                                    @{ ErrorMessage("alt"); }
-                                    <input class="govuk-input@(ErrorFor("alt") is null ? "" : " govuk-input--error")" id="@FieldId("alt")" name="props[alt]"
-                                           value="@FieldValue("alt")" aria-describedby="@FieldId("alt")-hint @DescribedBy("alt")" />
-                                </div>
-                                <div class="govuk-form-group">
-                                    <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
-                                        <div class="govuk-checkboxes__item">
-                                            <input class="govuk-checkboxes__input" id="@FieldId("decorative")" name="props[decorative]"
-                                                   type="checkbox" value="true" @(imgDecorative ? "checked" : null) />
-                                            <label class="govuk-label govuk-checkboxes__label" for="@FieldId("decorative")">
-                                                The image is decorative (screen readers skip it)
-                                            </label>
-                                            @* An unticked box posts nothing, so this hidden "false" makes unticking
-                                               stick. It follows the label: the first posted value wins. *@
-                                            <input type="hidden" name="props[decorative]" value="false" />
+                                var imgChosen = await ChosenImageAsync(FieldValue("mediaId"));
+                                var imgManualError = ErrorFor("crop") is not null || ErrorFor("aspect") is not null || ErrorFor("focal") is not null;
+                                var imgWidths = new[] { ("full", "Full width"), ("two-thirds", "Two-thirds"), ("one-half", "One-half"), ("one-third", "One-third") };
+                                var imgAligns = new[] { ("", "None"), ("left", "Left"), ("centre", "Centre"), ("right", "Right") };
+                                var imgPresets = new[] { ("", "Free"), ("16:9", "16:9"), ("4:3", "4:3"), ("1:1", "1:1"), ("3:2", "3:2") };
+                                <div class="app-image-editor" data-image-editor
+                                     data-preview-url="/admin/media/picker/preview"
+                                     data-media-file-name="@imgChosen?.FileName"
+                                     data-media-alt="@imgChosen?.Alt"
+                                     data-media-thumb-url="@imgChosen?.ThumbUrl"
+                                     data-media-edit-url="@imgChosen?.EditUrl"
+                                     data-media-can-crop="@(imgChosen is null ? null : imgChosen.CanCrop ? "true" : "false")">
+                                    <div class="@GroupClass("mediaId")">
+                                        <h3 class="govuk-heading-s">Image</h3>
+                                        <div class="app-image-editor__chosen" data-image-editor-chosen hidden>
+                                            <img class="app-image-editor__thumb" alt="" data-image-editor-thumb />
+                                            <p class="govuk-body govuk-!-margin-bottom-2" data-image-editor-name></p>
+                                        </div>
+                                        <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-4" data-module="govuk-button"
+                                                data-image-editor-choose hidden>Choose image</button>
+                                        <div data-image-editor-fallback>
+                                            <label class="govuk-label" for="@FieldId("mediaId")">Image ID</label>
+                                            <div class="govuk-hint" id="@FieldId("mediaId")-hint">The ID of an image in the media library. Copy it from the address of the image's page.</div>
+                                            @{ ErrorMessage("mediaId"); }
+                                            <input class="govuk-input@(ErrorFor("mediaId") is null ? "" : " govuk-input--error")" id="@FieldId("mediaId")" name="props[mediaId]"
+                                                   value="@FieldValue("mediaId")" aria-describedby="@FieldId("mediaId")-hint @DescribedBy("mediaId")" spellcheck="false" data-image-editor-media-id />
+                                            <p class="govuk-body govuk-!-margin-top-2"><a class="govuk-link" href="/admin/media" target="_blank" rel="noopener noreferrer">Open the media library in a new tab</a></p>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="govuk-form-group">
-                                    <label class="govuk-label" for="@FieldId("caption")">Caption (optional)</label>
-                                    <input class="govuk-input" id="@FieldId("caption")" name="props[caption]" value="@FieldValue("caption")" />
-                                </div>
-                                <div class="govuk-form-group">
-                                    <label class="govuk-label" for="@FieldId("credit")">Credit (optional)</label>
-                                    <input class="govuk-input" id="@FieldId("credit")" name="props[credit]" value="@FieldValue("credit")" />
-                                </div>
-                                <div class="@GroupClass("width")">
-                                    <label class="govuk-label" for="@FieldId("width")">Width</label>
-                                    @{ ErrorMessage("width"); }
-                                    <select class="govuk-select" id="@FieldId("width")" name="props[width]" aria-describedby="@DescribedBy("width")">
-                                        <option value="full" selected="@(imgWidth == "full" ? "selected" : null)">Full width</option>
-                                        <option value="two-thirds" selected="@(imgWidth == "two-thirds" ? "selected" : null)">Two-thirds</option>
-                                        <option value="one-half" selected="@(imgWidth == "one-half" ? "selected" : null)">One-half</option>
-                                        <option value="one-third" selected="@(imgWidth == "one-third" ? "selected" : null)">One-third</option>
-                                    </select>
-                                </div>
-                                <div class="@GroupClass("align")">
-                                    <label class="govuk-label" for="@FieldId("align")">Alignment</label>
-                                    @{ ErrorMessage("align"); }
-                                    <select class="govuk-select" id="@FieldId("align")" name="props[align]" aria-describedby="@DescribedBy("align")">
-                                        <option value="" selected="@(imgAlign == "" ? "selected" : null)">None</option>
-                                        <option value="left" selected="@(imgAlign == "left" ? "selected" : null)">Left, with text beside it</option>
-                                        <option value="right" selected="@(imgAlign == "right" ? "selected" : null)">Right, with text beside it</option>
-                                        <option value="centre" selected="@(imgAlign == "centre" ? "selected" : null)">Centre</option>
-                                    </select>
-                                </div>
-                                <div class="@GroupClass("href")">
-                                    <label class="govuk-label" for="@FieldId("href")">Link (optional)</label>
-                                    <div class="govuk-hint" id="@FieldId("href")-hint">A web address, or a page on this site that starts with /.</div>
-                                    @{ ErrorMessage("href"); }
-                                    <input class="govuk-input@(ErrorFor("href") is null ? "" : " govuk-input--error")" id="@FieldId("href")" name="props[href]"
-                                           value="@FieldValue("href")" aria-describedby="@FieldId("href")-hint @DescribedBy("href")" spellcheck="false" />
-                                </div>
-                                <div class="@GroupClass("aspect")">
-                                    <label class="govuk-label" for="@FieldId("aspect")">Aspect ratio</label>
-                                    @{ ErrorMessage("aspect"); }
-                                    <select class="govuk-select" id="@FieldId("aspect")" name="props[aspect]" aria-describedby="@DescribedBy("aspect")">
-                                        <option value="" selected="@(imgAspect == "" ? "selected" : null)">The image's own shape</option>
-                                        <option value="16:9" selected="@(imgAspect == "16:9" ? "selected" : null)">16:9</option>
-                                        <option value="4:3" selected="@(imgAspect == "4:3" ? "selected" : null)">4:3</option>
-                                        <option value="1:1" selected="@(imgAspect == "1:1" ? "selected" : null)">1:1 (square)</option>
-                                        <option value="3:2" selected="@(imgAspect == "3:2" ? "selected" : null)">3:2</option>
-                                    </select>
-                                </div>
-                                <div class="@GroupClass("crop")">
-                                    <label class="govuk-label" for="@FieldId("crop")">Crop (optional)</label>
-                                    <div class="govuk-hint" id="@FieldId("crop")-hint">x,y,width,height as fractions from 0 to 1, for example 0,0,0.5,1 for the left half.</div>
-                                    @{ ErrorMessage("crop"); }
-                                    <input class="govuk-input govuk-input--width-20@(ErrorFor("crop") is null ? "" : " govuk-input--error")" id="@FieldId("crop")" name="props[crop]"
-                                           value="@FieldValue("crop")" aria-describedby="@FieldId("crop")-hint @DescribedBy("crop")" spellcheck="false" />
-                                </div>
-                                <div class="@GroupClass("focal")">
-                                    <label class="govuk-label" for="@FieldId("focal")">Focal point (optional)</label>
-                                    <div class="govuk-hint" id="@FieldId("focal")-hint">x,y as fractions from 0 to 1. Keeps this point in view when an aspect ratio cuts the image.</div>
-                                    @{ ErrorMessage("focal"); }
-                                    <input class="govuk-input govuk-input--width-10@(ErrorFor("focal") is null ? "" : " govuk-input--error")" id="@FieldId("focal")" name="props[focal]"
-                                           value="@FieldValue("focal")" aria-describedby="@FieldId("focal")-hint @DescribedBy("focal")" spellcheck="false" />
+                                    <div class="@GroupClass("alt")">
+                                        <label class="govuk-label" for="@FieldId("alt")">Alt text</label>
+                                        <div class="govuk-hint" id="@FieldId("alt")-hint">
+                                            Describe what the image shows and why it is there, for people who cannot see it.
+                                            Do not start with "Image of". When you choose an image, its alt text from the library is filled in if this is empty.
+                                        </div>
+                                        @{ ErrorMessage("alt"); }
+                                        <input class="govuk-input@(ErrorFor("alt") is null ? "" : " govuk-input--error")" id="@FieldId("alt")" name="props[alt]"
+                                               value="@FieldValue("alt")" aria-describedby="@FieldId("alt")-hint @DescribedBy("alt")" data-image-editor-alt />
+                                    </div>
+                                    <div class="govuk-form-group">
+                                        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                                            <div class="govuk-checkboxes__item">
+                                                <input class="govuk-checkboxes__input" id="@FieldId("decorative")" name="props[decorative]"
+                                                       type="checkbox" value="true" @(imgDecorative ? "checked" : null) data-image-editor-decorative />
+                                                <label class="govuk-label govuk-checkboxes__label" for="@FieldId("decorative")">
+                                                    This image is decorative (screen readers skip it)
+                                                </label>
+                                                @* An unticked box posts nothing, so this hidden "false" makes unticking
+                                                   stick. It follows the label: the first posted value wins. *@
+                                                <input type="hidden" name="props[decorative]" value="false" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="govuk-form-group">
+                                        <label class="govuk-label" for="@FieldId("caption")">Caption (optional)</label>
+                                        <input class="govuk-input" id="@FieldId("caption")" name="props[caption]" value="@FieldValue("caption")" />
+                                    </div>
+                                    <div class="govuk-form-group">
+                                        <label class="govuk-label" for="@FieldId("credit")">Credit (optional)</label>
+                                        <input class="govuk-input" id="@FieldId("credit")" name="props[credit]" value="@FieldValue("credit")" />
+                                    </div>
+                                    <div class="@GroupClass("width")">
+                                        <fieldset class="govuk-fieldset" aria-describedby="@DescribedBy("width")">
+                                            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Width</legend>
+                                            @{ ErrorMessage("width"); }
+                                            <div class="govuk-radios govuk-radios--small govuk-radios--inline" data-module="govuk-radios">
+                                                @foreach (var (value, text) in imgWidths)
+                                                {
+                                                    var id = value == ImageWidgetProps.FullWidth ? FieldId("width") : $"{FieldId("width")}-{value}";
+                                                    <div class="govuk-radios__item">
+                                                        <input class="govuk-radios__input" id="@id" name="props[width]" type="radio" value="@value"
+                                                               checked="@(imgWidth == value ? "checked" : null)" />
+                                                        <label class="govuk-label govuk-radios__label" for="@id">@text</label>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </fieldset>
+                                    </div>
+                                    <div class="@GroupClass("align")">
+                                        <fieldset class="govuk-fieldset" aria-describedby="@FieldId("align")-hint @DescribedBy("align")">
+                                            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Alignment</legend>
+                                            <div class="govuk-hint" id="@FieldId("align")-hint">Left and right put the text beside the image on larger screens.</div>
+                                            @{ ErrorMessage("align"); }
+                                            <div class="govuk-radios govuk-radios--small govuk-radios--inline" data-module="govuk-radios">
+                                                @foreach (var (value, text) in imgAligns)
+                                                {
+                                                    var id = value == "" ? FieldId("align") : $"{FieldId("align")}-{value}";
+                                                    <div class="govuk-radios__item">
+                                                        <input class="govuk-radios__input" id="@id" name="props[align]" type="radio" value="@value"
+                                                               checked="@(imgAlign == value ? "checked" : null)" />
+                                                        <label class="govuk-label govuk-radios__label" for="@id">@text</label>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </fieldset>
+                                    </div>
+                                    <div class="@GroupClass("href")">
+                                        <label class="govuk-label" for="@FieldId("href")">Link (optional)</label>
+                                        <div class="govuk-hint" id="@FieldId("href")-hint">A web address, or a page on this site that starts with /.</div>
+                                        @{ ErrorMessage("href"); }
+                                        <input class="govuk-input@(ErrorFor("href") is null ? "" : " govuk-input--error")" id="@FieldId("href")" name="props[href]"
+                                               value="@FieldValue("href")" aria-describedby="@FieldId("href")-hint @DescribedBy("href")" spellcheck="false" />
+                                    </div>
+
+                                    @* The crop and focal point tools. The script shows them once an image is chosen. *@
+                                    <div class="app-image-editor__tools" data-image-editor-tools hidden>
+                                        <div class="govuk-inset-text" data-image-editor-nocrop hidden>
+                                            Crop and focal point are not available for this image. SVG, GIF and animated images are always shown as they were uploaded.
+                                        </div>
+                                        <div data-image-editor-croptools>
+                                            <div class="govuk-button-group">
+                                                <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                                                        aria-expanded="false" aria-controls="ie-crop-@Model.Path" data-image-editor-crop-toggle>Crop image</button>
+                                                <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                                                        aria-expanded="false" aria-controls="ie-focal-@Model.Path" data-image-editor-focal-toggle>Set focal point</button>
+                                            </div>
+                                            <div class="app-image-editor__panel" id="ie-crop-@Model.Path" data-image-editor-crop-panel hidden>
+                                                <div class="govuk-form-group">
+                                                    <fieldset class="govuk-fieldset" aria-describedby="ie-shape-@Model.Path-hint">
+                                                        <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Crop shape</legend>
+                                                        <div class="govuk-hint" id="ie-shape-@Model.Path-hint">Drag the box or its corners to choose the part of the image to show.</div>
+                                                        <div class="govuk-radios govuk-radios--small govuk-radios--inline" data-module="govuk-radios">
+                                                            @foreach (var (value, text) in imgPresets)
+                                                            {
+                                                                var id = $"ie-shape-{Model.Path}-{(value == "" ? "free" : value.Replace(':', '-'))}";
+                                                                <div class="govuk-radios__item">
+                                                                    <input class="govuk-radios__input" id="@id" name="ie-shape-@Model.Path" type="radio" value="@value"
+                                                                           checked="@(imgAspect == value ? "checked" : null)" data-image-editor-shape />
+                                                                    <label class="govuk-label govuk-radios__label" for="@id">@text</label>
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    </fieldset>
+                                                </div>
+                                                <div class="app-image-editor__crop">
+                                                    <img alt="The image to crop" data-image-editor-crop-img />
+                                                </div>
+                                                <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-top-4" data-module="govuk-button"
+                                                        data-image-editor-crop-reset>Reset crop</button>
+                                            </div>
+                                            <div class="app-image-editor__panel" id="ie-focal-@Model.Path" data-image-editor-focal-panel hidden>
+                                                <div class="govuk-hint" id="ie-focal-@Model.Path-hint">
+                                                    Select the part of the whole image to keep in view when a crop shape cuts it,
+                                                    or use the arrow keys. Hold Shift to move further.
+                                                </div>
+                                                <div class="app-image-editor__focal" tabindex="0" role="group" aria-label="Focal point"
+                                                     aria-describedby="ie-focal-@Model.Path-hint" data-image-editor-focal-area>
+                                                    <img alt="" data-image-editor-focal-img />
+                                                    <span class="app-image-editor__marker" aria-hidden="true" data-image-editor-focal-marker></span>
+                                                </div>
+                                                <p class="govuk-body-s govuk-!-margin-top-2" role="status" data-image-editor-focal-status></p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    @* The values the tools write. Without the script they are typed in here. *@
+                                    <div data-image-editor-manual data-has-error="@(imgManualError ? "true" : "false")">
+                                        <div class="@GroupClass("aspect")">
+                                            <label class="govuk-label" for="@FieldId("aspect")">Aspect ratio</label>
+                                            @{ ErrorMessage("aspect"); }
+                                            <select class="govuk-select" id="@FieldId("aspect")" name="props[aspect]" aria-describedby="@DescribedBy("aspect")" data-image-editor-aspect>
+                                                <option value="" selected="@(imgAspect == "" ? "selected" : null)">The image's own shape</option>
+                                                <option value="16:9" selected="@(imgAspect == "16:9" ? "selected" : null)">16:9</option>
+                                                <option value="4:3" selected="@(imgAspect == "4:3" ? "selected" : null)">4:3</option>
+                                                <option value="1:1" selected="@(imgAspect == "1:1" ? "selected" : null)">1:1 (square)</option>
+                                                <option value="3:2" selected="@(imgAspect == "3:2" ? "selected" : null)">3:2</option>
+                                            </select>
+                                        </div>
+                                        <div class="@GroupClass("crop")">
+                                            <label class="govuk-label" for="@FieldId("crop")">Crop (optional)</label>
+                                            <div class="govuk-hint" id="@FieldId("crop")-hint">x,y,width,height as fractions from 0 to 1, for example 0,0,0.5,1 for the left half.</div>
+                                            @{ ErrorMessage("crop"); }
+                                            <input class="govuk-input govuk-input--width-20@(ErrorFor("crop") is null ? "" : " govuk-input--error")" id="@FieldId("crop")" name="props[crop]"
+                                                   value="@FieldValue("crop")" aria-describedby="@FieldId("crop")-hint @DescribedBy("crop")" spellcheck="false" data-image-editor-crop />
+                                        </div>
+                                        <div class="@GroupClass("focal")">
+                                            <label class="govuk-label" for="@FieldId("focal")">Focal point (optional)</label>
+                                            <div class="govuk-hint" id="@FieldId("focal")-hint">x,y as fractions from 0 to 1. Keeps this point in view when an aspect ratio cuts the image.</div>
+                                            @{ ErrorMessage("focal"); }
+                                            <input class="govuk-input govuk-input--width-10@(ErrorFor("focal") is null ? "" : " govuk-input--error")" id="@FieldId("focal")" name="props[focal]"
+                                                   value="@FieldValue("focal")" aria-describedby="@FieldId("focal")-hint @DescribedBy("focal")" spellcheck="false" data-image-editor-focal />
+                                        </div>
+                                    </div>
+
+                                    <div class="app-image-editor__preview" data-image-editor-preview hidden>
+                                        <h3 class="govuk-heading-s">Preview (not saved yet)</h3>
+                                        <div data-image-editor-preview-body></div>
+                                    </div>
                                 </div>
                             }
                             break;

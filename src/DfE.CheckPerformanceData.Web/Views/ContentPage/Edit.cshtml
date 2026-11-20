@@ -314,6 +314,14 @@
     </div>
 </div>
 
+@* The media picker dialog, shared by the Image widget editor and the rich text editor. The crop
+   library and the editor scripts are files, so the Content-Security-Policy needs no change. *@
+@await Html.PartialAsync("~/Views/Shared/ContentPages/_MediaPicker.cshtml")
+<link rel="stylesheet" href="~/lib/cropperjs/cropper.min.css" />
+<script src="~/lib/cropperjs/cropper.min.js"></script>
+<script src="~/js/media-picker.js" asp-append-version="true"></script>
+<script src="~/js/image-widget-editor.js" asp-append-version="true"></script>
+
 @* Rich-text widgets use the same TinyMCE editor as content blocks. They live inside collapsed
    <details>, and TinyMCE renders incorrectly when initialised on a hidden element, so each editor
    is initialised lazily the first time its disclosure opens. @editor.save() syncs HTML back to the

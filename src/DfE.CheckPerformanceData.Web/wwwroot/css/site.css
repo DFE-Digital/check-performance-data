@@ -2503,3 +2503,139 @@ dialog.seed-progress-modal {
     margin-right: auto;
   }
 }
+
+/* Media picker dialog. The images are radio buttons: the input is hidden from view but keeps
+   focus, and its label shows the focus and the choice. A wider dialog fits the grid. */
+@media (min-width: 769px) {
+  dialog.app-media-picker {
+    width: 860px;
+  }
+}
+
+.app-media-picker__search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.app-media-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.app-media-picker__item {
+  position: relative;
+}
+
+.app-media-picker__radio {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.app-media-picker__label {
+  display: block;
+  padding: 5px;
+  border: 3px solid transparent;
+  cursor: pointer;
+}
+
+.app-media-picker__radio:checked + .app-media-picker__label {
+  border-color: #1d70b8;
+  background: #f3f2f1;
+}
+
+.app-media-picker__radio:focus + .app-media-picker__label {
+  outline: 3px solid #fd0;
+  outline-offset: 0;
+  box-shadow: inset 0 0 0 4px #0b0c0c;
+}
+
+.app-media-picker__paging {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: baseline;
+}
+
+/* Image widget editor. */
+.app-image-editor__chosen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.app-image-editor__thumb {
+  max-width: 160px;
+  max-height: 120px;
+  border: 1px solid #b1b4b6;
+  background: #f3f2f1;
+}
+
+.app-image-editor__panel {
+  margin-bottom: 20px;
+}
+
+.app-image-editor__crop {
+  max-width: 640px;
+}
+
+.app-image-editor__crop img {
+  display: block;
+  max-width: 100%;
+}
+
+.app-image-editor__focal {
+  position: relative;
+  display: inline-block;
+  max-width: 640px;
+  cursor: crosshair;
+}
+
+.app-image-editor__focal:focus {
+  outline: 3px solid #fd0;
+  outline-offset: 0;
+  box-shadow: 0 0 0 7px #0b0c0c;
+}
+
+.app-image-editor__focal img {
+  display: block;
+  max-width: 100%;
+}
+
+.app-image-editor__marker {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: -13px 0 0 -13px;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #0b0c0c;
+  pointer-events: none;
+}
+
+.app-image-editor__preview {
+  padding: 15px;
+  margin-bottom: 20px;
+  border: 1px solid #b1b4b6;
+}
+
+/* [hidden] must win over GOV.UK rules that set display. Scoped on purpose. */
+.app-image-editor [hidden],
+.app-media-picker [hidden] {
+  display: none !important;
+}
+
+.app-input--read-only {
+  background: #f3f2f1;
+  color: #505a5f;
+}

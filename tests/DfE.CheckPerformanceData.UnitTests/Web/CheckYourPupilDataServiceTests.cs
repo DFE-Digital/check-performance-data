@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
@@ -122,6 +123,24 @@ public class CheckYourPupilDataServiceTests
         Assert.Equal(["Last name", "First name", "Sex", "Date of birth", "Age", "CYPMD ID"], table.Headers);
         Assert.Equal("Smith", table.Rows[0][0]);
         Assert.Equal("01/09/2010", table.Rows[0][3]);
+    }
+
+    [Fact]
+    public async Task GetPupilTableAsync_uses_impersonated_laestab_for_pupil_lookup()
+    {
+        const string impersonatedLaestab = "765/4321";
+        var viewContext = Substitute.For<IEstablishmentViewContext>();
+        viewContext.OrganisationLaestab.Returns(impersonatedLaestab);
+        var windowId = Guid.NewGuid();
+        _repository.GetPupilPageAsync(windowId, impersonatedLaestab, true, null, 0, 10)
+            .Returns((Array.Empty<IPupilRecord>(), 0));
+        var service = new CheckYourPupilDataService(_repository, _currentUserService, _resultsClient,
+            viewContext: viewContext);
+
+        await service.GetPupilTableAsync(windowId, included: true, null, 0, 10);
+
+        await _repository.Received(1).GetPupilPageAsync(windowId, impersonatedLaestab, true, null, 0, 10);
+        await _repository.DidNotReceive().GetPupilPageAsync(windowId, TestLaestab, true, null, 0, 10);
     }
 
     [Fact]

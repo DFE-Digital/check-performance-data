@@ -61,6 +61,7 @@ public sealed class AnalyticsRequestFilterTests
     [InlineData("/components/com_users")]
     [InlineData("/content/jsonapi/node")]
     [InlineData("/css/site.css")]
+    [InlineData("/media/8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11/1/photo.webp")]
     [InlineData("/dev/impersonate/12345")]
     [InlineData("/drupal/jsonapi/node")]
     [InlineData("/en/jsonapi/node")]

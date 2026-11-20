@@ -1,7 +1,9 @@
 using DfE.CheckPerformanceData.Application.Media;
+using DfE.CheckPerformanceData.Application.Media.Serving;
 using DfE.CheckPerformanceData.Application.Media.Upload;
 using DfE.CheckPerformanceData.Infrastructure.Media;
 using DfE.CheckPerformanceData.Web.Startup;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -58,6 +60,32 @@ public sealed class MediaUploadRegistrationTests
 
         Assert.Same(provider.GetRequiredService<MediaProcessingGate>(), provider.GetRequiredService<MediaProcessingGate>());
         Assert.Equal(3, provider.GetRequiredService<IOptions<MediaProcessingOptions>>().Value.MaxConcurrentProcessing);
+    }
+
+    // The public media endpoint's services: Skia renders, and the signing key lives beside the
+    // Data Protection key ring. Building them must not touch storage.
+    [Fact]
+    public void TheWebHostResolvesTheMediaServingServices()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:AzureStorage"] = "UseDevelopmentStorage=true" })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddMemoryCache();
+        services.AddDataProtection();
+        services.AddSingleton<IHostEnvironment>(new StubHostEnvironment());
+        services.AddSingleton(Substitute.For<IMediaAssetRepository>());
+        services.AddApplicationDependencies();
+        services.AddCpdBlobStorage(configuration);
+
+        using var provider = services.BuildServiceProvider(validateScopes: true);
+        using var scope = provider.CreateScope();
+
+        Assert.IsType<MediaDeliveryService>(scope.ServiceProvider.GetRequiredService<IMediaDeliveryService>());
+        Assert.IsType<MediaUrlBuilder>(provider.GetRequiredService<IMediaUrlBuilder>());
+        Assert.IsType<SkiaMediaRenditionRenderer>(provider.GetRequiredService<IMediaRenditionRenderer>());
+        Assert.IsType<BlobMediaUrlSigningKey>(provider.GetRequiredService<IMediaUrlSigningKey>());
     }
 
     private sealed class StubHostEnvironment : IHostEnvironment

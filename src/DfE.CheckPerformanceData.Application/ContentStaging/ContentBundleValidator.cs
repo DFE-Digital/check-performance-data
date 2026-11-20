@@ -63,7 +63,7 @@ public static class ContentBundleValidator
     // authenticated routes.
     private static readonly HashSet<string> ReservedSegments = new(StringComparer.OrdinalIgnoreCase)
     {
-        "admin", "api", "dev", "account", "signin", "signout", "healthcheck", "healthz", "_"
+        "admin", "api", "dev", "account", "signin", "signout", "healthcheck", "healthz", "media", "_"
     };
 
     public static IReadOnlyList<ValidationIssue> Validate(ContentBundle bundle)

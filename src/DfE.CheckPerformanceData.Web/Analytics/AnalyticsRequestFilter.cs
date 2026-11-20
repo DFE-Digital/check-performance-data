@@ -66,6 +66,7 @@ public static class AnalyticsRequestFilter
         "/jsonapi",                         // JSON:API / Drupal
         "/mapping/rest",                    // GIS
         "/MapServer",                       // MapServer
+        "/media/",                          // media library images
         "/plugins",                         // Joomla
         "/portal/jsonapi",                  // JSON:API / Drupal
         "/portal/sharing/rest",             // ArcGIS Portal

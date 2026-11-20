@@ -47,7 +47,7 @@ public sealed class SessionSourceCommentMiddleware
         // and a middleware instance lives for the life of the process — capturing the flag
         // in the constructor meant an admin could turn the comment off, see the setting
         // saved, and still have every response carry it until the next deploy.
-        if (!await IsEnabledAsync(context) || !ShouldIntercept(context))
+        if (!ShouldIntercept(context) || !await IsEnabledAsync(context))
         {
             await _next(context);
             return;
@@ -110,6 +110,7 @@ public sealed class SessionSourceCommentMiddleware
 
     private static bool ShouldIntercept(HttpContext context) =>
         HttpMethods.IsGet(context.Request.Method)
+        && !MediaFilePaths.IsMediaFile(context.Request.Path)
         && !context.Request.Headers.Accept.ToString()
             .Contains("text/event-stream", StringComparison.OrdinalIgnoreCase);
 

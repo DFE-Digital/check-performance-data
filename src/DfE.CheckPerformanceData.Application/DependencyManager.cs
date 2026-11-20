@@ -46,6 +46,10 @@ public static class DependencyManager
         // One gate per process caps how many images are decoded at once (Media:MaxConcurrentProcessing).
         services.AddOptions<Media.MediaProcessingOptions>();
         services.AddSingleton<Media.MediaProcessingGate>();
+        // Media serving. The signing key and the renderer are registered by the host.
+        services.AddSingleton<Media.Serving.MediaUrlSigner>();
+        services.AddSingleton<Media.Serving.IMediaUrlBuilder, Media.Serving.MediaUrlBuilder>();
+        services.AddScoped<Media.Serving.IMediaDeliveryService, Media.Serving.MediaDeliveryService>();
         services.AddScoped<Media.Upload.IMediaUploadService, Media.Upload.MediaUploadService>();
         services.AddScoped<IPageNodeContentEditor, PageNodeContentEditor>();
         services.AddScoped<DefaultPageNodeSeeder>();

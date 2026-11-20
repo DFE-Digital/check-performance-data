@@ -155,6 +155,7 @@ public sealed class ContentBundleValidatorTests
     [InlineData("signout")]
     [InlineData("healthcheck")]
     [InlineData("healthz")]
+    [InlineData("media")]
     public void Segment_Reserved_FailsWithCode(string segment)
     {
         var pages = new List<PageNodeBundleItem> { Page(segment: segment) };

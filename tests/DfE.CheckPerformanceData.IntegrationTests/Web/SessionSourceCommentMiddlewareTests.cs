@@ -181,6 +181,19 @@ public sealed class SessionSourceCommentMiddlewareTests
         Assert.Contains("<!-- session: ", body);
     }
 
+    // Media library files are images with a year-long cache: their bodies are never buffered here.
+    [Fact]
+    public async Task MediaFileRequest_IsNotBufferedOrStamped()
+    {
+        using var host = await BuildHostAsync(responseKind: "html");
+        var client = host.GetTestClient();
+
+        var response = await client.GetAsync("/media/8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11/1/a.png");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain("<!-- session: ", body);
+    }
+
     private static async Task<IHost> BuildHostAsync(
         string responseKind, bool showSessionComment = true, bool? storedShowSessionComment = null)
     {

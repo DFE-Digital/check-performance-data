@@ -58,7 +58,7 @@ export const removeYearGroupChangeLower = {
             pageId: "year-group-change-lower",
 
             expectedHeading:
-                "Which year group should",
+                "Which lower year group should",
 
             answers: {
                 q_year_group_lower_moved_to:

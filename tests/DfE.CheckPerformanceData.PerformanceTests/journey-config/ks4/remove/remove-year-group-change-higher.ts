@@ -58,7 +58,7 @@ export const removeYearGroupChangeHigher = {
             pageId: "year-group-change-higher",
 
             expectedHeading:
-                "Year group moved to",
+                "Tell us about the year group moved to",
 
             answers: {
                 q_year_group_higher_moved_to:

@@ -16,7 +16,8 @@ namespace DfE.CheckPerformanceData.Application.Media.Upload;
 ///
 /// Duplicates are found by the SHA-256 of the cleaned bytes, the bytes actually stored. So two
 /// uploads that differ only in metadata (for example the same photo with and without GPS data)
-/// count as one image, and the stored hash always matches the stored file.
+/// count as one image, and the stored hash always matches the stored file. Only an image whose
+/// current version has the hash is a duplicate.
 /// </summary>
 public sealed class MediaUploadService(
     IMediaFileCleaner cleaner,
@@ -39,8 +40,10 @@ public sealed class MediaUploadService(
 
         var file = check.File!;
         var sha256 = Sha256(file.Bytes);
-        var existing = await assets.FindBySha256Async(sha256, ct);
-        if (existing.Count > 0) return MediaUploadResult.Duplicate(existing[0]);
+        // Only an image that shows this file now is the same image; one that held it in an older
+        // version has been replaced since.
+        var existing = (await assets.FindBySha256Async(sha256, ct)).FirstOrDefault(a => a.Latest.Sha256 == sha256);
+        if (existing is not null) return MediaUploadResult.Duplicate(existing);
 
         var id = Guid.NewGuid();
         var key = MediaBlobKeys.Original(id, 1);

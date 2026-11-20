@@ -200,6 +200,9 @@ public sealed class SvgSanitiserTests
     [InlineData("rect { fill: url(https://evil.test/p.svg#p) }")]
     [InlineData("rect { background: u\\72l(//evil.test/p.png) }")]
     [InlineData("@font-face { font-family: x; src: url('https://evil.test/f.woff') }")]
+    // A comment opener inside a string must not hide the rule between it and a later closer.
+    [InlineData("a { font-family: \"/*\" } b { fill: url(https://evil.test/x.svg#p) } c { font-family: \"*/\" }")]
+    [InlineData("rect { background: image-set(\"https://evil.test/a.png\" 1x) }")]
     public void RemovesStyleElementsThatLoadAnythingExternal(string css)
     {
         var output = Clean($"<svg {Ns}><style>{System.Security.SecurityElement.Escape(css)}</style><rect width=\"1\" height=\"1\"/></svg>");
@@ -223,6 +226,7 @@ public sealed class SvgSanitiserTests
     [InlineData("background-image: u\\72l(//evil.test/p.png); stroke: red")]
     [InlineData("stroke: red; behavior: url(#x); x: expression(alert(1))")]
     [InlineData("stroke: red; fill: url(javascript:alert(1))")]
+    [InlineData("stroke: red; background: image-set('https://evil.test/a.png' 1x)")]
     public void RemovesExternalUrlsFromStyleAttributes(string style)
     {
         var output = Clean($"<svg {Ns}><rect width=\"1\" height=\"1\" style=\"{style}\"/></svg>");

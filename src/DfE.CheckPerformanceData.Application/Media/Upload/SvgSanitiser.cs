@@ -18,7 +18,7 @@ namespace DfE.CheckPerformanceData.Application.Media.Upload;
 /// subtree, which removes script and foreignObject. Attributes outside the list go, which removes
 /// every on* handler. A link (href or xlink:href) may only point inside the document (#id), or,
 /// on image, be a PNG, JPEG, GIF or WebP data URL. Any value with javascript:, vbscript:, another
-/// data: URL, expression(), @import or a url() that is not #id is dropped. CSS is checked after
+/// data: URL, expression(), @import, image-set() or a url() that is not #id is dropped. CSS is checked after
 /// its comments and backslash escapes are decoded: one bad declaration is dropped from a style
 /// attribute, and a style element with any bad content is dropped whole. An animation is dropped
 /// unless it animates a listed attribute other than href, with safe from/to/by/values.
@@ -91,7 +91,7 @@ public static partial class SvgSanitiser
     private static readonly HashSet<string> TransformAttributes = ["transform", "gradientTransform", "patternTransform"];
 
     private static readonly string[] ForbiddenCss =
-        ["javascript:", "vbscript:", "data:", "expression(", "@import", "-moz-binding", "behavior:"];
+        ["javascript:", "vbscript:", "data:", "expression(", "@import", "image-set(", "-moz-binding", "behavior:"];
 
     private sealed record Attribute(string Prefix, string LocalName, string Namespace, string Value);
 
@@ -288,9 +288,13 @@ public static partial class SvgSanitiser
     private static bool IsSafeValue(string value) => IsSafeCss(value);
 
     // True when the text, read as CSS, has nothing that runs script or loads another resource.
-    private static bool IsSafeCss(string css)
+    // Checked with and without comments removed: the comment pattern does not know about quoted
+    // strings, so a "/*" inside a string could otherwise hide a rule from the check.
+    private static bool IsSafeCss(string css) => IsSafeCssText(css) && IsSafeCssText(CssComment().Replace(css, ""));
+
+    private static bool IsSafeCssText(string css)
     {
-        var compact = Compact(DecodeCssEscapes(CssComment().Replace(css, ""))).ToLowerInvariant();
+        var compact = Compact(DecodeCssEscapes(css)).ToLowerInvariant();
         if (ForbiddenCss.Any(compact.Contains)) return false;
         foreach (Match url in CssUrl().Matches(compact))
         {

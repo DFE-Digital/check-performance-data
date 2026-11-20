@@ -97,6 +97,23 @@ public sealed class MediaUploadServiceTests
         Assert.Empty(_calls);
     }
 
+    // An image that held this file once but has since been replaced shows something else now,
+    // so offering it as "the same image" would be wrong.
+    [Fact]
+    public async Task Upload_OfAFileOnlyAnOlderVersionHeld_IsAddedAsANewImage()
+    {
+        var replaced = Dto(Guid.NewGuid(), currentVersion: 2) with
+        {
+            Latest = VersionDto(Guid.NewGuid(), 2) with { Sha256 = new string('f', 64) }
+        };
+        _assets.FindBySha256Async(CleanSha, Arg.Any<CancellationToken>()).Returns([replaced]);
+
+        var result = await _sut.UploadAsync(new MemoryStream([1]), "a.png");
+
+        Assert.Equal(MediaUploadOutcome.Created, result.Outcome);
+        Assert.Equal(["blob:put", "row:create"], _calls);
+    }
+
     [Fact]
     public async Task Upload_ThatFailsTheChecks_IsRejected_AndStoresNothing()
     {

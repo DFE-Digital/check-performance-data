@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.Application.Media.Serving;
 /// </summary>
 public static class MediaRenditionGeometry
 {
-    public static MediaRenditionPlan Plan(int sourceWidth, int sourceHeight, MediaRendition rendition)
+    public static MediaRenditionLayout Compute(int sourceWidth, int sourceHeight, MediaRendition rendition)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(sourceWidth, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(sourceHeight, 1);
@@ -21,7 +21,7 @@ public static class MediaRenditionGeometry
 
         var width = Math.Min(rendition.Width ?? area.Width, area.Width);
         var height = Math.Max(1, (int)Math.Round((double)area.Height * width / area.Width, MidpointRounding.AwayFromZero));
-        return new MediaRenditionPlan(area, width, height);
+        return new MediaRenditionLayout(area, width, height);
     }
 
     private static MediaPixelRect Crop(int sourceWidth, int sourceHeight, MediaCrop? crop)

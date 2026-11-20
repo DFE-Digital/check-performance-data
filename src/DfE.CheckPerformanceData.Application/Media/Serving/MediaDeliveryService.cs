@@ -77,8 +77,8 @@ public sealed class MediaDeliveryService(
                 logger.LogWarning("Media file {BlobKey} is missing for {AssetId} version {Version}", record.BlobKey, record.AssetId, record.Version);
                 return MediaDelivery.NotFound;
             }
-            var plan = MediaRenditionGeometry.Plan(record.Width!.Value, record.Height!.Value, rendition);
-            rendered = renderer.Render(source, plan);
+            var layout = MediaRenditionGeometry.Compute(record.Width!.Value, record.Height!.Value, rendition);
+            rendered = renderer.Render(source, layout);
         }
 
         if (await blobs.PutAsync(key, new MemoryStream(rendered, writable: false), RenditionContentType, ct))

@@ -30,7 +30,7 @@ public sealed class MediaDeliveryServiceTests
         _blobs.GetAsync(MediaBlobKeys.Original(Id, 1), Arg.Any<CancellationToken>())
             .Returns(_ => new MediaBlob(new MemoryStream(OriginalBytes), "image/jpeg", OriginalBytes.Length));
         _blobs.PutAsync(Arg.Any<string>(), Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
-        _renderer.Render(Arg.Any<byte[]>(), Arg.Any<MediaRenditionPlan>()).Returns(RenderedBytes);
+        _renderer.Render(Arg.Any<byte[]>(), Arg.Any<MediaRenditionLayout>()).Returns(RenderedBytes);
     }
 
     private static MediaAssetVersionDto Version(string contentType = "image/jpeg", bool animated = false, int? width = 2000, int? height = 1000) =>
@@ -144,7 +144,7 @@ public sealed class MediaDeliveryServiceTests
         Assert.Equal(RenderedBytes, await BytesAsync(result));
         Assert.Equal($"\"{Id:N}.1.{MediaRenditionQuery.Hash(rendition)}\"", result.ETag);
         _renderer.Received(1).Render(Arg.Is<byte[]>(b => b.SequenceEqual(OriginalBytes)),
-            Arg.Is<MediaRenditionPlan>(p => p.Width == 640 && p.Height == 320));
+            Arg.Is<MediaRenditionLayout>(p => p.Width == 640 && p.Height == 320));
         await _blobs.Received(1).PutAsync(RenditionKey(rendition), Arg.Any<Stream>(), "image/webp", Arg.Any<CancellationToken>());
     }
 

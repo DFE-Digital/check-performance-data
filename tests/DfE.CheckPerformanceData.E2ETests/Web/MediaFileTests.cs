@@ -6,7 +6,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 
 // The public media endpoint on the running app: anonymous, cached for a year, no session cookie,
 // SVG sandboxed by its own content-security policy, and no resize without the server's signature.
-// Signed renditions are covered by the integration tests, because only the server can sign.
+// The seed endpoint returns the server-signed srcset, so a real signed rendition is fetched too.
 [Trait("Category", "W1")]
 [Collection("E2E")]
 public sealed class MediaFileTests(PlaywrightFixture fixture)
@@ -29,6 +29,64 @@ public sealed class MediaFileTests(PlaywrightFixture fixture)
         Assert.False(response.Headers.Contains("Set-Cookie"));
         var bytes = await response.Content.ReadAsByteArrayAsync();
         Assert.Equal([0x89, (byte)'P', (byte)'N', (byte)'G'], bytes[..4]);
+    }
+
+    // Signed-in visitors send their auth cookie to a route that has no session.
+    [Fact]
+    public async Task ASeededPng_IsServedToASignedInEditorToo()
+    {
+        var media = await MediaSeedHelpers.SeedSampleAsync(fixture.SeedClient, "png");
+
+        using var response = await fixture.SeedClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, new Uri(fixture.SeedClient.BaseAddress!, media.Url)));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(LongCache, response.Headers.CacheControl!.ToString());
+    }
+
+    // The sample is 64 pixels wide, so its srcset has one signed entry at 64w, never upscaled.
+    [Fact]
+    public async Task ASignedRendition_IsAWebP_AndTheSecondFetchMatches()
+    {
+        var media = await MediaSeedHelpers.SeedSampleAsync(fixture.SeedClient, "png");
+        var entry = Assert.Single(media.SrcSet.Split(", "));
+        var parts = entry.Split(' ');
+        Assert.Equal("64w", parts[1]);
+        Assert.Contains("sig=", parts[0]);
+
+        using var first = await fixture.AnonymousClient.GetAsync(parts[0]);
+        var bytes = await first.Content.ReadAsByteArrayAsync();
+        using var second = await fixture.AnonymousClient.GetAsync(parts[0]);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal("image/webp", first.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(LongCache, first.Headers.CacheControl!.ToString());
+        Assert.Equal("RIFF", System.Text.Encoding.ASCII.GetString(bytes, 0, 4));
+        Assert.Equal("WEBP", System.Text.Encoding.ASCII.GetString(bytes, 8, 4));
+        Assert.Equal(64, WebPWidth(bytes));
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.Equal(first.Headers.ETag, second.Headers.ETag);
+        Assert.Equal(bytes, await second.Content.ReadAsByteArrayAsync());
+    }
+
+    [Fact]
+    public async Task ASeededSvg_HasNoSrcSet()
+    {
+        var media = await MediaSeedHelpers.SeedSampleAsync(fixture.SeedClient, "svg");
+
+        Assert.Equal("", media.SrcSet);
+    }
+
+    // Width from a lossy (VP8), lossless (VP8L) or extended (VP8X) WebP header.
+    private static int WebPWidth(byte[] webp)
+    {
+        var chunk = System.Text.Encoding.ASCII.GetString(webp, 12, 4);
+        return chunk switch
+        {
+            "VP8 " => (webp[26] | webp[27] << 8) & 0x3FFF,
+            "VP8L" => 1 + (webp[21] | (webp[22] & 0x3F) << 8),
+            "VP8X" => 1 + (webp[24] | webp[25] << 8 | webp[26] << 16),
+            _ => throw new InvalidDataException($"Unknown WebP chunk {chunk}")
+        };
     }
 
     [Fact]

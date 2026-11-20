@@ -5,7 +5,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.Media;
 
 /// <summary>
 /// Makes renditions with Skia. The stored file was cleaned on upload, so it is already upright,
-/// sRGB and within the size limits. It is decoded, the planned area is drawn at the planned size
+/// sRGB and within the size limits. It is decoded, the chosen area is drawn at the chosen size
 /// with cubic resampling, and the result is encoded as lossy WebP. Transparency is kept.
 /// </summary>
 public sealed class SkiaMediaRenditionRenderer : IMediaRenditionRenderer
@@ -15,15 +15,15 @@ public sealed class SkiaMediaRenditionRenderer : IMediaRenditionRenderer
     // Mitchell cubic: a sharp downscale without the ringing of Catmull-Rom.
     private static readonly SKSamplingOptions Sampling = new(SKCubicResampler.Mitchell);
 
-    public byte[] Render(byte[] source, MediaRenditionPlan plan)
+    public byte[] Render(byte[] source, MediaRenditionLayout layout)
     {
         using var data = SKData.CreateCopy(source);
         using var codec = SKCodec.Create(data) ?? throw new InvalidDataException("The stored image cannot be read.");
         var (width, height) = (codec.Info.Width, codec.Info.Height);
-        var area = plan.Source;
+        var area = layout.Source;
         if (area.X < 0 || area.Y < 0 || area.Width < 1 || area.Height < 1
             || area.X + area.Width > width || area.Y + area.Height > height
-            || plan.Width < 1 || plan.Height < 1)
+            || layout.Width < 1 || layout.Height < 1)
             throw new InvalidDataException("The rendition area is outside the stored image.");
 
         var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul, SKColorSpace.CreateSrgb());
@@ -32,13 +32,13 @@ public sealed class SkiaMediaRenditionRenderer : IMediaRenditionRenderer
             throw new InvalidDataException("The stored image cannot be decoded.");
         using var image = SKImage.FromBitmap(decoded);
 
-        using var output = new SKBitmap(info.WithSize(plan.Width, plan.Height));
+        using var output = new SKBitmap(info.WithSize(layout.Width, layout.Height));
         output.Erase(SKColors.Transparent);
         using (var canvas = new SKCanvas(output))
         using (var paint = new SKPaint { BlendMode = SKBlendMode.Src })
         {
             canvas.DrawImage(image, SKRect.Create(area.X, area.Y, area.Width, area.Height),
-                SKRect.Create(0, 0, plan.Width, plan.Height), Sampling, paint);
+                SKRect.Create(0, 0, layout.Width, layout.Height), Sampling, paint);
         }
 
         // Encoded untagged, as on upload: the pixels are sRGB and no colour profile is written.

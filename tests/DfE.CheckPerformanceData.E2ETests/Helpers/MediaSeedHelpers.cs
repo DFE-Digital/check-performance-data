@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Helpers;
 // letting a test pass without an image.
 public static class MediaSeedHelpers
 {
-    public sealed record SeededMedia(Guid Id, int Version, string Url);
+    public sealed record SeededMedia(Guid Id, int Version, string Url, string SrcSet);
 
     public static async Task<SeededMedia> SeedSampleAsync(TestHttpClient client, string kind)
     {

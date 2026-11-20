@@ -327,10 +327,10 @@ public sealed class MediaFileEndpointTests(PostgresFixture postgres, AzuriteFixt
         private int _calls;
         public int Calls => Volatile.Read(ref _calls);
 
-        public byte[] Render(byte[] source, MediaRenditionPlan plan)
+        public byte[] Render(byte[] source, MediaRenditionLayout layout)
         {
             Interlocked.Increment(ref _calls);
-            return _inner.Render(source, plan);
+            return _inner.Render(source, layout);
         }
     }
 }

@@ -31,10 +31,10 @@ public sealed class MediaUrlBuilder(MediaUrlSigner signer) : IMediaUrlBuilder
         foreach (var width in MediaRenditionQuery.AllowedWidths)
         {
             var rendition = shape with { Width = width };
-            var plan = MediaRenditionGeometry.Plan(version.Width!.Value, version.Height!.Value, rendition);
-            entries.Add($"{Signed(asset, version, rendition)} {plan.Width}w");
+            var layout = MediaRenditionGeometry.Compute(version.Width!.Value, version.Height!.Value, rendition);
+            entries.Add($"{Signed(asset, version, rendition)} {layout.Width}w");
             // A copy at the area's own width is the largest there is; wider ones would be the same.
-            if (plan.Width == plan.Source.Width) break;
+            if (layout.Width == layout.Source.Width) break;
         }
         return string.Join(", ", entries);
     }

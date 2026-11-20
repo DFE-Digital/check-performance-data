@@ -19,7 +19,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 //     containing the matching token, so seed helpers can POST to editor-gated
 //     endpoints (e.g. /content-block/save) without scraping a real form.
 //   * POST /dev/media/sample?kind=png|svg — puts a fixed sample image in the media library through
-//     the real upload pipeline and returns its id, version and URL. The same file each time, so a
+//     the real upload pipeline and returns its id, version, URL and signed srcset. The same file each time, so a
 //     second call returns the image the first one made.
 [Authorize(Roles = WikiConstants.EditorRole)]
 public sealed class DevE2eSupportController(
@@ -68,6 +68,6 @@ public sealed class DevE2eSupportController(
 
         var result = await uploads.UploadAsync(new MemoryStream(sample.Value.Bytes), sample.Value.Name, ct);
         if (result.Asset is not { } asset) return UnprocessableEntity(result.Rejection);
-        return Json(new { asset.Id, Version = asset.CurrentVersion, Url = urls.Original(asset, asset.Latest) });
+        return Json(new { asset.Id, Version = asset.CurrentVersion, Url = urls.Original(asset, asset.Latest), SrcSet = urls.SrcSet(asset, asset.Latest) });
     }
 }

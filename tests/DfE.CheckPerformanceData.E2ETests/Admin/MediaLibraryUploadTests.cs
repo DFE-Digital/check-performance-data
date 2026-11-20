@@ -8,20 +8,37 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // The media library page in a browser: uploading through the form (with and without
 // JavaScript), the grid, search, the "Missing alt text" filter, the duplicate prompt and the
 // error for a file that is not an image. Each run uploads files no earlier run has made, because
-// the library refuses a second copy and no test can delete an image. Linux-only like the other
-// Playwright interaction tests.
+// the library refuses a second copy. Each upload is named e2e-{guid}-..., and the test deletes
+// those images again at the end. Linux-only like the other Playwright interaction tests.
 [Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class MediaLibraryUploadTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     private const string LibraryUrl = "/admin/media";
 
-    // ImpersonateAsAdminAsync makes admin the fixture-wide default; put the editor back so the
-    // other tests in the collection are not affected.
+    // The unique e2e-{guid} names this test uploaded, deleted again in DisposeAsync.
+    private readonly List<string> _uploaded = [];
+
+    private string Track(string name)
+    {
+        _uploaded.Add(name);
+        return name;
+    }
+
+    // Deletes this test's images as admin. ImpersonateAsAdminAsync makes admin the fixture-wide
+    // default; put the editor back so the other tests in the collection are not affected.
     public override async Task DisposeAsync()
     {
-        await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
-        await base.DisposeAsync();
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            foreach (var name in _uploaded) await MediaSeedHelpers.DeleteMatchingAsync(Fixture.SeedClient, name);
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+            await base.DisposeAsync();
+        }
     }
 
     private static async Task SignInAsAdminAsync(PlaywrightFixture fixture, IBrowserContext context)
@@ -56,7 +73,7 @@ public sealed class MediaLibraryUploadTests(PlaywrightFixture fixture) : Seeding
     public async Task UploadingAPngAndAnSvg_ShowsBothInTheGrid_AndSearchFindsOne()
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), "Playwright interaction test Linux-only");
-        var run = $"e2e-{Guid.NewGuid():N}";
+        var run = Track($"e2e-{Guid.NewGuid():N}");
         var png = $"{run}-chart.png";
         var svg = $"{run}-logo.svg";
         await SignInAsAdminAsync(Fixture, Context);
@@ -90,7 +107,7 @@ public sealed class MediaLibraryUploadTests(PlaywrightFixture fixture) : Seeding
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), "Playwright interaction test Linux-only");
         await MediaSeedHelpers.SeedSampleAsync(Fixture.SeedClient, "svg", alt: "Green and blue blocks");
-        var png = $"e2e-{Guid.NewGuid():N}-no-alt.png";
+        var png = Track($"e2e-{Guid.NewGuid():N}-no-alt.png");
         await SignInAsAdminAsync(Fixture, Context);
         await OpenLibraryAsync();
         await UploadAsync(Png(png));
@@ -113,7 +130,7 @@ public sealed class MediaLibraryUploadTests(PlaywrightFixture fixture) : Seeding
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), "Playwright interaction test Linux-only");
         var bytes = MediaFixtures.UniquePng();
-        var first = $"e2e-{Guid.NewGuid():N}-first.png";
+        var first = Track($"e2e-{Guid.NewGuid():N}-first.png");
         var again = $"e2e-{Guid.NewGuid():N}-again.png";
         await SignInAsAdminAsync(Fixture, Context);
         await OpenLibraryAsync();
@@ -147,7 +164,7 @@ public sealed class MediaLibraryUploadTests(PlaywrightFixture fixture) : Seeding
     public async Task WithoutJavaScript_ThePlainFormUploads_AndShowsTheResults()
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), "Playwright interaction test Linux-only");
-        var png = $"e2e-{Guid.NewGuid():N}-plain.png";
+        var png = Track($"e2e-{Guid.NewGuid():N}-plain.png");
         await using var context = await Browser.NewContextAsync(new() { JavaScriptEnabled = false });
         await SignInAsAdminAsync(Fixture, context);
         var page = await context.NewPageAsync();

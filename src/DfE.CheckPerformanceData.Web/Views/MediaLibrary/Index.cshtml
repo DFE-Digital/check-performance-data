@@ -23,6 +23,19 @@
 
 <a href="/admin" class="govuk-back-link">Back to administration</a>
 
+@if (TempData[MediaLibraryController.SuccessKey] is string done)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="media-banner-title" data-module="govuk-notification-banner" data-media-success>
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="media-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@done</p>
+        </div>
+    </div>
+}
+
 @* The script fills this summary for files refused during a script upload; after a plain form
    post the server renders it. Either way it links to the file control. *@
 <div class="govuk-error-summary" data-module="govuk-error-summary" data-media-upload-errors @(hasErrors ? "" : "hidden")>

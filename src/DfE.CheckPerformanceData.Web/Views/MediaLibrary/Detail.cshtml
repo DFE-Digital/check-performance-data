@@ -1,51 +1,210 @@
-@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaLibraryItemViewModel
+@using DfE.CheckPerformanceData.Application.Media.Upload
+@using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaDetailViewModel
 @{
     ViewData["Title"] = Model.FileName;
+    var item = Model.Item;
+    var fileField = MediaLibraryController.ReplaceFileField;
+    var fileHasError = ViewData.ModelState.TryGetValue(fileField, out var fileState) && fileState.Errors.Count > 0;
+    var maxFile = MediaFileSize.Format(MediaUploadLimits.MaxFileBytes);
+    var usedOn = Model.UsagePages.Count == 1 ? "1 page" : $"{Model.UsagePages.Count} pages";
 }
+
+@* No hand-written error summary: GovUk.Frontend.AspNetCore prepends one to <main> listing every
+   field error (see HomeBanners/Edit.cshtml). The file control is plain markup, so its error is
+   added with Context.AddPageError where it renders. *@
 
 <a href="/admin/media" class="govuk-back-link">Back to media library</a>
 
+@if (TempData[MediaLibraryController.SuccessKey] is string saved)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="media-banner-title" data-module="govuk-notification-banner" data-media-success>
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="media-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@saved</p>
+        </div>
+    </div>
+}
+
 <h1 class="govuk-heading-xl app-media-detail__title">@Model.FileName</h1>
 
-<p class="govuk-body">
-    @* Alt text describes the image where a page uses it; here the heading already names the file. *@
-    <img src="@Model.ThumbnailUrl" alt="" class="@(Model.IsShownAsStored ? "app-media-grid__img app-media-grid__img--fixed" : "app-media-detail__img")" />
-</p>
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-third">
+        @* The heading names the file, so the preview is decorative here. A page that uses the
+           image gives it the alt text. *@
+        <img src="@Model.PreviewUrl" alt="" class="app-media-detail__img" data-media-preview />
+    </div>
+    <div class="govuk-grid-column-two-thirds">
+        <dl class="govuk-summary-list" data-media-detail>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Alt text</dt>
+                <dd class="govuk-summary-list__value">
+                    @if (item.MissingAltText)
+                    {
+                        <strong class="govuk-tag govuk-tag--yellow" data-media-missing-alt>No alt text</strong>
+                    }
+                    else
+                    {
+                        @item.AltText
+                    }
+                </dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">File type</dt>
+                <dd class="govuk-summary-list__value">@item.ContentType</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Dimensions</dt>
+                <dd class="govuk-summary-list__value" data-media-dimensions>@(item.Dimensions ?? "Not known")</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Size</dt>
+                <dd class="govuk-summary-list__value">@item.Size</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Version</dt>
+                <dd class="govuk-summary-list__value" data-media-version>@item.Version</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Uploaded by</dt>
+                <dd class="govuk-summary-list__value">@(Model.UploadedBy ?? "Not known")</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Uploaded (UTC)</dt>
+                <dd class="govuk-summary-list__value">@Model.UploadedAtUtc.ToString("d MMM yyyy, HH:mm")</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Used on</dt>
+                <dd class="govuk-summary-list__value" data-media-used-on>@usedOn</dd>
+            </div>
+        </dl>
 
-<dl class="govuk-summary-list" data-media-detail>
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Alt text</dt>
-        <dd class="govuk-summary-list__value">
-            @if (Model.MissingAltText)
-            {
-                <strong class="govuk-tag govuk-tag--yellow">No alt text</strong>
-            }
-            else
-            {
-                @Model.AltText
-            }
-        </dd>
+        @* Works without JavaScript: the link is in a read-only field to select and copy. The
+           script shows the button and copies the link with it. *@
+        <div class="govuk-form-group" data-media-public-link>
+            <label class="govuk-label govuk-label--s" for="public-url">Public link to the original file</label>
+            <div id="public-url-hint" class="govuk-hint">This link always shows version @item.Version, even after the image is replaced.</div>
+            <input class="govuk-input" id="public-url" type="text" readonly spellcheck="false"
+                   value="@Model.PublicUrl" aria-describedby="public-url-hint" />
+        </div>
+        <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-media-copy-link hidden>Copy link</button>
+        <div class="govuk-body" role="status" aria-live="polite" data-media-copy-status></div>
     </div>
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Dimensions</dt>
-        <dd class="govuk-summary-list__value">@(Model.Dimensions ?? "Not known")</dd>
-    </div>
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Size</dt>
-        <dd class="govuk-summary-list__value">@Model.Size</dd>
-    </div>
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">File type</dt>
-        <dd class="govuk-summary-list__value">@Model.ContentType</dd>
-    </div>
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Version</dt>
-        <dd class="govuk-summary-list__value">@Model.Version</dd>
-    </div>
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Last updated (UTC)</dt>
-        <dd class="govuk-summary-list__value">@Model.UpdatedAtUtc.ToString("d MMM yyyy, HH:mm")</dd>
-    </div>
-</dl>
+</div>
 
-<p class="govuk-body"><a class="govuk-link" href="@Model.OriginalUrl">Open the original file<span class="govuk-visually-hidden"> of @Model.FileName</span></a></p>
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h2 class="govuk-heading-l">Image details</h2>
+        <form method="post" action="@item.DetailUrl/details" novalidate data-media-details-form>
+            @Html.AntiForgeryToken()
+
+            <govuk-textarea for="Metadata.AltText" rows="3">
+                <govuk-textarea-label class="govuk-label--m">Default alt text</govuk-textarea-label>
+                <govuk-textarea-hint>
+                    Describe what the image shows and why it is there. Do not start with “Image of”.
+                    Pages use this text unless they set their own. Leave it empty only for an image
+                    that is decorative; you choose that on each page that uses it.
+                </govuk-textarea-hint>
+                <govuk-textarea-error-message asp-validation-for="Metadata.AltText" />
+            </govuk-textarea>
+
+            <govuk-textarea for="Metadata.Caption" rows="3">
+                <govuk-textarea-label class="govuk-label--s">Caption (optional)</govuk-textarea-label>
+                <govuk-textarea-hint>Shown under the image.</govuk-textarea-hint>
+                <govuk-textarea-error-message asp-validation-for="Metadata.Caption" />
+            </govuk-textarea>
+
+            <govuk-input for="Metadata.Credit">
+                <govuk-input-label class="govuk-label--s">Credit (optional)</govuk-input-label>
+                <govuk-input-hint>Who made or owns the image, for example Crown copyright.</govuk-input-hint>
+                <govuk-input-error-message asp-validation-for="Metadata.Credit" />
+            </govuk-input>
+
+            <govuk-input for="Metadata.Tags">
+                <govuk-input-label class="govuk-label--s">Tags (optional)</govuk-input-label>
+                <govuk-input-hint>Words that help editors find the image. Separate tags with commas, for example attendance, key stage 2.</govuk-input-hint>
+                <govuk-input-error-message asp-validation-for="Metadata.Tags" />
+            </govuk-input>
+
+            <button type="submit" class="govuk-button" data-module="govuk-button" data-prevent-double-click="true">Save image details</button>
+        </form>
+
+        <h2 class="govuk-heading-l">Replace the image</h2>
+        <p class="govuk-body">Every page that uses this image will show the new file. Earlier versions of pages keep the file they were saved with.</p>
+        <form method="post" action="@item.DetailUrl/replace" enctype="multipart/form-data" novalidate data-media-replace-form>
+            @Html.AntiForgeryToken()
+            <div class="govuk-form-group @(fileHasError ? "govuk-form-group--error" : "")">
+                <label class="govuk-label govuk-label--s" for="file">New image file</label>
+                <div id="file-hint" class="govuk-hint">PNG, JPEG, GIF, WebP or SVG, smaller than @maxFile.</div>
+                @if (fileHasError)
+                {
+                    var fileError = fileState!.Errors[0].ErrorMessage;
+                    Context.AddPageError(new StringHtmlContent(fileError), "#file");
+                    <p id="file-error" class="govuk-error-message" data-media-replace-error><span class="govuk-visually-hidden">Error:</span> @fileError</p>
+                }
+                <input class="govuk-file-upload @(fileHasError ? "govuk-file-upload--error" : "")" id="file" name="@fileField" type="file"
+                       accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,.svg"
+                       aria-describedby="file-hint@(fileHasError ? " file-error" : "")" />
+            </div>
+            <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-prevent-double-click="true">Upload new version</button>
+        </form>
+    </div>
+</div>
+
+<div class="app-media-versions">
+<table class="govuk-table" data-media-versions>
+    <caption class="govuk-table__caption govuk-table__caption--m">Version history</caption>
+    <thead class="govuk-table__head">
+        <tr class="govuk-table__row">
+            <th scope="col" class="govuk-table__header">Version</th>
+            <th scope="col" class="govuk-table__header">Preview</th>
+            <th scope="col" class="govuk-table__header">Uploaded (UTC)</th>
+            <th scope="col" class="govuk-table__header">Uploaded by</th>
+            <th scope="col" class="govuk-table__header">Dimensions</th>
+        </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+        @foreach (var version in Model.Versions)
+        {
+            <tr class="govuk-table__row" data-media-version-row="@version.Version">
+                <td class="govuk-table__cell">
+                    @version.Version
+                    @if (version.IsCurrent)
+                    {
+                        <strong class="govuk-tag govuk-tag--green">Current</strong>
+                    }
+                </td>
+                <td class="govuk-table__cell">
+                    @* The version number in the first column names the row, so the thumbnail is decorative. *@
+                    <img src="@version.ThumbnailUrl" alt="" class="app-media-version__img" />
+                </td>
+                <td class="govuk-table__cell">@version.UploadedAtUtc.ToString("d MMM yyyy, HH:mm")</td>
+                <td class="govuk-table__cell">@(version.UploadedBy ?? "Not known")</td>
+                <td class="govuk-table__cell">@(version.Dimensions ?? "Not known")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
+<h2 class="govuk-heading-l">Delete the image</h2>
+@if (Model.UsagePages.Count == 0)
+{
+    <p class="govuk-body">No page uses this image, so you can delete it.</p>
+}
+else
+{
+    <p class="govuk-body">This image is used on @usedOn. You cannot delete it until no page uses it.</p>
+}
+<a href="@Model.DeleteUrl" class="govuk-button govuk-button--warning" role="button" draggable="false" data-module="govuk-button">
+    Delete image<span class="govuk-visually-hidden"> @Model.FileName</span>
+</a>
+
+@section Scripts {
+    <script src="~/js/media-library-detail.js" defer asp-append-version="true"></script>
+}

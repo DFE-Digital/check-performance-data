@@ -2421,6 +2421,22 @@ dialog.seed-progress-modal {
   height: auto;
 }
 
+/* Narrow screens scroll the version table instead of the page. */
+.app-media-versions {
+  overflow-x: auto;
+}
+
+.app-media-versions .govuk-table__cell {
+  overflow-wrap: anywhere;
+}
+
+.app-media-version__img {
+  display: block;
+  max-width: 120px;
+  max-height: 80px;
+  object-fit: contain;
+}
+
 .app-media-upload-results .app-media-upload-result {
   display: flex;
   flex-wrap: wrap;

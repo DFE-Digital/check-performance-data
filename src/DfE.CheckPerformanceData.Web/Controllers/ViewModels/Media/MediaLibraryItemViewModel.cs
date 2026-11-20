@@ -28,6 +28,10 @@ public sealed record MediaLibraryItemViewModel(
 
     public static string DetailUrlFor(Guid id) => $"/admin/media/{id:D}";
 
+    /// <summary>"640 × 480 pixels", or null when the file has no intrinsic size.</summary>
+    public static string? DimensionsOf(MediaAssetVersionDto version) =>
+        version.Width is { } w && version.Height is { } h ? $"{w} × {h} pixels" : null;
+
     public static MediaLibraryItemViewModel From(MediaAssetDto asset, IMediaUrlBuilder urls)
     {
         var latest = asset.Latest;
@@ -37,7 +41,7 @@ public sealed record MediaLibraryItemViewModel(
             urls.Rendition(asset, latest, ThumbnailWidth),
             urls.Original(asset, latest),
             DetailUrlFor(asset.Id),
-            latest.Width is { } w && latest.Height is { } h ? $"{w} × {h} pixels" : null,
+            DimensionsOf(latest),
             MediaFileSize.Format(latest.SizeBytes),
             latest.ContentType,
             asset.DefaultAltText,

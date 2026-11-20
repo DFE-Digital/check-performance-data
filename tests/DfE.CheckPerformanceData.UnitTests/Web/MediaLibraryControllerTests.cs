@@ -9,6 +9,7 @@ using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
@@ -19,6 +20,7 @@ public sealed class MediaLibraryControllerTests
     private readonly IMediaUploadService _uploads = Substitute.For<IMediaUploadService>();
     private readonly IMediaUrlBuilder _urls = Substitute.For<IMediaUrlBuilder>();
     private readonly ISettingService _settings = Substitute.For<ISettingService>();
+    private readonly IMediaDeletionService _deletions = Substitute.For<IMediaDeletionService>();
     private readonly MediaLibraryController _sut;
 
     public MediaLibraryControllerTests()
@@ -26,9 +28,14 @@ public sealed class MediaLibraryControllerTests
         _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(25);
         _media.ListAsync(Arg.Any<MediaAssetQuery>(), Arg.Any<CancellationToken>()).Returns(new MediaAssetPage([], 0, 1, 25));
         _urls.Rendition(Arg.Any<MediaAssetDto>(), Arg.Any<MediaAssetVersionDto>(), Arg.Any<int>()).Returns(ci => $"/thumb/{ci.Arg<MediaAssetDto>().Id}");
-        _sut = new MediaLibraryController(_media, _uploads, _urls, _settings)
+        _urls.Original(Arg.Any<MediaAssetDto>(), Arg.Any<MediaAssetVersionDto>()).Returns(ci => $"/media/{ci.Arg<MediaAssetDto>().Id}/{ci.Arg<MediaAssetVersionDto>().Version}/chart.png");
+        var http = new DefaultHttpContext();
+        http.Request.Scheme = "https";
+        http.Request.Host = new HostString("cms.example");
+        _sut = new MediaLibraryController(_media, _uploads, _urls, _settings, _deletions)
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+            ControllerContext = new ControllerContext { HttpContext = http },
+            TempData = new TempDataDictionary(http, Substitute.For<ITempDataProvider>())
         };
     }
 
@@ -118,14 +125,228 @@ public sealed class MediaLibraryControllerTests
     }
 
     [Fact]
-    public async Task Detail_ShowsTheImage()
+    public async Task Detail_ShowsThePreview_TheFacts_ThePublicLink_TheForm_TheVersionsAndTheUsages()
     {
-        var asset = Asset();
+        var asset = Asset(alt: "Bar chart") with { Caption = "Results", Credit = "DfE", Tags = ["schools", "KS2"], CurrentVersion = 2 };
+        var v2 = asset.Latest with { Version = 2, UploadedBy = "editor@education.gov.uk", Width = 800, Height = 600 };
+        var v1 = asset.Latest with { Version = 1, UploadedBy = "first@education.gov.uk" };
+        asset = asset with { Latest = v2 };
+        var page = new MediaUsagePage(Guid.NewGuid(), "Attendance", "attendance", false);
         _media.GetAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(asset);
+        _media.GetVersionsAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([v2, v1]);
+        _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([page]);
+        _urls.Rendition(asset, v2, 960).Returns("/preview-960");
 
         var view = Assert.IsType<ViewResult>(await _sut.Detail(asset.Id, CancellationToken.None));
 
-        Assert.Equal(asset.Id, Assert.IsType<MediaLibraryItemViewModel>(view.Model).Id);
+        Assert.Equal("Detail", view.ViewName);
+        var model = Assert.IsType<MediaDetailViewModel>(view.Model);
+        Assert.Equal(asset.Id, model.Item.Id);
+        Assert.Equal("/preview-960", model.PreviewUrl);
+        Assert.Equal($"https://cms.example/media/{asset.Id}/2/chart.png", model.PublicUrl);
+        Assert.Equal("editor@education.gov.uk", model.UploadedBy);
+        Assert.Equal("Bar chart", model.Metadata.AltText);
+        Assert.Equal("Results", model.Metadata.Caption);
+        Assert.Equal("DfE", model.Metadata.Credit);
+        Assert.Equal("schools, KS2", model.Metadata.Tags);
+        Assert.Collection(model.Versions,
+            v => { Assert.Equal(2, v.Version); Assert.True(v.IsCurrent); Assert.Equal("800 × 600 pixels", v.Dimensions); Assert.Equal("editor@education.gov.uk", v.UploadedBy); },
+            v => { Assert.Equal(1, v.Version); Assert.False(v.IsCurrent); Assert.Equal("640 × 480 pixels", v.Dimensions); });
+        // Each version's thumbnail is made from that version's own file.
+        _urls.Received(1).Rendition(asset, v1, 320);
+        Assert.Equal([page], model.UsagePages);
+        Assert.Equal($"/admin/media/{asset.Id}/delete", model.DeleteUrl);
+    }
+
+    private MediaAssetDto Known(MediaAssetDto? asset = null)
+    {
+        asset ??= Asset();
+        _media.GetAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(asset);
+        _media.GetVersionsAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([asset.Latest]);
+        _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([]);
+        return asset;
+    }
+
+    [Theory]
+    [InlineData(nameof(MediaLibraryController.UpdateDetails), "admin/media/{id:guid}/details")]
+    [InlineData(nameof(MediaLibraryController.Replace), "admin/media/{id:guid}/replace")]
+    [InlineData(nameof(MediaLibraryController.Delete), "admin/media/{id:guid}/delete")]
+    public void EveryChange_IsAnAntiforgeryCheckedPost(string action, string template)
+    {
+        var method = typeof(MediaLibraryController).GetMethod(action)!;
+
+        Assert.Equal(template, method.GetCustomAttribute<HttpPostAttribute>()?.Template);
+        Assert.NotNull(method.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    [Fact]
+    public void Replace_HasExplicitBodyLimits_ForOneFile()
+    {
+        var method = typeof(MediaLibraryController).GetMethod(nameof(MediaLibraryController.Replace))!;
+
+        var sizeLimit = method.GetCustomAttributesData().Single(a => a.AttributeType == typeof(RequestSizeLimitAttribute));
+        Assert.Equal(MediaLibraryController.MaxReplaceRequestBytes, sizeLimit.ConstructorArguments[0].Value);
+        Assert.Equal(MediaLibraryController.MaxReplaceRequestBytes, method.GetCustomAttribute<RequestFormLimitsAttribute>()!.MultipartBodyLengthLimit);
+        Assert.InRange(MediaLibraryController.MaxReplaceRequestBytes, MediaUploadLimits.MaxFileBytes + 1, MediaLibraryController.MaxUploadRequestBytes);
+    }
+
+    [Fact]
+    public async Task UpdateDetails_SavesTheForm_AndGoesBackToTheImage_WithASuccessMessage()
+    {
+        var asset = Known();
+        _media.UpdateMetadataAsync(asset.Id, Arg.Any<MediaAssetMetadata>(), Arg.Any<CancellationToken>()).Returns(true);
+        var form = new MediaMetadataForm { AltText = " Bar chart ", Caption = "", Credit = "DfE", Tags = " schools, KS2 ,, " };
+
+        var redirect = Assert.IsType<RedirectResult>(await _sut.UpdateDetails(asset.Id, form, CancellationToken.None));
+
+        Assert.Equal($"/admin/media/{asset.Id}", redirect.Url);
+        await _media.Received(1).UpdateMetadataAsync(asset.Id,
+            Arg.Is<MediaAssetMetadata>(m => m.DefaultAltText == " Bar chart " && m.Credit == "DfE" && m.Tags.SequenceEqual(new[] { "schools", "KS2" })),
+            Arg.Any<CancellationToken>());
+        Assert.Equal("Image details saved", _sut.TempData[MediaLibraryController.SuccessKey]);
+    }
+
+    [Fact]
+    public async Task UpdateDetails_WithErrors_ShowsThePageAgain_AndSavesNothing()
+    {
+        var asset = Known();
+        _sut.ModelState.AddModelError("Metadata.AltText", "Alt text must be 1000 characters or fewer");
+
+        var view = Assert.IsType<ViewResult>(await _sut.UpdateDetails(asset.Id, new MediaMetadataForm { AltText = "x" }, CancellationToken.None));
+
+        Assert.Equal("Detail", view.ViewName);
+        Assert.Equal(asset.Id, Assert.IsType<MediaDetailViewModel>(view.Model).Item.Id);
+        await _media.DidNotReceiveWithAnyArgs().UpdateMetadataAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task UpdateDetails_IsNotFound_ForAnUnknownImage()
+    {
+        var id = Guid.NewGuid();
+        _media.UpdateMetadataAsync(id, Arg.Any<MediaAssetMetadata>(), Arg.Any<CancellationToken>()).Returns(false);
+
+        Assert.IsType<NotFoundResult>(await _sut.UpdateDetails(id, new MediaMetadataForm(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Replace_StoresANewVersion_AndGoesBackToTheImage_WithASuccessMessage()
+    {
+        var asset = Known();
+        var v2 = asset.Latest with { Version = 2 };
+        _uploads.ReplaceAsync(asset.Id, Arg.Any<Stream>(), Arg.Any<CancellationToken>()).Returns(MediaReplaceResult.Replaced(v2));
+
+        var redirect = Assert.IsType<RedirectResult>(await _sut.Replace(asset.Id, File("new.png"), CancellationToken.None));
+
+        Assert.Equal($"/admin/media/{asset.Id}", redirect.Url);
+        Assert.Equal("Version 2 uploaded", _sut.TempData[MediaLibraryController.SuccessKey]);
+    }
+
+    // A refused file and a replace that lost a race both put their reason on the file control.
+    [Theory]
+    [InlineData(MediaRejections.NotAnImage)]
+    [InlineData(MediaRejections.ReplacedConcurrently)]
+    public async Task Replace_Refused_ShowsTheReasonOnTheFileControl(string reason)
+    {
+        var asset = Known();
+        _uploads.ReplaceAsync(asset.Id, Arg.Any<Stream>(), Arg.Any<CancellationToken>()).Returns(MediaReplaceResult.Rejected(reason));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Replace(asset.Id, File("new.png"), CancellationToken.None));
+
+        Assert.Equal("Detail", view.ViewName);
+        Assert.Equal(reason, Assert.Single(_sut.ModelState[MediaLibraryController.ReplaceFileField]!.Errors).ErrorMessage);
+        Assert.Equal(400, _sut.HttpContext.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Replace_WithNoFile_AsksForOne()
+    {
+        var asset = Known();
+
+        var view = Assert.IsType<ViewResult>(await _sut.Replace(asset.Id, null, CancellationToken.None));
+
+        Assert.Equal("Detail", view.ViewName);
+        Assert.Equal(MediaLibraryController.NoReplaceFileError, Assert.Single(_sut.ModelState[MediaLibraryController.ReplaceFileField]!.Errors).ErrorMessage);
+        await _uploads.DidNotReceiveWithAnyArgs().ReplaceAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task Replace_IsNotFound_ForAnUnknownImage()
+    {
+        var id = Guid.NewGuid();
+        _uploads.ReplaceAsync(id, Arg.Any<Stream>(), Arg.Any<CancellationToken>()).Returns(MediaReplaceResult.NotFound());
+
+        Assert.IsType<NotFoundResult>(await _sut.Replace(id, File("new.png"), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeleteConfirm_ForAnUnusedImage_OffersTheDelete()
+    {
+        var asset = Known();
+
+        var view = Assert.IsType<ViewResult>(await _sut.DeleteConfirm(asset.Id, CancellationToken.None));
+
+        Assert.Equal("Delete", view.ViewName);
+        var model = Assert.IsType<MediaDeleteViewModel>(view.Model);
+        Assert.True(model.CanDelete);
+        Assert.Equal(asset.FileName, model.FileName);
+    }
+
+    [Fact]
+    public async Task DeleteConfirm_ForAUsedImage_ListsThePages_AndOffersNoDelete()
+    {
+        var asset = Known();
+        _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(
+            [new MediaUsagePage(Guid.NewGuid(), "Attendance", "attendance", false), new MediaUsagePage(Guid.NewGuid(), "Old", "old", true)]);
+
+        var model = Assert.IsType<MediaDeleteViewModel>(Assert.IsType<ViewResult>(await _sut.DeleteConfirm(asset.Id, CancellationToken.None)).Model);
+
+        Assert.False(model.CanDelete);
+        Assert.Equal("2 pages", model.PageCount);
+        Assert.Equal(2, model.UsagePages.Count);
+    }
+
+    [Fact]
+    public async Task DeleteConfirm_IsNotFound_ForAnUnknownImage()
+    {
+        Assert.IsType<NotFoundResult>(await _sut.DeleteConfirm(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Delete_GoesBackToTheLibrary_WithASuccessMessage()
+    {
+        var asset = Known();
+        _deletions.DeleteAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(MediaDeleteOutcome.Deleted);
+
+        var redirect = Assert.IsType<RedirectResult>(await _sut.Delete(asset.Id, CancellationToken.None));
+
+        Assert.Equal("/admin/media", redirect.Url);
+        Assert.Equal($"{asset.FileName} deleted", _sut.TempData[MediaLibraryController.SuccessKey]);
+    }
+
+    // The server checks again: a page may have started to use the image since the page was shown.
+    [Fact]
+    public async Task Delete_OfAnImageNowInUse_ShowsThePagesInstead()
+    {
+        var asset = Known();
+        _deletions.DeleteAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(MediaDeleteOutcome.InUse);
+        _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([new MediaUsagePage(Guid.NewGuid(), "Attendance", "attendance", false)]);
+
+        var view = Assert.IsType<ViewResult>(await _sut.Delete(asset.Id, CancellationToken.None));
+
+        Assert.Equal("Delete", view.ViewName);
+        var model = Assert.IsType<MediaDeleteViewModel>(view.Model);
+        Assert.False(model.CanDelete);
+        Assert.Equal("1 page", model.PageCount);
+        Assert.Equal(409, _sut.HttpContext.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_IsNotFound_ForAnUnknownImage()
+    {
+        var id = Guid.NewGuid();
+        _deletions.DeleteAsync(id, Arg.Any<CancellationToken>()).Returns(MediaDeleteOutcome.NotFound);
+
+        Assert.IsType<NotFoundResult>(await _sut.Delete(id, CancellationToken.None));
     }
 
     [Fact]

@@ -784,4 +784,59 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains(">@Model.FileName</h1>", view);
 		Assert.DoesNotContain("Html.Raw", view);
 	}
+
+	[Fact]
+	public void MediaLibraryDetail_FormsHaveLabels_HintsTokens_AndFileErrorsReachTheSummary()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Detail.cshtml");
+
+		// Alt text guidance is hint text, in the GOV.UK way of describing images.
+		Assert.Contains("<govuk-textarea for=\"Metadata.AltText\"", view);
+		Assert.Contains("Describe what the image shows and why it is there.", view);
+		Assert.Contains("Do not start with “Image of”.", view);
+		Assert.Contains("decorative", view);
+		Assert.Contains("<govuk-textarea for=\"Metadata.Caption\"", view);
+		Assert.Contains("<govuk-input for=\"Metadata.Credit\"", view);
+		Assert.Contains("<govuk-input for=\"Metadata.Tags\"", view);
+		// The file control is plain markup, so its error is added to the generated summary by hand.
+		Assert.Contains("<label class=\"govuk-label govuk-label--s\" for=\"file\">", view);
+		Assert.Contains("Context.AddPageError", view);
+		Assert.Contains("Every page that uses this image will show the new file. Earlier versions of pages keep the file they were saved with.", view);
+		// Both forms post with a token (a literal action gets none from the tag helper).
+		Assert.Equal(2, view.Split("@Html.AntiForgeryToken()").Length - 1);
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Fact]
+	public void MediaLibraryDetail_VersionTableHasHeaders_CopyLinkIsAnEnhancement_AndDeleteLinkIsAButton()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Detail.cshtml");
+
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Version history</caption>", view);
+		Assert.Contains("scope=\"col\"", view);
+		// The public link is a read-only field that works without JavaScript; the script reveals the button.
+		Assert.Contains("<label class=\"govuk-label govuk-label--s\" for=\"public-url\">", view);
+		Assert.Contains("readonly", view);
+		Assert.Contains("data-media-copy-link hidden", view);
+		Assert.Contains("role=\"status\"", view);
+		Assert.Contains("media-library-detail.js", view);
+		Assert.Contains("role=\"button\" draggable=\"false\" data-module=\"govuk-button\"", view);
+	}
+
+	[Fact]
+	public void MediaLibraryDelete_TitleMatchesTheH1_WarnsBeforeDeleting_AndListsUsagesInstead()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Delete.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Delete image\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Delete image</h1>", view);
+		Assert.Contains("govuk-warning-text", view);
+		Assert.Contains("<span class=\"govuk-visually-hidden\">Warning</span>", view);
+		Assert.Contains("@if (Model.CanDelete)", view);
+		Assert.Contains("@Html.AntiForgeryToken()", view);
+		Assert.Contains("This image is used on @Model.PageCount", view);
+		Assert.Contains("href=\"/admin/pages/@usage.PageNodeId\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
 }

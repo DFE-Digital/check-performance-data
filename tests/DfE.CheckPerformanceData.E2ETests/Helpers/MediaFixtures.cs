@@ -4,8 +4,8 @@ using System.Text;
 namespace DfE.CheckPerformanceData.E2ETests.Helpers;
 
 // Image files for media library tests. The library refuses a second copy of the same cleaned
-// file, and no test can delete an image, so each call makes a file no earlier run has made: a
-// PNG or SVG filled with a random colour.
+// file, so each call makes a file no earlier run has made: a PNG or SVG filled with a random
+// colour. Tests delete their images again when they finish.
 public static class MediaFixtures
 {
     public static byte[] UniquePng(int width = 48, int height = 24)

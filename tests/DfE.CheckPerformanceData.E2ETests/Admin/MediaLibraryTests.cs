@@ -95,11 +95,11 @@ public sealed class MediaLibraryTests(PlaywrightFixture fixture)
     [Fact]
     public async Task Upload_WithTheTokenInTheHeader_StoresTheImage_AndAnswersJson()
     {
+        var name = $"e2e-{Guid.NewGuid():N}-header.png";
         try
         {
             await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
             var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/admin/media");
-            var name = $"e2e-{Guid.NewGuid():N}-header.png";
 
             using var request = new HttpRequestMessage(HttpMethod.Post, $"{_fixture.BaseUrl}/admin/media/upload")
             {
@@ -117,6 +117,7 @@ public sealed class MediaLibraryTests(PlaywrightFixture fixture)
         }
         finally
         {
+            await MediaSeedHelpers.DeleteMatchingAsync(_fixture.SeedClient, name);
             await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
         }
     }

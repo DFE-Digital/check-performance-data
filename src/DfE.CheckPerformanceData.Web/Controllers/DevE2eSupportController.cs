@@ -4,6 +4,8 @@ using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.Media.Serving;
 using DfE.CheckPerformanceData.Application.Media.Upload;
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Persistence.Contexts;
+using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +25,10 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 //     the real upload pipeline and returns its id, version, URL and signed srcset. The same file each time, so a
 //     second call returns the image the first one made. An optional alt= sets the image's alt text,
 //     so the library's "Missing alt text" filter has an image to leave out.
+//   * POST /dev/media/usage?mediaId=&pageId= — records that the page's latest version uses the
+//     image's current version, so the library's delete guard and where-used list have a usage.
+//   * POST /dev/media/usage/clear?mediaId= — removes every recorded use of the image, so a test
+//     can delete the image when it ends.
 [Authorize(Roles = WikiConstants.EditorRole)]
 public sealed class DevE2eSupportController(
     IConfiguration configuration,
@@ -75,5 +81,42 @@ public sealed class DevE2eSupportController(
         if (!string.IsNullOrWhiteSpace(alt))
             await assets.UpdateMetadataAsync(asset.Id, new MediaAssetMetadata(alt, asset.Caption, asset.Credit, asset.Tags), ct);
         return Json(new { asset.Id, Version = asset.CurrentVersion, Url = urls.Original(asset, asset.Latest), SrcSet = urls.SrcSet(asset, asset.Latest) });
+    }
+
+    [HttpPost("dev/media/usage")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MediaUsage(Guid mediaId, Guid pageId, [FromServices] IPortalDbContext db, CancellationToken ct)
+    {
+        if (!IsAllowed) return NotFound();
+        var version = await db.MediaAssets.AsNoTracking()
+            .Where(a => a.Id == mediaId).Select(a => (int?)a.CurrentVersion).FirstOrDefaultAsync(ct);
+        var pageVersion = await db.PageNodeVersions.AsNoTracking()
+            .Where(v => v.PageNodeId == pageId)
+            .OrderByDescending(v => v.VersionId)
+            .Select(v => (Guid?)v.Id)
+            .FirstOrDefaultAsync(ct);
+        if (version is null || pageVersion is null) return NotFound();
+
+        db.MediaUsages.Add(new MediaUsage
+        {
+            Id = Guid.NewGuid(),
+            AssetId = mediaId,
+            AssetVersion = version.Value,
+            PageNodeId = pageId,
+            PageNodeVersionId = pageVersion.Value,
+            Location = MediaUsageLocations.Widget,
+            WidgetId = "0",
+        });
+        await db.SaveChangesAsync(ct);
+        return Ok();
+    }
+
+    [HttpPost("dev/media/usage/clear")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClearMediaUsages(Guid mediaId, [FromServices] IPortalDbContext db, CancellationToken ct)
+    {
+        if (!IsAllowed) return NotFound();
+        var removed = await db.MediaUsages.Where(u => u.AssetId == mediaId).ExecuteDeleteAsync(ct);
+        return Json(new { removed });
     }
 }

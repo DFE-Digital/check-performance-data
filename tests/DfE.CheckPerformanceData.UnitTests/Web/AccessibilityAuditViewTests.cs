@@ -740,4 +740,19 @@ public sealed class AccessibilityAuditViewTests
 			view.IndexOf("Model.ShowHomeBanners", StringComparison.Ordinal)
 				< view.IndexOf("Model.IsPreview", StringComparison.Ordinal));
 	}
+
+	// ── Media library index ─────────────────────────────────────────────────────────────
+
+	[Fact]
+	public void MediaLibraryIndex_TitleMatchesTheH1_AndTheTableHasACaption()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Media library\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-xl\">Media library</h1>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption", view);
+		Assert.Contains("scope=\"col\"", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
 }

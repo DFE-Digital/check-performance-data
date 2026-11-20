@@ -15,6 +15,9 @@ public static class AdminNavKeys
     // Start-page notification banners (#566). Gates HomeBannersController; in
     // DefaultAdminAccessSeeder.AllSections and in the editor defaults.
     public const string HomeBanners = "home-banners";
+    // CMS media library. Gates managing the library; in DefaultAdminAccessSeeder.AllSections and in
+    // the editor defaults, beside content-pages.
+    public const string Media = "media";
     public const string DeletedPages = "deleted-pages";
     public const string SeedSamplePages = "seed-sample-pages";
     public const string SystemSettings = "system-settings";

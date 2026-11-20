@@ -215,4 +215,18 @@ public sealed class AdminNavHierarchyTests
         Assert.Equal("/admin/home-banners", tile.Url);
         Assert.True(tile.Enabled);
     }
+    // --- MediaLibrary_IsATileInTheCmsGroup ---
+
+    [Fact]
+    public void MediaLibrary_IsATileInTheCmsGroup()
+    {
+        var entries = ResolveEntries();
+
+        var tile = Assert.Single(entries, e => e.Key == AdminNavKeys.Media);
+        Assert.Equal(AdminNavKeys.CmsAdmin, tile.ParentKey);
+        Assert.Equal("Media library", tile.Title);
+        Assert.Equal("Upload images once and reuse them on any page.", tile.Description);
+        Assert.Equal("/admin/media", tile.Url);
+        Assert.True(tile.Enabled);
+    }
 }

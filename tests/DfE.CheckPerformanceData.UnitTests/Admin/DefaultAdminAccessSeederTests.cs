@@ -172,4 +172,30 @@ public sealed class DefaultAdminAccessSeederTests
         Assert.Contains(AdminNavKeys.HomeBanners, DefaultAdminAccessSeeder.AllSections);
         Assert.Equal("home-banners", AdminNavKeys.HomeBanners);
     }
+    // The media library is part of building pages, so it goes to every role that gets the CMS
+    // pages section by default, as well as to admin.
+    [Fact]
+    public void AllSections_ContainsMedia()
+    {
+        Assert.Contains(AdminNavKeys.Media, DefaultAdminAccessSeeder.AllSections);
+        Assert.Equal("media", AdminNavKeys.Media);
+    }
+
+    [Fact]
+    public async Task SeedIfEmpty_GivesMediaToEveryRoleThatGetsContentPages()
+    {
+        var repository = NSubstitute.Substitute.For<IAdminSectionAccessRepository>();
+        IReadOnlyList<RoleSectionAccessGrant>? seeded = null;
+        await repository.SeedAsync(NSubstitute.Arg.Do<IReadOnlyList<RoleSectionAccessGrant>>(g => seeded = g), NSubstitute.Arg.Any<string?>());
+
+        await new DefaultAdminAccessSeeder(repository).SeedIfEmptyAsync();
+
+        var contentPageRoles = seeded!.Where(g => g.SectionKey == "content-pages").Select(g => g.RoleName).ToList();
+        Assert.Contains(DefaultAdminAccessSeeder.AdminRole, contentPageRoles);
+        Assert.Contains(DefaultAdminAccessSeeder.EditorRole, contentPageRoles);
+        foreach (var role in contentPageRoles)
+        {
+            Assert.Contains(seeded!, g => g.RoleName == role && g.SectionKey == "media");
+        }
+    }
 }

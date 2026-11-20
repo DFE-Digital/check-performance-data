@@ -23,6 +23,9 @@ public interface IPortalDbContext
     DbSet<ContentBlockVersion> ContentBlockVersions { get; }
     DbSet<HomeBanner> HomeBanners { get; }
     DbSet<HomeBannerVersion> HomeBannerVersions { get; }
+    DbSet<MediaAsset> MediaAssets { get; }
+    DbSet<MediaAssetVersion> MediaAssetVersions { get; }
+    DbSet<MediaUsage> MediaUsages { get; }
     DbSet<ContentStagingSession> ContentStagingSessions { get; }
     DbSet<RulesConfigVersion> RulesConfigVersions { get; }
     DbSet<Setting> Settings { get; }

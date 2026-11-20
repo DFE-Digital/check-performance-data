@@ -91,6 +91,9 @@ public static class BlobStorageExtensions
         services.AddSingleton<Application.Journey.NotOnRoll.INotOnRollCollegeListProvider>(
             sp => sp.GetRequiredService<NotOnRollCollegeListStore>());
         services.AddHostedService<Seeding.NotOnRollCollegeListService>();
+        // CMS media library files (originals and renditions) in the cms-media container.
+        services.AddSingleton<Application.Media.IMediaBlobStore>(sp =>
+            new MediaBlobStore(sp.GetRequiredService<BlobServiceClient>()));
         services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
         services.AddScoped<IIngressSummaryStore, IngressSummaryStore>();
         // ICheckingDataReader is also registered in the Infrastructure DependencyManager (the

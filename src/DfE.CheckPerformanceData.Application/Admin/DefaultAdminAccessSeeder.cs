@@ -3,7 +3,7 @@ namespace DfE.CheckPerformanceData.Application.Admin;
 // Populates the initial role-section-access grid on an empty database:
 //   * Admin (cypmd_admin)  →  every well-known section
 //   * Editor (cypmd_content_access_user)  →  the CMS-authoring set: content-pages,
-//     content-blocks, home-banners, content-staging, deleted-pages, seed-sample-pages (see below)
+//     content-blocks, home-banners, media, content-staging, deleted-pages, seed-sample-pages (see below)
 // Additional grants added through the settings UI are preserved; the seeder never overwrites
 // existing rows.
 public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repository)
@@ -22,6 +22,8 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         "content-pages",
         "content-blocks",
         "home-banners",
+        // CMS media library: managing the shared images that pages use.
+        "media",
         "deleted-pages",
         "seed-sample-pages",
         "content-staging",
@@ -83,6 +85,7 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
             grants.Add(new RoleSectionAccessGrant(EditorRole, "content-pages"));
             grants.Add(new RoleSectionAccessGrant(EditorRole, "content-blocks"));
             grants.Add(new RoleSectionAccessGrant(EditorRole, "home-banners"));
+            grants.Add(new RoleSectionAccessGrant(EditorRole, "media"));
             grants.Add(new RoleSectionAccessGrant(EditorRole, "content-staging"));
             grants.Add(new RoleSectionAccessGrant(EditorRole, "deleted-pages"));
             grants.Add(new RoleSectionAccessGrant(EditorRole, "seed-sample-pages"));

@@ -45,6 +45,8 @@
            without this package resolving the client throws NotSupportedException at startup. -->
       <PackageReference Include="Refit.Reflection" />
       <PackageReference Include="Riok.Mapperly" />
+      <PackageReference Include="SkiaSharp" />
+      <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
       <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
       <PackageReference Include="System.Security.Cryptography.Xml" />
     </ItemGroup>

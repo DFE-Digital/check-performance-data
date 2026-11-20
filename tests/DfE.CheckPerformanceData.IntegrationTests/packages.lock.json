@@ -804,6 +804,30 @@
         "resolved": "1.4.2",
         "contentHash": "yjj+3zgz8zgXpiiC3ZdF/iyTBbz2fFvMxZFEBPUcwZjIvXOf37Ylm+K58hqMfIBt5JgU/Z2uoUS67JmTLe973A=="
       },
+      "SkiaSharp": {
+        "type": "Transitive",
+        "resolved": "4.157.0",
+        "contentHash": "C0PYSs8z0OGihExuIPaCEJnoEmDwiVRTFmDI2TZ44rWr2u7UiQX4rZyEwfVSHEiV5Zn/FYh1WbcO9uMPRxAsbw==",
+        "dependencies": {
+          "SkiaSharp.NativeAssets.Win32": "4.157.0",
+          "SkiaSharp.NativeAssets.macOS": "4.157.0"
+        }
+      },
+      "SkiaSharp.NativeAssets.Linux.NoDependencies": {
+        "type": "Transitive",
+        "resolved": "4.157.0",
+        "contentHash": "7skQaAxilNr4giLQPr1HMTFrwhUAJKI2Qlr7Djybi/e24Td/F4j7lIRf7DKJeHfH9mdxvD000o/NciDd8lSg5A=="
+      },
+      "SkiaSharp.NativeAssets.macOS": {
+        "type": "Transitive",
+        "resolved": "4.157.0",
+        "contentHash": "s44YB0BMAEudDf/AdcJLCcN6AXxhpKto0ZnJjats1TwNC+SD4mI2FhotDft58M593Ocea1ra6ad5slfJBhxfvg=="
+      },
+      "SkiaSharp.NativeAssets.Win32": {
+        "type": "Transitive",
+        "resolved": "4.157.0",
+        "contentHash": "tP54cTnPqGrzf2pBcyupMZWdIUjV34ELdKuh3/c329kRQF4UCVLZvilQZrDMqPJ9P/+AUJC8kDRMBgT/jBvYug=="
+      },
       "SSH.NET": {
         "type": "Transitive",
         "resolved": "2026.0.0",
@@ -951,6 +975,8 @@
           "Refit.Newtonsoft.Json": "[16.4.0, )",
           "Refit.Reflection": "[16.4.0, )",
           "Riok.Mapperly": "[4.3.1, )",
+          "SkiaSharp": "[4.157.0, )",
+          "SkiaSharp.NativeAssets.Linux.NoDependencies": "[4.157.0, )",
           "System.IdentityModel.Tokens.Jwt": "[8.23.0, )"
         }
       },

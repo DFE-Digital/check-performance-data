@@ -30,6 +30,6 @@ public interface IMediaAssetRepository
     /// <summary>Replaces alt text, caption, credit and tags. Returns false when the image does not exist.</summary>
     Task<bool> UpdateMetadataAsync(Guid assetId, MediaAssetMetadata metadata, CancellationToken ct = default);
 
-    /// <summary>Images with any version whose upload had this SHA-256, so an upload can offer the existing one.</summary>
+    /// <summary>Images with any version whose stored file has this SHA-256, so an upload can offer the existing one.</summary>
     Task<IReadOnlyList<MediaAssetDto>> FindBySha256Async(string sha256, CancellationToken ct = default);
 }

@@ -41,6 +41,9 @@ public static class DependencyManager
         services.AddScoped<IAdminAccessPolicy, AdminAccessPolicy>();
         services.AddScoped<DefaultAdminAccessSeeder>();
         services.AddScoped<IPageNodeService, PageNodeService>();
+        // Media library uploads. The raster cleaner (IRasterImageCleaner) is Skia, registered by the host.
+        services.AddSingleton<Media.Upload.IMediaFileCleaner, Media.Upload.MediaFileCleaner>();
+        services.AddScoped<Media.Upload.IMediaUploadService, Media.Upload.MediaUploadService>();
         services.AddScoped<IPageNodeContentEditor, PageNodeContentEditor>();
         services.AddScoped<DefaultPageNodeSeeder>();
         services.AddScoped<SamplePageNodeSeeder>();

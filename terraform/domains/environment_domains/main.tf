@@ -10,7 +10,8 @@ module "domains" {
   host_name           = each.value.origin_hostname
   cached_paths        = try(each.value.cached_paths, [])
   rate_limit_max      = var.rate_limit_max
+  rate_limit          = local.source_ip_rules
   allow_aks           = var.allow_aks
   block_ip            = var.block_ip
+  dont_block_nonprod  = var.restrict_source_ips
 }
-

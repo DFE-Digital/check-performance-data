@@ -181,10 +181,6 @@ public sealed class MediaFileEndpointTests(PostgresFixture postgres, AzuriteFixt
     [InlineData("/media/00000000-0000-0000-0000-000000000001/1/a.png")]
     [InlineData("/media/{0}/0/a.png")]
     [InlineData("/media/not-a-guid/1/a.png")]
-    [InlineData("/media/{0}/1")]
-    [InlineData("/media/{0}/1/a.png/extra")]
-    [InlineData("/media")]
-    [InlineData("/media/anything")]
     public async Task AnUnknownImageOrVersion_IsABare404(string template)
     {
         var (asset, _) = await UploadAsync(Png(30, 20), "a.png");

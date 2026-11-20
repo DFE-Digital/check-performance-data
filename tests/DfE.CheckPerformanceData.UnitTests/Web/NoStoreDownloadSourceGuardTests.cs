@@ -32,6 +32,8 @@ public sealed class NoStoreDownloadSourceGuardTests
             "exports a content bundle (pages, blocks, banners) for another environment; no personal data",
         [Describe<ObservabilityController>(nameof(ObservabilityController.Export))] =
             "pipeline throughput and latency metrics for the admin dashboard; no personal data",
+        [Describe<MediaFileController>(nameof(MediaFileController.Get))] =
+            "public media library images, cached for a year on purpose; no personal data",
     };
 
     // Personal data can leave in a page rather than a file. Those actions cannot be discovered

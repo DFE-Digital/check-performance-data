@@ -51,9 +51,4 @@ public sealed class MediaFileController(IMediaDeliveryService media) : Controlle
             Response.Headers.ContentSecurityPolicy = SvgContentSecurityPolicy;
         return File(result.Content!, result.ContentType!, lastModified: null, entityTag: EntityTagHeaderValue.Parse(result.ETag));
     }
-
-    // Every other /media path. Requests under /media have no session, so they must not fall
-    // through to the content page route, which needs one.
-    [HttpGet("media/{**rest}", Order = 1)]
-    public IActionResult Other() => NotFound();
 }

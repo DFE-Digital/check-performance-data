@@ -136,9 +136,15 @@ public sealed class MediaAssetRepositoryTests(PostgresFixture fixture) : IAsyncL
         await new MediaAssetRepository(first, new FakeCurrentUserService()).AddVersionAsync(id, 2, File(id, 2, 'b'));
         await Assert.ThrowsAsync<MediaVersionConflictException>(() =>
             new MediaAssetRepository(second, new FakeCurrentUserService()).AddVersionAsync(id, 2, File(id, 2, 'c')));
+        // The losing context stays usable, and a later save writes nothing for the failed replace.
+        await second.SaveChangesAsync();
 
         await using var read = fixture.CreateContext();
         Assert.Equal(Sha('b'), (await new MediaAssetRepository(read, new FakeCurrentUserService()).GetVersionAsync(id, 2))!.Sha256);
+        Assert.Equal(1, await read.AuditEntries.CountAsync(a =>
+            a.EntityType == nameof(MediaAssetVersion) && a.EntityId == $"{id},2" && a.Action == "Insert"));
+        Assert.Equal(1, await read.AuditEntries.CountAsync(a =>
+            a.EntityType == nameof(MediaAsset) && a.EntityId == id.ToString() && a.Action == "Update"));
     }
 
     [Fact]

@@ -13,6 +13,7 @@ public interface IMediaAssetRepository
     /// Adds the next version and makes it current. <paramref name="version"/> must be exactly one
     /// above the current version (the caller stored the file under that number first); anything
     /// else, including losing a race to another replace, throws <see cref="MediaVersionConflictException"/>.
+    /// A conflict also clears the scoped context's change tracker, so save other work before calling.
     /// Throws <see cref="KeyNotFoundException"/> when the image does not exist.
     /// </summary>
     Task<MediaAssetVersionDto> AddVersionAsync(Guid assetId, int version, NewMediaAssetVersion file, CancellationToken ct = default);

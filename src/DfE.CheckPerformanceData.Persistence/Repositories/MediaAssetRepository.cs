@@ -62,9 +62,9 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
             // Another replace saved this version number first (the composite key refused ours).
-            // Undo what this call tracked so the context is usable again.
-            context.MediaAssetVersions.Entry(row).State = EntityState.Detached;
-            await context.MediaAssets.Entry(asset).ReloadAsync(ct);
+            // Clear the tracker: it still holds the refused version, the changed image and the
+            // audit rows collected for them, which a later save on this context would write.
+            context.ChangeTracker.Clear();
             throw new MediaVersionConflictException(assetId, version, ex);
         }
 

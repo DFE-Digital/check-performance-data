@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Journey.Conditions;
 using NSubstitute;
@@ -79,5 +80,24 @@ public class JourneyConditionContextFactoryTests
         var ctx = JourneyConditionContextFactory.Create(new RequestState(), user);
 
         Assert.Equal("211/8066", ctx.User.OrganisationLaestab);
+    }
+
+    [Fact]
+    public void Create_UsesSelectedEstablishmentFactsAndFailsClosedForUnknownType()
+    {
+        var currentUser = UserWithType("11");
+        currentUser.OrganisationLaestab.Returns("211/8066");
+        currentUser.OrganisationUrn.Returns("142313");
+        var selected = Substitute.For<IEstablishmentViewContext>();
+        selected.IsImpersonating.Returns(true);
+        selected.OrganisationLaestab.Returns("7654321");
+        selected.OrganisationUrn.Returns("100002");
+
+        var ctx = JourneyConditionContextFactory.Create(new RequestState(), currentUser, selected);
+
+        Assert.Equal("7654321", ctx.User.OrganisationLaestab);
+        Assert.Equal("100002", ctx.User.OrganisationUrn);
+        Assert.Equal(string.Empty, ctx.User.OrganisationTypeId);
+        Assert.False(new SchoolIsIndependentCondition().Evaluate(ctx));
     }
 }

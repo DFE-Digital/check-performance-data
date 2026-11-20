@@ -28,6 +28,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     IExerciseTabBuilder tabBuilder, IExerciseDisplayService display, DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : Controller
 {
     private const int PageSize = 10;
+    private string EstablishmentLaestab => viewContext?.OrganisationLaestab ?? currentUserService.OrganisationLaestab;
+    private string EstablishmentUrn => viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn;
     private const int MaxSearchLength = 100;
 
     [Route("CheckYourPupilData/{windowId}")]
@@ -125,7 +127,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         string? tab = null)
     {
         Response.NoStore();
-        if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab)) return Forbid();
+        if (string.IsNullOrWhiteSpace(EstablishmentLaestab)) return Forbid();
 
         var model = await BuildIndexModelAsync(windowId, 0, 0, 0, null, null, null);
         var exerciseTab = model.CheckingExerciseTabs
@@ -146,7 +148,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         CancellationToken cancellationToken)
     {
         Response.NoStore();
-        if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab)) return Forbid();
+        if (string.IsNullOrWhiteSpace(EstablishmentLaestab)) return Forbid();
 
         var model = await BuildIndexModelAsync(windowId, 0, 0, 0, null, null, null);
         // The raw file is the whole exercise's, so either of an exercise's inclusion tabs serves it.
@@ -155,7 +157,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
 
         // Re-read rather than re-serialise the parsed rows: the file a school downloads must be
         // the data the run produced (with a release, each dataset's file under its name).
-        var bytes = await tabBuilder.ReadRawAsync(tab, currentUserService.OrganisationLaestab!, cancellationToken);
+        var bytes = await tabBuilder.ReadRawAsync(tab, EstablishmentLaestab, cancellationToken);
 
         return bytes is null ? NotFound() : File(bytes, "application/json", $"{tab.Exercise.TabName}.json");
     }
@@ -169,7 +171,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
 
     private string GenerateZipFileName(CheckingWindowDto window)
     {
-        var urn = viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn;
+        var urn = EstablishmentUrn;
         var filename = $"{urn}-{window.CheckingWindowType.ToString()}-{window.EndDate:yyyy}.zip";
         return filename;
     }
@@ -177,7 +179,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     private async Task<string> GenerateCsvFileName(Guid windowId, string prefix, CheckingWindowDto? checkingWindow = null)
     {
         var window = checkingWindow ?? await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-        var urn = viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn;
+        var urn = EstablishmentUrn;
         var filename = $"{prefix}-{urn}-{window.CheckingWindowType.ToString()}-{window.EndDate:yyyy}.csv";
         return filename;
     }
@@ -219,7 +221,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         // at all, so it is rejected exactly as an unanswered question would be. AB#307773: shut
         // for this school, whose extension may run past the exercise's own end.
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-        var allowed = nextSteps.GetAvailableSteps(window.Exercises, currentUserService.OrganisationLaestab);
+        var allowed = nextSteps.GetAvailableSteps(window.Exercises, EstablishmentLaestab);
 
         // AB#298317: "No, I'd like to sign out of this service" is only ever asked when results
         // enquiry is the sole open exercise. Re-derived here, like every other option: a forged
@@ -285,8 +287,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         // derived from the window type and woven through this page's wording here, so no view has
         // to look it up.
         var noun = LearnerNoun.For(window.CheckingWindowType);
-        var laestab = viewContext?.OrganisationLaestab
-                      ?? currentUserService.OrganisationLaestab;
+        var laestab = EstablishmentLaestab;
 
         // Stamp the nav's selected window here, where the type is already in hand: the main nav
         // labels its window-scoped link with this window's noun, so it needs the type as well as

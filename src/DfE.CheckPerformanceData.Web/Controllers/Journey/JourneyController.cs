@@ -12,6 +12,7 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.FileStorage;
+using DfE.CheckPerformanceData.Web.Impersonation;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -36,8 +37,15 @@ public sealed class JourneyController(
     IRequestNotificationService requestNotificationService,
     ICheckingExerciseService checkingExerciseService,
     INextStepsService nextSteps,
-    ILogger<JourneyController> logger) : Controller
+    ILogger<JourneyController> logger,
+    IImpersonationPreviewStore? previewStore = null,
+    DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : Controller
 {
+    private string EstablishmentLaestab => viewContext?.OrganisationLaestab ?? currentUserService.OrganisationLaestab;
+    private string EstablishmentUrn => viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn;
+    private JourneyConditionContext BuildConditionContext(RequestState journey) =>
+        JourneyConditionContextFactory.Create(journey, currentUserService, viewContext);
+
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
     /// <summary>
@@ -319,7 +327,7 @@ public sealed class JourneyController(
 
         if (page.PupilKey != JourneyPage.MatchKey && !isResultsEnquiry)
         {
-            var result = await requestService.HasSubmittedRequestAsync(windowId, pupil.Id, long.Parse(currentUserService.OrganisationUrn));
+            var result = await requestService.HasSubmittedRequestAsync(windowId, pupil.Id, long.Parse(EstablishmentUrn));
             if (result is not DuplicateCheckResult.NoConflict)
             {
                 var isSelf = result is DuplicateCheckResult.SelfSubmitted;
@@ -749,7 +757,7 @@ public sealed class JourneyController(
         var syllabusQuestion = detailsPage?.Questions.FirstOrDefault(q => q.Id == SyllabusQuestionId);
         var syllabusOwed = syllabusQuestion is not null
             && optionVisibilityService.IsQuestionVisible(
-                syllabusQuestion, JourneyConditionContextFactory.Create(journey, currentUserService));
+                syllabusQuestion, BuildConditionContext(journey));
 
         return Has(MissingGradeQuestionId) && (!syllabusOwed || Has(SyllabusQuestionId))
             ? null
@@ -811,7 +819,7 @@ public sealed class JourneyController(
         if (string.IsNullOrWhiteSpace(cypmdId)) return [];
 
         return await resultsClient.GetResultsAsync(
-            windowId, currentUserService.OrganisationLaestab, cypmdId, ct);
+            windowId, EstablishmentLaestab, cypmdId, ct);
     }
 
     private async Task<IReadOnlyList<ResultRecord>> HeldInOtherFilesAsync(
@@ -850,7 +858,7 @@ public sealed class JourneyController(
         var gradeReference = ResolveGradeReference(page, journey);
         var heldInOtherFiles = await HeldInOtherFilesAsync(windowId, page, journey);
         var isValid = true;
-        var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
+        var conditionContext = BuildConditionContext(journey);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, conditionContext);
         bool IsMandatory(Question q) => !q.Optional && !conditionallyOptional.Contains(q.Id) && optionVisibilityService.IsQuestionVisible(q, conditionContext);
 
@@ -1221,7 +1229,9 @@ public sealed class JourneyController(
             return uploadError;
         }
 
-        var storedName = await fileStorageService.SaveAsync(windowId, bytes);
+        var storedName = IsImpersonating
+            ? PreviewStore.SaveEvidence(PreviewBinding, PreviewGeneration, windowId, bytes)
+            : await fileStorageService.SaveAsync(windowId, bytes);
         currentFiles.Add(new FileAnswer
         {
             StoredFileName = storedName,
@@ -1266,7 +1276,10 @@ public sealed class JourneyController(
         var filesBefore = currentFiles.Count;
         currentFiles.RemoveAll(f => f.StoredFileName == storedFileName);
 
-        await fileStorageService.DeleteAsync(windowId, storedFileName);
+        if (IsImpersonating)
+            PreviewStore.RemoveEvidence(PreviewBinding, PreviewGeneration, windowId, storedFileName);
+        else
+            await fileStorageService.DeleteAsync(windowId, storedFileName);
 
         HttpContext.Session.SaveRequestState(windowId, s =>
             s.QuestionAnswers[questionId] = new QuestionAnswer { FileValues = currentFiles });
@@ -1345,7 +1358,9 @@ public sealed class JourneyController(
 
         if (fileAnswer is null) return NotFound();
 
-        var bytes = await fileStorageService.GetAsync(windowId, storedFileName);
+        var bytes = IsImpersonating
+            ? PreviewStore.GetEvidence(PreviewBinding, PreviewGeneration, windowId, storedFileName)
+            : await fileStorageService.GetAsync(windowId, storedFileName);
         if (bytes is null) return NotFound();
 
         return File(bytes, "application/pdf", fileAnswer.OriginalFileName);
@@ -1390,6 +1405,8 @@ public sealed class JourneyController(
             if (incompletePage is not null)
                 return RedirectToJourneyAction(enquiryConfig!, windowId, incompletePage);
 
+            if (IsImpersonating) return PreviewSubmissionBlocked(windowId);
+
             try
             {
                 return await ConfirmResultsEnquiryAsync(windowId, journey);
@@ -1399,6 +1416,8 @@ public sealed class JourneyController(
                 return await DuplicateEnquirySummaryAsync(windowId, journey, enquiryConfig, ex.ExistingReferenceNumber);
             }
         }
+
+        if (IsImpersonating) return PreviewSubmissionBlocked(windowId);
 
         try
         {
@@ -1538,7 +1557,7 @@ public sealed class JourneyController(
             ReferenceNumber = journey.ReferenceNumber,
             // #713: the onward links follow the exercises open now, not the submitted kind.
             NextSteps = nextSteps.GetConfirmationPageSteps(
-                journey.CheckingWindow.Exercises, currentUserService.OrganisationLaestab),
+            journey.CheckingWindow.Exercises, EstablishmentLaestab),
             LearnerNoun = journey.LearnerNoun
         });
     }
@@ -1601,6 +1620,12 @@ public sealed class JourneyController(
             HttpContext.Session.SaveRequestState(windowId, s => s.QuestionHistory = journey.QuestionHistory);
         }
 
+        if (IsImpersonating)
+        {
+            // Request state remains in preview memory. Do not create a persisted draft.
+            return RedirectToAction(nameof(Summary), new { windowId });
+        }
+
         await requestService.SaveDraftAsync(windowId, journey, status);
 
         await analytics.TrackSafeAsync(new DraftSavedEvent
@@ -1634,7 +1659,7 @@ public sealed class JourneyController(
 
     private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName)
     {
-        var ctx = JourneyConditionContextFactory.Create(journey, currentUserService);
+        var ctx = BuildConditionContext(journey);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, ctx);
         return journeyService.ValidateEvidencePage(page, journey, pupilName, conditionallyOptional,
             optionalityService.IsRequireAtLeastOneActive(page, ctx)) is null;
@@ -1660,12 +1685,12 @@ public sealed class JourneyController(
             ? WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change)
             : CheckingExerciseType.PupilData;
         var deadline = checkingExerciseService.EndDateFor(
-            journey.CheckingWindow.Exercises, exercise, currentUserService.OrganisationLaestab)
+            journey.CheckingWindow.Exercises, exercise, EstablishmentLaestab)
             ?? journey.CheckingWindow.EndDate;
         // #713: the banner quotes that deadline, so it shows only while the exercise it belongs
         // to is still open to the school. Null hides the banner in the view.
         var exerciseOpen = checkingExerciseService.IsOpen(
-            journey.CheckingWindow.Exercises, exercise, currentUserService.OrganisationLaestab);
+            journey.CheckingWindow.Exercises, exercise, EstablishmentLaestab);
 
         var model = new ConfirmationViewModel
         {
@@ -1678,7 +1703,7 @@ public sealed class JourneyController(
             // #713: the onward links follow the exercises open now, not the submitted kind.
             // The noun comes from the journey's window, as the journey pages get it.
             NextSteps = nextSteps.GetConfirmationPageSteps(
-                journey.CheckingWindow.Exercises, currentUserService.OrganisationLaestab),
+                journey.CheckingWindow.Exercises, EstablishmentLaestab),
             LearnerNoun = journey.LearnerNoun
         };
 
@@ -1928,7 +1953,7 @@ public sealed class JourneyController(
 
         if (!isResultsEnquiry)
         {
-            var result = await requestService.HasSubmittedRequestAsync(windowId, pupil.Id, long.Parse(currentUserService.OrganisationUrn));
+            var result = await requestService.HasSubmittedRequestAsync(windowId, pupil.Id, long.Parse(EstablishmentUrn));
             if (result is not DuplicateCheckResult.NoConflict)
             {
                 var isSelf = result is DuplicateCheckResult.SelfSubmitted;
@@ -2229,7 +2254,7 @@ public sealed class JourneyController(
         !checkingExerciseService.IsOpen(
             journey.CheckingWindow.Exercises,
             WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change),
-            currentUserService.OrganisationLaestab);
+            EstablishmentLaestab);
 
     /// <summary>
     /// Every bounce out of the journey. A closed exercise is explained on the page the user lands
@@ -2394,6 +2419,30 @@ public sealed class JourneyController(
         question.Type == QuestionType.Checkbox
             ? answer.SelectedValues ?? []
             : answer.TextValue is { } v ? [v] : [];
+
+    private bool IsImpersonating => HttpContext.Items[
+        DfE.CheckPerformanceData.Web.Middleware.ImpersonationContextMiddleware.ReadOnlyItemKey] is true;
+
+    private string PreviewBinding => HttpContext.Items.TryGetValue(
+            DfE.CheckPerformanceData.Web.Middleware.ImpersonationContextMiddleware.PreviewBindingItemKey,
+            out var binding) && binding is string value
+        ? value
+        : throw new InvalidOperationException("The impersonation preview session is unavailable.");
+
+    private string PreviewGeneration => HttpContext.Items.TryGetValue(
+            DfE.CheckPerformanceData.Web.Middleware.ImpersonationContextMiddleware.PreviewGenerationItemKey,
+            out var generation) && generation is string value
+        ? value
+        : throw new InvalidOperationException("The impersonation preview session is unavailable.");
+
+    private IImpersonationPreviewStore PreviewStore => previewStore
+        ?? throw new InvalidOperationException("The impersonation preview store is unavailable.");
+
+    private IActionResult PreviewSubmissionBlocked(Guid windowId)
+    {
+        ViewData["Title"] = "Preview only";
+        return View("PreviewSubmissionBlocked", windowId);
+    }
 
     private void TrimHistoryTo(RequestState journey, Guid windowId, string pageId)
     {

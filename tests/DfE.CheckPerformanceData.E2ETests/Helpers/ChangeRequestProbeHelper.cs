@@ -56,6 +56,26 @@ public static class ChangeRequestProbeHelper
         }
     }
 
+    public static async Task<bool?> TryContainsSessionValueAsync(string value)
+    {
+        var cs = Environment.GetEnvironmentVariable("CPD_E2E_DB");
+        if (string.IsNullOrWhiteSpace(cs)) cs = LocalFallbackConnectionString;
+        try
+        {
+            await using var connection = new NpgsqlConnection(cs);
+            await connection.OpenAsync();
+            await using var command = new NpgsqlCommand(
+                "SELECT EXISTS (SELECT 1 FROM session_cache WHERE position(convert_to(@value, 'UTF8') in value) > 0)",
+                connection);
+            command.Parameters.AddWithValue("value", value);
+            return (bool)(await command.ExecuteScalarAsync())!;
+        }
+        catch (NpgsqlException)
+        {
+            return null;
+        }
+    }
+
     // The pair used by the "cancelling discards the enquiry" AC: assert that no ChangeRequests row
     // was created between two reads of the table, skipping explicitly when the table is unreachable.
     public static async Task AssertNoRowsCreatedBetweenAsync(long? before)

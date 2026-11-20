@@ -23,8 +23,14 @@ public sealed class RequestService(
     IQueueService queueService,
     IRequestNotificationService requestNotificationService,
     ICheckYourPupilDataService checkYourPupilDataService,
- ICheckingExerciseService checkingExerciseService, ICheckingExerciseStorageResolver? storageResolver = null, IImpersonationWriteGuard? writeGuard = null) : IRequestService
+    ICheckingExerciseService checkingExerciseService,
+    ICheckingExerciseStorageResolver? storageResolver = null,
+    IImpersonationWriteGuard? writeGuard = null,
+    IEstablishmentViewContext? establishmentViewContext = null) : IRequestService
 {
+    private long? EstablishmentUrnLong => long.TryParse(
+        establishmentViewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn,
+        out var urn) ? urn : null;
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
     // Empty claim → null column, never an empty string, so "unknown" reads the same on every row.
@@ -225,9 +231,9 @@ public sealed class RequestService(
     /// <inheritdoc cref="IRequestService.FindDuplicateResultsEnquiryAsync(Guid, RequestState, EnquirySubject, CancellationToken)" />
     public async Task<string?> FindDuplicateResultsEnquiryAsync(
         Guid windowId, RequestState journey, EnquirySubject subject, CancellationToken ct = default) =>
-        journey.SelectedPupil is { } student
+        journey.SelectedPupil is { } student && EstablishmentUrnLong is { } urn
             ? await requestRepository.FindSubmittedResultsEnquiryReferenceAsync(
-                windowId, OrganisationUrnLong, student.Id, subject, journey.ReferenceNumber, ct)
+                windowId, urn, student.Id, subject, journey.ReferenceNumber, ct)
             : null;
 
     public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)

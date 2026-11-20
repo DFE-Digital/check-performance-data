@@ -10,8 +10,10 @@ public sealed class JourneyViewModelBuilder(
     IJourneyValidationService journeyService,
     IOptionVisibilityService optionVisibilityService,
     ICurrentUserService currentUserService,
-    IQuestionOptionalityService optionalityService) : IJourneyViewModelBuilder
+    IQuestionOptionalityService optionalityService,
+    DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : IJourneyViewModelBuilder
 {
+    private string EstablishmentLaestab => viewContext?.OrganisationLaestab ?? currentUserService.OrganisationLaestab;
     public SummaryViewModel BuildSummaryVm(
         Guid windowId, RequestState journey, QuestionFlowConfig config, string? conflictError = null, string? conflictErrorLink = null, bool fromBulk = false, bool fromEdit = false)
     {
@@ -108,7 +110,7 @@ public sealed class JourneyViewModelBuilder(
 
         return new ResultsEnquirySummary
         {
-            DfeNumber = currentUserService.OrganisationLaestab,
+            DfeNumber = EstablishmentLaestab,
             KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
             EnquiryTypeLabel = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
                 ? "Incorrect grade"
@@ -156,7 +158,7 @@ public sealed class JourneyViewModelBuilder(
 
         return new MissingQualificationSummary
         {
-            DfeNumber = currentUserService.OrganisationLaestab,
+            DfeNumber = EstablishmentLaestab,
             KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
             StudentName = pupilName,
             IsCohortWide = string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
@@ -442,7 +444,7 @@ public sealed class JourneyViewModelBuilder(
                 .Select(g => new QuestionOption { Value = g, Label = g })];
 
     private JourneyConditionContext BuildConditionContext(RequestState journey) =>
-        JourneyConditionContextFactory.Create(journey, currentUserService);
+        JourneyConditionContextFactory.Create(journey, currentUserService, viewContext);
 
     internal static string GetPupilName(RequestState journey) =>
         journey.SelectedPupil is { } p ? $"{p.Firstname} {p.Surname}".Trim() : string.Empty;

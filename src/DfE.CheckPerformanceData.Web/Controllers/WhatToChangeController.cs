@@ -17,8 +17,10 @@ public sealed class WhatToChangeController(
     IQuestionFlowService flowService,
     ICheckingExerciseService checkingExercises,
     ICurrentUserService currentUserService,
-    IAnalyticsService analytics) : Controller
+    IAnalyticsService analytics,
+    DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : Controller
 {
+    private string EstablishmentLaestab => viewContext?.OrganisationLaestab ?? currentUserService.OrganisationLaestab;
     // #318: every WhatToChange option belongs to pupil data checking, so both actions gate on that
     // one exercise. The option list on Check your pupil data is presentation only — a bookmarked
     // URL still reaches here after the exercise closes. AB#307773: "closed" is for the signed-in
@@ -29,7 +31,7 @@ public sealed class WhatToChangeController(
     public async Task<IActionResult> Index(Guid windowId)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, EstablishmentLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         var journey = HttpContext.Session.GetRequestState(windowId);
@@ -48,7 +50,7 @@ public sealed class WhatToChangeController(
     public async Task<IActionResult> Confirm(Guid windowId, WhatToChangeViewModel vm)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, EstablishmentLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         var available = await flowService.GetPupilDataChangesAsync(window.CheckingWindowType);

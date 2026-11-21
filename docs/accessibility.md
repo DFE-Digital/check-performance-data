@@ -166,6 +166,26 @@ The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cp
 
 **Every Image widget has alt text, unless the editor marks it decorative.** The save check refuses an image with no alt text. A decorative image renders `alt=""`, so screen readers skip it. Each image has `width` and `height`, so the page does not move as it loads. A caption and credit go in a `<figcaption>`. A refused save shows a GOV.UK error summary, and the error message sits beside its field. `AccessibilityAuditViewTests` pins the markup.
 
+## Media library
+
+- **Rich text images.** The image dialog has an "Image is decorative" option (TinyMCE
+  `a11y_advanced_options`). It writes `alt=""` and `role="presentation"`, and the sanitiser keeps
+  both. The editor warns about a library image with no alt text that is not decorative. An
+  `alt=""` with no role still gets the warning, and the alt text report lists it as missing.
+- **Picker dialog** (`_MediaPicker.cshtml`, `media-picker.js`). It is a modal `<dialog>`. Focus
+  goes to the search box when it opens. Tab stays inside it, and only one image radio is a Tab
+  stop. Enter on an image chooses it, and Escape closes the dialog. Focus goes back to the button
+  that opened it. A `role="status"` region announces "Loading images" and then the number of
+  images. The list is emptied when a new list is asked for, so focus never sits on an image that
+  is about to be replaced.
+- **Library page.** Each control has a label. A `role="status"` region announces each upload's
+  start and end. A refused upload shows its reason beside the file.
+- **Reports and the embedded-image move.** Each page's title matches its `<h1>`. Each table has
+  a `<caption>`. The alt text report has two lists, each with its own pagination, so each
+  `govuk-pagination` has its own `landmark-label` ("Library images", "Where images are used").
+
+`AccessibilityAuditViewTests` pins the markup of the library page and the two reports.
+
 ## Option groups
 
 **A radio or checkbox fieldset names its own hint and error through `aria-describedby`, and each option names its own hint on its own input.** `_Radio.cshtml` had neither, so the group's hint and its error message were never announced with the group, and every option's `SubLabel` was rendered with an id that nothing referenced (audit #383). `_Checkbox.cshtml` and `_Date.cshtml` already described the group; both option partials now describe the per-option hint too.

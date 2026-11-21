@@ -18,7 +18,12 @@ namespace DfE.CheckPerformanceData.Application.PageTree;
 // Alongside the pages individual tests need, there is a test page for each widget an author can
 // place ("Heading test page", "Search test page" and so on), showing the widget set up in several
 // ways. They are together in a folder, /development-testing/widgets. A new widget needs one too.
-// Beside that folder, "Regions test page" has a region in each layout.
+// Beside that folder, "Regions test page" has a region in each layout, and the media library has
+// its test pages.
+//
+// The file also carries the media library images the pages show (mediaAssets and mediaFiles), so
+// they arrive with the pages. The import brings images in before pages, so the pages record their
+// uses, and it finds the same images again on the next start.
 //
 // To change a fixture: edit the page through the CMS, export /development-testing from
 // /admin/content-staging, and replace the file.

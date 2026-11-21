@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.ContentStaging;
+using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.UnitTests.ContentStaging;
 
@@ -360,4 +361,91 @@ public class TestFixtureSeedBundleTests
     private static int BodyLength(ContentBundle bundle, string segment) =>
         bundle.PageNodes.Single(p => p.Segment == segment)
             .Versions.Sum(v => (v.BodyPlainText ?? string.Empty).Length);
+
+    // ---- the media library samples ---------------------------------------------------------
+
+    // The fixture pages show library images, so the file carries those images too: they arrive
+    // with the pages, wherever the pages are imported, before them. A page that names an image the
+    // file does not carry shows nothing there, and the import warns about it.
+    private static IEnumerable<Guid> ImagesUsedBy(ContentBundle bundle) =>
+        bundle.PageNodes.SelectMany(p => p.Versions).SelectMany(v => MediaReferenceExtractor.Extract(v.Content))
+            .Concat(bundle.ContentBlocks.Where(b => b.BlockType == "Content").SelectMany(b => MediaReferenceExtractor.ExtractRichText(b.Value)))
+            .Select(r => r.AssetId);
+
+    [Fact]
+    public void EveryImageTheFixturesUse_IsInTheFile_WithItsBytes()
+    {
+        var bundle = ShippedContent.Fixtures();
+        var files = bundle.MediaFiles.ToDictionary(f => f.Sha256);
+
+        foreach (var id in ImagesUsedBy(bundle).Distinct())
+        {
+            var asset = Assert.Single(bundle.MediaAssets, a => a.Id == id);
+            var current = Assert.Single(asset.Versions, v => v.Version == asset.CurrentVersion);
+            Assert.True(files.TryGetValue(current.Sha256, out var file), $"no file for image {id}");
+            Assert.Equal(current.Sha256, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(file.Data)));
+            Assert.Equal(current.SizeBytes, file.Data.Length);
+        }
+    }
+
+    // The Image test page was written against these two ids: a PNG about twice as wide as it is
+    // tall, so the crops show, and an SVG.
+    [Fact]
+    public void TheImageTestPage_HasItsPngAndSvg_InTheFile()
+    {
+        var bundle = ShippedContent.Fixtures();
+
+        var png = bundle.MediaAssets.Single(a => a.Id == new Guid("00000000-cd94-4a01-8f01-0000000e0201")).Versions.Single();
+        Assert.Equal("image/png", png.ContentType);
+        Assert.Equal(2.0, (double)png.Width!.Value / png.Height!.Value, 1);
+        Assert.True(png.Width >= 1280, "the PNG is too narrow to have resized copies at each width");
+        Assert.Equal("image/svg+xml", bundle.MediaAssets.Single(a => a.Id == new Guid("00000000-cd94-4a01-8f01-0000000e0202")).Versions.Single().ContentType);
+    }
+
+    [Fact]
+    public void TheSamples_AreAPngAPhotoAnSvgAndAnAnimation()
+    {
+        var versions = ShippedContent.Fixtures().MediaAssets.Select(a => a.Versions.Single()).ToList();
+
+        Assert.Contains(versions, v => v.ContentType == "image/png");
+        Assert.Contains(versions, v => v.ContentType == "image/jpeg");
+        Assert.Contains(versions, v => v.ContentType == "image/svg+xml");
+        Assert.Contains(versions, v => v.ContentType == "image/gif" && v.IsAnimated);
+    }
+
+    // Move embedded images needs something to move on a new stack.
+    [Fact]
+    public void TheEmbeddedImageTestPage_HoldsADataImage()
+    {
+        var page = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "embedded-image-test-page");
+
+        Assert.Contains("src=\\\"data:image/png;base64,", page.Versions.Single().Content);
+    }
+
+    [Theory]
+    [InlineData("media-library-test-page")]
+    [InlineData("media-rich-text-test-page")]
+    [InlineData("embedded-image-test-page")]
+    public void TheMediaTestPages_AreUnderTheRoot_PublishedAndOutOfSearch(string segment)
+    {
+        var page = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == segment);
+
+        Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingRootId, page.ParentId);
+        Assert.False(page.AppearInSearch);
+        // Live already: a publish time still to come leaves the page a 404 until then.
+        Assert.True(page.Versions.Single().PublishFrom <= DateTime.UtcNow, $"{segment} is not live yet");
+        var tree = ContentPageJson.Deserialize(page.Versions.Single().Content)!;
+        var shipped = ContentTreeWalker.AllWidgets(tree).Where(w => w.Type == "heading").Select(w => w.Anchor).ToList();
+        HeadingAnchorizer.Apply(tree);
+        Assert.Equal(ContentTreeWalker.AllWidgets(tree).Where(w => w.Type == "heading").Select(w => w.Anchor).ToList(), shipped);
+    }
+
+    // A rich-text image marked decorative in the editor: an empty alt and role="presentation".
+    [Fact]
+    public void TheMediaRichTextTestPage_HasADecorativeImage()
+    {
+        var page = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-rich-text-test-page");
+
+        Assert.Contains("alt=\\\"\\\" width=\\\"1280\\\" height=\\\"640\\\" role=\\\"presentation\\\"", page.Versions.Single().Content);
+    }
 }

@@ -9,3 +9,15 @@ What the dev seeders create, and in what order. Dev seeders are data: they have 
 Then, separately in Web startup (dev only):
 3. `SeedPupilData.ExecuteSeedAsync` (`Web/Seeding/`) — writes per-school pupil JSON (`data/{laestab}_pupils.json` in each `{windowId}` container) via `IPupilDataBlobClient`, 120 included + 120 non-included pupils per school × window (`PupilsPerGroup`). That count is deliberately well past the list's page size of 10 so pagination — including the ellipsis window — is exercised locally; don't shrink it back to a page or two. Generated names pair firstname `n % 20` with surname `(n / 20) % 20` so all 400 combinations are distinct, and the non-included group is generated from an index shifted by `NonIncludedIndexOffset` so the two groups never collide on name, UPN, Cypmd id or match ref. Included index 0 is Alice Smith / `A86040700001B`, which E2E tests and `SeedChangeRequests` depend on. Kingsmead also carries a deliberate same-name and date-of-birth pair, Casey Carter born 15/03/2010, CYPMD `800001` (included) and `800002` (not included), in the KS4 June and KS4 Autumn windows (`SeedPupilData.Ks4PairWindowIds`); the Add duplicate check and the merge E2E tests depend on it (#747 added KS4 Autumn). The checking-window GUIDs come from `DevDataSeeder`'s public constants.
 
+
+## Media library samples
+
+The media library samples are not made by a dev seeder. They travel in the fixture bundle,
+`Web/Data/Import/development-testing.json`, as `mediaAssets` and `mediaFiles`, so they arrive with
+the `/development-testing` pages wherever those pages are imported (Development and Review at
+start-up, and the "Seed sample CMS pages" button outside Production). The import brings the images
+in before the pages, so the Image test page and the other fixture pages record their uses. Each
+start imports the file again and finds the images it brought before, so it adds nothing. The
+samples are a PNG (`…0e0201`), an SVG (`…0e0202`), a JPEG photo (`…0e0203`) and an animated GIF
+(`…0e0204`). `TestFixtureSeedBundleTests` and `TestFixtureMediaImportTests` pin them. See
+`docs/media-library.md`.

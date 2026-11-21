@@ -75,8 +75,9 @@ public sealed class EmbeddedImageMover(
 
         foreach (var page in await store.ListPagesAsync(now, ct))
         {
-            // Stop only between pages, so a page is never left half done.
-            ct.ThrowIfCancellationRequested();
+            // Stop only between pages, so a page is never left half done. A stopped run still
+            // records what it did, and the next run carries on.
+            if (ct.IsCancellationRequested) break;
             var outcome = await MovePageAsync(page, now, userId);
             if (outcome.Failure is { } failure)
             {

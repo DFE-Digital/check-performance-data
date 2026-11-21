@@ -744,6 +744,52 @@ public sealed class AccessibilityAuditViewTests
 	// ── Media library index ─────────────────────────────────────────────────────────────
 
 	[Fact]
+	public void MediaLibraryIndex_LinksToBothReports()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("href=\"/admin/media/reports/alt-text\"", view);
+		Assert.Contains("href=\"/admin/media/reports/size\"", view);
+	}
+
+	[Fact]
+	public void AltTextReport_TitleMatchesTheH1_TablesHaveCaptionsAndHeaders_AndEachLinkNamesItsRow()
+	{
+		var view = ReadView("Views", "MediaLibrary", "AltTextReport.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Alt text report\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-xl\">Alt text report</h1>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Library images</caption>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Where images are used</caption>", view);
+		Assert.Contains("scope=\"col\"", view);
+		Assert.Contains("class=\"govuk-summary-card\"", view);
+		// Two pagination landmarks on one page need different names.
+		Assert.Contains("PaginationWindow.Build", view);
+		Assert.Contains("landmark-label=\"Library images\"", view);
+		Assert.Contains("landmark-label=\"Where images are used\"", view);
+		// Each fix link repeats, so a hidden suffix names its row.
+		Assert.Contains("<span class=\"govuk-visually-hidden\">", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
+	public void SizeReport_TitleMatchesTheH1_TheTableHasACaptionAndHeaders_AndTotalsAreSummaryCards()
+	{
+		var view = ReadView("Views", "MediaLibrary", "SizeReport.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Size report\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-xl\">Size report</h1>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Largest images</caption>", view);
+		Assert.Contains("scope=\"col\"", view);
+		Assert.Contains("class=\"govuk-summary-card\"", view);
+		Assert.Contains("class=\"govuk-summary-list\"", view);
+		Assert.Contains("<span class=\"govuk-visually-hidden\">", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
 	public void MediaLibraryIndex_TitleMatchesTheH1_AndEveryControlHasALabel()
 	{
 		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");

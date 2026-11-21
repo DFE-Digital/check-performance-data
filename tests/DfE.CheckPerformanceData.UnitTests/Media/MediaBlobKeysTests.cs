@@ -48,4 +48,25 @@ public sealed class MediaBlobKeysTests
         var other = Guid.NewGuid();
         Assert.DoesNotContain(prefixes, p => MediaBlobKeys.Original(other, 1).StartsWith(p, StringComparison.Ordinal));
     }
+
+    // The size report adds up the resized copies of each image from one listing of the container.
+    [Fact]
+    public void EveryRendition_IsUnderTheRenditionsPrefix_AndNamesItsImage()
+    {
+        var key = MediaBlobKeys.Rendition(Id, 3, "abc");
+
+        Assert.StartsWith(MediaBlobKeys.AllRenditionsPrefix, key, StringComparison.Ordinal);
+        Assert.True(MediaBlobKeys.TryGetRenditionAsset(key, out var asset));
+        Assert.Equal(Id, asset);
+    }
+
+    [Theory]
+    [InlineData("originals/0f8fad5b-d9cb-469f-a165-70867728950e/1")]
+    [InlineData("renditions/not-a-guid/1/abc")]
+    [InlineData("renditions/")]
+    [InlineData("")]
+    public void AKeyThatIsNotARendition_NamesNoImage(string key)
+    {
+        Assert.False(MediaBlobKeys.TryGetRenditionAsset(key, out _));
+    }
 }

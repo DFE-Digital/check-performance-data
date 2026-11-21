@@ -22,7 +22,26 @@ public static class MediaFixtures
                 raw.Write(colour, offset, 3);
             }
         }
+        return Png(width, height, raw);
+    }
 
+    // Random pixels do not compress, so the stored file stays large: about 3 bytes for each pixel.
+    // A size report test uses it to put its image among the largest in the library.
+    public static byte[] NoisyPng(int width, int height)
+    {
+        var raw = new MemoryStream();
+        var row = new byte[width * 3];
+        for (var y = 0; y < height; y++)
+        {
+            raw.WriteByte(0); // no filter
+            Random.Shared.NextBytes(row);
+            raw.Write(row);
+        }
+        return Png(width, height, raw);
+    }
+
+    private static byte[] Png(int width, int height, MemoryStream raw)
+    {
         var png = new MemoryStream();
         png.Write([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
         var header = new byte[13];

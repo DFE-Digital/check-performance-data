@@ -61,6 +61,12 @@
     <a class="govuk-link" href="/admin/media/move-embedded" data-media-move-embedded-link>Move embedded images into the library</a>.
 </p>
 
+<h2 class="govuk-heading-m">Reports</h2>
+<ul class="govuk-list" data-media-reports>
+    <li><a class="govuk-link" href="/admin/media/reports/alt-text" data-media-alt-text-report-link>Alt text report</a> – images with missing or weak alt text</li>
+    <li><a class="govuk-link" href="/admin/media/reports/size" data-media-size-report-link>Size report</a> – the largest images and the storage the library uses</li>
+</ul>
+
 <form id="media-upload-form" method="post" enctype="multipart/form-data" action="/admin/media/upload"
       data-max-bytes="@MediaUploadLimits.MaxFileBytes" data-too-large-message="@MediaRejections.TooLarge">
     @Html.AntiForgeryToken()

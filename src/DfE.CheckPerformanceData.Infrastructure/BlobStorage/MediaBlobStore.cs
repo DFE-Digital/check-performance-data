@@ -93,4 +93,21 @@ public sealed class MediaBlobStore(BlobServiceClient service, string containerNa
         }
         return removed;
     }
+
+    // One listing call per page of results. A missing container has nothing to list and is not created.
+    public async Task<IReadOnlyList<MediaBlobEntry>> ListAsync(string prefix, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(prefix);
+        var found = new List<MediaBlobEntry>();
+        try
+        {
+            await foreach (var item in Container.GetBlobsAsync(new GetBlobsOptions { Prefix = prefix }, ct))
+                found.Add(new MediaBlobEntry(item.Name, item.Properties.ContentLength ?? 0));
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            // The container does not exist, so there is nothing to list.
+        }
+        return found;
+    }
 }

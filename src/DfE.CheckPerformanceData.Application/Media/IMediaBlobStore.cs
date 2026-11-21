@@ -24,4 +24,10 @@ public interface IMediaBlobStore
     /// removed. Refuses an empty prefix, which would match the whole container.
     /// </summary>
     Task<int> DeleteByPrefixAsync(string prefix, CancellationToken ct = default);
+
+    /// <summary>
+    /// Every file whose key starts with <paramref name="prefix"/>, with its size. A missing
+    /// container gives none. Refuses an empty prefix.
+    /// </summary>
+    Task<IReadOnlyList<MediaBlobEntry>> ListAsync(string prefix, CancellationToken ct = default);
 }

@@ -26,4 +26,17 @@ public static class MediaBlobKeys
     /// <summary>The prefixes that hold every stored file of one image: its originals and its renditions.</summary>
     public static IReadOnlyList<string> AssetPrefixes(Guid assetId) =>
         [$"originals/{assetId:D}/", $"renditions/{assetId:D}/"];
+
+    /// <summary>The prefix that holds every rendition of every image.</summary>
+    public const string AllRenditionsPrefix = "renditions/";
+
+    /// <summary>The image a rendition key belongs to. False for any other key.</summary>
+    public static bool TryGetRenditionAsset(string key, out Guid assetId)
+    {
+        assetId = Guid.Empty;
+        if (!key.StartsWith(AllRenditionsPrefix, StringComparison.Ordinal)) return false;
+        var rest = key[AllRenditionsPrefix.Length..];
+        var slash = rest.IndexOf('/');
+        return slash > 0 && Guid.TryParseExact(rest[..slash], "D", out assetId);
+    }
 }

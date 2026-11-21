@@ -127,4 +127,39 @@ public sealed class MediaBlobStoreTests(AzuriteFixture fixture)
 
         await Assert.ThrowsAnyAsync<ArgumentException>(() => sut.DeleteByPrefixAsync(prefix));
     }
+
+    [Fact]
+    public async Task List_GivesEveryFileUnderThePrefix_WithItsSize()
+    {
+        var sut = NewStore(out _);
+        var id = Guid.NewGuid();
+        await sut.PutAsync(MediaBlobKeys.Original(id, 1), Bytes("original"), "image/png");
+        await sut.PutAsync(MediaBlobKeys.Rendition(id, 1, "abc"), Bytes("12345"), "image/webp");
+        await sut.PutAsync(MediaBlobKeys.Rendition(id, 1, "def"), Bytes("123"), "image/webp");
+
+        var listed = await sut.ListAsync(MediaBlobKeys.AllRenditionsPrefix);
+
+        Assert.Equal(
+            [new MediaBlobEntry(MediaBlobKeys.Rendition(id, 1, "abc"), 5), new MediaBlobEntry(MediaBlobKeys.Rendition(id, 1, "def"), 3)],
+            listed.OrderBy(e => e.Key, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task List_OnAMissingContainer_GivesNothing_AndDoesNotCreateIt()
+    {
+        var sut = NewStore(out var container);
+
+        Assert.Empty(await sut.ListAsync(MediaBlobKeys.AllRenditionsPrefix));
+        Assert.False(await _blobs.GetBlobContainerClient(container).ExistsAsync());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task List_RefusesAnEmptyPrefix(string prefix)
+    {
+        var sut = NewStore(out _);
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => sut.ListAsync(prefix));
+    }
 }

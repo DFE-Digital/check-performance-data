@@ -609,5 +609,11 @@ public class ContentMediaStagingTests
             foreach (var key in keys) Blobs.Remove(key);
             return Task.FromResult(keys.Count);
         }
+
+        public Task<IReadOnlyList<MediaBlobEntry>> ListAsync(string prefix, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<MediaBlobEntry>>(Blobs
+                .Where(b => b.Key.StartsWith(prefix, StringComparison.Ordinal))
+                .Select(b => new MediaBlobEntry(b.Key, b.Value.Length))
+                .ToList());
     }
 }

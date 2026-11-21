@@ -60,6 +60,7 @@ public static class DependencyManager
         services.AddScoped<IHomeBannerRepository, HomeBannerRepository>();
         services.AddScoped<DfE.CheckPerformanceData.Application.Media.IMediaAssetRepository, MediaAssetRepository>();
         services.AddScoped<DfE.CheckPerformanceData.Application.Media.Embedded.IEmbeddedImageStore, EmbeddedImageStore>();
+        services.AddScoped<DfE.CheckPerformanceData.Application.Media.Reports.IMediaReportStore, MediaReportStore>();
         services.AddScoped<Application.ContentStaging.IContentStagingLock,
                            ContentStaging.PostgresContentStagingLock>();
         // AB#302158: only one web pod at a time runs the automatic exercise hand-over.

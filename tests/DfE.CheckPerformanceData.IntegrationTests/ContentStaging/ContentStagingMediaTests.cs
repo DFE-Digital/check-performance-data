@@ -208,6 +208,41 @@ public sealed class ContentStagingMediaTests(PostgresFixture postgres, AzuriteFi
         Assert.Equal(2, (await ctx.MediaAssets.SingleAsync(a => a.Id == photo)).CurrentVersion);
     }
 
+    // The bundle wins: an image already here takes the bundle's details, and its current file
+    // becomes the bundle's current file. An image the bundle does not carry is never deleted.
+    [Fact]
+    public async Task An_image_already_here_takes_the_bundle_details_and_nothing_is_deleted()
+    {
+        var (photo, _, _) = await SeedSourceAsync();
+        await using (var ctx = postgres.CreateContext())
+        {
+            var repo = new MediaAssetRepository(ctx, new FakeCurrentUserService());
+            Assert.True(await repo.UpdateMetadataAsync(photo, new MediaAssetMetadata("Bundle alt", "Bundle caption", "Bundle credit", ["bundle"])));
+        }
+        var bundle = await ExportAsync(_source);
+        await WipeAsync();
+        await ImportAsync(bundle, _target);
+        var unused = await UploadAsync(_target, Png(5, 5, SKColors.Yellow), "unused.png");
+        await using (var ctx = postgres.CreateContext())
+        {
+            var repo = new MediaAssetRepository(ctx, new FakeCurrentUserService());
+            await repo.UpdateMetadataAsync(photo, new MediaAssetMetadata("Target alt", null, "Target credit", ["target"]));
+        }
+
+        var again = await ImportAsync(bundle, _target);
+
+        Assert.Equal(1, again.MediaAssetsUpdated);
+        Assert.Equal(1, again.MediaAssetsReused);
+        await using var check = postgres.CreateContext();
+        var asset = await check.MediaAssets.SingleAsync(a => a.Id == photo);
+        Assert.Equal("Bundle alt", asset.DefaultAltText);
+        Assert.Equal("Bundle caption", asset.Caption);
+        Assert.Equal("Bundle credit", asset.Credit);
+        Assert.Equal(["bundle"], asset.Tags);
+        Assert.Equal(2, asset.CurrentVersion);
+        Assert.True(await check.MediaAssets.AnyAsync(a => a.Id == unused));
+    }
+
     [Fact]
     public async Task Importing_into_the_environment_it_came_from_reuses_every_image()
     {

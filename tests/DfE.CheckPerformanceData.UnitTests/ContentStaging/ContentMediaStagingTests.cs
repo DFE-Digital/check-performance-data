@@ -211,11 +211,14 @@ public class ContentMediaStagingTests
     }
 
     [Fact]
-    public async Task Import_reuses_an_image_whose_id_already_holds_the_same_file()
+    public async Task Import_reuses_an_image_whose_id_already_holds_the_same_file_and_details()
     {
         var v1 = Bytes("photo v1");
         _library.Seed(Photo, v1);
-        _library.Assets[Photo] = _library.Assets[Photo] with { DefaultAltText = "Target alt" };
+        _library.Assets[Photo] = _library.Assets[Photo] with
+        {
+            DefaultAltText = "A photo", Caption = "Caption", Credit = "Credit", Tags = ["one", "two"]
+        };
         var blobsBefore = _library.Blobs.Count;
         var bundle = new ContentBundle { MediaAssets = [BundleAsset(Photo, (7, v1))], MediaFiles = Files(v1) };
         var result = new ContentImportResult();
@@ -225,9 +228,66 @@ public class ContentMediaStagingTests
         Assert.Equal(1, map.TargetVersion(Photo, 7));
         Assert.Equal(blobsBefore, _library.Blobs.Count);
         Assert.Equal(1, _library.Assets[Photo].CurrentVersion);
-        Assert.Equal("Target alt", _library.Assets[Photo].DefaultAltText);
         Assert.Equal(1, result.MediaAssetsReused);
+        Assert.Equal(0, result.MediaAssetsUpdated);
         Assert.Equal(0, _cleaner.Calls);
+        // Nothing changed, so nothing is written.
+        Assert.Equal(0, _library.MetadataUpdates);
+    }
+
+    // The bundle wins: an image that is already here takes the bundle's alt text, caption, credit
+    // and tags, as it takes the bundle's current file.
+    [Fact]
+    public async Task Import_gives_an_existing_image_the_bundle_details()
+    {
+        var v1 = Bytes("photo v1");
+        _library.Seed(Photo, v1);
+        var bundle = new ContentBundle { MediaAssets = [BundleAsset(Photo, (1, v1))], MediaFiles = Files(v1) };
+        var result = new ContentImportResult();
+
+        await Sut().ImportAsync(bundle, result);
+
+        var asset = _library.Assets[Photo];
+        Assert.Equal("A photo", asset.DefaultAltText);
+        Assert.Equal("Caption", asset.Caption);
+        Assert.Equal("Credit", asset.Credit);
+        Assert.Equal(["one", "two"], asset.Tags);
+        Assert.Equal(1, asset.CurrentVersion);
+        Assert.Equal(1, _library.MetadataUpdates);
+        Assert.Equal(1, result.MediaAssetsUpdated);
+        Assert.Equal(0, result.MediaAssetsReused);
+    }
+
+    // Blank bundle details clear the target's, and tags that differ only in case count once.
+    [Fact]
+    public async Task Import_clears_details_the_bundle_leaves_blank()
+    {
+        var v1 = Bytes("photo v1");
+        _library.Seed(Photo, v1);
+        var item = BundleAsset(Photo, (1, v1)) with { Caption = "  ", Credit = null, Tags = ["One", "one", " two "] };
+        var result = new ContentImportResult();
+
+        await Sut().ImportAsync(new ContentBundle { MediaAssets = [item], MediaFiles = Files(v1) }, result);
+
+        var asset = _library.Assets[Photo];
+        Assert.Null(asset.Caption);
+        Assert.Null(asset.Credit);
+        Assert.Equal(["One", "two"], asset.Tags);
+        Assert.Equal(1, result.MediaAssetsUpdated);
+    }
+
+    [Fact]
+    public async Task Import_counts_an_image_with_a_new_file_and_new_details_once()
+    {
+        _library.Seed(Photo, Bytes("target file"));
+        var incoming = Bytes("bundle file");
+        var result = new ContentImportResult();
+
+        await Sut().ImportAsync(new ContentBundle { MediaAssets = [BundleAsset(Photo, (1, incoming))], MediaFiles = Files(incoming) }, result);
+
+        Assert.Equal(2, _library.Assets[Photo].CurrentVersion);
+        Assert.Equal("A photo", _library.Assets[Photo].DefaultAltText);
+        Assert.Equal(1, result.MediaAssetsUpdated);
     }
 
     [Fact]
@@ -579,7 +639,18 @@ public class ContentMediaStagingTests
                 .Where(v => v.AssetId == assetId).OrderByDescending(v => v.Version).ToList());
 
         public Task<MediaAssetPage> ListAsync(MediaAssetQuery query, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<bool> UpdateMetadataAsync(Guid assetId, MediaAssetMetadata metadata, CancellationToken ct = default) => throw new NotSupportedException();
+        public int MetadataUpdates { get; private set; }
+
+        public Task<bool> UpdateMetadataAsync(Guid assetId, MediaAssetMetadata metadata, CancellationToken ct = default)
+        {
+            if (!Assets.TryGetValue(assetId, out var asset)) return Task.FromResult(false);
+            MetadataUpdates++;
+            Assets[assetId] = asset with
+            {
+                DefaultAltText = metadata.DefaultAltText, Caption = metadata.Caption, Credit = metadata.Credit, Tags = metadata.Tags
+            };
+            return Task.FromResult(true);
+        }
         public Task<IReadOnlyList<MediaAssetDto>> FindBySha256Async(string sha256, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<MediaUsagePage>> GetUsagePagesAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<MediaUsageBlock>> GetUsageBlocksAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();

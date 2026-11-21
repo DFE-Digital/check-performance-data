@@ -168,4 +168,50 @@ public sealed class ContentStagingMediaTests(PlaywrightFixture fixture) : Seedin
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media/{newRichTextImage}");
         await Expect(Page.Locator("main.admin-main")).ToContainTextAsync($"Staged text {_run}");
     }
+
+    // The bundle wins: an image that is already here takes the bundle's alt text again, after an
+    // editor changed it here.
+    [Fact]
+    public async Task An_image_already_here_takes_the_bundle_details()
+    {
+        await SignInAsAdminAsync();
+        var image = await UploadAsync(48, 24);
+        var segment = $"e2e-staging-wins-{_run}";
+        var page = await PageAsync(segment, $"Staged wins {_run}", "image", new()
+        {
+            ["mediaId"] = image.ToString(), ["alt"] = "Widget alt", ["decorative"] = "false",
+            ["caption"] = "", ["credit"] = "", ["width"] = "full", ["align"] = "", ["href"] = "",
+            ["crop"] = "", ["aspect"] = "", ["focal"] = "",
+        });
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media/{image}");
+        await Page.GetByLabel("Default alt text").FillAsync("Alt text from the bundle");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save image details" }).ClickAsync();
+        await Expect(Page.GetByLabel("Default alt text")).ToHaveValueAsync("Alt text from the bundle");
+
+        var bundle = JsonNode.Parse(await ExportAsync(page))!.AsObject();
+        var pages = bundle["pageNodes"]!.AsArray();
+        foreach (var node in pages.Where(n => n!["id"]!.GetValue<Guid>() != page).ToList())
+            pages.Remove(node);
+
+        // An editor here changes the alt text after the export.
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media/{image}");
+        await Page.GetByLabel("Default alt text").FillAsync("Alt text changed here");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save image details" }).ClickAsync();
+        await Expect(Page.GetByLabel("Default alt text")).ToHaveValueAsync("Alt text changed here");
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/content-staging");
+        await Page.Locator("input[name='bundle']").SetInputFilesAsync(new FilePayload
+        {
+            Name = "bundle.json", MimeType = "application/json", Buffer = Encoding.UTF8.GetBytes(bundle.ToJsonString())
+        });
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Preview import" }).ClickAsync();
+        await Expect(Page.Locator("h1")).ToHaveTextAsync("Review import");
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Confirm import" }).ClickAsync();
+        await Page.WaitForURLAsync($"{Fixture.BaseUrl}/admin/content-staging");
+        await Expect(Page.Locator("main.admin-main")).ToContainTextAsync("Images: 0 added, 1 updated, 0 already here.");
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media/{image}");
+        await Expect(Page.GetByLabel("Default alt text")).ToHaveValueAsync("Alt text from the bundle");
+    }
 }

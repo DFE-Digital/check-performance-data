@@ -16,8 +16,8 @@ public sealed class ContentImportResult
     public int HomeBannersUpdated { get; set; }
     public int HomeBannersSkipped { get; set; }
 
-    // Media library images: added with their bundle id, given new versions from the bundle, or
-    // already holding every file the bundle carries for them.
+    // Media library images: added with their bundle id, updated (a new version or the bundle's
+    // details), or already holding every file and detail the bundle carries for them.
     public int MediaAssetsCreated { get; set; }
     public int MediaAssetsUpdated { get; set; }
     public int MediaAssetsReused { get; set; }

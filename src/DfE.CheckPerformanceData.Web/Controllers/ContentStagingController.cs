@@ -540,7 +540,7 @@ public sealed class ContentStagingController(
         $" Home page banners: {r.HomeBannersCreated} added, {r.HomeBannersUpdated} updated, {r.HomeBannersSkipped} skipped." +
         (r.MediaAssetsCreated + r.MediaAssetsUpdated + r.MediaAssetsReused == 0
             ? ""
-            : $" Images: {r.MediaAssetsCreated} added, {r.MediaAssetsUpdated} given a new version, {r.MediaAssetsReused} already here.");
+            : $" Images: {r.MediaAssetsCreated} added, {r.MediaAssetsUpdated} updated, {r.MediaAssetsReused} already here.");
 
     // Records an AuditEntry for a content-staging import, so an incident responder can answer
     // "who imported what, when" without replaying the bundle.

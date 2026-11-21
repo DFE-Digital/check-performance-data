@@ -1102,7 +1102,7 @@ public sealed class ContentStagingControllerTests
     // The summary says what happened to the images an import brought, and says nothing about
     // images when the bundle had none.
     [Theory]
-    [InlineData(2, 1, 3, "Images: 2 added, 1 given a new version, 3 already here.")]
+    [InlineData(2, 1, 3, "Images: 2 added, 1 updated, 3 already here.")]
     [InlineData(0, 0, 0, null)]
     public async Task Import_Confirm_SummarisesTheImages(int created, int updated, int reused, string? expected)
     {

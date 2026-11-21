@@ -211,11 +211,16 @@ Import runs before the pages and blocks, and keeps each image's id. For each ver
 
 - The bundle's current version is matched only with the target's current version. So the image
   always ends on the bundle's current file.
-- An image that already exists keeps its own alt text, caption, credit and tags.
+- **The bundle wins.** An image that already exists takes the bundle's alt text, caption, credit
+  and tags. A blank value in the bundle clears the value here. The details are written only when
+  they differ, so an import that changes nothing writes nothing.
+- Import never deletes an image, even one that no content uses after the import. To remove
+  unused images, use "Delete unused images" on the library page (see below).
 - Type, size and the animated flag come from the cleaning, never from the bundle.
 - Every problem is a warning, not an error. A page that uses an image that is in neither the
   bundle nor the library gets a warning.
-- The result says "Images: N added, N given a new version, N already here."
+- The result says "Images: N added, N updated, N already here." An image is updated when it gets
+  a new version, new details, or both.
 - **Limit:** images are base64 text inside `bundle.json`. They count against the 50 MB bundle
   limit and the 64 MB upload limit. For a large set of images, export fewer pages at a time.
 

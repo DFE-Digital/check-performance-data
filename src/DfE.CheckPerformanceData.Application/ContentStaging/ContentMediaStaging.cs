@@ -24,8 +24,10 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 /// </list>
 /// The bundle's current version is reused only when it matches the target's current version, so
 /// the image always ends on the bundle's current file. Older versions match any target version.
-/// Type, size and the animated flag come from the cleaned file, never from the bundle. An image
-/// that already exists keeps its own alt text, caption, credit and tags.
+/// Type, size and the animated flag come from the cleaned file, never from the bundle. The bundle
+/// wins: an image that already exists takes the bundle's alt text, caption, credit and tags. They
+/// are written only when they differ, so an import that changes nothing writes nothing. Import
+/// never deletes an image.
 /// </summary>
 public sealed class ContentMediaStaging(
     IMediaAssetRepository assets,
@@ -226,11 +228,13 @@ public sealed class ContentMediaStaging(
             added++;
         }
 
+        var detailsChanged = existing is not null && await TakeBundleDetailsAsync(existing, asset, ct);
+
         if (existing is null)
         {
             if (added > 0) result.MediaAssetsCreated++;
         }
-        else if (added > 0)
+        else if (added > 0 || detailsChanged)
         {
             result.MediaAssetsUpdated++;
         }
@@ -297,6 +301,20 @@ public sealed class ContentMediaStaging(
             result.Warnings.Add($"The {user} uses image {id}, which is in neither the bundle nor this library, so it does not show.");
     }
 
+    // Gives an existing image the bundle's details, when they differ. Returns true when it wrote them.
+    private async Task<bool> TakeBundleDetailsAsync(MediaAssetDto existing, MediaAssetBundleItem asset, CancellationToken ct)
+    {
+        var wanted = Metadata(asset);
+        var same = existing.DefaultAltText == wanted.DefaultAltText
+            && existing.Caption == wanted.Caption
+            && existing.Credit == wanted.Credit
+            && existing.Tags.SequenceEqual(wanted.Tags, StringComparer.Ordinal);
+        if (same) return false;
+        return await assets.UpdateMetadataAsync(existing.Id, wanted, ct);
+    }
+
+    // The same rules as the library's own save: trimmed, blank is none, and a tag that repeats
+    // (ignoring case) keeps its first spelling.
     private static MediaAssetMetadata Metadata(MediaAssetBundleItem asset) => new(
         Cut(asset.DefaultAltText, MaxAltText),
         Cut(asset.Caption, MaxCaption),
@@ -304,7 +322,7 @@ public sealed class ContentMediaStaging(
         asset.Tags
             .Select(t => Cut(t, MaxTagLength))
             .OfType<string>()
-            .Distinct(StringComparer.Ordinal)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(MaxTags)
             .ToList());
 

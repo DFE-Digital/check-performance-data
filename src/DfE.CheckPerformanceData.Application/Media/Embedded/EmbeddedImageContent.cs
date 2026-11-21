@@ -39,6 +39,19 @@ public static partial class EmbeddedImageContent
     }
 
     /// <summary>
+    /// The embedded images in rich text that is never a widget tree, such as a content block's
+    /// value. Text that starts like JSON is still read as rich text.
+    /// </summary>
+    public static IReadOnlyList<EmbeddedImage> FindInRichText(string? content) =>
+        string.IsNullOrWhiteSpace(content) || !MayHaveDataUri(content) ? [] : FindInHtml(content);
+
+    /// <summary>As <see cref="Replace"/>, for rich text that is never a widget tree.</summary>
+    public static string ReplaceInRichText(string content, IReadOnlyDictionary<string, LibraryImageSrc> bySrc) =>
+        bySrc.Count == 0 || string.IsNullOrWhiteSpace(content) || !MayHaveDataUri(content)
+            ? content
+            : ReplaceInHtml(content, bySrc);
+
+    /// <summary>
     /// Points each embedded image whose src is a key of <paramref name="bySrc"/> at that library
     /// image. Others are left as they are. Returns the same string when nothing changes.
     /// </summary>

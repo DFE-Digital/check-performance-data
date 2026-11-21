@@ -37,6 +37,8 @@ public sealed class EmbeddedImageMoverTests
 
         Assert.Equal(0, result.PagesChanged);
         await _store.DidNotReceive().GetCurrentVersionsAsync(second.NodeId, Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
+        // Content blocks come after the pages, so a stopped run does not start them either.
+        await _store.DidNotReceive().ListContentBlocksAsync(Arg.Any<CancellationToken>());
         await _store.Received(1).RecordRunAsync(Arg.Any<Guid>(), result, Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 }

@@ -29,7 +29,7 @@ public sealed class MediaEmbeddedImagesControllerTests
     [Fact]
     public async Task TheDryRun_ShowsTheScan_AndMovesNothing()
     {
-        var scan = new EmbeddedImageScan([], 0, 0, 0, 0, 2, 1);
+        var scan = new EmbeddedImageScan([], 0, 0, 0, 0, 2, []);
         _mover.ScanAsync(Arg.Any<CancellationToken>()).Returns(scan);
 
         var result = await _sut.DryRun(CancellationToken.None);
@@ -45,7 +45,7 @@ public sealed class MediaEmbeddedImagesControllerTests
     [Fact]
     public async Task TheRun_MovesTheImages_AndShowsWhatItDid()
     {
-        var moved = new EmbeddedImageMoveResult(1, 2, 2, 0, []);
+        var moved = new EmbeddedImageMoveResult(1, 2, 2, 0, [], 0, []);
         _mover.MoveAsync(Arg.Any<CancellationToken>()).Returns(moved);
 
         var result = await _sut.Run(CancellationToken.None);

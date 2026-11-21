@@ -185,13 +185,16 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
                 Assert.Equal(("Broken chart", EmbeddedImageProblems.Unreadable), (refusal.Image, refusal.Reason));
             });
         Assert.Equal(3, scan.VersionCount);
-        Assert.Equal(5, scan.ImageCount);
+        Assert.Equal(6, scan.ImageCount);
         Assert.Equal(2, scan.UniqueImageCount);
         Assert.Equal(Png(8, 8, SKColors.Red).Length + Png(6, 4, SKColors.Blue).Length, scan.UniqueBytes);
         Assert.Equal(1, scan.PagesToMoveCount);
-        Assert.Equal(4, scan.ImagesToMoveCount);
+        // Four on the page and one in the block.
+        Assert.Equal(5, scan.ImagesToMoveCount);
         Assert.Equal(1, scan.OlderVersionCount);
-        Assert.Equal(1, scan.ContentBlockCount);
+        var block = Assert.Single(scan.Blocks);
+        Assert.Equal(("embedded-block", 1, true), (block.Block.Key, block.ImageCount, block.CanMove));
+        Assert.Equal(1, scan.BlocksToMoveCount);
 
         // A dry run changes nothing.
         Assert.Empty(await LibraryAsync());
@@ -401,6 +404,103 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         Assert.Contains("The editor's newer text", Html(Assert.Single(await VersionsAsync(page)).Content));
         await using var read = postgres.CreateContext();
         Assert.False(await read.AuditEntries.AnyAsync(a => a.EntityType == "EmbeddedImageMove" && a.Timestamp >= _started));
+    }
+
+    // ── content blocks ───────────────────────────────────────────────────────
+
+    private async Task<int> BlockAsync(string key, string value)
+    {
+        await using var ctx = postgres.CreateContext();
+        var service = new Application.ContentBlocks.ContentBlockService(
+            new ContentBlockRepository(ctx), new Application.Common.HtmlRenderingService());
+        var block = await service.SaveAsync(new Application.ContentBlocks.SaveContentBlockDto { Key = key, BlockType = "Content", Value = value });
+        return block.Id;
+    }
+
+    private async Task<ContentBlock> ReadBlockAsync(int id)
+    {
+        await using var ctx = postgres.CreateContext();
+        return await ctx.ContentBlocks.AsNoTracking().Include(b => b.Versions).SingleAsync(b => b.Id == id);
+    }
+
+    // A content block's usages are recorded, so its embedded images move like a page's. The block
+    // changes in place and gets a new version in its history, as an editor's save does.
+    [Fact]
+    public async Task ARun_MovesTheImagesInContentBlocks_AndRecordsTheirUsages()
+    {
+        var page = await PageAsync("k-page");
+        await SaveDraftAsync(page, Tree(Img(Red, "Red square")));
+        var blockId = await BlockAsync("embedded-block", "<p>Block</p>" + Img(Red, "Block red") + Img(Blue, "Block blue"));
+
+        var result = await MoveAsync();
+
+        Assert.Equal(1, result.PagesChanged);
+        Assert.Equal(1, result.BlocksChanged);
+        Assert.Equal(3, result.ImagesMoved);
+        Assert.Equal(2, result.ImagesCreated);
+        Assert.Equal(1, result.DuplicatesReused);
+        Assert.Empty(result.BlockFailures);
+
+        var library = await LibraryAsync();
+        var red = Assert.Single(library, x => x.FileName == "Red square.png");
+        var blue = Assert.Single(library, x => x.FileName == "Block blue.png");
+        var block = await ReadBlockAsync(blockId);
+        Assert.Equal(
+            $"<p>Block</p><img src=\"/media/{red.Id}/1/red-square.png\" data-media-id=\"{red.Id}\" alt=\"Block red\">"
+            + $"<img src=\"/media/{blue.Id}/1/block-blue.png\" data-media-id=\"{blue.Id}\" alt=\"Block blue\">",
+            block.Value);
+        Assert.Equal([1, 2], block.Versions.OrderBy(v => v.VersionNumber).Select(v => v.VersionNumber));
+        Assert.Equal(block.Value, block.Versions.Single(v => v.VersionNumber == 2).Value);
+
+        await using var ctx = postgres.CreateContext();
+        Assert.Equal(
+            new[] { red.Id, blue.Id }.Order(),
+            await ctx.MediaUsages.Where(u => u.ContentBlockId == blockId).Select(u => u.AssetId).OrderBy(id => id).ToListAsync());
+        var audit = Assert.Single(await ctx.AuditEntries.AsNoTracking()
+            .Where(e => e.EntityType == "EmbeddedImageMove" && e.Action == "ContentBlockChanged" && e.Timestamp >= _started).ToListAsync());
+        Assert.Equal(blockId.ToString(), audit.EntityId);
+        Assert.Contains("\"key\":\"embedded-block\"", audit.NewValues);
+        var summary = Assert.Single(await ctx.AuditEntries.AsNoTracking()
+            .Where(e => e.EntityType == "EmbeddedImageMove" && e.Action == "Run" && e.Timestamp >= _started).ToListAsync());
+        Assert.Contains("\"blocksChanged\":1", summary.NewValues);
+
+        // A second run finds nothing left.
+        var scan = await ScanAsync();
+        Assert.Empty(scan.Blocks);
+    }
+
+    [Fact]
+    public async Task ABlockWithAnImageThatCannotMove_IsLeftAsItWas()
+    {
+        var value = Img(Red, "Fine") + Img(Broken, "Broken chart");
+        var blockId = await BlockAsync("broken-block", value);
+
+        var result = await MoveAsync();
+
+        var failure = Assert.Single(result.BlockFailures);
+        Assert.Equal(("broken-block", "Broken chart", EmbeddedImageProblems.Unreadable),
+            (failure.Block.Key, failure.Reasons[0].Image, failure.Reasons[0].Reason));
+        Assert.Equal(0, result.BlocksChanged);
+        Assert.Equal(value, (await ReadBlockAsync(blockId)).Value);
+        Assert.Empty(await LibraryAsync());
+    }
+
+    [Fact]
+    public async Task SavingABlock_ChangesNothing_WhenAnEditorSavedItMeanwhile()
+    {
+        var value = Img(Red, "x");
+        var blockId = await BlockAsync("busy-block", value);
+        await BlockAsync("busy-block", "<p>The editor's newer text</p>");
+
+        bool saved;
+        await using (var ctx = postgres.CreateContext())
+        {
+            saved = await new EmbeddedImageStore(ctx).SaveContentBlockAsync(new EmbeddedImageBlockSave(
+                new EmbeddedImageBlock(blockId, "busy-block", value), "<p>moved</p>", 1, []), "test-user");
+        }
+
+        Assert.False(saved);
+        Assert.Equal("<p>The editor's newer text</p>", (await ReadBlockAsync(blockId)).Value);
     }
 
     private sealed class FixedKey : IMediaUrlSigningKey

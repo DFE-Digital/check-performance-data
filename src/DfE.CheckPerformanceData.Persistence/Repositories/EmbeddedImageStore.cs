@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
-// The page content that the embedded-image move reads and changes. "Current" is the one rule in
+// The page and content block content that the embedded-image move reads and changes. "Current" is the one rule in
 // PageVersionStates (live, scheduled and the working draft), as the media library uses elsewhere.
 //
 // A current version changes in place. A system rewrite that leaves the page looking the same adds
@@ -63,8 +63,68 @@ public sealed class EmbeddedImageStore(IPortalDbContext context) : IEmbeddedImag
             .CountAsync(v => !current.Contains(v.Id) && EF.Functions.ILike(v.Content, DataImagePattern), ct);
     }
 
-    public Task<int> CountContentBlocksAsync(CancellationToken ct = default) =>
-        context.ContentBlocks.CountAsync(b => EF.Functions.ILike(b.Value, DataImagePattern), ct);
+    // Only a Content block shows its value as rich text, so only its images show.
+    public async Task<IReadOnlyList<EmbeddedImageBlock>> ListContentBlocksAsync(CancellationToken ct = default) =>
+        await context.ContentBlocks
+            .AsNoTracking()
+            .Where(b => b.BlockType == "Content" && EF.Functions.ILike(b.Value, DataUriPattern))
+            .OrderBy(b => b.Key)
+            .Select(b => new EmbeddedImageBlock(b.Id, b.Key, b.Value))
+            .ToListAsync(ct);
+
+    // A block saved here gets a new version, as an editor's save does, so its history shows the
+    // change and a revert can go back to the embedded images. Its plain text does not change.
+    public async Task<bool> SaveContentBlockAsync(EmbeddedImageBlockSave save, string? userId, CancellationToken ct = default)
+    {
+        try
+        {
+            var block = await context.ContentBlocks.FirstOrDefaultAsync(b => b.Id == save.Block.Id, ct);
+            if (block is null || block.Value != save.Block.Content) return false;
+
+            var now = DateTime.UtcNow;
+            block.Value = save.Content;
+            block.UpdatedAt = now;
+            block.UpdatedBy = userId;
+            var latest = await context.ContentBlockVersions
+                .Where(v => v.ContentBlockId == block.Id)
+                .MaxAsync(v => (int?)v.VersionNumber, ct) ?? 0;
+            context.ContentBlockVersions.Add(new ContentBlockVersion
+            {
+                ContentBlockId = block.Id,
+                Value = save.Content,
+                VersionNumber = latest + 1,
+                CreatedAt = now,
+                CreatedBy = userId,
+            });
+
+            await MediaUsageWriter.StageBlockAsync(context, block, ct);
+
+            context.AuditEntries.Add(new AuditEntry
+            {
+                EntityType = AuditActivities.EmbeddedImageMove,
+                // The block id, so the entry can be matched to the block's own audit rows.
+                EntityId = block.Id.ToString(),
+                Action = AuditActivities.EmbeddedImageContentBlockChangedAction,
+                Timestamp = now,
+                UserId = userId,
+                NewValues = JsonSerializer.Serialize(new
+                {
+                    ContentBlockId = block.Id,
+                    block.Key,
+                    Version = latest + 1,
+                    save.ImagesMoved,
+                    save.AssetIds
+                }, AuditJson)
+            });
+
+            await context.SaveChangesAsync(ct);
+            return true;
+        }
+        finally
+        {
+            context.ChangeTracker.Clear();
+        }
+    }
 
     public async Task<bool> SavePageAsync(EmbeddedImagePageSave save, string? userId, CancellationToken ct = default)
     {
@@ -142,7 +202,10 @@ public sealed class EmbeddedImageStore(IPortalDbContext context) : IEmbeddedImag
                 result.ImagesCreated,
                 result.DuplicatesReused,
                 PagesFailed = result.Failures.Count,
-                FailedPageIds = result.Failures.Select(f => f.Page.NodeId)
+                FailedPageIds = result.Failures.Select(f => f.Page.NodeId),
+                result.BlocksChanged,
+                BlocksFailed = result.BlockFailures.Count,
+                FailedBlockIds = result.BlockFailures.Select(f => f.Block.Id)
             }, AuditJson)
         });
         await context.SaveChangesAsync(ct);

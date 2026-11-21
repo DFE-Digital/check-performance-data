@@ -831,6 +831,7 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("ViewData[\"Title\"] = \"Move embedded images\"", view);
 		Assert.Contains("<h1 class=\"govuk-heading-xl\">Move embedded images</h1>", view);
 		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Pages</caption>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Content blocks</caption>", view);
 		Assert.Contains("scope=\"col\"", view);
 		Assert.Contains("class=\"govuk-summary-list\"", view);
 		// A literal action gets no token from the tag helper.
@@ -848,6 +849,7 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("ViewData[\"Title\"] = \"Embedded images moved\"", view);
 		Assert.Contains("<h1 class=\"govuk-heading-xl\">Embedded images moved</h1>", view);
 		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Pages left as they were</caption>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Content blocks left as they were</caption>", view);
 		Assert.Contains("scope=\"col\"", view);
 		Assert.Contains("<span class=\"govuk-visually-hidden\">Warning</span>", view);
 		Assert.DoesNotContain("href=\"#\"", view);

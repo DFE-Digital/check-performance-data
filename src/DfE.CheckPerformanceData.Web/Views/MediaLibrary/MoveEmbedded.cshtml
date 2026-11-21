@@ -4,6 +4,12 @@
 @{
     ViewData["Title"] = "Move embedded images";
     var left = Model.Pages.Count - Model.PagesToMoveCount;
+    var blocksLeft = Model.Blocks.Count - Model.BlocksToMoveCount;
+    var moveTargets = Model.BlocksToMoveCount == 0
+        ? Plural(Model.PagesToMoveCount, "page", "pages")
+        : Model.PagesToMoveCount == 0
+            ? Plural(Model.BlocksToMoveCount, "content block", "content blocks")
+            : $"{Plural(Model.PagesToMoveCount, "page", "pages")} and {Plural(Model.BlocksToMoveCount, "content block", "content blocks")}";
 }
 @functions {
     private static string Plural(int n, string one, string many) => n == 1 ? $"1 {one}" : $"{n} {many}";
@@ -16,8 +22,9 @@
         <h1 class="govuk-heading-xl">Move embedded images</h1>
 
         <p class="govuk-body">
-            Older pages hold some images inside their text, as embedded images. This moves each one into
-            the media library, and changes the page to use the library image. The page looks the same.
+            Older pages and content blocks hold some images inside their text, as embedded images. This
+            moves each one into the media library, and changes the page or block to use the library
+            image. It looks the same.
         </p>
         <p class="govuk-body">
             Only the current versions of a page change: the live version, a scheduled version and the
@@ -25,8 +32,12 @@
             images, and those images still show when you preview an older version.
         </p>
         <p class="govuk-body">
+            A content block changes in place too, and its version history gets a new version.
+        </p>
+        <p class="govuk-body">
             An image the library already holds is used again, not stored twice. If an image on a page
-            cannot move, the whole page is left as it is. Nothing changes until you select the button.
+            or in a block cannot move, the whole page or block is left as it is. Nothing changes until
+            you select the button.
         </p>
     </div>
 </div>
@@ -72,11 +83,18 @@
         </dd>
     </div>
     <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Content blocks</dt>
-        <dd class="govuk-summary-list__value" data-move-embedded-blocks="@Model.ContentBlockCount">
-            @Plural(Model.ContentBlockCount, "block holds", "blocks hold") embedded images. Content blocks do not change,
-            because the library does not record where a block uses an image.
+        <dt class="govuk-summary-list__key">Content blocks with embedded images</dt>
+        <dd class="govuk-summary-list__value" data-move-embedded-blocks="@Model.Blocks.Count">@Model.Blocks.Count</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Content blocks to change</dt>
+        <dd class="govuk-summary-list__value" data-move-embedded-blocks-to-move="@Model.BlocksToMoveCount">
+            @Plural(Model.BlocksToMoveCount, "content block", "content blocks")
         </dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Content blocks left as they are</dt>
+        <dd class="govuk-summary-list__value" data-move-embedded-blocks-left="@blocksLeft">@blocksLeft</dd>
     </div>
 </dl>
 
@@ -128,12 +146,58 @@ else
     </table>
 }
 
-@if (Model.PagesToMoveCount > 0)
+@if (Model.Blocks.Count == 0)
+{
+    <p class="govuk-body" data-move-embedded-no-blocks>No content block holds an embedded image.</p>
+}
+else
+{
+    <table class="govuk-table" data-move-embedded-blocks-table>
+        <caption class="govuk-table__caption govuk-table__caption--m">Content blocks</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Content block</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Images</th>
+                <th scope="col" class="govuk-table__header">What happens</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Blocks)
+            {
+                var key = Uri.EscapeDataString(row.Block.Key);
+                <tr class="govuk-table__row" data-move-embedded-block="@row.Block.Id">
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/admin/content-blocks?edit=@key#edit-@key">@row.Block.Key</a>
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ImageCount</td>
+                    <td class="govuk-table__cell">
+                        @if (row.CanMove)
+                        {
+                            <strong class="govuk-tag govuk-tag--green">Will move</strong>
+                        }
+                        else
+                        {
+                            <strong class="govuk-tag govuk-tag--red">Left as it is</strong>
+                            <ul class="govuk-list govuk-list--bullet govuk-!-margin-top-2" data-move-embedded-refusals>
+                                @foreach (var refusal in row.Refusals)
+                                {
+                                    <li>@refusal.Image: @refusal.Reason</li>
+                                }
+                            </ul>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (Model.PagesToMoveCount > 0 || Model.BlocksToMoveCount > 0)
 {
     <form method="post" action="/admin/media/move-embedded" data-move-embedded-form>
         @Html.AntiForgeryToken()
         <button type="submit" class="govuk-button" data-module="govuk-button" data-prevent-double-click="true">
-            Move @Plural(Model.ImagesToMoveCount, "image", "images") on @Plural(Model.PagesToMoveCount, "page", "pages")
+            Move @Plural(Model.ImagesToMoveCount, "image", "images") on @moveTargets
         </button>
     </form>
 }

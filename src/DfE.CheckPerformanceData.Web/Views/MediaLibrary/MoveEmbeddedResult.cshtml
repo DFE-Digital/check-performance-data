@@ -15,21 +15,23 @@
 
         <p class="govuk-body" data-move-embedded-result
            data-pages-changed="@Model.PagesChanged" data-images-moved="@Model.ImagesMoved"
-           data-images-created="@Model.ImagesCreated" data-duplicates-reused="@Model.DuplicatesReused">
-            Moved @Plural(Model.ImagesMoved, "image", "images") on @Plural(Model.PagesChanged, "page", "pages").
+           data-images-created="@Model.ImagesCreated" data-duplicates-reused="@Model.DuplicatesReused"
+           data-blocks-changed="@Model.BlocksChanged">
+            Moved @Plural(Model.ImagesMoved, "image", "images") on @Plural(Model.PagesChanged, "page", "pages")
+            and @Plural(Model.BlocksChanged, "content block", "content blocks").
         </p>
         <ul class="govuk-list govuk-list--bullet">
             <li>@Plural(Model.ImagesCreated, "new image was", "new images were") added to the media library.</li>
-            <li>@Plural(Model.DuplicatesReused, "image was", "images were") already in the library, so the pages use the existing image.</li>
+            <li>@Plural(Model.DuplicatesReused, "image was", "images were") already in the library, so the pages and blocks use the existing image.</li>
         </ul>
 
-        @if (Model.Failures.Count > 0)
+        @if (Model.Failures.Count > 0 || Model.BlockFailures.Count > 0)
         {
             <div class="govuk-warning-text">
                 <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
                 <strong class="govuk-warning-text__text">
                     <span class="govuk-visually-hidden">Warning</span>
-                    @Plural(Model.Failures.Count, "page was", "pages were") left as they were.
+                    @Plural(Model.Failures.Count, "page", "pages") and @Plural(Model.BlockFailures.Count, "content block", "content blocks") were left as they were.
                 </strong>
             </div>
         }
@@ -52,6 +54,38 @@
                 <tr class="govuk-table__row" data-move-embedded-failure="@failure.Page.NodeId">
                     <td class="govuk-table__cell">
                         <a class="govuk-link" href="/admin/pages/@failure.Page.NodeId/edit">@failure.Page.Title</a>
+                    </td>
+                    <td class="govuk-table__cell">
+                        <ul class="govuk-list">
+                            @foreach (var reason in failure.Reasons)
+                            {
+                                <li>@reason.Image: @reason.Reason</li>
+                            }
+                        </ul>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (Model.BlockFailures.Count > 0)
+{
+    <table class="govuk-table" data-move-embedded-block-failures>
+        <caption class="govuk-table__caption govuk-table__caption--m">Content blocks left as they were</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Content block</th>
+                <th scope="col" class="govuk-table__header">Why</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var failure in Model.BlockFailures)
+            {
+                var key = Uri.EscapeDataString(failure.Block.Key);
+                <tr class="govuk-table__row" data-move-embedded-block-failure="@failure.Block.Id">
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/admin/content-blocks?edit=@key#edit-@key">@failure.Block.Key</a>
                     </td>
                     <td class="govuk-table__cell">
                         <ul class="govuk-list">

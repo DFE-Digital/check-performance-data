@@ -44,6 +44,7 @@ public static class AuditActivities
     /// </summary>
     public const string EmbeddedImageMove = "EmbeddedImageMove";
     public const string EmbeddedImagePageChangedAction = "PageChanged";
+    public const string EmbeddedImageContentBlockChangedAction = "ContentBlockChanged";
     public const string EmbeddedImageRunAction = "Run";
 
     /// <summary>

@@ -1,7 +1,15 @@
-// Media library images in the rich text editor (TinyMCE).
+// Media library images in the rich text editor (TinyMCE). Every rich text editor (page widgets,
+// wiki pages and content blocks) starts through init, so they all get the same image settings.
 //
-//   RichTextMedia.options(textarea) // tinymce.init options for library images
-//   RichTextMedia.setup(editor)     // call from the tinymce.init setup function
+//   RichTextMedia.init(textarea, config) // tinymce.init with config plus the settings below
+//   RichTextMedia.options(textarea)      // tinymce.init options for library images
+//   RichTextMedia.setup(editor)          // call from the tinymce.init setup function
+//
+// init adds the image plugin, and runs config.setup before the library setup. textarea must be
+// the element itself, because the stored data: images are read from its value.
+//
+// When the page has no picker (the editor may not use the library), the editor takes no pasted
+// or dropped image, so it never stores a new data: copy.
 //
 // - The image dialog's browse button opens the media picker. The chosen image fills the
 //   source with its stored file, and the alt text with the library's default alt text.
@@ -44,7 +52,7 @@
             // Addresses stay as written. Otherwise the editor rewrites /media/... and every link
             // relative to the editor's own page, which breaks them on the published page.
             convert_urls: false,
-            paste_data_images: true,
+            paste_data_images: !!library,
             automatic_uploads: !!library,
             images_reuse_filename: false,
             images_file_types: 'png,jpg,jpeg,gif,webp'
@@ -121,5 +129,19 @@
             });
     }, true);
 
-    window.RichTextMedia = { options: options, setup: setup };
+    function init(textarea, config) {
+        var own = config.setup;
+        var plugins = (config.plugins || '').split(/\s+/).filter(Boolean);
+        if (plugins.indexOf('image') < 0) { plugins.push('image'); }
+        return tinymce.init(Object.assign({}, config, options(textarea), {
+            target: textarea,
+            plugins: plugins.join(' '),
+            setup: function (editor) {
+                if (own) { own(editor); }
+                setup(editor);
+            }
+        }));
+    }
+
+    window.RichTextMedia = { options: options, setup: setup, init: init };
 })();

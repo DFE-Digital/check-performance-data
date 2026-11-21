@@ -37,18 +37,27 @@
         }
     </form>
 
+    @* The media picker dialog, outside the save form (it has its own antiforgery token). The picker
+       needs the content-pages grant. Images come from the media library (see rich-text-media.js). *@
+    @if (Model.CanUseMediaLibrary)
+    {
+        @await Html.PartialAsync("~/Views/Shared/ContentPages/_MediaPicker.cshtml")
+        <script src="~/js/media-picker.js" asp-append-version="true"></script>
+    }
+    <script src="~/js/rich-text-media.js" asp-append-version="true"></script>
     <script src="~/lib/tinymce/tinymce.min.js"></script>
     <script>
         (function () {
             'use strict';
             if (typeof tinymce === 'undefined') return;
+            var textarea = document.getElementById('cb-@Model.Key');
+            if (!textarea) return;
 
-            tinymce.init({
-                selector: '#cb-@Model.Key',
+            window.RichTextMedia.init(textarea, {
                 height: 400,
                 menubar: true,
-                plugins: 'lists link table code wordcount searchreplace fullscreen',
-                toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link table | warningtext | code fullscreen',
+                plugins: 'lists link table code wordcount searchreplace fullscreen image',
+                toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | warningtext | code fullscreen',
                 style_formats: [
                     { title: 'Heading 2 (section)', block: 'h2', classes: 'govuk-heading-l' },
                     { title: 'Heading 3 (sub-section)', block: 'h3', classes: 'govuk-heading-m' },

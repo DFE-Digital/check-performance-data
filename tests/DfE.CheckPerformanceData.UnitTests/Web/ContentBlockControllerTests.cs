@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using DfE.CheckPerformanceData.Application.Admin;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -11,11 +13,31 @@ public sealed class ContentBlockControllerTests
 {
     private readonly IContentBlockService _service = Substitute.For<IContentBlockService>();
     private readonly IPageNodeService _pageNodeService = Substitute.For<IPageNodeService>();
+    private readonly IAdminAccessPolicy _access = Substitute.For<IAdminAccessPolicy>();
     private readonly ContentBlockController _sut;
 
     public ContentBlockControllerTests()
     {
-        _sut = new ContentBlockController(_service, _pageNodeService);
+        _sut = new ContentBlockController(_service, _pageNodeService, _access)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() }
+        };
+    }
+
+    // The media picker and its upload are for people who edit pages. A block editor without that
+    // grant gets an editor with no library, which also takes no pasted images.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Index_OffersTheMediaLibrary_OnlyToPeopleWhoEditPages(bool canEditPages)
+    {
+        _service.GetAllAsync().Returns([]);
+        _access.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "content-pages").Returns(canEditPages);
+
+        var result = await _sut.Index(edit: "home-content");
+
+        var model = Assert.IsType<ContentBlocksAdminViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(canEditPages, model.CanUseMediaLibrary);
     }
 
     // --- Index: content-blocks management page ---

@@ -341,8 +341,7 @@
 
             // Images come from the media library (see rich-text-media.js): picked in the image
             // dialog, or pasted and dropped, which uploads them to the library.
-            tinymce.init(Object.assign({
-                target: textarea,
+            window.RichTextMedia.init(textarea, {
                 height: 360,
                 menubar: true,
                 plugins: 'lists link table code wordcount searchreplace fullscreen image',
@@ -384,10 +383,9 @@
                                 '</strong></div>');
                         }
                     });
-                    window.RichTextMedia.setup(editor);
                     editor.on('change', function () { editor.save(); });
                 }
-            }, window.RichTextMedia.options(textarea)));
+            });
         }
 
         document.querySelectorAll('details').forEach(function (details) {

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using DfE.CheckPerformanceData.Application.Admin;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Admin;
@@ -10,11 +11,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // The content-blocks management surface — inline editor, save, versions and revert. Gated by
-// the content-blocks section grant.
+// the content-blocks section grant. The editor offers the media library only to people who also
+// have the content-pages grant, which gates the picker and its upload.
 [RequireAdminSection(AdminNavKeys.ContentBlocks)]
 public sealed partial class ContentBlockController(
     IContentBlockService contentBlockService,
-    IPageNodeService pageNodeService) : Controller
+    IPageNodeService pageNodeService,
+    IAdminAccessPolicy accessPolicy) : Controller
 {
     // The content-blocks management page: every block in one place, edited inline one after
     // another. ?edit=<key> opens that block's editor (reusing the same save endpoint).
@@ -44,6 +47,7 @@ public sealed partial class ContentBlockController(
             FilterPagePath = filterPath,
             FilterPageTitle = filterPageTitle,
             TotalBlockCount = allBlocks.Count,
+            CanUseMediaLibrary = edit is not null && await accessPolicy.CanAccessAsync(User, AdminNavKeys.ContentPages),
         });
     }
 

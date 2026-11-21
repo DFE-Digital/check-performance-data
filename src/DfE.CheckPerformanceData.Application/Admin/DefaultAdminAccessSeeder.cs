@@ -5,7 +5,8 @@ namespace DfE.CheckPerformanceData.Application.Admin;
 //   * Editor (cypmd_content_access_user)  →  the CMS-authoring set: content-pages,
 //     content-blocks, home-banners, media, content-staging, deleted-pages, seed-sample-pages (see below)
 // Additional grants added through the settings UI are preserved; the seeder never overwrites
-// existing rows.
+// existing rows. A database made before the media library got "media" for both roles once, from
+// the GrantMediaSection migration, so a later removal from the editor role sticks.
 public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repository)
 {
     public const string AdminRole = "cypmd_admin";

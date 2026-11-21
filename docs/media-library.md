@@ -147,9 +147,12 @@ content import and new renditions. The default is 2. Other requests wait at the 
 - **The editors work without the picker.** The Image widget keeps its "Image ID" field, so an
   editor can type the id of an image that someone gives them. The link to the library is not
   shown. The rich text editor takes no pasted or dropped images.
-- A new database gives `media` to the admin role and to the editor role. **On a database that
-  existed before the media library, tick Media for the editor role in Role settings.** The admin
-  role gets every section on each start.
+- A new database gives `media` to the admin role (`cypmd_admin`) and to the editor role
+  (`cypmd_content_access_user`).
+- A database made before the media library gets `media` for both roles from the
+  `GrantMediaSection` migration. EF runs a migration only once. So if an admin later removes Media
+  from the editor role in Role settings, it stays removed.
+- The admin role always has every section. Each start tops it up.
 
 ## Moving embedded images
 

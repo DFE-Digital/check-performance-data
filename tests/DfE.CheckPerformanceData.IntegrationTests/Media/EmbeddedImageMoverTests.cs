@@ -13,6 +13,7 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SkiaSharp;
@@ -538,6 +539,54 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         var versions = await VersionsAsync(page);
         Assert.Equal(2, versions.Count);
         Assert.True(versions[1].IsCurrent);
+    }
+
+    [Fact]
+    public async Task SavingAPage_ChangesNothing_WhenAnEditorAddedAVersionWithTheSameNumberMeanwhile()
+    {
+        var page = await PageAsync("j-page");
+        await SaveDraftAsync(page, Tree(Img(Red, "x")));
+        await PublishDraftAsync(page);
+        var live = Assert.Single(await VersionsAsync(page));
+
+        // The editor's save lands between the move's read of the version numbers and its save, so
+        // both want version 2.
+        bool saved;
+        var editor = new SaveFirst(() => SaveDraftAsync(page, Tree("<p>The editor's new draft</p>")));
+        await using (var ctx = postgres.CreateRetryingContext(editor))
+        {
+            saved = await new EmbeddedImageStore(ctx).SavePageAsync(new EmbeddedImagePageSave(
+                new EmbeddedImagePage(page, "Page", "j-page", "content"),
+                [new EmbeddedImageVersionChange(live.Id, live.Content, Tree("<p>moved</p>"))],
+                1, []), "test-user");
+        }
+
+        Assert.True(editor.Ran);
+        Assert.False(saved);
+        var versions = await VersionsAsync(page);
+        Assert.Equal(2, versions.Count);
+        AssertUnchanged(live, versions[0], isCurrent: true);
+        Assert.Contains("The editor's new draft", Html(versions[1].Content));
+        await using var read = postgres.CreateContext();
+        Assert.False(await read.AuditEntries.AnyAsync(a => a.EntityType == "EmbeddedImageMove" && a.Timestamp >= _started));
+        Assert.False(await read.MediaUsages.AnyAsync(u => u.PageNodeId == page));
+    }
+
+    // Runs another save, once, just before the first save of the context it is added to.
+    private sealed class SaveFirst(Func<Task> other) : SaveChangesInterceptor
+    {
+        public bool Ran { get; private set; }
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (!Ran)
+            {
+                Ran = true;
+                await other();
+            }
+            return result;
+        }
     }
 
     // ── content blocks ───────────────────────────────────────────────────────

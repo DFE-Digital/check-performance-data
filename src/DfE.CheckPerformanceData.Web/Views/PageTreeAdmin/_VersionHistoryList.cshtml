@@ -34,7 +34,7 @@ else
             @{ var now = DateTime.UtcNow; }
             @foreach (var v in Model.Versions)
             {
-                var st = PageVersionStatus.Of(v.IsCurrent, v.PublishFrom, now);
+                var st = PageVersionStatus.Of(v, Model.Versions, now);
                 // A <form> cannot be a direct child of <tr>, so the per-row form lives in the
                 // Actions cell and the date inputs in the other cells associate with it via form=.
                 var formId = $"version-form-{v.VersionId}";

@@ -8,7 +8,8 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
 // Moving images embedded in page content into the media library, as the dev admin. A published
 // page holds an inline data: PNG. The dry run lists the page; the run moves the image; the live
-// page then shows signed copies from the library, the library holds the image, and a second dry
+// page then shows signed copies from the library, the library holds the image, the page history
+// has a new live version while the old version still shows its embedded image, and a second dry
 // run finds nothing left on the page.
 //
 // The image has a unique e2e-{guid} alt text, which becomes its library name. The page and the
@@ -109,6 +110,21 @@ public sealed class MediaMoveEmbeddedTests(PlaywrightFixture fixture) : SeedingP
         await Expect(Page.Locator($"a[href='/admin/media/{mediaId}']").First).ToBeVisibleAsync();
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media/{mediaId}");
         await Expect(Page.Locator("h1")).ToHaveTextAsync($"{alt}.png");
+
+        // The move added a new live version. The old version stays in the history, as it was.
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/pages/{pageId}/edit");
+        var history = Page.Locator("#version-history + p + table tbody tr");
+        await Expect(history).ToHaveCountAsync(2);
+        var newRow = history.Filter(new() { Has = Page.Locator($"a[href='/admin/pages/{pageId}/versions/2/preview']") });
+        var oldRow = history.Filter(new() { Has = Page.Locator($"a[href='/admin/pages/{pageId}/versions/1/preview']") });
+        await Expect(newRow.Locator(".govuk-tag")).ToHaveTextAsync("Live");
+        await Expect(oldRow.Locator(".govuk-tag")).ToHaveTextAsync("Past");
+
+        // The old version still shows its embedded image. The new one shows the library image.
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/pages/{pageId}/versions/1/preview");
+        await Expect(Page.Locator($"main img[alt='{alt}']")).ToHaveAttributeAsync("src", dataUri);
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/pages/{pageId}/versions/2/preview");
+        await Expect(Page.Locator($"main img[alt='{alt}']")).ToHaveAttributeAsync("data-media-id", mediaId.ToString());
 
         // A second dry run finds nothing left on the page.
         await Page.GotoAsync($"{Fixture.BaseUrl}{MoveUrl}");

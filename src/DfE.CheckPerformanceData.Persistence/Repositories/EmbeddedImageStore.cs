@@ -2,25 +2,28 @@ using System.Text.Json;
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.Media.Embedded;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 // The page and content block content that the embedded-image move reads and changes. "Current" is the one rule in
 // PageVersionStates (live, scheduled and the working draft), as the media library uses elsewhere.
 //
-// A current version changes in place. A system rewrite that leaves the page looking the same adds
-// no version, as the media usage rebuild and a replaced image do: a new version would reorder the
-// history and could not sit well between a live version, a scheduled one and a draft. A draft
-// saved here bumps its minor number, as an editor's save does; a published or scheduled version
-// keeps its number and window. The generic audit capture records each version's old and new
-// content, and this store adds one readable entry for the page.
+// A page change adds versions, as every page change does. Each current version that changes gets a
+// new version with the next number: a live version a new published version, a scheduled version a
+// new scheduled version, both on the same window, and the draft a new draft. On the same window
+// the higher number wins (LiveVersionResolver and PageVersionStates), so the new version replaces
+// the old one, which stays in the history as it was. The generic audit capture records the new
+// versions, and this store adds one readable entry for the page.
 public sealed class EmbeddedImageStore(IPortalDbContext context) : IEmbeddedImageStore
 {
     private const string DataUriPattern = "%data:%";
     private const string DataImagePattern = "%data:image%";
+    private const string VersionNumberIndex = "IX_PageNodeVersions_PageNodeId_VersionId";
 
     // Read back by the audit log with the same (camelCase) options.
     private static readonly JsonSerializerOptions AuditJson = new(JsonSerializerDefaults.Web);
@@ -130,45 +133,82 @@ public sealed class EmbeddedImageStore(IPortalDbContext context) : IEmbeddedImag
     {
         try
         {
+            var now = DateTime.UtcNow;
+            var nodeId = save.Page.NodeId;
             var ids = save.Versions.Select(v => v.VersionRowId).ToList();
-            var entities = await context.PageNodeVersions
-                .Where(v => v.PageNodeId == save.Page.NodeId && ids.Contains(v.Id))
+            var current = PageVersionStates.CurrentVersionIds(context, now);
+            var sources = await context.PageNodeVersions
+                .Where(v => v.PageNodeId == nodeId && ids.Contains(v.Id) && current.Contains(v.Id))
                 .ToDictionaryAsync(v => v.Id, ct);
 
-            // Every version must still hold what was read, or the page is left for the next run.
+            // Every version must still be current and hold what was read, or the page is left for
+            // the next run. An editor who saved or published the page meanwhile wins.
             if (save.Versions.Any(change =>
-                    !entities.TryGetValue(change.VersionRowId, out var entity) || entity.Content != change.ExpectedContent))
+                    !sources.TryGetValue(change.VersionRowId, out var source) || source.Content != change.ExpectedContent))
                 return false;
 
-            var now = DateTime.UtcNow;
-            foreach (var change in save.Versions)
+            var windows = await context.PageNodeVersions
+                .AsNoTracking()
+                .Where(v => v.PageNodeId == nodeId)
+                .Select(v => new { v.Id, v.VersionId, v.PublishFrom, v.PublishTo, v.IsCurrent })
+                .ToListAsync(ct);
+
+            // New versions are numbered in the order of the versions they replace, so a new
+            // draft stays above a new live version, as the editor expects.
+            var next = windows.Max(w => w.VersionId);
+            var changes = new List<(PageNodeVersion Old, PageNodeVersion New, EmbeddedVersionState State)>();
+            foreach (var change in save.Versions.OrderBy(c => sources[c.VersionRowId].VersionId))
             {
-                var entity = entities[change.VersionRowId];
-                entity.Content = change.Content;
-                if (entity.PublishFrom is null) entity.MinorVersion += 1;
-                entity.UpdatedDate = now;
-                entity.UpdatedBy = userId;
+                var old = sources[change.VersionRowId];
+                var copy = new PageNodeVersion
+                {
+                    Id = Guid.NewGuid(),
+                    PageNodeId = nodeId,
+                    VersionId = ++next,
+                    // A draft is a new draft (minor 1, as AddVersionAsync). A published or
+                    // scheduled version is published (minor 0) on the same window.
+                    MinorVersion = old.PublishFrom is null ? 1 : 0,
+                    PublishFrom = old.PublishFrom,
+                    PublishTo = old.PublishTo,
+                    Content = change.Content,
+                    BodyPlainText = old.BodyPlainText,
+                    CreatedDate = now,
+                    UpdatedDate = now,
+                    CreatedBy = userId,
+                    UpdatedBy = userId
+                };
+                context.PageNodeVersions.Add(copy);
+                changes.Add((old, copy, State(old.PublishFrom, now)));
             }
 
+            SetLiveFlags(nodeId, now, sources,
+                windows.Select(w => (w.Id, w.VersionId, w.PublishFrom, w.PublishTo, w.IsCurrent)).ToList(),
+                changes.Select(c => c.New).ToList());
+
             await MediaUsageWriter.StageAsync(context,
-                entities.Values.Select(e => new MediaUsageWriter.VersionContent(e.Id, e.PageNodeId, e.Content)).ToList(),
+                changes.Select(c => new MediaUsageWriter.VersionContent(c.New.Id, nodeId, c.New.Content)).ToList(),
                 keepPins: false, ct);
 
             context.AuditEntries.Add(new AuditEntry
             {
                 EntityType = AuditActivities.EmbeddedImageMove,
                 // The page id, so the entry can be matched to the page's own audit rows.
-                EntityId = save.Page.NodeId.ToString(),
+                EntityId = nodeId.ToString(),
                 Action = AuditActivities.EmbeddedImagePageChangedAction,
                 Timestamp = now,
                 UserId = userId,
                 NewValues = JsonSerializer.Serialize(new
                 {
-                    PageNodeId = save.Page.NodeId,
+                    PageNodeId = nodeId,
                     save.Page.Path,
-                    Versions = save.Versions
-                        .Select(v => entities[v.VersionRowId])
-                        .Select(e => new { e.VersionId, State = State(e.PublishFrom, now).ToString() }),
+                    Versions = changes.Select(c => new
+                    {
+                        State = c.State.ToString(),
+                        OldVersionId = c.Old.VersionId,
+                        OldId = c.Old.Id,
+                        NewVersionId = c.New.VersionId,
+                        NewId = c.New.Id
+                    }),
                     save.ImagesMoved,
                     save.AssetIds
                 }, AuditJson)
@@ -177,11 +217,43 @@ public sealed class EmbeddedImageStore(IPortalDbContext context) : IEmbeddedImag
             await context.SaveChangesAsync(ct);
             return true;
         }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+                   { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: VersionNumberIndex })
+        {
+            // An editor added a version with the same number meanwhile. The next run tries again.
+            return false;
+        }
         finally
         {
             // A page's content can be large. Nothing tracked is needed after the save, and a
             // failed save must not leave changes that a later save would write.
             context.ChangeTracker.Clear();
+        }
+    }
+
+    // IsCurrent caches which version is live, as RecomputeCurrentAsync does after a publish. Only
+    // the flag changes on an old version. A version that is not loaded is updated by its key alone.
+    private void SetLiveFlags(
+        Guid nodeId, DateTime now, IReadOnlyDictionary<Guid, PageNodeVersion> loaded,
+        IReadOnlyList<(Guid Id, int VersionId, DateTime? PublishFrom, DateTime? PublishTo, bool IsCurrent)> existing,
+        IReadOnlyList<PageNodeVersion> added)
+    {
+        var liveId = LiveVersionResolver.Resolve(
+            existing.Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo))
+                .Concat(added.Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo))),
+            now);
+
+        foreach (var version in added)
+            version.IsCurrent = version.VersionId == liveId;
+
+        foreach (var version in existing.Where(v => v.IsCurrent != (v.VersionId == liveId)))
+        {
+            if (!loaded.TryGetValue(version.Id, out var entity))
+            {
+                entity = new PageNodeVersion { Id = version.Id, PageNodeId = nodeId, IsCurrent = version.IsCurrent };
+                context.PageNodeVersions.Attach(entity);
+            }
+            entity.IsCurrent = !version.IsCurrent;
         }
     }
 

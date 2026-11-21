@@ -50,6 +50,9 @@ See [domain-model.md](domain-model.md) for when the rows are written.
 - A content block always shows the current version.
 - Replacing a file adds version N+1 and moves the pins of current page versions and blocks to it,
   in the same save. Older page versions keep their pins.
+- "Current" page versions are the live version, each scheduled version and the working draft. A
+  scheduled version is not current when a higher-numbered version has the same start and lasts
+  at least as long, because that version goes live instead.
 - An image that any page version or block uses cannot be deleted.
 
 ## Serving and signed renditions
@@ -184,8 +187,21 @@ pages (live, scheduled and draft) and in content blocks.
 2. **Move images** uploads each image to the library and changes the content to use it.
 3. An image that the library already holds is used again.
 
-- The change is made in place. It makes no new page version. A draft's minor version goes up. A
-  live or scheduled version keeps its number and its dates.
+- Each current version that changes gets a new page version with the next number. The run
+  does what an editor's publish does, with the library images in place of the embedded ones:
+  - A live version gets a new published version with the same "publish from" and "publish to".
+    The new version goes live at once, because the higher number wins on the same window.
+  - A scheduled version gets a new scheduled version with the same dates. The old one shows as
+    "Replaced" in the version history. It does not go live.
+  - A draft gets a new draft.
+- The old versions stay in the version history as they were. They keep their embedded images,
+  and a preview of them still shows those images. Only the live flag of the old live version
+  changes.
+- The URL, the live and draft versions and the schedule stay as they were. The new versions show
+  the person who ran the move in "Modified by". A page version has no field for a note.
+- `media_usages` rows are written for the new versions only.
+- A page is skipped, and listed in the result, when an editor saves or publishes it during the
+  run. The next run tries it again.
 - A content block gets a new block version, as an editor's save does.
 - Each page or block changes completely or not at all. If the library refuses an image, the
   item is left as it was and the result lists it.

@@ -20,9 +20,10 @@ using SkiaSharp;
 namespace DfE.CheckPerformanceData.IntegrationTests.Media;
 
 // Moving images embedded as data: URIs into the media library, end to end: a real database, real
-// blob storage (Azurite) and the real upload pipeline. Only current page versions change, in place:
-// no page version is added, a live version stays published and a draft stays a draft. Older
-// versions keep their embedded images. Each page changes completely or not at all.
+// blob storage (Azurite) and the real upload pipeline. Each current page version gets a new version
+// with the moved images: a live version a new live version, a scheduled version a new scheduled
+// version with the same window, and a draft a new draft. The old versions stay in the history as
+// they were, with their embedded images. Each page changes completely or not at all.
 [Collection(nameof(PostgresCollection))]
 public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFixture azurite)
     : IClassFixture<AzuriteFixture>, IAsyncLifetime
@@ -204,7 +205,7 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
     // ── run ──────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ARun_StoresEachImageOnce_AndPointsTheCurrentVersionsAtTheLibrary_InPlace()
+    public async Task ARun_StoresEachImageOnce_AndAddsANewVersionForEachCurrentVersion()
     {
         var a = await PageWithLiveAndDraftAsync();
         var d = await PageAsync("d-page");
@@ -227,29 +228,52 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         var blue = Assert.Single(library, x => x.FileName == "embedded-image-2.png");
         Assert.Null(blue.DefaultAltText);
 
-        // No version is added. The live version stays published, unchanged but for its images.
+        // The old versions stay in the history as they were. Only the live cache moves on.
         var after = await VersionsAsync(a);
-        Assert.Equal(before.Select(v => v.Id), after.Select(v => v.Id));
-        var (live, draft) = (after[0], after[1]);
+        Assert.Equal(4, after.Count);
+        AssertUnchanged(before[0], after[0], isCurrent: false);
+        AssertUnchanged(before[1], after[1], isCurrent: false);
+
+        // A new published version takes the live version's place, with the same publish window.
+        var (live, draft) = (after[2], after[3]);
+        Assert.Equal(3, live.VersionId);
         Assert.Equal(before[0].PublishFrom, live.PublishFrom);
+        Assert.Equal(before[0].PublishTo, live.PublishTo);
         Assert.Equal(0, live.MinorVersion);
         Assert.True(live.IsCurrent);
-        Assert.DoesNotContain("data:", live.Content);
+        Assert.Equal(before[0].BodyPlainText, live.BodyPlainText);
+        Assert.Equal("test-user", live.CreatedBy);
+        Assert.Equal("test-user", live.UpdatedBy);
         var redSrc = $"src=\"/media/{red.Id}/1/red-square.png\" data-media-id=\"{red.Id}\"";
-        var liveHtml = Html(live.Content);
-        Assert.Equal($"<p>Intro</p><img {redSrc} alt=\"Red square\"><img {redSrc} alt=\"Again\">", liveHtml);
+        Assert.Equal($"<p>Intro</p><img {redSrc} alt=\"Red square\"><img {redSrc} alt=\"Again\">", Html(live.Content));
 
-        // The draft is saved as an editor's save is: its minor number goes up.
+        // A new draft takes the draft's place, as an editor's new draft does.
+        Assert.Equal(4, draft.VersionId);
         Assert.Null(draft.PublishFrom);
-        Assert.Equal(before[1].MinorVersion + 1, draft.MinorVersion);
+        Assert.Null(draft.PublishTo);
+        Assert.Equal(1, draft.MinorVersion);
+        Assert.False(draft.IsCurrent);
         Assert.Contains($"data-media-id=\"{blue.Id}\"", Html(draft.Content));
         Assert.DoesNotContain("data:", draft.Content);
 
-        Assert.Contains($"data-media-id=\"{red.Id}\"", Html((await VersionsAsync(d))[0].Content));
+        await using (var pages = postgres.CreateContext())
+        {
+            var service = new PageNodeService(new PageNodeRepository(pages));
+            Assert.Equal(3, (await service.GetLivePageAsync("a-page", DateTime.UtcNow))!.Version.VersionId);
+            Assert.Equal(draft.Content, await service.GetWorkingOrLatestContentAsync(a));
+        }
 
-        // The older version keeps its embedded image.
-        Assert.Contains(Blue, (await VersionsAsync(c))[0].Content);
+        var dVersions = await VersionsAsync(d);
+        Assert.Equal(2, dVersions.Count);
+        Assert.Contains(Red, dVersions[0].Content);
+        Assert.Contains($"data-media-id=\"{red.Id}\"", Html(dVersions[1].Content));
 
+        // The older version keeps its embedded image, and gets no new version.
+        var cVersions = await VersionsAsync(c);
+        Assert.Equal(2, cVersions.Count);
+        Assert.Contains(Blue, cVersions[0].Content);
+
+        // Usages belong to the new versions only.
         await using var ctx = postgres.CreateContext();
         var usages = await ctx.MediaUsages.AsNoTracking().Where(u => u.PageNodeId == a)
             .Select(u => new { u.PageNodeVersionId, u.AssetId, u.AssetVersion }).ToListAsync();
@@ -260,20 +284,47 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
 
         var audit = await ctx.AuditEntries.AsNoTracking().Where(e => e.EntityType == "EmbeddedImageMove" && e.Timestamp >= _started).ToListAsync();
         Assert.Equal(new[] { a, d }.Select(id => id.ToString()).Order(), audit.Where(e => e.Action == "PageChanged").Select(e => e.EntityId).Order());
+        var pageEntry = Assert.Single(audit, e => e.Action == "PageChanged" && e.EntityId == a.ToString());
+        var versions = JsonNode.Parse(pageEntry.NewValues!)!["versions"]!.AsArray();
+        Assert.Equal(2, versions.Count);
+        Assert.Equal(("Live", 1, before[0].Id, 3, live.Id), Change(versions[0]!));
+        Assert.Equal(("Draft", 2, before[1].Id, 4, draft.Id), Change(versions[1]!));
         var summary = Assert.Single(audit, e => e.Action == "Run");
         Assert.Equal("test-user", summary.UserId);
         Assert.Contains("\"pagesChanged\":2", summary.NewValues);
     }
 
+    private static (string, int, Guid, int, Guid) Change(JsonNode v) => (
+        v["state"]!.GetValue<string>(), v["oldVersionId"]!.GetValue<int>(), v["oldId"]!.GetValue<Guid>(),
+        v["newVersionId"]!.GetValue<int>(), v["newId"]!.GetValue<Guid>());
+
+    // Everything but the live cache, which follows the new live version.
+    private static void AssertUnchanged(PageNodeVersion before, PageNodeVersion after, bool isCurrent)
+    {
+        Assert.Equal(before.Id, after.Id);
+        Assert.Equal(before.VersionId, after.VersionId);
+        Assert.Equal(before.Content, after.Content);
+        Assert.Equal(before.BodyPlainText, after.BodyPlainText);
+        Assert.Equal(before.PublishFrom, after.PublishFrom);
+        Assert.Equal(before.PublishTo, after.PublishTo);
+        Assert.Equal(before.MinorVersion, after.MinorVersion);
+        Assert.Equal(before.UpdatedDate, after.UpdatedDate);
+        Assert.Equal(before.UpdatedBy, after.UpdatedBy);
+        Assert.Equal(isCurrent, after.IsCurrent);
+    }
+
     [Fact]
-    public async Task ScheduledVersions_ChangeInPlace_AndStayScheduled()
+    public async Task AScheduledVersion_GetsANewScheduledVersionWithTheSameWindow_AndTheDraftStaysTheDraft()
     {
         var page = await PageAsync("scheduled-page");
         await SaveDraftAsync(page, Tree(Img(Red, "Live")));
         await PublishDraftAsync(page);
         await SaveDraftAsync(page, Tree(Img(Blue, "Soon")));
         var from = DateTime.UtcNow.AddDays(7);
-        await WithServiceAsync(s => s.PublishAsync(page, 2, from, null, "test"));
+        var to = from.AddDays(7);
+        await WithServiceAsync(s => s.PublishAsync(page, 2, from, to, "test"));
+        await SaveDraftAsync(page, Tree("<p>The editor's draft</p>"));
+        var before = await VersionsAsync(page);
 
         var scan = await ScanAsync();
         Assert.Equal([EmbeddedVersionState.Live, EmbeddedVersionState.Scheduled], Assert.Single(scan.Pages).Versions);
@@ -281,10 +332,36 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         await MoveAsync();
 
         var versions = await VersionsAsync(page);
-        Assert.Equal(2, versions.Count);
-        Assert.All(versions, v => Assert.DoesNotContain("data:", v.Content));
-        Assert.Equal(from, versions[1].PublishFrom!.Value, TimeSpan.FromMilliseconds(1));
-        Assert.Equal(0, versions[1].MinorVersion);
+        Assert.Equal(5, versions.Count);
+        AssertUnchanged(before[0], versions[0], isCurrent: false);
+        AssertUnchanged(before[1], versions[1], isCurrent: false);
+        AssertUnchanged(before[2], versions[2], isCurrent: false);
+
+        var (live, scheduled) = (versions[3], versions[4]);
+        Assert.True(live.IsCurrent);
+        Assert.Equal(before[0].PublishFrom, live.PublishFrom);
+        Assert.Contains("data-media-id", live.Content);
+        Assert.Equal(before[1].PublishFrom, scheduled.PublishFrom);
+        Assert.Equal(before[1].PublishTo, scheduled.PublishTo);
+        Assert.Equal(0, scheduled.MinorVersion);
+        Assert.Contains("data-media-id", scheduled.Content);
+        Assert.DoesNotContain("data:", scheduled.Content);
+
+        // The editor's draft is still the one they work on, and the new version goes live on the date.
+        await using (var ctx = postgres.CreateContext())
+        {
+            var service = new PageNodeService(new PageNodeRepository(ctx));
+            Assert.Contains("The editor's draft", Html((await service.GetWorkingOrLatestContentAsync(page))!));
+        }
+        var windows = versions.Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo)).ToList();
+        Assert.Equal(4, LiveVersionResolver.Resolve(windows, DateTime.UtcNow));
+        Assert.Equal(5, LiveVersionResolver.Resolve(windows, from.AddMinutes(1)));
+
+        // The old scheduled version is replaced, so a second run finds nothing on the page.
+        Assert.Empty((await ScanAsync()).Pages);
+        var second = await MoveAsync();
+        Assert.Equal(0, second.PagesChanged);
+        Assert.Equal(5, (await VersionsAsync(page)).Count);
     }
 
     [Fact]
@@ -297,8 +374,11 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         await MoveAsync();
 
         var red = Assert.Single(await LibraryAsync());
-        var saved = Assert.Single(await VersionsAsync(wiki)).Content;
-        Assert.Equal(body.Replace($"src=\"{Red}\"", $"src=\"/media/{red.Id}/1/chart.png\" data-media-id=\"{red.Id}\""), saved);
+        var versions = await VersionsAsync(wiki);
+        Assert.Equal(2, versions.Count);
+        Assert.Equal(body, versions[0].Content);
+        Assert.Null(versions[1].PublishFrom);
+        Assert.Equal(body.Replace($"src=\"{Red}\"", $"src=\"/media/{red.Id}/1/chart.png\" data-media-id=\"{red.Id}\""), versions[1].Content);
     }
 
     [Fact]
@@ -380,7 +460,7 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         Assert.Contains("<rect", stored);
         Assert.DoesNotContain("script", stored, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("onload", stored, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains($"src=\"/media/{asset.Id}/1/logo.svg\"", Html(Assert.Single(await VersionsAsync(page)).Content));
+        Assert.Contains($"src=\"/media/{asset.Id}/1/logo.svg\"", Html((await VersionsAsync(page))[^1].Content));
     }
 
     [Fact]
@@ -404,6 +484,32 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         Assert.Contains("The editor's newer text", Html(Assert.Single(await VersionsAsync(page)).Content));
         await using var read = postgres.CreateContext();
         Assert.False(await read.AuditEntries.AnyAsync(a => a.EntityType == "EmbeddedImageMove" && a.Timestamp >= _started));
+    }
+
+    [Fact]
+    public async Task SavingAPage_ChangesNothing_WhenAnEditorPublishedANewerVersionMeanwhile()
+    {
+        var page = await PageAsync("i-page");
+        await SaveDraftAsync(page, Tree(Img(Red, "x")));
+        await PublishDraftAsync(page);
+        var live = Assert.Single(await VersionsAsync(page));
+        await SaveDraftAsync(page, Tree("<p>The editor's newer page</p>"));
+        await PublishDraftAsync(page);
+
+        bool saved;
+        await using (var ctx = postgres.CreateContext())
+        {
+            saved = await new EmbeddedImageStore(ctx).SavePageAsync(new EmbeddedImagePageSave(
+                new EmbeddedImagePage(page, "Page", "i-page", "content"),
+                [new EmbeddedImageVersionChange(live.Id, live.Content, Tree("<p>moved</p>"))],
+                1, []), "test-user");
+        }
+
+        // The old live version is history now, so the move leaves the page alone.
+        Assert.False(saved);
+        var versions = await VersionsAsync(page);
+        Assert.Equal(2, versions.Count);
+        Assert.True(versions[1].IsCurrent);
     }
 
     // ── content blocks ───────────────────────────────────────────────────────

@@ -23,7 +23,11 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
   (`/admin/media/move-embedded`) writes hand-written `EmbeddedImageMove` rows (camelCase JSON in
   `NewValues`). A page or block row is in the same save as its change:
   - `PageChanged`: one for each page changed. `EntityId` is the page id. The payload carries
-    `pageNodeId`, `path`, `versions` (each `versionId` and `state`), `imagesMoved` and `assetIds`.
+    `pageNodeId`, `path`, `versions`, `imagesMoved` and `assetIds`. Each entry in `versions` is a
+    version that the move replaced: `state` (`Live`, `Scheduled` or `Draft`), `oldVersionId` and
+    `oldId` (the old version's number and row id), and `newVersionId` and `newId` (the new
+    version's number and row id). The generic capture also records each new `PageNodeVersion`
+    as an `Insert` row, and the old live version's `IsCurrent` change as an `Update` row.
   - `ContentBlockChanged`: one for each content block changed. `EntityId` is the block id. The
     payload carries `contentBlockId`, `key`, `version` (the new block version), `imagesMoved` and
     `assetIds`.

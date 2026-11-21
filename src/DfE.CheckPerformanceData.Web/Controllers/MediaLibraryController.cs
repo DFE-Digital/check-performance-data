@@ -176,6 +176,7 @@ public sealed class MediaLibraryController(
                 MediaFileSize.Format(v.SizeBytes),
                 v.Version == asset.CurrentVersion)).ToList(),
             UsagePages = await media.GetUsagePagesAsync(id, ct),
+            UsageBlocks = await media.GetUsageBlocksAsync(id, ct),
             Metadata = form ?? MediaMetadataForm.From(asset),
         };
     }
@@ -189,6 +190,7 @@ public sealed class MediaLibraryController(
         {
             Item = MediaLibraryItemViewModel.From(asset, urls),
             UsagePages = await media.GetUsagePagesAsync(id, ct),
+            UsageBlocks = await media.GetUsageBlocksAsync(id, ct),
         };
     }
 

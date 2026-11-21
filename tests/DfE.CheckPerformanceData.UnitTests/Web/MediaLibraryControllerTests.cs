@@ -135,6 +135,8 @@ public sealed class MediaLibraryControllerTests
         _media.GetAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(asset);
         _media.GetVersionsAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([v2, v1]);
         _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([page]);
+        var block = new MediaUsageBlock(7, "home-intro");
+        _media.GetUsageBlocksAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([block]);
         _urls.Rendition(asset, v2, 960).Returns("/preview-960");
 
         var view = Assert.IsType<ViewResult>(await _sut.Detail(asset.Id, CancellationToken.None));
@@ -155,6 +157,7 @@ public sealed class MediaLibraryControllerTests
         // Each version's thumbnail is made from that version's own file.
         _urls.Received(1).Rendition(asset, v1, 320);
         Assert.Equal([page], model.UsagePages);
+        Assert.Equal([block], model.Usage.Blocks);
         Assert.Equal($"/admin/media/{asset.Id}/delete", model.DeleteUrl);
     }
 
@@ -164,6 +167,7 @@ public sealed class MediaLibraryControllerTests
         _media.GetAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(asset);
         _media.GetVersionsAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([asset.Latest]);
         _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([]);
+        _media.GetUsageBlocksAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([]);
         return asset;
     }
 
@@ -304,6 +308,19 @@ public sealed class MediaLibraryControllerTests
         Assert.Equal("1 page", model.Usage.UsedOn);
         Assert.Equal(["Attendance"], model.Usage.CurrentPages.Select(p => p.Title));
         Assert.Equal(["Old"], model.Usage.OlderPages.Select(p => p.Title));
+    }
+
+    [Fact]
+    public async Task DeleteConfirm_ForAnImageUsedOnlyInAContentBlock_OffersNoDelete()
+    {
+        var asset = Known();
+        _media.GetUsageBlocksAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([new MediaUsageBlock(3, "contact-highlight")]);
+
+        var model = Assert.IsType<MediaDeleteViewModel>(Assert.IsType<ViewResult>(await _sut.DeleteConfirm(asset.Id, CancellationToken.None)).Model);
+
+        Assert.False(model.CanDelete);
+        Assert.Equal("1 content block", model.Usage.UsedOn);
+        Assert.Equal(["contact-highlight"], model.Usage.Blocks.Select(b => b.Key));
     }
 
     [Fact]

@@ -60,4 +60,31 @@ public sealed class MediaUsageSummaryTests
         Assert.True(summary.OnlyInOlderVersions);
         Assert.Equal(expected, summary.UsedOn);
     }
+
+    // A content block always shows its current value, so a block that uses the image is a
+    // current use: the image is in use, and not only in older versions.
+    [Fact]
+    public void Blocks_CountAsCurrentUse()
+    {
+        var blocks = new[] { new MediaUsageBlock(1, "intro"), new MediaUsageBlock(2, "outro") };
+
+        var summary = new MediaUsageSummary([Page("Old", current: false)], blocks);
+
+        Assert.True(summary.IsUsed);
+        Assert.False(summary.OnlyInOlderVersions);
+        Assert.Equal(blocks, summary.Blocks);
+        Assert.Equal("2 content blocks", summary.UsedOn);
+    }
+
+    [Theory]
+    [InlineData(1, 1, "1 page and 1 content block")]
+    [InlineData(2, 3, "2 pages and 3 content blocks")]
+    [InlineData(0, 1, "1 content block")]
+    public void UsedOn_CountsPagesAndBlocks(int pageCount, int blockCount, string expected)
+    {
+        var pages = Enumerable.Range(0, pageCount).Select(i => Page($"P{i}", current: true)).ToList();
+        var blocks = Enumerable.Range(0, blockCount).Select(i => new MediaUsageBlock(i, $"k{i}")).ToList();
+
+        Assert.Equal(expected, new MediaUsageSummary(pages, blocks).UsedOn);
+    }
 }

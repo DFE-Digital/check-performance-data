@@ -28,7 +28,7 @@ public sealed class MediaUsageTrackingTests(PostgresFixture fixture) : IAsyncLif
     public async Task DisposeAsync()
     {
         await using var ctx = fixture.CreateContext();
-        await ctx.MediaUsages.Where(u => _pages.Contains(u.PageNodeId)).ExecuteDeleteAsync();
+        await ctx.MediaUsages.Where(u => u.PageNodeId != null && _pages.Contains(u.PageNodeId.Value)).ExecuteDeleteAsync();
         await ctx.PageNodeVersions.Where(v => _pages.Contains(v.PageNodeId)).ExecuteDeleteAsync();
         await ctx.PageNodes.IgnoreQueryFilters().Where(n => _pages.Contains(n.Id)).ExecuteDeleteAsync();
     }
@@ -217,7 +217,7 @@ public sealed class MediaUsageTrackingTests(PostgresFixture fixture) : IAsyncLif
         await using var read = fixture.CreateContext();
         var versionIds = await read.PageNodeVersions.Where(v => v.PageNodeId == page).Select(v => v.Id).ToListAsync();
         Assert.All(await read.MediaUsages.Where(u => u.PageNodeId == page).ToListAsync(),
-            u => Assert.Contains(u.PageNodeVersionId, versionIds));
+            u => Assert.Contains(u.PageNodeVersionId!.Value, versionIds));
     }
 
     // A copy has the same history as its source, so its older versions keep the source's pins.

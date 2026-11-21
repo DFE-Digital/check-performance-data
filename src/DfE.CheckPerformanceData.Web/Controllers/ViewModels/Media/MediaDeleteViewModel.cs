@@ -3,8 +3,8 @@ using DfE.CheckPerformanceData.Application.Media;
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media;
 
 /// <summary>
-/// The delete page of a library image. An image that any page version uses cannot be deleted, so
-/// the page lists those pages instead of offering the delete button. This includes older page
+/// The delete page of a library image. An image that any page version or content block uses cannot be
+/// deleted, so the page lists them instead of offering the delete button. This includes older page
 /// versions: they must still show the file they were saved with.
 /// </summary>
 public sealed class MediaDeleteViewModel
@@ -15,7 +15,9 @@ public sealed class MediaDeleteViewModel
 
     public required IReadOnlyList<MediaUsagePage> UsagePages { get; init; }
 
-    public MediaUsageSummary Usage => new(UsagePages);
+    public IReadOnlyList<MediaUsageBlock> UsageBlocks { get; init; } = [];
 
-    public bool CanDelete => UsagePages.Count == 0;
+    public MediaUsageSummary Usage => new(UsagePages, UsageBlocks);
+
+    public bool CanDelete => !Usage.IsUsed;
 }

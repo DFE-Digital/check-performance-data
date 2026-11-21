@@ -55,11 +55,13 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
         asset.UpdatedAtUtc = now;
         asset.UpdatedBy = currentUser.Email;
 
-        // Live, scheduled and draft page versions show the newest file, so their usages move to
-        // it in the same save. Older page versions keep the file they were saved with.
+        // Live, scheduled and draft page versions show the newest file, and so does every content
+        // block, so their usages move to it in the same save. Older page versions keep the file
+        // they were saved with.
         var currentPageVersions = PageVersionStates.CurrentVersionIds(context, now);
         var repinned = await context.MediaUsages
-            .Where(u => u.AssetId == assetId && currentPageVersions.Contains(u.PageNodeVersionId))
+            .Where(u => u.AssetId == assetId
+                && (u.ContentBlockId != null || currentPageVersions.Contains(u.PageNodeVersionId!.Value)))
             .ToListAsync(ct);
         foreach (var usage in repinned) usage.AssetVersion = version;
 
@@ -184,14 +186,26 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
     // A page uses the image in its current version when its live, scheduled or draft version does.
     public async Task<IReadOnlyList<MediaUsagePage>> GetUsagePagesAsync(Guid assetId, CancellationToken ct = default)
     {
-        var usages = context.MediaUsages.Where(u => u.AssetId == assetId);
+        var usages = context.MediaUsages.Where(u => u.AssetId == assetId && u.PageNodeId != null);
         var currentPageVersions = PageVersionStates.CurrentVersionIds(context, DateTime.UtcNow);
-        var pageIds = usages.Select(u => u.PageNodeId);
-        var currentPageIds = usages.Where(u => currentPageVersions.Contains(u.PageNodeVersionId)).Select(u => u.PageNodeId);
+        var pageIds = usages.Select(u => u.PageNodeId!.Value);
+        var currentPageIds = usages.Where(u => currentPageVersions.Contains(u.PageNodeVersionId!.Value)).Select(u => u.PageNodeId!.Value);
         return await context.PageNodes.IgnoreQueryFilters().AsNoTracking()
             .Where(n => pageIds.Contains(n.Id))
             .OrderBy(n => n.Title).ThenBy(n => n.Id)
             .Select(n => new MediaUsagePage(n.Id, n.Title, n.Path, n.DeletedDate != null, currentPageIds.Contains(n.Id)))
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<MediaUsageBlock>> GetUsageBlocksAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var blockIds = context.MediaUsages
+            .Where(u => u.AssetId == assetId && u.ContentBlockId != null)
+            .Select(u => u.ContentBlockId!.Value);
+        return await context.ContentBlocks.AsNoTracking()
+            .Where(b => blockIds.Contains(b.Id))
+            .OrderBy(b => b.Key)
+            .Select(b => new MediaUsageBlock(b.Id, b.Key))
             .ToListAsync(ct);
     }
 

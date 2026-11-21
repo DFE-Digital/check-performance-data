@@ -1875,17 +1875,21 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("asset_version");
 
+                    b.Property<int?>("ContentBlockId")
+                        .HasColumnType("integer")
+                        .HasColumnName("content_block_id");
+
                     b.Property<string>("Location")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("location");
 
-                    b.Property<Guid>("PageNodeId")
+                    b.Property<Guid?>("PageNodeId")
                         .HasColumnType("uuid")
                         .HasColumnName("page_node_id");
 
-                    b.Property<Guid>("PageNodeVersionId")
+                    b.Property<Guid?>("PageNodeVersionId")
                         .HasColumnType("uuid")
                         .HasColumnName("page_node_version_id");
 
@@ -1895,6 +1899,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnName("widget_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ContentBlockId")
+                        .HasDatabaseName("ix_media_usages_content_block_id");
 
                     b.HasIndex("PageNodeId")
                         .HasDatabaseName("ix_media_usages_page_node_id");
@@ -1908,6 +1915,8 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("media_usages", null, t =>
                         {
                             t.HasCheckConstraint("ck_media_usages_location", "location IN ('widget', 'richtext')");
+
+                            t.HasCheckConstraint("ck_media_usages_owner", "(page_node_version_id IS NOT NULL AND page_node_id IS NOT NULL AND content_block_id IS NULL) OR (page_node_version_id IS NULL AND page_node_id IS NULL AND content_block_id IS NOT NULL)");
                         });
                 });
 
@@ -2373,18 +2382,22 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.MediaUsage", b =>
                 {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", "ContentBlock")
+                        .WithMany()
+                        .HasForeignKey("ContentBlockId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_media_usages_content_blocks");
+
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.PageNode", null)
                         .WithMany()
                         .HasForeignKey("PageNodeId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
                         .HasConstraintName("fk_media_usages_page_nodes");
 
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.PageNodeVersion", null)
                         .WithMany()
                         .HasForeignKey("PageNodeVersionId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
                         .HasConstraintName("fk_media_usages_page_node_versions");
 
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.MediaAssetVersion", null)
@@ -2393,6 +2406,8 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_media_usages_media_asset_versions");
+
+                    b.Navigation("ContentBlock");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.PageNode", b =>

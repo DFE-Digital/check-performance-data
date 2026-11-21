@@ -881,6 +881,8 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("<h3 class=\"govuk-heading-m\">Used on these pages</h3>", view);
 		Assert.Contains("<h3 class=\"govuk-heading-m\">Only in older versions of these pages</h3>", view);
 		Assert.Contains("href=\"/admin/pages/@usagePage.PageNodeId\">@usagePage.Title<span class=\"govuk-visually-hidden\"> (edit page)</span>", view);
+		Assert.Contains("<h3 class=\"govuk-heading-m\">Used in these content blocks</h3>", view);
+		Assert.Contains(">@block.Key<span class=\"govuk-visually-hidden\"> (edit content block)</span>", view);
 		Assert.DoesNotContain("Html.Raw", view);
 		Assert.DoesNotContain("href=\"#\"", view);
 

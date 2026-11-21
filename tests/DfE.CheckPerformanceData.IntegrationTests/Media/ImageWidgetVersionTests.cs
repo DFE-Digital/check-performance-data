@@ -28,7 +28,7 @@ public sealed class ImageWidgetVersionTests(PostgresFixture fixture) : IAsyncLif
     public async Task DisposeAsync()
     {
         await using var ctx = fixture.CreateContext();
-        await ctx.MediaUsages.Where(u => _pages.Contains(u.PageNodeId)).ExecuteDeleteAsync();
+        await ctx.MediaUsages.Where(u => u.PageNodeId != null && _pages.Contains(u.PageNodeId.Value)).ExecuteDeleteAsync();
         await ctx.PageNodeVersions.Where(v => _pages.Contains(v.PageNodeId)).ExecuteDeleteAsync();
         await ctx.PageNodes.IgnoreQueryFilters().Where(n => _pages.Contains(n.Id)).ExecuteDeleteAsync();
     }

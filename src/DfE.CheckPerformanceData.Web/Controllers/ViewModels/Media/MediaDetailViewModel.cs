@@ -26,7 +26,9 @@ public sealed class MediaDetailViewModel
 
     public required IReadOnlyList<MediaUsagePage> UsagePages { get; init; }
 
-    public MediaUsageSummary Usage => new(UsagePages);
+    public IReadOnlyList<MediaUsageBlock> UsageBlocks { get; init; } = [];
+
+    public MediaUsageSummary Usage => new(UsagePages, UsageBlocks);
 
     public required MediaMetadataForm Metadata { get; init; }
 

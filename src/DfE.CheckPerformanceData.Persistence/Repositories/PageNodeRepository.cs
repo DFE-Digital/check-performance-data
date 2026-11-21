@@ -682,7 +682,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         }
 
         // The copy has the source's history, so its usages keep the source's pinned image versions.
-        var sourceVersionIds = copiedIds.Keys.ToList();
+        var sourceVersionIds = copiedIds.Keys.Cast<Guid?>().ToList();
         var sourceUsages = await context.MediaUsages.AsNoTracking()
             .Where(u => sourceVersionIds.Contains(u.PageNodeVersionId))
             .ToListAsync();
@@ -694,7 +694,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 AssetId = u.AssetId,
                 AssetVersion = u.AssetVersion,
                 PageNodeId = newId,
-                PageNodeVersionId = copiedIds[u.PageNodeVersionId],
+                PageNodeVersionId = copiedIds[u.PageNodeVersionId!.Value],
                 Location = u.Location,
                 WidgetId = u.WidgetId,
             });

@@ -9,7 +9,13 @@ internal sealed class MediaUsageConfiguration : IEntityTypeConfiguration<MediaUs
     public void Configure(EntityTypeBuilder<MediaUsage> builder)
     {
         builder.ToTable("media_usages", t =>
-            t.HasCheckConstraint("ck_media_usages_location", "location IN ('widget', 'richtext')"));
+        {
+            t.HasCheckConstraint("ck_media_usages_location", "location IN ('widget', 'richtext')");
+            // A row belongs to a page version (with its page) or to a content block, never both.
+            t.HasCheckConstraint("ck_media_usages_owner",
+                "(page_node_version_id IS NOT NULL AND page_node_id IS NOT NULL AND content_block_id IS NULL)"
+                + " OR (page_node_version_id IS NULL AND page_node_id IS NULL AND content_block_id IS NOT NULL)");
+        });
 
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
@@ -18,6 +24,7 @@ internal sealed class MediaUsageConfiguration : IEntityTypeConfiguration<MediaUs
         builder.Property(x => x.AssetVersion).HasColumnName("asset_version");
         builder.Property(x => x.PageNodeId).HasColumnName("page_node_id");
         builder.Property(x => x.PageNodeVersionId).HasColumnName("page_node_version_id");
+        builder.Property(x => x.ContentBlockId).HasColumnName("content_block_id");
         builder.Property(x => x.Location).HasColumnName("location").IsRequired().HasMaxLength(20);
         builder.Property(x => x.WidgetId).HasColumnName("widget_id").HasMaxLength(100);
 
@@ -41,10 +48,19 @@ internal sealed class MediaUsageConfiguration : IEntityTypeConfiguration<MediaUs
             .HasConstraintName("fk_media_usages_page_nodes")
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Cascade: a block's usages describe its current value only, so they go with the block.
+        builder.HasOne(x => x.ContentBlock)
+            .WithMany()
+            .HasForeignKey(x => x.ContentBlockId)
+            .HasConstraintName("fk_media_usages_content_blocks")
+            .OnDelete(DeleteBehavior.Cascade);
+
         // Where-used and the delete guard look up by image (and version).
         builder.HasIndex(x => new { x.AssetId, x.AssetVersion }).HasDatabaseName("ix_media_usages_asset_id_asset_version");
         // A page version's usages are replaced together when it is saved.
         builder.HasIndex(x => x.PageNodeVersionId).HasDatabaseName("ix_media_usages_page_node_version_id");
         builder.HasIndex(x => x.PageNodeId).HasDatabaseName("ix_media_usages_page_node_id");
+        // A block's usages are replaced together when it is saved.
+        builder.HasIndex(x => x.ContentBlockId).HasDatabaseName("ix_media_usages_content_block_id");
     }
 }

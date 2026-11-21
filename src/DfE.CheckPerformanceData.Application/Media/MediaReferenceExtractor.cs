@@ -58,6 +58,18 @@ public static partial class MediaReferenceExtractor
         return found.Distinct().ToList();
     }
 
+    /// <summary>
+    /// The library images in a rich-text body that is never a widget tree, such as a content
+    /// block's value. Every image is a rich-text use with no widget path.
+    /// </summary>
+    public static IReadOnlyList<MediaReference> ExtractRichText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return [];
+        var found = new List<MediaReference>();
+        AddFromText(text, null, found);
+        return found.Distinct().ToList();
+    }
+
     private static bool TryParseJson(string content, out JsonNode? json)
     {
         json = null;

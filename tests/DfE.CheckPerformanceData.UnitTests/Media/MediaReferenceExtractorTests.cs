@@ -184,4 +184,15 @@ public sealed class MediaReferenceExtractorTests
             ],
             refs.OrderBy(r => r.AssetId == A ? 0 : 1));
     }
+
+    // A content block's value is rich text, even when it looks like a widget tree.
+    [Fact]
+    public void ExtractRichText_ReadsTheValueAsText_EvenWhenItIsJson()
+    {
+        var content = $"[{{\"kind\":\"widget\",\"type\":\"richtext\",\"props\":{{\"html\":\"<img src='/media/{A}/a.png'>\"}}}}]";
+
+        Assert.Equal([new MediaReference(A, MediaUsageLocations.RichText, "0.0")], MediaReferenceExtractor.Extract(content));
+        Assert.Equal([new MediaReference(A, MediaUsageLocations.RichText, null)], MediaReferenceExtractor.ExtractRichText(content));
+        Assert.Empty(MediaReferenceExtractor.ExtractRichText(null));
+    }
 }

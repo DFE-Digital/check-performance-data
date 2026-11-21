@@ -164,7 +164,8 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
             .ProjectToVersionDto()
             .ToListAsync();
 
-    // Commands — work with tracked entities internally
+    // Commands — work with tracked entities internally. Each command that sets a block's value
+    // also stages the block's media usages, which the same save writes.
 
     public async Task<ContentBlockDto> AddBlockAsync(string key, string blockType, string value, string valuePlainText, Guid? contentId = null, bool appearInSearch = true, string? keywords = null)
     {
@@ -185,6 +186,7 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
             entity.ContentId = id;
 
         context.ContentBlocks.Add(entity);
+        await MediaUsageWriter.StageBlockAsync(context, entity);
         await context.SaveChangesAsync();
 
         return ContentBlockMapper.ToDto(entity);
@@ -206,6 +208,7 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
         if (contentId != Guid.Empty)
             entity.ContentId = contentId;
         entity.UpdatedAt = DateTime.UtcNow;
+        await MediaUsageWriter.StageBlockAsync(context, entity);
     }
 
     public async Task AddVersionAsync(int contentBlockId, string value, int versionNumber)
@@ -243,6 +246,7 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
         entity.Value = newValue;
         entity.ValuePlainText = newValuePlainText;
         entity.UpdatedAt = DateTime.UtcNow;
+        await MediaUsageWriter.StageBlockAsync(context, entity);
     }
 
     public async Task SetAppearInSearchAsync(int id, bool appearInSearch)

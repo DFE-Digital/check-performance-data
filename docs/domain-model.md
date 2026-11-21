@@ -110,7 +110,7 @@ The JSON Schema marks several fields nullable, so the model is hardened for null
 - Each row pins the image version that was current when the page version was saved. A historic page version shows that file.
 - Replacing an image moves the pins of current page versions to the new file, in the same save. Current means live, scheduled or the working draft (`PageVersionStates`). Older versions keep their pins.
 - The image page lists pages whose current version uses the image, and pages where only older versions do. Any usage blocks a delete.
-- `IPageNodeRepository.RebuildMediaUsagesAsync` rebuilds every row from the content. It keeps existing pins, and a second run changes nothing.
+- `IPageNodeRepository.RebuildMediaUsagesAsync` rebuilds every page version's rows from the content. It does not touch content block rows. It keeps existing pins, and a second run changes nothing.
 - A content block also has usages. A row belongs to a page version (with its page) or to a content block, never both (`ck_media_usages_owner`). `ContentBlockRepository` writes a block's rows in the same save as its value: a new block, an edit, a revert and content import. Only a `Content` block holds images, and its value is read as rich text. A block's rows always pin the current image version, because a block always shows the newest file. Replacing an image moves them too. The rows go when the block goes (cascade).
 - The image page lists the content blocks that use the image, with a link to each block's editor. A block usage blocks a delete.
 

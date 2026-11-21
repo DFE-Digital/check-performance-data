@@ -170,4 +170,72 @@ public sealed class RichTextLibraryEditorsE2ETests(PlaywrightFixture fixture) : 
         await Expect(Page.Locator("[data-media-usage-current] a", new() { HasText = title }))
             .ToHaveAttributeAsync("href", $"/admin/pages/{pageId}");
     }
+
+    private const string DotUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    // Types at the end of the first paragraph, so the save has a change to post.
+    private async Task EditTextAsync(ILocator editor)
+    {
+        await editor.FrameLocator("iframe.tox-edit-area__iframe").Locator("body p").First.ClickAsync();
+        await Page.Keyboard.PressAsync("End");
+        await Page.Keyboard.TypeAsync(" edited");
+    }
+
+    // An image a block already holds inline stays exactly as it was: the editor hands it back
+    // rather than uploading it. With no picker on the page (no library), the save still posts.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AnInlineImageInABlock_IsKeptAsItIs_AndTheBlockStillSaves(bool withLibrary)
+    {
+        await SignInAsAdminAsync();
+        var key = await SeedHelpers.SeedContentBlockAsync(Fixture.SeedClient, "inline-image", $"<p>Block text</p><p><img src=\"{DotUri}\" alt=\"Dot\"></p>");
+        if (!withLibrary)
+            await Page.RouteAsync("**/js/media-picker.js*", route => route.AbortAsync());
+        var uploads = 0;
+        Page.Request += (_, request) => { if (request.Url.Contains("/admin/media/picker/upload")) uploads++; };
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/content-blocks?edit={key}#edit-{key}");
+        var editor = Page.Locator($"[id='edit-{key}']");
+        await WaitForEditorAsync(editor);
+        await Expect(editor.FrameLocator("iframe.tox-edit-area__iframe").Locator("img[alt='Dot']")).ToBeVisibleAsync();
+        await EditTextAsync(editor);
+        await editor.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/admin/content-blocks(\?|#|$)"));
+        await Expect(Page.Locator($"[id='edit-{key}']")).ToHaveCountAsync(0);
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/content-blocks?edit={key}#edit-{key}");
+        var saved = await Page.Locator($"[id='cb-{key}']").InputValueAsync();
+        Assert.Contains($"src=\"{DotUri}\"", saved);
+        Assert.Contains("edited", saved);
+        Assert.DoesNotContain("blob:", saved);
+        Assert.Equal(0, uploads);
+    }
+
+    [Fact]
+    public async Task AnInlineImageInAWikiPage_IsKeptAsItIs()
+    {
+        await SignInAsAdminAsync();
+        var segment = $"e2e-wiki-inline-{Guid.NewGuid():N}";
+        var pageId = await CmsSeedHelpers.CreatePageNodeAsync(Fixture.SeedClient, FixtureContent.RootId, "wiki", segment, $"E2E wiki inline {_term}");
+        _pages.Add(pageId);
+        await CmsSeedHelpers.SaveWikiContentAsync(Fixture.SeedClient, pageId, $"<p>Wiki text</p><p><img src=\"{DotUri}\" alt=\"Dot\"></p>");
+        var uploads = 0;
+        Page.Request += (_, request) => { if (request.Url.Contains("/admin/media/picker/upload")) uploads++; };
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/pages/{pageId}/edit");
+        var editor = Page.Locator("form:has(#page-content)");
+        await WaitForEditorAsync(editor);
+        await Expect(editor.FrameLocator("iframe.tox-edit-area__iframe").Locator("img[alt='Dot']")).ToBeVisibleAsync();
+        await EditTextAsync(editor);
+        await editor.GetByRole(AriaRole.Button, new() { Name = "Save page", Exact = true }).ClickAsync();
+        await Page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/pages/{pageId}/edit");
+        var saved = await Page.Locator("#page-content").InputValueAsync();
+        Assert.Contains($"src=\"{DotUri}\"", saved);
+        Assert.Contains("edited", saved);
+        Assert.DoesNotContain("blob:", saved);
+        Assert.Equal(0, uploads);
+    }
 }

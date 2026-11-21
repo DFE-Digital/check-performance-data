@@ -10,9 +10,10 @@ namespace DfE.CheckPerformanceData.Application.Media.Embedded;
 /// Moves images embedded in page content and content blocks as data: URIs into the media library.
 ///
 /// Only current page versions and the blocks' current values change (see
-/// <see cref="IEmbeddedImageStore"/>). Pages, then blocks, are done one at a time, so only one
-/// item's content is in memory, and each is saved on its own: a run that stops part way leaves
-/// finished items finished, and the next run carries on.
+/// <see cref="IEmbeddedImageStore"/>). Pages, then blocks, are done one at a time, and each is
+/// saved on its own: a run that stops part way leaves finished items finished, and the next run
+/// carries on. Only one page's content is in memory. Blocks are short, so the blocks that hold a
+/// data: URI are listed with their values.
 ///
 /// Each page or block changes completely or not at all. Every image in it is decoded first, so an
 /// image that cannot be read stops it before anything is stored. Then each different image

@@ -113,7 +113,9 @@
     }
 
     document.addEventListener('submit', function (e) {
-        if (typeof tinymce === 'undefined' || e.defaultPrevented) { return; }
+        // Without the library nothing uploads, so there is nothing to wait for. The editor keeps
+        // its stored data: images as blob: copies, and waiting would stop the save for good.
+        if (typeof tinymce === 'undefined' || e.defaultPrevented || !picker()) { return; }
         var form = e.target;
         var pending = tinymce.get().filter(function (editor) {
             return form.contains(editor.getElement()) && hasPendingUploads(editor);

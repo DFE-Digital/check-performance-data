@@ -18,6 +18,7 @@
 // - Each library image is saved as <img data-media-id="{id}" src="/media/{id}/...">. The id
 //   comes from the src, so it is always right after the editor changes the source.
 // - A data: image that the page already had stays as it is. The editor does not upload it.
+// - The image dialog can mark an image decorative (an empty alt and role="presentation").
 // - A library image with no alt text, and not marked decorative, shows a warning.
 // - A form submit waits for the uploads, so the saved text never holds a pasted copy.
 (function () {
@@ -52,6 +53,8 @@
             // Addresses stay as written. Otherwise the editor rewrites /media/... and every link
             // relative to the editor's own page, which breaks them on the published page.
             convert_urls: false,
+            // The image dialog's "Image is decorative" option: an empty alt and role="presentation".
+            a11y_advanced_options: true,
             paste_data_images: !!library,
             automatic_uploads: !!library,
             images_reuse_filename: false,
@@ -84,6 +87,12 @@
         return result;
     }
 
+    // The image dialog's "decorative" option writes an empty alt and role="presentation".
+    function isDecorative(img) {
+        var role = (img.getAttribute('role') || '').trim().toLowerCase();
+        return img.getAttribute('alt') !== null && (role === 'presentation' || role === 'none');
+    }
+
     function setup(editor) {
         // Write the library id from the src on every save, and drop a stale id.
         editor.on('PreInit', function () {
@@ -100,8 +109,8 @@
             var img = e.element;
             if (!img || img.nodeName !== 'IMG' || warned.has(img)) { return; }
             if (!MEDIA_SRC.test(img.getAttribute('src') || '')) { return; }
-            if (img.getAttribute('role') === 'presentation') { return; }
             if ((img.getAttribute('alt') || '').trim() !== '') { return; }
+            if (isDecorative(img)) { return; }
             warned.add(img);
             editor.notificationManager.open({ text: NO_ALT, type: 'warning', timeout: 8000 });
         });

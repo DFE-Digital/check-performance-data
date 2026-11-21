@@ -18,8 +18,9 @@ namespace DfE.CheckPerformanceData.Application.Media.Reports;
 /// <remarks>
 /// The alt text follows the renderers. An Image widget's blank alt prop shows the library's text
 /// (null here). A rich-text img with no alt attribute shows the library's text too (null). An img
-/// with <c>role="presentation"</c> or <c>role="none"</c> is decorative. An empty alt with no such
-/// role is empty text: the editor warns about it, so the report does too.
+/// with an empty alt and <c>role="presentation"</c> or <c>role="none"</c> is decorative: the
+/// editor's "decorative" option writes both. An empty alt with no such role is empty text: the
+/// editor warns about it, so the report does too.
 /// </remarks>
 public static class MediaImageUseReader
 {
@@ -130,8 +131,11 @@ public static class MediaImageUseReader
         }
     }
 
+    // The editor's "decorative" option writes both. Without the alt attribute the page shows the
+    // library's text, so the image is not decorative there.
     private static bool IsDecorative(IElement img) =>
-        img.GetAttribute("role")?.Trim().ToLowerInvariant() is "presentation" or "none";
+        img.GetAttribute("role")?.Trim().ToLowerInvariant() is "presentation" or "none"
+        && img.GetAttribute("alt") is { } alt && alt.Trim().Length == 0;
 
     // The caption of a <figure> that holds the image, as readers see it next to the image.
     private static string? FigureCaption(IElement img) =>

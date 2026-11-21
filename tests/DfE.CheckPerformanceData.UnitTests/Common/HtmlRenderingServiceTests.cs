@@ -282,4 +282,15 @@ public sealed class HtmlRenderingServiceTests
         Assert.DoesNotContain("srcset", result);
         Assert.DoesNotContain("sig=", result);
     }
+
+    [Fact]
+    public void RenderHtml_KeepsADecorativeImage_WithItsEmptyAltAndPresentationRole()
+    {
+        // The rich text editor marks an image decorative with an empty alt and role="presentation".
+        var result = _sut.RenderHtml(
+            "<img data-media-id=\"8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11\" src=\"/media/8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11/1/photo.png\" alt=\"\" role=\"presentation\">");
+
+        Assert.Contains("alt=\"\"", result);
+        Assert.Contains("role=\"presentation\"", result);
+    }
 }

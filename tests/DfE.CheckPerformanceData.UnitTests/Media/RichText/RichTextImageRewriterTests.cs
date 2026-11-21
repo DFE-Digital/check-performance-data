@@ -221,4 +221,15 @@ public sealed class RichTextImageRewriterTests
         Assert.Equal("<p>Hi</p>", html);
         await resolver.DidNotReceiveWithAnyArgs().ResolveAsync(default!, default, default);
     }
+
+    [Fact]
+    public void ADecorativeImage_KeepsItsEmptyAltAndItsRole()
+    {
+        var img = Img(RichTextImageRewriter.Rewrite(
+            $"<img data-media-id=\"{Id}\" src=\"/media/{Id}/1/a.png\" alt=\"\" role=\"presentation\">",
+            Found(Media(defaultAlt: "From the library")), _urls, false));
+
+        Assert.Equal("", img.GetAttribute("alt"));
+        Assert.Equal("presentation", img.GetAttribute("role"));
+    }
 }

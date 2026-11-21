@@ -127,4 +127,17 @@ public sealed class MediaImageUseReaderTests
 
         Assert.Empty(MediaImageUseReader.Read(content));
     }
+
+    // The editor's decorative option writes both: an empty alt and role="presentation". A role with
+    // no alt attribute at all is not decorative, because the page then shows the library's text.
+    [Fact]
+    public void ARolePresentationImage_WithNoAltAttribute_IsNotDecorative()
+    {
+        var content = Tree(RichText($"<img data-media-id=\"{A}\" role=\"presentation\">"));
+
+        var use = MediaImageUseReader.Read(content).Single();
+
+        Assert.Null(use.Alt);
+        Assert.False(use.Decorative);
+    }
 }

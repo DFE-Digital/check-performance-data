@@ -168,6 +168,37 @@ public sealed class RichTextMediaE2ETests(PlaywrightFixture fixture) : SeedingPa
         await AssertSignedCopiesLoadAsync(img);
     }
 
+    // The image dialog's decorative option saves an empty alt with role="presentation". The editor
+    // gives no missing-alt warning for it, and the page keeps both.
+    [Fact]
+    public async Task AnImageMarkedDecorative_IsSavedWithAnEmptyAltAndThePresentationRole()
+    {
+        await SignInAsAdminAsync();
+        var mediaId = await UploadUniquePngAsync();
+        var (pageId, url) = await NewRichTextPageAsync();
+        await OpenEditorAsync(pageId);
+
+        await OpenImageDialogAsync();
+        await ImageDialog.Locator(".tox-browse-url").ClickAsync();
+        await ChooseInPickerAsync(mediaId, _term);
+        // TinyMCE hides the checkbox itself and draws its own, inside the label.
+        await ImageDialog.Locator("label.tox-checkbox", new() { HasText = "Image is decorative" }).ClickAsync();
+        await Expect(ImageDialog.GetByLabel("Image is decorative")).ToBeCheckedAsync();
+        await ImageDialog.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await Expect(EditorBody.Locator($"img[src^='/media/{mediaId:D}/'][role='presentation']")).ToBeVisibleAsync();
+        await Expect(Page.Locator(".tox-notification--warning")).ToHaveCountAsync(0);
+
+        await SaveAndPublishAsync(pageId);
+        var saved = await SavedHtmlAsync(pageId);
+        Assert.Contains("role=\"presentation\"", saved);
+        Assert.Contains("alt=\"\"", saved);
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        var img = Page.Locator($"main .govuk-body img[data-media-id='{mediaId:D}']");
+        await Expect(img).ToHaveAttributeAsync("alt", "");
+        await Expect(img).ToHaveAttributeAsync("role", "presentation");
+    }
+
     [Fact]
     public async Task TheImageDialog_TakesTheLibraryAltText_WhenAnImageIsChosen()
     {

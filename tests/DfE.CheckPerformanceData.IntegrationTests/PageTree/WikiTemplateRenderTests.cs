@@ -1,5 +1,7 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
+using DfE.CheckPerformanceData.Application.Media.Serving;
+using DfE.CheckPerformanceData.Application.Media.Widget;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
 using Microsoft.AspNetCore.Hosting;
@@ -14,6 +16,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;
 
@@ -107,6 +110,9 @@ public sealed class WikiTemplateRenderTests
                         .AddApplicationPart(typeof(PageController).Assembly);
                     // Wiki.cshtml injects the sanitiser via @inject IHtmlRenderingService.
                     services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
+                    // The bodies here hold no library image, so neither is called.
+                    services.AddSingleton(Substitute.For<IMediaVersionResolver>());
+                    services.AddSingleton(Substitute.For<IMediaUrlBuilder>());
                 });
                 web.Configure(_ => { });
             })

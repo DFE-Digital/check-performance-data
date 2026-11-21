@@ -633,6 +633,26 @@ public sealed class PageTreeAdminControllerTests
     }
 
     [Fact]
+    public async Task VersionPreview_WikiNode_ShowsTheImageVersionsRecordedForThatPageVersion()
+    {
+        var id = Guid.NewGuid();
+        var versionRowId = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "wiki-page", Path = "wiki-page", Title = "Wiki Page", PageType = "wiki"
+        });
+        _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
+        {
+            new() { Id = versionRowId, VersionId = 2, IsCurrent = false, Content = "<p>Body</p>" }
+        });
+
+        var result = await Sut().VersionPreview(id, 2);
+
+        var vm = Assert.IsType<RenderedPageViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(versionRowId, vm.MediaPageVersionId);
+    }
+
+    [Fact]
     public async Task ContentWidget_WhenTheEditorRefusesTheProps_KeepsTheErrorsAndThePostedValues_ForTheEditPage()
     {
         var id = Guid.NewGuid();

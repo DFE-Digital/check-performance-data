@@ -1,10 +1,20 @@
 @using DfE.CheckPerformanceData.Application.Common
 @using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Application.Media.RichText
+@using DfE.CheckPerformanceData.Application.Media.Serving
+@using DfE.CheckPerformanceData.Application.Media.Widget
 @inject IHtmlRenderingService Renderer
+@inject IMediaVersionResolver MediaResolver
+@inject IMediaUrlBuilder MediaUrls
 @model DfE.CheckPerformanceData.Web.Models.PageTree.RenderedPageViewModel
 @{
     ViewData["Title"] = Model.Title;
     IReadOnlyList<ContentNavItem> nav = Model.Nav ?? [];
+    // The body is rich text: sanitise it, then point each media library image at the version the
+    // page shows, as the rich-text widget does. A version-history preview shows the image versions
+    // recorded for that page version. Previews warn about a missing image; a public page drops it.
+    var body = Renderer.RenderHtml(Model.WikiHtml) ?? string.Empty;
+    body = await MediaResolver.RenderRichTextImagesAsync(body, MediaUrls, Model.MediaPageVersionId, Model.IsPreview);
 }
 
 @if (Model.IsPreview)
@@ -25,7 +35,7 @@
     </div>
     <div class="govuk-grid-column-two-thirds">
         <h1 class="govuk-heading-xl">@Model.Title</h1>
-        @Html.Raw(Renderer.RenderHtml(Model.WikiHtml))
+        @Html.Raw(body)
     </div>
 </div>
 

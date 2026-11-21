@@ -185,7 +185,8 @@ public sealed class PageTreeAdminController(
                 .Select(n => new ContentNavItem(n.Title, "/" + n.Path, [])).ToList();
             return View("~/Views/Page/Wiki.cshtml", new RenderedPageViewModel
             {
-                Title = node.Title, PageType = "wiki", WikiHtml = version.Content, Nav = siblings, IsPreview = true
+                Title = node.Title, PageType = "wiki", WikiHtml = version.Content, Nav = siblings, IsPreview = true,
+                MediaPageVersionId = version.Id
             });
         }
         return NotFound();

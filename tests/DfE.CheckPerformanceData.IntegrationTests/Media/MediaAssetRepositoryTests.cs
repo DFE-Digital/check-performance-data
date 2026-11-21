@@ -310,6 +310,62 @@ public sealed class MediaAssetRepositoryTests(PostgresFixture fixture) : IAsyncL
         }
     }
 
+    // "Delete unused images" against the database: the image a page version started to use after
+    // the confirmation page stays, the unused one goes with every version, and one audit row
+    // records the run as the signed-in user.
+    [Fact]
+    public async Task DeleteUnused_KeepsAnImageThatIsNowUsed_AndRecordsTheRun()
+    {
+        var used = Guid.NewGuid();
+        var unused = Guid.NewGuid();
+        var started = DateTime.UtcNow.AddSeconds(-1);
+        var (nodeId, versionId) = await SeedPageVersionAsync();
+        try
+        {
+            await using (var ctx = fixture.CreateContext())
+            {
+                var repo = new MediaAssetRepository(ctx, new FakeCurrentUserService());
+                await repo.CreateAsync(Asset(used));
+                await repo.CreateAsync(Asset(unused, sha: 'b'));
+                await repo.AddVersionAsync(unused, 2, File(unused, 2, 'c'));
+                // Both were unused when the page was shown; a page now uses one of them.
+                ctx.MediaUsages.Add(Usage(used, 1, nodeId, versionId));
+                await ctx.SaveChangesAsync();
+            }
+
+            MediaUnusedDeleteResult result;
+            await using (var ctx = fixture.CreateContext())
+            {
+                var service = new MediaDeletionService(new MediaAssetRepository(ctx, new FakeCurrentUserService()),
+                    NSubstitute.Substitute.For<IMediaBlobStore>(), Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaDeletionService>.Instance);
+                result = await service.DeleteUnusedAsync([used, unused]);
+            }
+
+            Assert.Equal([unused], result.Deleted);
+            Assert.Equal([used], result.InUse);
+            await using var read = fixture.CreateContext();
+            Assert.True(await read.MediaAssets.AnyAsync(a => a.Id == used));
+            Assert.False(await read.MediaAssets.AnyAsync(a => a.Id == unused));
+            Assert.False(await read.MediaAssetVersions.AnyAsync(v => v.AssetId == unused));
+
+            var run = await read.AuditEntries.AsNoTracking()
+                .SingleAsync(e => e.EntityType == "MediaUnusedDelete" && e.EntityId == result.RunId.ToString());
+            Assert.Equal("Run", run.Action);
+            Assert.Equal("test-user", run.UserId);
+            Assert.Contains("\"imagesDeleted\":1", run.NewValues);
+            Assert.Contains($"\"deletedAssetIds\":[\"{unused}\"]", run.NewValues);
+            Assert.Contains("\"imagesInUse\":1", run.NewValues);
+            Assert.Contains($"\"inUseAssetIds\":[\"{used}\"]", run.NewValues);
+            // The generic capture also records the deleted image itself.
+            Assert.True(await read.AuditEntries.AnyAsync(e => e.EntityType == "MediaAsset" && e.EntityId == unused.ToString()
+                && e.Action == "Delete" && e.Timestamp >= started));
+        }
+        finally
+        {
+            await DeletePageAsync(nodeId);
+        }
+    }
+
     // A used version cannot be deleted, so the database itself backs the library's delete guard.
     [Fact]
     public async Task Database_RefusesToDeleteAnImageVersionThatIsInUse()

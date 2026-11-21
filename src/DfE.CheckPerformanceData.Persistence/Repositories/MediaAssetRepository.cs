@@ -1,4 +1,7 @@
 using System.Linq.Expressions;
+using System.Text.Json;
+using DfE.CheckPerformance.Persistence.Entities;
+using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -14,6 +17,9 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 // generic audit capture records it.
 public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserService currentUser) : IMediaAssetRepository
 {
+    // Read back by the audit log with the same (camelCase) options.
+    private static readonly JsonSerializerOptions AuditJson = new(JsonSerializerDefaults.Web);
+
     public async Task<MediaAssetDto> CreateAsync(NewMediaAsset asset, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(asset.FileName);
@@ -231,6 +237,30 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
             context.ChangeTracker.Clear();
             return MediaDeleteOutcome.InUse;
         }
+    }
+
+    // One readable row for the run. Each deleted image is also a MediaAsset Delete row from the
+    // generic capture, written by its own delete.
+    public async Task RecordUnusedDeleteAsync(MediaUnusedDeleteResult result, CancellationToken ct = default)
+    {
+        context.AuditEntries.Add(new AuditEntry
+        {
+            EntityType = AuditActivities.MediaUnusedDelete,
+            EntityId = result.RunId.ToString(),
+            Action = AuditActivities.MediaUnusedDeleteRunAction,
+            Timestamp = DateTime.UtcNow,
+            UserId = currentUser.UserId,
+            NewValues = JsonSerializer.Serialize(new
+            {
+                result.RunId,
+                ImagesDeleted = result.Deleted.Count,
+                DeletedAssetIds = result.Deleted,
+                ImagesInUse = result.InUse.Count,
+                InUseAssetIds = result.InUse,
+                ImagesNotFound = result.NotFound.Count,
+            }, AuditJson)
+        });
+        await context.SaveChangesAsync(ct);
     }
 
     // Blank text is stored as null, so "missing alt text" has one meaning. Tags are trimmed, blank

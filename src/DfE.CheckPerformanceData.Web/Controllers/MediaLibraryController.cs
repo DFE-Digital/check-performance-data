@@ -24,6 +24,7 @@ public sealed class MediaLibraryController(
     private const string IndexView = "Index";
     private const string DetailView = "Detail";
     private const string DeleteView = "Delete";
+    private const string DeleteUnusedView = "DeleteUnused";
     private const int PreviewWidth = 960;
     private const int DefaultPageSize = 20;
     private const string SortByName = "name";
@@ -149,6 +150,52 @@ public sealed class MediaLibraryController(
             default:
                 return NotFound();
         }
+    }
+
+    // "Delete unused images": the confirmation page lists the unused images that match the
+    // library search (at most one run of them). Nothing is deleted on a GET.
+    [HttpGet("admin/media/delete-unused")]
+    public async Task<IActionResult> DeleteUnusedConfirm(string? search, CancellationToken ct)
+    {
+        ViewData["AdminActiveKey"] = AdminNavKeys.Media;
+        var term = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        var unused = await media.ListAsync(new MediaAssetQuery(
+            Search: term,
+            UnusedOnly: true,
+            Page: 1,
+            PageSize: MediaDeletionService.MaxUnusedPerRun,
+            Sort: MediaAssetSort.Name), ct);
+        return View(DeleteUnusedView, new MediaDeleteUnusedViewModel
+        {
+            Items = unused.Items.Select(a => MediaLibraryItemViewModel.From(a, urls)).ToList(),
+            TotalCount = unused.TotalCount,
+            Search = term,
+        });
+    }
+
+    // Deletes only the images the confirmation page listed. The service checks each one's uses
+    // again inside its delete, so an image that content started to use since then stays.
+    [HttpPost("admin/media/delete-unused")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteUnused(List<Guid> ids, string? search, CancellationToken ct)
+    {
+        var result = await deletions.DeleteUnusedAsync(ids ?? [], ct);
+        TempData[SuccessKey] = DeleteUnusedMessage(result);
+        var term = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        return Redirect(term is null ? "/admin/media?unused=true" : $"/admin/media?unused=true&search={Uri.EscapeDataString(term)}");
+    }
+
+    private static string DeleteUnusedMessage(MediaUnusedDeleteResult result)
+    {
+        static string Images(int n) => n == 1 ? "1 unused image" : $"{n} unused images";
+        var message = $"{Images(result.Deleted.Count)} deleted.";
+        if (result.InUse.Count > 0)
+        {
+            message += result.InUse.Count == 1
+                ? " 1 image was not deleted, because content now uses it."
+                : $" {result.InUse.Count} images were not deleted, because content now uses them.";
+        }
+        return message;
     }
 
     private async Task<MediaDetailViewModel?> BuildDetailAsync(Guid id, MediaMetadataForm? form, CancellationToken ct)

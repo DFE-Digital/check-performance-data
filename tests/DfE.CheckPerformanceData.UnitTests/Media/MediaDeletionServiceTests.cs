@@ -66,6 +66,50 @@ public sealed class MediaDeletionServiceTests
         Assert.Contains(_logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains(prefixes[0]));
     }
 
+    // "Delete unused images": each image goes through the same delete, which checks its uses
+    // again, so an image that content started to use after the confirmation page stays.
+    [Fact]
+    public async Task DeleteUnused_DeletesEachImage_SkipsOnesNowInUse_AndRecordsOneAuditRow()
+    {
+        var gone = Guid.NewGuid();
+        var used = Guid.NewGuid();
+        var missing = Guid.NewGuid();
+        _assets.DeleteAsync(gone, Arg.Any<CancellationToken>()).Returns(MediaDeleteOutcome.Deleted);
+        _assets.DeleteAsync(used, Arg.Any<CancellationToken>()).Returns(MediaDeleteOutcome.InUse);
+        _assets.DeleteAsync(missing, Arg.Any<CancellationToken>()).Returns(MediaDeleteOutcome.NotFound);
+
+        var result = await _sut.DeleteUnusedAsync([gone, used, missing, gone]);
+
+        Assert.Equal([gone], result.Deleted);
+        Assert.Equal([used], result.InUse);
+        Assert.Equal([missing], result.NotFound);
+        Assert.NotEqual(Guid.Empty, result.RunId);
+        await _assets.Received(1).DeleteAsync(gone, Arg.Any<CancellationToken>());
+        await _assets.Received(1).RecordUnusedDeleteAsync(result, Arg.Any<CancellationToken>());
+        await _blobs.Received(2).DeleteByPrefixAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteUnused_TakesAtMostOneRunOfImages()
+    {
+        _assets.DeleteAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(MediaDeleteOutcome.Deleted);
+        var ids = Enumerable.Range(0, MediaDeletionService.MaxUnusedPerRun + 5).Select(_ => Guid.NewGuid()).ToList();
+
+        var result = await _sut.DeleteUnusedAsync(ids);
+
+        Assert.Equal(MediaDeletionService.MaxUnusedPerRun, result.Deleted.Count);
+        await _assets.DidNotReceive().DeleteAsync(ids[^1], Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteUnused_WithNoImages_DoesNothing()
+    {
+        var result = await _sut.DeleteUnusedAsync([]);
+
+        Assert.Empty(result.Deleted);
+        await _assets.DidNotReceiveWithAnyArgs().RecordUnusedDeleteAsync(default!, default);
+    }
+
     private sealed class CapturingLogger : ILogger<MediaDeletionService>
     {
         public List<(LogLevel Level, string Message)> Entries { get; } = [];

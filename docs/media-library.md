@@ -13,7 +13,7 @@ Admin pages: **Admin > Content > Media** (`/admin/media`).
 | Application (`Application/Media`) | `IMediaUploadService` (upload and replace), `IMediaFileCleaner` (type sniffing, limits, re-encoding, `SvgSanitiser`), `MediaProcessingGate`, `IMediaDeliveryService` (serving and renditions), `IMediaUrlBuilder` and `MediaUrlSigner` (signed URLs), `MediaReferenceExtractor` (finds images in content), `RichTextImageRewriter`, `IEmbeddedImageMover`, the reports in `Media/Reports` |
 | Infrastructure | `MediaBlobStore` (the `cms-media` container), `SkiaRasterImageCleaner` and the rendition renderer (SkiaSharp), `BlobMediaUrlSigningKey` |
 | Persistence | `MediaAssetRepository`, `MediaUsageWriter`, `EmbeddedImageStore`, the `media_assets`, `media_asset_versions` and `media_usages` tables |
-| Web | `MediaLibraryController`, `MediaPickerController`, `MediaReportsController`, `MediaFileController` (`/media/...`), `media-library-upload.js`, `media-library-detail.js`, `media-picker.js`, `image-widget-editor.js`, `rich-text-media.js` |
+| Web | `MediaLibraryController` (with "Delete unused images"), `MediaPickerController`, `MediaReportsController`, `MediaFileController` (`/media/...`), `media-library-upload.js`, `media-library-detail.js`, `media-picker.js`, `image-widget-editor.js`, `rich-text-media.js` |
 
 The flow:
 
@@ -156,6 +156,24 @@ content import and new renditions. The default is 2. Other requests wait at the 
   `GrantMediaSection` migration. EF runs a migration only once. So if an admin later removes Media
   from the editor role in Role settings, it stays removed.
 - The admin role always has every section. Each start tops it up.
+
+## Deleting unused images
+
+Nothing deletes an image by itself: not a content import, and not a replace. An image that no
+page version or content block uses stays in the library until an editor deletes it.
+
+1. On the library page, tick **Not used on any page**, and search if you want fewer images.
+2. Select **Delete unused images**. The confirmation page
+   (`GET /admin/media/delete-unused?search=`) lists the unused images that match the search, by
+   file name. One run takes at most 500 (`MediaDeletionService.MaxUnusedPerRun`).
+3. Select **Delete N images** (`POST /admin/media/delete-unused`, antiforgery token).
+
+- The post deletes only the images that the confirmation page listed.
+- Each image goes through the same delete as the image page. It checks the image's uses again
+  inside the delete. So an image that content started to use after the confirmation page stays,
+  and the result says so.
+- The pages need the `media` section.
+- Each run writes one `MediaUnusedDelete` audit row (see [audit-log.md](audit-log.md)).
 
 ## Moving embedded images
 

@@ -185,6 +185,9 @@ The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cp
   field is not disabled, so its value still posts.
 - **Library page.** Each control has a label. A `role="status"` region announces each upload's
   start and end. A refused upload shows its reason beside the file.
+- **Delete unused images** (`DeleteUnused.cshtml`). The title matches the `<h1>`. The images to
+  delete are a table with a `<caption>` and column headers. The "Delete unused images" link on the
+  library page is a link styled as a button, with `role="button"`.
 - **Reports and the embedded-image move.** Each page's title matches its `<h1>`. Each table has
   a `<caption>`. The alt text report has two lists, each with its own pagination, so each
   `govuk-pagination` has its own `landmark-label` ("Library images", "Where images are used").

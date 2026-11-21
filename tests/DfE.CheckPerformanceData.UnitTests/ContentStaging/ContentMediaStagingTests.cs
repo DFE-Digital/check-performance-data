@@ -655,6 +655,7 @@ public class ContentMediaStagingTests
         public Task<IReadOnlyList<MediaUsagePage>> GetUsagePagesAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<MediaUsageBlock>> GetUsageBlocksAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<MediaDeleteOutcome> DeleteAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task RecordUnusedDeleteAsync(MediaUnusedDeleteResult result, CancellationToken ct = default) => throw new NotSupportedException();
 
         public Task<bool> PutAsync(string key, Stream content, string contentType, CancellationToken ct = default)
         {

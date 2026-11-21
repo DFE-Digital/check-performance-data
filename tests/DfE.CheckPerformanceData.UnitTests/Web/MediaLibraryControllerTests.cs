@@ -175,6 +175,7 @@ public sealed class MediaLibraryControllerTests
     [InlineData(nameof(MediaLibraryController.UpdateDetails), "admin/media/{id:guid}/details")]
     [InlineData(nameof(MediaLibraryController.Replace), "admin/media/{id:guid}/replace")]
     [InlineData(nameof(MediaLibraryController.Delete), "admin/media/{id:guid}/delete")]
+    [InlineData(nameof(MediaLibraryController.DeleteUnused), "admin/media/delete-unused")]
     public void EveryChange_IsAnAntiforgeryCheckedPost(string action, string template)
     {
         var method = typeof(MediaLibraryController).GetMethod(action)!;
@@ -327,6 +328,56 @@ public sealed class MediaLibraryControllerTests
     public async Task DeleteConfirm_IsNotFound_ForAnUnknownImage()
     {
         Assert.IsType<NotFoundResult>(await _sut.DeleteConfirm(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    // The confirmation page lists the unused images that match the search, the most one run takes.
+    [Fact]
+    public async Task DeleteUnusedConfirm_ListsTheUnusedImagesThatMatchTheSearch()
+    {
+        var a = Asset("a.png");
+        var b = Asset("b.png");
+        _media.ListAsync(Arg.Any<MediaAssetQuery>(), Arg.Any<CancellationToken>()).Returns(new MediaAssetPage([a, b], 2, 1, MediaDeletionService.MaxUnusedPerRun));
+
+        var view = Assert.IsType<ViewResult>(await _sut.DeleteUnusedConfirm("charts", CancellationToken.None));
+
+        await _media.Received(1).ListAsync(
+            Arg.Is<MediaAssetQuery>(q => q.UnusedOnly && q.Search == "charts" && q.Page == 1
+                && q.PageSize == MediaDeletionService.MaxUnusedPerRun && q.Sort == MediaAssetSort.Name),
+            Arg.Any<CancellationToken>());
+        Assert.Equal("DeleteUnused", view.ViewName);
+        var model = Assert.IsType<MediaDeleteUnusedViewModel>(view.Model);
+        Assert.Equal(["a.png", "b.png"], model.Items.Select(i => i.FileName));
+        Assert.Equal(2, model.TotalCount);
+        Assert.Equal("charts", model.Search);
+    }
+
+    [Fact]
+    public async Task DeleteUnused_DeletesThePostedImages_AndSaysWhatHappened()
+    {
+        Guid[] ids = [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()];
+        _deletions.DeleteUnusedAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new MediaUnusedDeleteResult(Guid.NewGuid(), [ids[0], ids[1]], [ids[2]], []));
+
+        var redirect = Assert.IsType<RedirectResult>(await _sut.DeleteUnused([.. ids], "charts", CancellationToken.None));
+
+        await _deletions.Received(1).DeleteUnusedAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(posted => posted.SequenceEqual(ids)), Arg.Any<CancellationToken>());
+        Assert.Equal("/admin/media?unused=true&search=charts", redirect.Url);
+        Assert.Equal("2 unused images deleted. 1 image was not deleted, because content now uses it.",
+            _sut.TempData[MediaLibraryController.SuccessKey]);
+    }
+
+    [Fact]
+    public async Task DeleteUnused_SaysOneImage_InTheSingular()
+    {
+        var id = Guid.NewGuid();
+        _deletions.DeleteUnusedAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new MediaUnusedDeleteResult(Guid.NewGuid(), [id], [], []));
+
+        var redirect = Assert.IsType<RedirectResult>(await _sut.DeleteUnused([id], null, CancellationToken.None));
+
+        Assert.Equal("/admin/media?unused=true", redirect.Url);
+        Assert.Equal("1 unused image deleted.", _sut.TempData[MediaLibraryController.SuccessKey]);
     }
 
     [Fact]

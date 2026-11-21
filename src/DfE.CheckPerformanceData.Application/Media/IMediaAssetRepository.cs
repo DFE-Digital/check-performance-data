@@ -58,4 +58,7 @@ public interface IMediaAssetRepository
     /// scoped context's change tracker is cleared.
     /// </summary>
     Task<MediaDeleteOutcome> DeleteAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>Writes the audit row for one "Delete unused images" run, as the signed-in user.</summary>
+    Task RecordUnusedDeleteAsync(MediaUnusedDeleteResult result, CancellationToken ct = default);
 }

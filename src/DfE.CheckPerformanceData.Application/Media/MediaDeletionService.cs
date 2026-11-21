@@ -14,6 +14,38 @@ public sealed class MediaDeletionService(
     IMediaBlobStore blobs,
     ILogger<MediaDeletionService> logger) : IMediaDeletionService
 {
+    /// <summary>The most images one "Delete unused images" run takes. It keeps the form under the post limits.</summary>
+    public const int MaxUnusedPerRun = 500;
+
+    // Each image goes through DeleteAsync, which checks its uses again inside the delete. So an
+    // image that content started to use after the confirmation page stays. The audit row is not
+    // cancelled: the images it lists are already gone.
+    public async Task<MediaUnusedDeleteResult> DeleteUnusedAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
+    {
+        var runId = Guid.NewGuid();
+        var ids = assetIds.Where(id => id != Guid.Empty).Distinct().Take(MaxUnusedPerRun).ToList();
+        if (ids.Count == 0) return new MediaUnusedDeleteResult(runId, [], [], []);
+
+        List<Guid> deleted = [], inUse = [], notFound = [];
+        foreach (var id in ids)
+        {
+            if (ct.IsCancellationRequested) break;
+            var outcome = await DeleteAsync(id, CancellationToken.None);
+            (outcome switch
+            {
+                MediaDeleteOutcome.Deleted => deleted,
+                MediaDeleteOutcome.InUse => inUse,
+                _ => notFound,
+            }).Add(id);
+        }
+
+        var result = new MediaUnusedDeleteResult(runId, deleted, inUse, notFound);
+        await assets.RecordUnusedDeleteAsync(result, CancellationToken.None);
+        logger.LogInformation("Unused media run {RunId}: {Deleted} deleted, {InUse} in use, {NotFound} not found",
+            runId, deleted.Count, inUse.Count, notFound.Count);
+        return result;
+    }
+
     public async Task<MediaDeleteOutcome> DeleteAsync(Guid assetId, CancellationToken ct = default)
     {
         var outcome = await assets.DeleteAsync(assetId, ct);

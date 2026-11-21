@@ -440,6 +440,20 @@ public class TestFixtureSeedBundleTests
         Assert.Equal(ContentTreeWalker.AllWidgets(tree).Where(w => w.Type == "heading").Select(w => w.Anchor).ToList(), shipped);
     }
 
+    // The guide has steps for deleting unused images, the picker's Media grant, the focal point
+    // that a preset crop turns off, and an import where the bundle's details win.
+    [Fact]
+    public void TheMediaLibraryGuide_HasStepsForEachLibraryChange()
+    {
+        var content = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-library-test-page").Versions.Single().Content;
+
+        Assert.Contains("\"text\": \"Delete unused images\"", content);
+        Assert.Contains("href=\\\"/admin/media?unused=true\\\"", content);
+        Assert.Contains("\"text\": \"The picker needs the Media section\"", content);
+        Assert.Contains("is now turned off, and a hint says why", content);
+        Assert.Contains("The bundle wins.", content);
+    }
+
     // A rich-text image marked decorative in the editor: an empty alt and role="presentation".
     [Fact]
     public void TheMediaRichTextTestPage_HasADecorativeImage()

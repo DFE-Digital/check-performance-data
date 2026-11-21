@@ -175,6 +175,16 @@
         <p class="govuk-body" data-media-library-count>
             Showing @((library.Page - 1) * library.PageSize + 1) to @((library.Page - 1) * library.PageSize + library.Items.Count) of @library.TotalCount images.
         </p>
+        @* Nothing deletes unused images by itself. With the "Not used on any page" filter on, the
+           editor can delete the ones that match the search, after a confirmation page. *@
+        @if (Model.Unused)
+        {
+            var deleteUnusedUrl = string.IsNullOrEmpty(Model.Search)
+                ? "/admin/media/delete-unused"
+                : $"/admin/media/delete-unused?search={Uri.EscapeDataString(Model.Search)}";
+            <a href="@deleteUnusedUrl" role="button" draggable="false" class="govuk-button govuk-button--warning"
+               data-module="govuk-button" data-media-delete-unused-link>Delete unused images</a>
+        }
         <ul class="govuk-list app-media-grid" data-media-library-list>
             @foreach (var item in Model.Items)
             {

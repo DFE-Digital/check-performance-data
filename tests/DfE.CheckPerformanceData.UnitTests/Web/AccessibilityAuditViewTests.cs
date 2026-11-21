@@ -822,6 +822,30 @@ public sealed class AccessibilityAuditViewTests
 	}
 
 	[Fact]
+	public void DeleteUnusedImages_TitleMatchesTheH1_ListsTheImagesInATable_AndPostsWithAToken()
+	{
+		var view = ReadView("Views", "MediaLibrary", "DeleteUnused.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Delete unused images\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Delete unused images</h1>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Images to delete (@count)</caption>", view);
+		Assert.Contains("scope=\"col\"", view);
+		Assert.Contains("class=\"govuk-warning-text\"", view);
+		Assert.Contains("@Html.AntiForgeryToken()", view);
+		Assert.Contains("class=\"govuk-button govuk-button--warning\"", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
+	public void MediaLibraryIndex_DeleteUnusedLink_IsALinkStyledAsAButton()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Matches("<a href=\"@deleteUnusedUrl\" role=\"button\" draggable=\"false\" class=\"govuk-button govuk-button--warning\"\\s+data-module=\"govuk-button\" data-media-delete-unused-link>Delete unused images</a>", view);
+	}
+
+	[Fact]
 	public void MediaLibraryDetail_TitleMatchesTheH1()
 	{
 		var view = ReadView("Views", "MediaLibrary", "Detail.cshtml");

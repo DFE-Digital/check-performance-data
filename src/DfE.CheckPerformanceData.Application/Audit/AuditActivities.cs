@@ -48,6 +48,14 @@ public static class AuditActivities
     public const string EmbeddedImageRunAction = "Run";
 
     /// <summary>
+    /// EntityType of the row "Delete unused images" writes for each run (EntityId is the run id),
+    /// with the images deleted and the ones skipped because content uses them now. Each deleted
+    /// image is also a MediaAsset Delete row from the generic capture.
+    /// </summary>
+    public const string MediaUnusedDelete = "MediaUnusedDelete";
+    public const string MediaUnusedDeleteRunAction = "Run";
+
+    /// <summary>
     /// Not translatable by EF: AuditLogRepository.FilteredAsync lists the four comparisons itself.
     /// </summary>
     public static bool IsExtensionAction(string action) =>
@@ -68,6 +76,7 @@ public static class AuditActivities
         ["ContentBlock"] = "Content block",
         ["ContentBlockVersion"] = "Content block version",
         [EmbeddedImageMove] = "Embedded images moved to the media library",
+        [MediaUnusedDelete] = "Unused images deleted from the media library",
         ["HomeBanner"] = "Home page banner",
         ["HomeBannerVersion"] = "Home page banner version",
         ["ContentStagingSession"] = "Content staging session",

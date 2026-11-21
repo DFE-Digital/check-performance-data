@@ -650,7 +650,10 @@ public sealed class ContentStagingService(
                         await contentBlockRepository.UpdateForStagingAsync(
                             existing.Id, block.Key, block.BlockType, block.Value, PlainTextOf(block.Value),
                             block.Id, block.AppearInSearch, block.Keywords);
-                        await contentBlockRepository.AddVersionAsync(existing.Id, block.Value, maxVersion + 1);
+                        // Like an editor's save, the same value again is no new version. Content
+                        // imported on every start would otherwise add one each time.
+                        if (!string.Equals(existing.Value, block.Value, StringComparison.Ordinal))
+                            await contentBlockRepository.AddVersionAsync(existing.Id, block.Value, maxVersion + 1);
                     });
                     result.ContentBlocksUpdated++;
                     continue;

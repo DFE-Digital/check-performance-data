@@ -104,11 +104,18 @@ public sealed class TestFixtureMediaImportTests(PostgresFixture postgres, Azurit
             .AnyAsync(u => u.ContentBlockId != null && u.AssetId == SamplePhoto));
     }
 
-    // Every start imports the file again. The second import finds each image as it left it.
+    // Every start imports the file again. The second import finds each image as it left it, and
+    // adds nothing.
     [Fact]
     public async Task ImportingAgain_FindsTheImagesItBroughtLastTime_AndAddsNothing()
     {
         await ImportAsync();
+        int blockVersions, usages;
+        await using (var before = postgres.CreateContext())
+        {
+            blockVersions = await before.ContentBlockVersions.CountAsync();
+            usages = await before.MediaUsages.CountAsync();
+        }
 
         var again = await ImportAsync();
 
@@ -119,5 +126,8 @@ public sealed class TestFixtureMediaImportTests(PostgresFixture postgres, Azurit
         Assert.Equal(4, await ctx.MediaAssets.CountAsync());
         Assert.Equal(4, await ctx.MediaAssetVersions.CountAsync());
         Assert.All(await ctx.MediaAssets.Select(a => a.CurrentVersion).ToListAsync(), v => Assert.Equal(1, v));
+        // The fixture block is the same as last time, so it gets no new version.
+        Assert.Equal(blockVersions, await ctx.ContentBlockVersions.CountAsync());
+        Assert.Equal(usages, await ctx.MediaUsages.CountAsync());
     }
 }

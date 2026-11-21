@@ -48,7 +48,7 @@ public sealed partial class HtmlRenderingService : IHtmlRenderingService
         // every page that uses it.
         s.AllowedAttributes.Add("data-media-id");
         // Older rich text embeds images as data: URIs, which must keep showing. The scheme is
-        // allowed for a raster image on <img> only: a data: URI on a link, a frame or a form
+        // allowed for an image on <img> only: a data: URI on a link, a frame or a form
         // would enable phishing or script, so the filter below drops it everywhere else.
         s.AllowedSchemes.Add("data");
         s.FilterUrl += (_, e) =>
@@ -62,7 +62,7 @@ public sealed partial class HtmlRenderingService : IHtmlRenderingService
         return s;
     }
 
-    [GeneratedRegex(@"^data:image/(?:png|jpeg|gif|webp);base64,", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^data:image/[a-z0-9.+-]+[;,]", RegexOptions.IgnoreCase)]
     private static partial Regex DataImage();
 
     public string? RenderHtml(string? content)

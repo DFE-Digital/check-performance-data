@@ -41,9 +41,9 @@
         var legacy = existingDataImages(textarea);
         var library = picker();
         var result = {
-            // Root-relative addresses (/media/...), never rewritten relative to the editor page.
-            relative_urls: false,
-            remove_script_host: true,
+            // Addresses stay as written. Otherwise the editor rewrites /media/... and every link
+            // relative to the editor's own page, which breaks them on the published page.
+            convert_urls: false,
             paste_data_images: true,
             automatic_uploads: !!library,
             images_reuse_filename: false,
@@ -56,7 +56,9 @@
             library.open({
                 opener: document.activeElement,
                 onSelect: function (item) {
-                    callback(item.src, { alt: item.alt || '' });
+                    var meta = { alt: item.alt || '' };
+                    if (item.width && item.height) { meta.width = String(item.width); meta.height = String(item.height); }
+                    callback(item.src, meta);
                 }
             });
         };

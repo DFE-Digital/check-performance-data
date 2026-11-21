@@ -242,6 +242,17 @@ public sealed class HtmlRenderingServiceTests
     }
 
     [Theory]
+    [InlineData("data:image/jpg;base64,/9j/4AAQ")]
+    [InlineData("data:image/svg+xml;base64,PHN2Zy8+")]
+    [InlineData("data:image/bmp;base64,Qk0=")]
+    public void RenderHtml_KeepsAnyExistingDataImageType_OnAnImage(string src)
+    {
+        var result = _sut.RenderHtml($"<img src=\"{src}\" alt=\"x\">");
+
+        Assert.Contains($"src=\"{src}\"", result);
+    }
+
+    [Theory]
     [InlineData("<a href=\"data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==\">Click</a>")]
     [InlineData("<a href=\"data:image/png;base64,iVBORw0KGgo=\">Click</a>")]
     [InlineData("<iframe src=\"data:text/html,hello\"></iframe>")]

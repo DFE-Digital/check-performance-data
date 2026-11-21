@@ -156,6 +156,9 @@ public sealed class RichTextMediaE2ETests(PlaywrightFixture fixture) : SeedingPa
         var saved = await SavedHtmlAsync(pageId);
         Assert.Contains($"data-media-id=\"{mediaId:D}\"", saved);
         Assert.DoesNotContain("sig=", saved);
+        // The dialog takes the size from the library, so the page does not move as the image loads.
+        Assert.Contains("width=\"1400\"", saved);
+        Assert.Contains("height=\"700\"", saved);
 
         await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
         var img = Page.Locator($"main .govuk-body img[data-media-id='{mediaId:D}']");
@@ -278,9 +281,41 @@ public sealed class RichTextMediaE2ETests(PlaywrightFixture fixture) : SeedingPa
         await OpenEditorAsync(pageId);
         await Expect(EditorBody.Locator("img[alt='Dot']")).ToBeVisibleAsync();
         await Page.WaitForTimeoutAsync(1500);
+
+        // An edit and a save keep the image exactly as it was.
+        await EditorBody.Locator("body p").ClickAsync();
+        await Page.Keyboard.PressAsync("End");
+        await Page.Keyboard.TypeAsync(" edited");
+        await SaveAndPublishAsync(pageId);
         Assert.Equal(0, uploads);
+        var saved = await SavedHtmlAsync(pageId);
+        Assert.Contains($"src=\"{dataUri}\"", saved);
+        Assert.Contains("edited", saved);
+        Assert.DoesNotContain("blob:", saved);
+        Assert.DoesNotContain("data-media-id", saved);
 
         await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
         await Expect(Page.Locator("main .govuk-body img[alt='Dot']")).ToHaveAttributeAsync("src", dataUri);
+    }
+
+    [Fact]
+    public async Task AnEditAndASave_LeaveLinkAddressesAsWritten()
+    {
+        await SignInAsAdminAsync();
+        var (pageId, _) = await NewRichTextPageAsync(
+            "<p><a href=\"key-dates\">Relative</a> <a href=\"/guidance/x\">Root</a> <a href=\"#top\">Anchor</a> <a href=\"https://www.gov.uk/x\">Other site</a></p>");
+        await OpenEditorAsync(pageId);
+
+        await EditorBody.Locator("body p").ClickAsync();
+        await Page.Keyboard.PressAsync("End");
+        await Page.Keyboard.TypeAsync(" edited");
+        await SaveAndPublishAsync(pageId);
+
+        var saved = await SavedHtmlAsync(pageId);
+        Assert.Contains("edited", saved);
+        Assert.Contains("href=\"key-dates\"", saved);
+        Assert.Contains("href=\"/guidance/x\"", saved);
+        Assert.Contains("href=\"#top\"", saved);
+        Assert.Contains("href=\"https://www.gov.uk/x\"", saved);
     }
 }

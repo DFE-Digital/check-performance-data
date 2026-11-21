@@ -38,7 +38,7 @@
     </form>
 
     @* The media picker dialog, outside the save form (it has its own antiforgery token). The picker
-       needs the content-pages grant. Images come from the media library (see rich-text-media.js). *@
+       needs the media section. Images come from the media library (see rich-text-media.js). *@
     @if (Model.CanUseMediaLibrary)
     {
         @await Html.PartialAsync("~/Views/Shared/ContentPages/_MediaPicker.cshtml")

@@ -1,4 +1,7 @@
+@using DfE.CheckPerformanceData.Application.Admin
 @using DfE.CheckPerformanceData.Application.Media.Upload
+@using DfE.CheckPerformanceData.Web.Admin.Nav
+@inject IAdminAccessPolicy AccessPolicy
 @*
     The media picker: one modal dialog per editor page, opened by media-picker.js for the Image
     widget and the rich text editor. It lists the library a page at a time, with a search, and
@@ -6,6 +9,12 @@
     Enter in its search box never saves a widget. Its own antiforgery token goes in the
     X-XSRF-TOKEN header of each upload.
 *@
+@* The picker's endpoints need the media section. Without it the page gets no picker: the Image
+   widget keeps its typed image id field, and rich text takes no pasted images. *@
+@if (!await AccessPolicy.CanAccessAsync(User, AdminNavKeys.Media))
+{
+    return;
+}
 <dialog class="govuk-modal-dialogue__box app-media-picker" id="media-picker" aria-labelledby="media-picker-title"
         data-media-picker
         data-list-url="/admin/media/picker"

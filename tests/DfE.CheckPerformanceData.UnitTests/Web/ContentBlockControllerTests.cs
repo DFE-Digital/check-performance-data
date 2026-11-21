@@ -24,20 +24,21 @@ public sealed class ContentBlockControllerTests
         };
     }
 
-    // The media picker and its upload are for people who edit pages. A block editor without that
-    // grant gets an editor with no library, which also takes no pasted images.
+    // The media picker and its upload need the media section. A block editor without that grant
+    // gets an editor with no library, which also takes no pasted images.
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task Index_OffersTheMediaLibrary_OnlyToPeopleWhoEditPages(bool canEditPages)
+    public async Task Index_OffersTheMediaLibrary_OnlyToPeopleWithTheMediaSection(bool hasMedia)
     {
         _service.GetAllAsync().Returns([]);
-        _access.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "content-pages").Returns(canEditPages);
+        _access.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "media").Returns(hasMedia);
+        _access.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "content-pages").Returns(true);
 
         var result = await _sut.Index(edit: "home-content");
 
         var model = Assert.IsType<ContentBlocksAdminViewModel>(Assert.IsType<ViewResult>(result).Model);
-        Assert.Equal(canEditPages, model.CanUseMediaLibrary);
+        Assert.Equal(hasMedia, model.CanUseMediaLibrary);
     }
 
     // --- Index: content-blocks management page ---

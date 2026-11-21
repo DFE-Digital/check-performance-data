@@ -140,10 +140,13 @@ content import and new renditions. The default is 2. Other requests wait at the 
 
 - The **`media`** admin section manages the library: the library page, image pages, metadata,
   replace, delete, the reports and the embedded-image move.
-- The **picker** (`/admin/media/picker`, its preview and `/admin/media/picker/upload`) is gated on
-  **`content-pages`**. An editor who builds pages can browse the library and upload into it from
-  the Image widget and the rich text editor, without the `media` section.
-- The content-block editors show the picker only to a user who has `content-pages`.
+- The **picker** (`/admin/media/picker`, its preview and `/admin/media/picker/upload`) is also
+  gated on **`media`**. A user without it gets 404 from these endpoints.
+- The picker dialog (`_MediaPicker.cshtml`) checks the grant itself. The page, wiki and
+  content-block editors show no picker to a user without `media`.
+- **The editors work without the picker.** The Image widget keeps its "Image ID" field, so an
+  editor can type the id of an image that someone gives them. The link to the library is not
+  shown. The rich text editor takes no pasted or dropped images.
 - A new database gives `media` to the admin role and to the editor role. **On a database that
   existed before the media library, tick Media for the editor role in Role settings.** The admin
   role gets every section on each start.

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.ViewComponents;
 
-// The open editor offers the media library only to people with the content-pages grant, which
+// The open editor offers the media library only to people with the media section, which
 // gates the picker and its upload.
 public sealed class EditableContentViewComponent(IContentBlockService contentBlockService,
     DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null,
@@ -35,7 +35,7 @@ public sealed class EditableContentViewComponent(IContentBlockService contentBlo
             HasSavedContent = true,
             ReturnUrl = $"{HttpContext.Request.Path}{HttpContext.Request.QueryString}",
             CanUseMediaLibrary = isEditing && accessPolicy is not null
-                && await accessPolicy.CanAccessAsync(UserClaimsPrincipal, DfE.CheckPerformanceData.Web.Admin.Nav.AdminNavKeys.ContentPages),
+                && await accessPolicy.CanAccessAsync(UserClaimsPrincipal, DfE.CheckPerformanceData.Web.Admin.Nav.AdminNavKeys.Media),
         };
 
         return View(model);

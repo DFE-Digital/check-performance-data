@@ -7,6 +7,7 @@
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
 @inject IMediaVersionResolver MediaResolver
 @inject IMediaUrlBuilder MediaUrls
+@inject DfE.CheckPerformanceData.Application.Admin.IAdminAccessPolicy AdminAccess
 @model EditWidgetModel
 @{
     var w = Model.Widget;
@@ -397,7 +398,11 @@
                                             @{ ErrorMessage("mediaId"); }
                                             <input class="govuk-input@(ErrorFor("mediaId") is null ? "" : " govuk-input--error")" id="@FieldId("mediaId")" name="props[mediaId]"
                                                    value="@FieldValue("mediaId")" aria-describedby="@FieldId("mediaId")-hint @DescribedBy("mediaId")" spellcheck="false" data-image-editor-media-id />
-                                            <p class="govuk-body govuk-!-margin-top-2"><a class="govuk-link" href="/admin/media" target="_blank" rel="noopener noreferrer">Open the media library in a new tab</a></p>
+                                            @* The library needs the media section. Without it the editor types an id that someone gives them. *@
+                                            @if (await AdminAccess.CanAccessAsync(User, DfE.CheckPerformanceData.Web.Admin.Nav.AdminNavKeys.Media))
+                                            {
+                                                <p class="govuk-body govuk-!-margin-top-2"><a class="govuk-link" href="/admin/media" target="_blank" rel="noopener noreferrer">Open the media library in a new tab</a></p>
+                                            }
                                         </div>
                                     </div>
                                     <div class="@GroupClass("alt")">

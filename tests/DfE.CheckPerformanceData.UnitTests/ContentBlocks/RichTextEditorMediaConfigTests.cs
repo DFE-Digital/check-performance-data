@@ -35,8 +35,8 @@ public sealed class RichTextEditorMediaConfigTests
         Assert.Contains("@await Html.PartialAsync(\"~/Views/Shared/ContentPages/_MediaPicker.cshtml\")", src);
     }
 
-    // The picker and its upload need the content-pages grant, so the block editors show the
-    // picker only to people who have it.
+    // The picker and its upload need the media section, so the block editors show the picker
+    // only to people who have it.
     [Theory]
     [InlineData("Views", "ContentBlock", "Index.cshtml")]
     [InlineData("Views", "Shared", "Components", "EditableContent", "Default.cshtml")]

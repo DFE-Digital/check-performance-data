@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Security.Claims;
+using DfE.CheckPerformanceData.Application.Admin;
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.Media.Serving;
@@ -32,6 +34,7 @@ public sealed class ImageWidgetEditorRenderTests
     private static readonly Guid PngId = Guid.Parse("33333333-38a9-4a65-9e3a-5f8f2f0f7a11");
     private static readonly Guid SvgId = Guid.Parse("44444444-38a9-4a65-9e3a-5f8f2f0f7a11");
     private readonly IMediaVersionResolver _resolver = Substitute.For<IMediaVersionResolver>();
+    private readonly IAdminAccessPolicy _access = Substitute.For<IAdminAccessPolicy>();
 
     public ImageWidgetEditorRenderTests()
     {
@@ -43,6 +46,7 @@ public sealed class ImageWidgetEditorRenderTests
         _resolver.ResolveAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns(ci => (IReadOnlyDictionary<Guid, ResolvedMedia>)ci.Arg<IEnumerable<Guid>>()
                 .Where(library.ContainsKey).ToDictionary(id => id, id => library[id]));
+        _access.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "media").Returns(true);
     }
 
     private static ResolvedMedia Media(Guid id, string contentType, int width, int height, string slug)
@@ -103,6 +107,20 @@ public sealed class ImageWidgetEditorRenderTests
         Assert.Matches("<button[^>]*data-image-editor-choose[^>]*hidden", html);
     }
 
+    // The library needs the media section. Without it the editor still types an image id that
+    // someone gives them, but gets no link to a page they cannot open.
+    [Fact]
+    public async Task WithoutTheMediaSection_TheIdFieldStays_AndTheLibraryLinkGoes()
+    {
+        _access.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "media").Returns(false);
+
+        var html = await RenderAsync(Widget(PngId));
+
+        Assert.Contains("id=\"wf-mediaId-0.0\"", html);
+        Assert.Contains($"value=\"{PngId}\"", html);
+        Assert.DoesNotContain("Open the media library in a new tab", html);
+    }
+
     [Fact]
     public async Task TheChosenImage_IsDescribedForTheScript()
     {
@@ -161,6 +179,7 @@ public sealed class ImageWidgetEditorRenderTests
                         .AddApplicationPart(typeof(PageController).Assembly);
                     services.AddGovUkFrontend();
                     services.AddSingleton(_resolver);
+                    services.AddSingleton(_access);
                     services.AddSingleton<IMediaUrlBuilder>(new MediaUrlBuilder(new MediaUrlSigner(new FixedKey())));
                 });
                 web.Configure(_ => { });

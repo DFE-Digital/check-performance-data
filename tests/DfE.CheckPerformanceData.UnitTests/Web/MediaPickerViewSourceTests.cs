@@ -51,6 +51,19 @@ public sealed class MediaPickerViewSourceTests
         Assert.Contains("data-max-bytes=\"@MediaUploadLimits.MaxFileBytes\"", src);
     }
 
+    // The picker and its upload need the media section. The dialog checks the grant itself, so
+    // no editor page can show it to someone who would get 404 from its endpoints.
+    [Fact]
+    public void TheDialog_RendersOnlyForPeopleWithTheMediaSection()
+    {
+        var src = Dialog();
+
+        Assert.Contains("@inject IAdminAccessPolicy AccessPolicy", src);
+        var guard = src.IndexOf("await AccessPolicy.CanAccessAsync(User, AdminNavKeys.Media)", StringComparison.Ordinal);
+        Assert.True(guard > 0, "The dialog must check the media section.");
+        Assert.True(src.IndexOf("<dialog", StringComparison.Ordinal) > guard, "The check must come before the dialog.");
+    }
+
     [Fact]
     public void TheDialog_HasNoInlineHandlers()
     {

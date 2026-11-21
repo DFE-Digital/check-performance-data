@@ -13,12 +13,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // The media picker that page editors open from the Image widget and the rich text editor. It is
-// gated on content-pages, not media: anyone who edits pages may browse the library and add an
-// image to it, but only the media section manages the library (details, replace, delete).
+// gated on the media section, like the rest of the library: an editor without it gets no picker,
+// and the editors still work with a typed image id.
 // media-picker.js calls these endpoints. The upload takes one file and needs the antiforgery
 // token in the X-XSRF-TOKEN header. The preview renders the Image widget's own view, so it shows
 // exactly what the page will show.
-[RequireAdminSection(AdminNavKeys.ContentPages)]
+[RequireAdminSection(AdminNavKeys.Media)]
 public sealed class MediaPickerController(
     IMediaAssetRepository media,
     IMediaUploadService uploads,

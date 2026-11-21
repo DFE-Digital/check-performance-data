@@ -10,8 +10,9 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.ContentBlocks;
 
-// The block editor on a page offers the media library only to people who edit pages, because the
-// picker and its upload are gated on that grant. The check runs only when the editor is open.
+// The block editor on a page offers the media library only to people with the media section,
+// because the picker and its upload are gated on that grant. The check runs only when the editor
+// is open.
 public sealed class EditableContentMediaLibraryTests
 {
     private readonly IContentBlockService _blocks = Substitute.For<IContentBlockService>();
@@ -36,14 +37,15 @@ public sealed class EditableContentMediaLibraryTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task TheOpenEditor_OffersTheLibrary_OnlyToPeopleWhoEditPages(bool canEditPages)
+    public async Task TheOpenEditor_OffersTheLibrary_OnlyToPeopleWithTheMediaSection(bool hasMedia)
     {
-        _access.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "content-pages").Returns(canEditPages);
+        _access.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "media").Returns(hasMedia);
+        _access.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "content-pages").Returns(true);
 
         var model = await InvokeAsync("?edit=intro");
 
         Assert.True(model.IsEditing);
-        Assert.Equal(canEditPages, model.CanUseMediaLibrary);
+        Assert.Equal(hasMedia, model.CanUseMediaLibrary);
     }
 
     [Fact]

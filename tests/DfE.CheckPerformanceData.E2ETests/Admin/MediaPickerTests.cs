@@ -4,8 +4,8 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
-// The media picker endpoints over HTTP. They are gated on content-pages, not media: the editor
-// (who edits pages) may browse the library and upload into it, a user with no admin section gets
+// The media picker endpoints over HTTP. They are gated on the media section: the editor (whose
+// role has it) may browse the library and upload into it, a user with no admin section gets
 // 404, and an upload without the antiforgery token in its header is refused and stores nothing.
 [Trait("Category", "FullRegression")]
 [Collection("Http")]

@@ -51,14 +51,15 @@ public sealed class MediaPickerControllerTests
     private static JsonElement Json(IActionResult result) =>
         JsonSerializer.SerializeToElement(Assert.IsType<JsonResult>(result).Value, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
-    // Browsing and uploading from a page is for anyone who edits pages, not only library managers.
+    // Browsing the library and uploading into it from a page editor needs the media section. An
+    // editor without it gets 404 here, and the editors render no picker for them.
     [Fact]
-    public void Controller_IsGatedByTheContentPagesSection_NotTheMediaSection()
+    public void Controller_IsGatedByTheMediaSection()
     {
         var gate = typeof(MediaPickerController).GetCustomAttribute<RequireAdminSectionAttribute>();
 
         Assert.NotNull(gate);
-        Assert.Equal(AdminNavKeys.ContentPages, gate!.SectionKey);
+        Assert.Equal(AdminNavKeys.Media, gate!.SectionKey);
     }
 
     [Fact]

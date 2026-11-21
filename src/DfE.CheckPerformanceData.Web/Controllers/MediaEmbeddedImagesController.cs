@@ -24,5 +24,5 @@ public sealed class MediaEmbeddedImagesController(IEmbeddedImageMover mover) : C
     [HttpPost("admin/media/move-embedded")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Run(CancellationToken ct) =>
-        View(ResultView, await mover.MoveAsync(ct));
+        View(ResultView, await mover.MoveAsync(User?.Identity?.Name, ct));
 }

@@ -81,7 +81,7 @@ public sealed class EmbeddedImageMover(
         return refusals;
     }
 
-    public async Task<EmbeddedImageMoveResult> MoveAsync(CancellationToken ct = default)
+    public async Task<EmbeddedImageMoveResult> MoveAsync(string? modifiedBy, CancellationToken ct = default)
     {
         var now = time.GetUtcNow().UtcDateTime;
         var runId = Guid.NewGuid();
@@ -94,7 +94,7 @@ public sealed class EmbeddedImageMover(
             // Stop only between pages, so a page is never left half done. A stopped run still
             // records what it did, and the next run carries on.
             if (ct.IsCancellationRequested) break;
-            var outcome = await MovePageAsync(page, now, userId);
+            var outcome = await MovePageAsync(page, now, userId, modifiedBy);
             if (outcome.Failure is { } failure)
             {
                 failures.Add(failure);
@@ -143,7 +143,7 @@ public sealed class EmbeddedImageMover(
     // What moving one page or block did. Refusals is set when it was left as it was.
     private sealed record MoveOutcome(int ImagesMoved, int Created, int Reused, IReadOnlyList<EmbeddedImageRefusal>? Refusals);
 
-    private async Task<PageOutcome> MovePageAsync(EmbeddedImagePage page, DateTime now, string? userId)
+    private async Task<PageOutcome> MovePageAsync(EmbeddedImagePage page, DateTime now, string? userId, string? modifiedBy)
     {
         var versions = await PageVersionsAsync(page, now, CancellationToken.None);
         if (versions.Count == 0) return new PageOutcome(0, 0, 0, null);
@@ -153,7 +153,7 @@ public sealed class EmbeddedImageMover(
             (library, assetIds) => store.SavePageAsync(new EmbeddedImagePageSave(page,
                 versions.Select(v => new EmbeddedImageVersionChange(v.Version.Id, v.Version.Content,
                     EmbeddedImageContent.Replace(v.Version.Content, library))).ToList(),
-                imagesMoved, assetIds), userId, CancellationToken.None),
+                imagesMoved, assetIds, modifiedBy), userId, CancellationToken.None),
             imagesMoved);
 
         return outcome.Refusals is { } reasons

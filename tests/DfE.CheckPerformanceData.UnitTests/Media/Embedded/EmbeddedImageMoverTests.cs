@@ -33,7 +33,7 @@ public sealed class EmbeddedImageMoverTests
                 return (IReadOnlyList<EmbeddedImageVersion>)[];
             });
 
-        var result = await Mover().MoveAsync(stop.Token);
+        var result = await Mover().MoveAsync(null, stop.Token);
 
         Assert.Equal(0, result.PagesChanged);
         await _store.DidNotReceive().GetCurrentVersionsAsync(second.NodeId, Arg.Any<DateTime>(), Arg.Any<CancellationToken>());

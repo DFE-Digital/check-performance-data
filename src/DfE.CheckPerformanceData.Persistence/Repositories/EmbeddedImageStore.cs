@@ -174,8 +174,9 @@ public sealed class EmbeddedImageStore(IPortalDbContext context) : IEmbeddedImag
                     BodyPlainText = old.BodyPlainText,
                     CreatedDate = now,
                     UpdatedDate = now,
-                    CreatedBy = userId,
-                    UpdatedBy = userId
+                    // The person's name, as an editor's save records it. The audit entry keeps their id.
+                    CreatedBy = save.ModifiedBy,
+                    UpdatedBy = save.ModifiedBy
                 };
                 context.PageNodeVersions.Add(copy);
                 changes.Add((old, copy, State(old.PublishFrom, now)));

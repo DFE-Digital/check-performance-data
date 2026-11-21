@@ -93,7 +93,7 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
     private async Task<EmbeddedImageMoveResult> MoveAsync()
     {
         await using var ctx = postgres.CreateContext();
-        return await Mover(ctx).MoveAsync();
+        return await Mover(ctx).MoveAsync("Test editor");
     }
 
     private async Task<Guid> PageAsync(string segment, string pageType = "content")
@@ -242,8 +242,9 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         Assert.Equal(0, live.MinorVersion);
         Assert.True(live.IsCurrent);
         Assert.Equal(before[0].BodyPlainText, live.BodyPlainText);
-        Assert.Equal("test-user", live.CreatedBy);
-        Assert.Equal("test-user", live.UpdatedBy);
+        // "Modified by" names the person who ran the move, as an editor's save names the editor.
+        Assert.Equal("Test editor", live.CreatedBy);
+        Assert.Equal("Test editor", live.UpdatedBy);
         var redSrc = $"src=\"/media/{red.Id}/1/red-square.png\" data-media-id=\"{red.Id}\"";
         Assert.Equal($"<p>Intro</p><img {redSrc} alt=\"Red square\"><img {redSrc} alt=\"Again\">", Html(live.Content));
 
@@ -362,6 +363,33 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         var second = await MoveAsync();
         Assert.Equal(0, second.PagesChanged);
         Assert.Equal(5, (await VersionsAsync(page)).Count);
+    }
+
+    // A scheduled version that went live by its window leaves a stale live flag on the old live
+    // version. The flag follows the window again, and only the flag changes on that version.
+    [Fact]
+    public async Task AStaleLiveFlag_IsPutRight_AndTheOldVersionKeepsItsContent()
+    {
+        var page = await PageAsync("stale-page");
+        await SaveDraftAsync(page, Tree("<p>First</p>"));
+        await PublishDraftAsync(page);
+        await SaveDraftAsync(page, Tree(Img(Red, "Now live")));
+        await PublishDraftAsync(page);
+        await using (var ctx = postgres.CreateContext())
+        {
+            await ctx.PageNodeVersions.Where(v => v.PageNodeId == page)
+                .ExecuteUpdateAsync(s => s.SetProperty(v => v.IsCurrent, v => v.VersionId == 1));
+        }
+        var before = await VersionsAsync(page);
+
+        var result = await MoveAsync();
+
+        Assert.Equal(1, result.PagesChanged);
+        var after = await VersionsAsync(page);
+        Assert.Equal(3, after.Count);
+        AssertUnchanged(before[0], after[0], isCurrent: false);
+        AssertUnchanged(before[1], after[1], isCurrent: false);
+        Assert.True(after[2].IsCurrent);
     }
 
     [Fact]

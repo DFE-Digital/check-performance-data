@@ -42,6 +42,7 @@ The **Versions** tab lists every version, newest first, with who changed it and 
 | Live | The version visitors see now. |
 | Scheduled | Has a **Publish from** date in the future. |
 | Past | Has been published and is not the live version now. Kept so that you can go back to it. |
+| Replaced | Scheduled, but a newer version has the same dates and goes live instead. Moving embedded images into the media library replaces a scheduled version this way. |
 | Draft | Has no publishing dates. It has never been published, or it has been unpublished. |
 
 The *Live* tag is set when someone publishes, unpublishes or edits the page. It does not move by itself when a date passes. The other tags are worked out each time you open the tab, so a *Scheduled* version shows as *Past* once its **Publish from** time has gone by, even though visitors can already see it. See *Publish at a future date* below.

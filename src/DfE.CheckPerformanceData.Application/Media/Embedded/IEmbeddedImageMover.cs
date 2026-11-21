@@ -9,5 +9,8 @@ public interface IEmbeddedImageMover
 {
     Task<EmbeddedImageScan> ScanAsync(CancellationToken ct = default);
 
-    Task<EmbeddedImageMoveResult> MoveAsync(CancellationToken ct = default);
+    /// <param name="modifiedBy">
+    /// The name that the new page versions show in "Modified by", as an editor's save records it.
+    /// </param>
+    Task<EmbeddedImageMoveResult> MoveAsync(string? modifiedBy, CancellationToken ct = default);
 }

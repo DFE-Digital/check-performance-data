@@ -13,7 +13,9 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 // so content that names a deleted or unknown image still saves.
 internal static class MediaUsageWriter
 {
-    public sealed record VersionContent(Guid VersionId, Guid PageNodeId, string Content);
+    // Pins, when given, choose the image version a new row records (staging import only). A pin
+    // to a version the image does not have is ignored, and the row records the current version.
+    public sealed record VersionContent(Guid VersionId, Guid PageNodeId, string Content, IReadOnlyDictionary<Guid, int>? Pins = null);
 
     private readonly record struct UsageKey(Guid AssetId, string Location, string? WidgetId);
 
@@ -47,7 +49,7 @@ internal static class MediaUsageWriter
                 {
                     Id = Guid.NewGuid(),
                     AssetId = key.AssetId,
-                    AssetVersion = currentVersions[key.AssetId],
+                    AssetVersion = Pinned(version.Pins, key.AssetId, currentVersions[key.AssetId]),
                     PageNodeId = version.PageNodeId,
                     PageNodeVersionId = version.VersionId,
                     Location = key.Location,
@@ -88,6 +90,9 @@ internal static class MediaUsageWriter
                 WidgetId = key.WidgetId,
             });
     }
+
+    private static int Pinned(IReadOnlyDictionary<Guid, int>? pins, Guid assetId, int current) =>
+        pins is not null && pins.TryGetValue(assetId, out var pin) && pin >= 1 && pin <= current ? pin : current;
 
     private static async Task<Dictionary<Guid, int>> CurrentVersionsAsync(
         IPortalDbContext context, IEnumerable<MediaReference> references, CancellationToken ct)

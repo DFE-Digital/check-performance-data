@@ -19,4 +19,14 @@ public sealed record PageNodeVersionBundleItem
     // from Content (which would require knowledge of every content type).
     private readonly string _bodyPlainText = string.Empty;
     public string BodyPlainText { get => _bodyPlainText; init => _bodyPlainText = BundleMemberDefaults.OrEmpty(value); }
+
+    // The library image versions this page version was saved with, so its history shows the
+    // same files in the target. Optional and additive: older bundles have none, and their
+    // versions show each image's current file.
+    private readonly List<MediaPinBundleItem> _media = [];
+    public List<MediaPinBundleItem> Media
+    {
+        get => _media;
+        init => _media = BundleMemberDefaults.NonNullItems(value);
+    }
 }

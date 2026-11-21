@@ -1266,4 +1266,90 @@ public class ContentStagingServiceTests
 
         await _bannerRepo.DidNotReceive().UpdateAsync(Arg.Any<int>(), Arg.Any<HomeBannerContent>());
     }
+
+    // ── Media library images ────────────────────────────────────────────────
+
+    private (ContentStagingService Sut, IContentMediaStaging Media) WithMedia()
+    {
+        var media = Substitute.For<IContentMediaStaging>();
+        media.PinsForAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        media.CollectAsync(Arg.Any<IReadOnlyCollection<PageNodeBundleItem>>(), Arg.Any<IReadOnlyCollection<ContentBlockBundleItem>>(), Arg.Any<CancellationToken>())
+            .Returns(ContentBundleMedia.Empty);
+        media.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportResult>(), Arg.Any<CancellationToken>())
+            .Returns(MediaImportMap.Empty);
+        return (new ContentStagingService(_pages, _blockRepo, _bannerRepo, _html, media: media), media);
+    }
+
+    [Fact]
+    public async Task ExportAsync_CarriesEachVersionsPinsAndTheImagesTheSelectedContentUses()
+    {
+        var (sut, media) = WithMedia();
+        var pinned = Version(1, content: "with image");
+        _pages.GetTreeAsync().Returns([Node(GuidA, null, "a", "A"), Node(GuidB, null, "b", "B")]);
+        _pages.GetVersionsAsync(GuidA).Returns([pinned]);
+        _pages.GetVersionsAsync(GuidB).Returns([Version(1, content: "other page")]);
+        _blockRepo.GetAllAsync().Returns([Block(1, "kept", "Content", "x", GuidC), Block(2, "dropped", "Content", "y", GuidD)]);
+        media.PinsForAsync(pinned.Id, "with image", Arg.Any<CancellationToken>())
+            .Returns([new MediaPinBundleItem { MediaId = GuidD, Version = 3 }]);
+        var asset = new MediaAssetBundleItem { Id = GuidD, FileName = "a.png" };
+        var file = new MediaFileBundleItem { Sha256 = "abc", Data = [1] };
+        media.CollectAsync(Arg.Any<IReadOnlyCollection<PageNodeBundleItem>>(), Arg.Any<IReadOnlyCollection<ContentBlockBundleItem>>(), Arg.Any<CancellationToken>())
+            .Returns(new ContentBundleMedia([asset], [file]));
+
+        var bundle = await sut.ExportAsync(new ContentExportSelection(
+            new HashSet<Guid> { GuidA }, new HashSet<Guid> { GuidC }, MaxVersionsPerNode: null));
+
+        var pin = Assert.Single(Assert.Single(bundle.PageNodes).Versions.Single().Media);
+        Assert.Equal(GuidD, pin.MediaId);
+        Assert.Equal(3, pin.Version);
+        Assert.Same(asset, Assert.Single(bundle.MediaAssets));
+        Assert.Same(file, Assert.Single(bundle.MediaFiles));
+        await media.Received(1).CollectAsync(
+            Arg.Is<IReadOnlyCollection<PageNodeBundleItem>>(p => p.Count == 1 && p.First().Id == GuidA),
+            Arg.Is<IReadOnlyCollection<ContentBlockBundleItem>>(b => b.Count == 1 && b.First().Key == "kept"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ImportAsync_BringsImagesInFirstAndSavesEachVersionWithItsMappedPins()
+    {
+        var (sut, media) = WithMedia();
+        var map = new MediaImportMap();
+        map.Add(GuidD, 7, 2);
+        var order = new List<string>();
+        media.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportResult>(), Arg.Any<CancellationToken>())
+            .Returns(map).AndDoes(_ => order.Add("media"));
+        _pages.GetByIdAsync(GuidA).ReturnsNull();
+        _pages.CreateNodeForStagingAsync(
+                GuidA, null, "p", "p", "P", null, null, "content", 0, true, null, null)
+            .Returns(new PageNodeDto { Id = GuidA, Segment = "p", Path = "p", Title = "P", PageType = "content" })
+            .AndDoes(_ => order.Add("page"));
+        var bundle = new ContentBundle
+        {
+            PageNodes =
+            [
+                new()
+                {
+                    Id = GuidA, Segment = "p", Title = "P", PageType = "content",
+                    Versions =
+                    [
+                        new() { VersionId = 1, Content = "{}", Media = [new() { MediaId = GuidD, Version = 7 }, new() { MediaId = GuidC, Version = 1 }] },
+                        new() { VersionId = 2, Content = "{}" }
+                    ]
+                }
+            ]
+        };
+
+        var result = await sut.ImportAsync(bundle, ContentImportMode.Fail);
+
+        Assert.Equal(["media", "page"], order);
+        await media.Received(1).ImportAsync(bundle, result, Arg.Any<CancellationToken>());
+        await _pages.Received(1).ReplaceAllVersionsForStagingAsync(
+            GuidA,
+            Arg.Is<IReadOnlyList<PageNodeVersionDto>>(v =>
+                v.Count == 2
+                && v[0].MediaPins != null && v[0].MediaPins!.Count == 1 && v[0].MediaPins![GuidD] == 2
+                && v[1].MediaPins == null),
+            null);
+    }
 }

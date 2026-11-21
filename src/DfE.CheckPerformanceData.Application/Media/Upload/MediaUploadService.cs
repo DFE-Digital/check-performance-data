@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using DfE.CheckPerformanceData.Application.Wiki;
 using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.Media.Upload;
@@ -29,10 +28,6 @@ public sealed class MediaUploadService(
     MediaProcessingGate gate,
     ILogger<MediaUploadService> logger) : IMediaUploadService
 {
-    private const int MaxFileNameLength = 255;
-    private const int MaxSlugLength = 200;
-    private const string FallbackName = "image";
-
     public async Task<MediaUploadResult> UploadAsync(Stream content, string fileName, CancellationToken ct = default)
     {
         var check = await CleanAsync(content, ct);
@@ -54,11 +49,11 @@ public sealed class MediaUploadService(
         if (!await blobs.PutAsync(key, new MemoryStream(file.Bytes, writable: false), file.ContentType, ct))
             throw new InvalidOperationException($"The new media file key {key} is already taken.");
 
-        var name = SafeFileName(fileName);
+        var name = MediaFileNames.Safe(fileName);
         try
         {
             var created = await assets.CreateAsync(
-                new NewMediaAsset(id, name, Slug(name), MediaAssetMetadata.Empty, Version(key, file, sha256)), ct);
+                new NewMediaAsset(id, name, MediaFileNames.Slug(name),MediaAssetMetadata.Empty, Version(key, file, sha256)), ct);
             logger.LogInformation("Media item {AssetId} uploaded ({ContentType}, {SizeBytes} bytes)", id, file.ContentType, file.Bytes.Length);
             return MediaUploadResult.Created(created);
         }
@@ -137,24 +132,5 @@ public sealed class MediaUploadService(
         {
             logger.LogWarning(ex, "Could not delete media blob {BlobKey} after a failed save; it has no row", key);
         }
-    }
-
-    // The last part of the name the browser sent, with any folder path removed, cut to fit.
-    private static string SafeFileName(string fileName)
-    {
-        var name = Path.GetFileName((fileName ?? "").Replace('\\', '/').Trim());
-        if (name.Length == 0) return FallbackName;
-        if (name.Length <= MaxFileNameLength) return name;
-
-        var extension = Path.GetExtension(name);
-        if (extension.Length >= MaxFileNameLength / 2) extension = "";
-        return name[..(MaxFileNameLength - extension.Length)] + extension;
-    }
-
-    private static string Slug(string fileName)
-    {
-        var slug = WikiSlug.Generate(Path.GetFileNameWithoutExtension(fileName));
-        if (slug.Length > MaxSlugLength) slug = slug[..MaxSlugLength].TrimEnd('-');
-        return slug.Length == 0 ? FallbackName : slug;
     }
 }

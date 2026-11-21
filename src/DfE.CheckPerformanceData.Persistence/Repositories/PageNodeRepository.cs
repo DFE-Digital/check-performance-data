@@ -768,12 +768,12 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         context.PageNodeVersions.RemoveRange(existing);
 
         // The old versions' usages go with them (cascade). The new versions get usages from their
-        // content, pinned to the current files: a bundle carries no image versions.
+        // content, pinned to the image versions the bundle gives (MediaPins), or else the current files.
         var added = new List<MediaUsageWriter.VersionContent>();
         foreach (var v in versions)
         {
             var versionRowId = Guid.NewGuid();
-            added.Add(new MediaUsageWriter.VersionContent(versionRowId, nodeId, v.Content));
+            added.Add(new MediaUsageWriter.VersionContent(versionRowId, nodeId, v.Content, v.MediaPins));
             context.PageNodeVersions.Add(new PageNodeVersion
             {
                 Id = versionRowId,

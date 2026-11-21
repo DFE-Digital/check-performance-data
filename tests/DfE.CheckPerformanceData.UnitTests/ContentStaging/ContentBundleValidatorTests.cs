@@ -448,4 +448,60 @@ public sealed class ContentBundleValidatorTests
         };
         Assert.Contains(ContentBundleValidator.Validate(bundle), i => i.Code == "BUNDLE_TOO_MANY_BANNERS");
     }
+
+    // Media sections are bounded like every other collection, so a hostile bundle cannot make
+    // the import loop over millions of entries.
+    [Fact]
+    public void MediaAssetCount_OverCap_FailsWithCode()
+    {
+        var bundle = new ContentBundle
+        {
+            MediaAssets = Enumerable.Range(0, ContentBundleValidator.MaxMediaAssets + 1)
+                .Select(_ => new MediaAssetBundleItem { Id = Guid.NewGuid() }).ToList()
+        };
+        var issues = ContentBundleValidator.Validate(bundle);
+        Assert.Contains(issues, i => i.Code == "BUNDLE_TOO_MANY_MEDIA" && i.Severity == ValidationSeverity.Fatal);
+    }
+
+    [Fact]
+    public void MediaFileCount_OverCap_FailsWithCode()
+    {
+        var bundle = new ContentBundle
+        {
+            MediaFiles = Enumerable.Range(0, ContentBundleValidator.MaxMediaFiles + 1)
+                .Select(i => new MediaFileBundleItem { Sha256 = i.ToString() }).ToList()
+        };
+        var issues = ContentBundleValidator.Validate(bundle);
+        Assert.Contains(issues, i => i.Code == "BUNDLE_TOO_MANY_MEDIA_FILES" && i.Severity == ValidationSeverity.Fatal);
+    }
+
+    [Fact]
+    public void MediaVersionCount_OverCap_FailsWithCode()
+    {
+        var bundle = new ContentBundle
+        {
+            MediaAssets =
+            [
+                new MediaAssetBundleItem
+                {
+                    Id = Guid.NewGuid(),
+                    Versions = Enumerable.Range(1, ContentBundleValidator.MaxMediaVersionsPerAsset + 1)
+                        .Select(n => new MediaAssetVersionBundleItem { Version = n }).ToList()
+                }
+            ]
+        };
+        var issues = ContentBundleValidator.Validate(bundle);
+        Assert.Contains(issues, i => i.Code == "BUNDLE_TOO_MANY_MEDIA_VERSIONS" && i.Severity == ValidationSeverity.Fatal);
+    }
+
+    [Fact]
+    public void MediaWithinCaps_RaisesNoIssue()
+    {
+        var bundle = new ContentBundle
+        {
+            MediaAssets = [new MediaAssetBundleItem { Id = Guid.NewGuid(), Versions = [new() { Version = 1 }] }],
+            MediaFiles = [new MediaFileBundleItem { Sha256 = "a" }]
+        };
+        Assert.Empty(ContentBundleValidator.Validate(bundle));
+    }
 }

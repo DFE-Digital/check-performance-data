@@ -14,6 +14,10 @@ public sealed class PageNodeVersionDto
     // not need it; carried on staging export/import so the target does not have to re-derive it.
     public string BodyPlainText { get; init; } = string.Empty;
 
+    // Staging import only: the media library version each image in this version shows, by image
+    // id. Null, or an image left out, shows the image's current version. Read paths leave it null.
+    public IReadOnlyDictionary<Guid, int>? MediaPins { get; init; }
+
     public DateTime CreatedDate { get; init; }
     public string? CreatedBy { get; init; }
     public DateTime UpdatedDate { get; init; }

@@ -22,7 +22,8 @@ public sealed class ContentStagingService(
     IHomeBannerRepository homeBannerRepository,
     IHtmlRenderingService htmlRenderer,
     ContentBundleSanitiser? sanitiser = null,
-    ILogger<ContentStagingService>? logger = null) : IContentStagingService
+    ILogger<ContentStagingService>? logger = null,
+    IContentMediaStaging? media = null) : IContentStagingService
 {
     // Ancestor walks used to be bounded by a fixed depth ceiling. The ceiling was only ever there
     // to stop a malformed bundle spinning forever, but it silently truncated legitimately deep
@@ -53,6 +54,10 @@ public sealed class ContentStagingService(
     // repositories) keeps compiling and the sanitiser branch is a no-op there. Real DI in
     // Program.cs wires the actual sanitiser in.
     private readonly ContentBundleSanitiser? _sanitiser = sanitiser;
+
+    // Optional for the same reason: without it, bundles carry no media library images and an
+    // import ignores any it is given.
+    private readonly IContentMediaStaging? _media = media;
 
     public async Task<ContentBundle> ExportAsync(ContentExportSelection? selection = null)
     {
@@ -85,17 +90,7 @@ public sealed class ContentStagingService(
                 AppearInSearch = node.AppearInSearch,
                 ShowInMenu = node.ShowInMenu,
                 Keywords = node.Keywords,
-                Versions = TrimHistory(versions, maxVersionsPerNode)
-                    .Select(v => new PageNodeVersionBundleItem
-                    {
-                        VersionId = v.VersionId,
-                        MinorVersion = v.MinorVersion,
-                        PublishFrom = v.PublishFrom,
-                        PublishTo = v.PublishTo,
-                        Content = v.Content,
-                        BodyPlainText = v.BodyPlainText
-                    })
-                    .ToList()
+                Versions = await ExportVersionsAsync(TrimHistory(versions, maxVersionsPerNode))
             });
         }
 
@@ -154,13 +149,40 @@ public sealed class ContentStagingService(
             bannerItems = bannerItems.Where(i => selectedBanners.Contains(i.Id)).ToList();
         }
 
+        // The library images the exported content uses, after the selection and history trim, so
+        // the bundle carries no image that nothing in it shows.
+        var media = _media is null ? ContentBundleMedia.Empty : await _media.CollectAsync(pageItems, blockItems);
+
         return new ContentBundle
         {
             Schema = ContentBundle.CurrentSchema,
             PageNodes = pageItems,
             ContentBlocks = blockItems,
-            HomeBanners = bannerItems
+            HomeBanners = bannerItems,
+            MediaAssets = media.Assets,
+            MediaFiles = media.Files
         };
+    }
+
+    // A page version carries the library image versions it was saved with, so its history shows
+    // the same files in the target.
+    private async Task<List<PageNodeVersionBundleItem>> ExportVersionsAsync(List<PageNodeVersionDto> versions)
+    {
+        var items = new List<PageNodeVersionBundleItem>(versions.Count);
+        foreach (var v in versions)
+        {
+            items.Add(new PageNodeVersionBundleItem
+            {
+                VersionId = v.VersionId,
+                MinorVersion = v.MinorVersion,
+                PublishFrom = v.PublishFrom,
+                PublishTo = v.PublishTo,
+                Content = v.Content,
+                BodyPlainText = v.BodyPlainText,
+                Media = _media is null ? [] : [.. await _media.PinsForAsync(v.Id, v.Content)]
+            });
+        }
+        return items;
     }
 
     // Keeps the most recent `max` versions of a node, in ascending version order, plus every
@@ -407,6 +429,10 @@ public sealed class ContentStagingService(
 
         var result = new ContentImportResult();
 
+        // Images first: a page or block saved before its image exists records no usage for it, so
+        // the library would show the image as unused and let it be deleted.
+        var mediaMap = _media is null ? MediaImportMap.Empty : await _media.ImportAsync(bundle, result);
+
         // Bundle page GUID -> title, for every page that does not land, so that a child of one
         // can say why it did not land either.
         var leftOut = new Dictionary<Guid, string>();
@@ -519,7 +545,7 @@ public sealed class ContentStagingService(
                             await pageNodeRepository.SetShowInMenuAsync(effectiveId, showExisting, userId: null);
                         if (page.PageType != "folder")
                             await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
-                                effectiveId, MapVersions(page.Versions), userId: null);
+                                effectiveId, MapVersions(page.Versions, mediaMap), userId: null);
                         _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ updated ({VersionCount} versions)", page.Id, page.Title, page.Versions.Count);
                         result.PageNodesUpdated++;
                         landedPath = path;
@@ -570,7 +596,7 @@ public sealed class ContentStagingService(
                         await pageNodeRepository.SetShowInMenuAsync(created.Id, false, userId: null);
                     if (page.PageType != "folder")
                         await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
-                            created.Id, MapVersions(page.Versions), userId: null);
+                            created.Id, MapVersions(page.Versions, mediaMap), userId: null);
                 });
                 _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ created ({VersionCount} versions)", page.Id, page.Title, page.Versions.Count);
                 result.PageNodesCreated++;
@@ -847,7 +873,7 @@ public sealed class ContentStagingService(
     private static DateTime? UnspecifiedOrNull(DateTime? value) =>
         value is { } v ? DateTime.SpecifyKind(v, DateTimeKind.Unspecified) : null;
 
-    private static List<PageNodeVersionDto> MapVersions(IEnumerable<PageNodeVersionBundleItem> versions) =>
+    private static List<PageNodeVersionDto> MapVersions(IEnumerable<PageNodeVersionBundleItem> versions, MediaImportMap media) =>
         versions
             .OrderBy(v => v.VersionId)
             .Select(v => new PageNodeVersionDto
@@ -860,6 +886,7 @@ public sealed class ContentStagingService(
                 PublishTo = v.PublishTo,
                 Content = v.Content,
                 BodyPlainText = v.BodyPlainText,
+                MediaPins = media.MapPins(v.Media) is { Count: > 0 } pins ? pins : null,
                 CreatedDate = default,
                 UpdatedDate = default
             })

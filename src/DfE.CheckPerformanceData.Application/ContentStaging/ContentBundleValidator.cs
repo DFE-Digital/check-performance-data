@@ -47,6 +47,12 @@ public static class ContentBundleValidator
     public const int MaxHomeBannerHeadingLength = 200;
     public const int MaxHomeBannerBodyBytes = 262_144;      // 256 KB, as a Content block
 
+    // Media library images carried by a bundle. The files are bounded by the bundle size cap;
+    // these bound how many entries the import works through.
+    public const int MaxMediaAssets = 2000;
+    public const int MaxMediaFiles = 5000;
+    public const int MaxMediaVersionsPerAsset = 100;
+
     private static readonly HashSet<string> ValidPageTypes = new(StringComparer.Ordinal)
     {
         "folder", "content", "wiki"
@@ -109,6 +115,26 @@ public static class ContentBundleValidator
         foreach (var banner in bundle.HomeBanners)
         {
             ValidateBanner(banner, issues);
+        }
+
+        // A problem with one image's file is a warning at import (see ContentMediaStaging), so
+        // only the collection sizes are checked here.
+        if (bundle.MediaAssets.Count > MaxMediaAssets)
+        {
+            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BUNDLE_TOO_MANY_MEDIA",
+                $"Bundle has {bundle.MediaAssets.Count} images; the limit is {MaxMediaAssets}."));
+        }
+
+        if (bundle.MediaFiles.Count > MaxMediaFiles)
+        {
+            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BUNDLE_TOO_MANY_MEDIA_FILES",
+                $"Bundle has {bundle.MediaFiles.Count} image files; the limit is {MaxMediaFiles}."));
+        }
+
+        if (bundle.MediaAssets.FirstOrDefault(a => a.Versions.Count > MaxMediaVersionsPerAsset) is { } crowded)
+        {
+            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BUNDLE_TOO_MANY_MEDIA_VERSIONS",
+                $"Image {crowded.Id} has {crowded.Versions.Count} versions; the limit is {MaxMediaVersionsPerAsset}."));
         }
 
         return issues;

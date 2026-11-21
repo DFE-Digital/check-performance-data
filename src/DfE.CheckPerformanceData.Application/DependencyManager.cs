@@ -64,6 +64,7 @@ public static class DependencyManager
         services.AddScoped<Analytics.SampleSearchDataSeeder>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
         services.AddScoped<ContentStaging.ContentBundleSanitiser>();
+        services.AddScoped<ContentStaging.IContentMediaStaging, ContentStaging.ContentMediaStaging>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<Settings.ISettingService, Settings.SettingService>();
         services.AddScoped<SiteAssets.ISiteAssetService, SiteAssets.SiteAssetService>();

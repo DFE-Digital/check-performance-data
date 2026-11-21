@@ -51,4 +51,21 @@ public sealed class ContentBundle
         get => _homeBanners;
         init => _homeBanners = BundleMemberDefaults.NonNullItems(value);
     }
+
+    // Media library images used by the exported content, and their files, each file once
+    // (keyed by SHA-256). Optional and additive like HomeBanners: a bundle written before the
+    // media library existed has neither, and its content imports as before.
+    private readonly List<MediaAssetBundleItem> _mediaAssets = [];
+    public List<MediaAssetBundleItem> MediaAssets
+    {
+        get => _mediaAssets;
+        init => _mediaAssets = BundleMemberDefaults.NonNullItems(value);
+    }
+
+    private readonly List<MediaFileBundleItem> _mediaFiles = [];
+    public List<MediaFileBundleItem> MediaFiles
+    {
+        get => _mediaFiles;
+        init => _mediaFiles = BundleMemberDefaults.NonNullItems(value);
+    }
 }

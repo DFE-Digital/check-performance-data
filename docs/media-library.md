@@ -69,7 +69,7 @@ HEAD. The id and version choose the file. The slug and extension are for people 
   id or version gets a bare **404**. The service checks the query before it reads the database.
 - Copies are WebP. An SVG, an animation or an image of unknown size is always served as stored.
 - A copy is made once and kept under `renditions/` (see [blob-storage.md](blob-storage.md)).
-- Every response has `Cache-Control: public, max-age=31536000, immutable`, an ETag and
+- Every file served has `Cache-Control: public, max-age=31536000, immutable`, an ETag and
   `X-Content-Type-Options: nosniff`.
 
 ### The signing key

@@ -21,13 +21,13 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
   excluded: they come from page content and are written again on every page-version save, and the
   page version's own row records the change. Moving embedded images
   (`/admin/media/move-embedded`) writes hand-written `EmbeddedImageMove` rows (camelCase JSON in
-  `NewValues`), in the same save as each change:
+  `NewValues`). A page or block row is in the same save as its change:
   - `PageChanged`: one for each page changed. `EntityId` is the page id. The payload carries
     `pageNodeId`, `path`, `versions` (each `versionId` and `state`), `imagesMoved` and `assetIds`.
   - `ContentBlockChanged`: one for each content block changed. `EntityId` is the block id. The
     payload carries `contentBlockId`, `key`, `version` (the new block version), `imagesMoved` and
     `assetIds`.
-  - `Run`: one for each run, after it ends or stops. `EntityId` is the run id. The payload
+  - `Run`: one for each run, in its own save after the run ends or stops. `EntityId` is the run id. The payload
     carries `runId`, `pagesChanged`, `imagesMoved`, `imagesCreated`, `duplicatesReused`,
     `pagesFailed`, `failedPageIds`, `blocksChanged`, `blocksFailed` and `failedBlockIds`.
 

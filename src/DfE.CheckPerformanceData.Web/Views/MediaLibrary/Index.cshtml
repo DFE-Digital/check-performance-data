@@ -56,6 +56,11 @@
 
 <p class="govuk-body">Upload images once and reuse them on any page.</p>
 
+<p class="govuk-body">
+    Older pages can hold images saved inside their text.
+    <a class="govuk-link" href="/admin/media/move-embedded" data-media-move-embedded-link>Move embedded images into the library</a>.
+</p>
+
 <form id="media-upload-form" method="post" enctype="multipart/form-data" action="/admin/media/upload"
       data-max-bytes="@MediaUploadLimits.MaxFileBytes" data-too-large-message="@MediaRejections.TooLarge">
     @Html.AntiForgeryToken()

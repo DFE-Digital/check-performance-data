@@ -24,9 +24,11 @@ public static partial class MediaReferenceExtractor
     private const string MediaIdProp = "mediaId";
     private const string MediaIdAttribute = "data-media-id";
 
-    // Widget props that hold HTML, by widget type. Other string props are plain text and the views
-    // show them escaped, so an <img> written in them shows no image.
-    private static readonly IReadOnlyDictionary<string, string[]> HtmlProps =
+    /// <summary>
+    /// Widget props that hold HTML, by widget type. Other string props are plain text and the views
+    /// show them escaped, so an <c>&lt;img&gt;</c> written in them shows no image.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string[]> HtmlProps =
         new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["richtext"] = ["html"],

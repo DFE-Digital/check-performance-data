@@ -48,7 +48,7 @@
     var UPLOAD_FAILED = 'The file could not be uploaded. Try again.';
     var TOO_LARGE = 'The selected file must be smaller than 20 MB';
 
-    var state = { opener: null, onSelect: null, query: '', page: 1, totalPages: 1, items: {} };
+    var state = { opener: null, onSelect: null, query: '', page: 1, totalPages: 1, items: {}, request: 0 };
 
     function element(tag, className, text) {
         var node = document.createElement(tag);
@@ -104,9 +104,16 @@
         return radio;
     }
 
+    // Each load replaces the images at once, so none from an earlier list can be chosen or hold
+    // the focus while the new list loads. Only the newest request is drawn: an older one that comes
+    // back late (the list asked for on opening, after a search) is out of date and is ignored.
     function load(query, page, select) {
+        var request = ++state.request;
         state.query = query;
         state.page = page;
+        grid.textContent = '';
+        state.items = {};
+        setUseEnabled(false);
         announce('Loading images');
         var url = listUrl + '?q=' + encodeURIComponent(query) + '&page=' + page;
         return fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
@@ -115,6 +122,7 @@
                 return response.json();
             })
             .then(function (data) {
+                if (request !== state.request) { return; }
                 grid.textContent = '';
                 state.items = {};
                 state.totalPages = data.totalPages || 1;
@@ -138,6 +146,7 @@
                 }
             })
             .catch(function () {
+                if (request !== state.request) { return; }
                 grid.textContent = '';
                 paging.hidden = true;
                 announce(FAILED);

@@ -264,6 +264,76 @@ public sealed class ImageWidgetEditorE2ETests(PlaywrightFixture fixture) : Seedi
         await Expect(Field("crop")).ToHaveValueAsync("0,0,0.5,1");
     }
 
+    // Holds back the picker's unfiltered list (the one opening the dialog asks for) until the
+    // test lets it go, so the order the answers arrive in is the test's choice, not the network's.
+    private async Task<TaskCompletionSource> HoldTheUnfilteredListAsync()
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await Page.RouteAsync("**/admin/media/picker?q=&page=1", async route =>
+        {
+            await release.Task;
+            await route.ContinueAsync();
+        });
+        return release;
+    }
+
+    // Lets the held list go and waits until the page has had the chance to act on it: the request
+    // has finished, and the browser has drawn two frames since.
+    private async Task ReleaseAndLetThePageHandleItAsync(TaskCompletionSource release)
+    {
+        var finished = Page.WaitForRequestFinishedAsync(new() { Predicate = r => r.Url.Contains("/admin/media/picker?q=&page=1") });
+        release.SetResult();
+        await finished;
+        await Page.EvaluateAsync("() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))");
+    }
+
+    // The list asked for when the dialog opened can come back after the search the editor typed.
+    // It is out of date by then, so it must not replace the search results.
+    [Fact]
+    public async Task AnOlderListThatComesBackLate_DoesNotReplaceTheSearchResults()
+    {
+        var sample = await MediaSeedHelpers.SeedSampleAsync(Fixture.SeedClient, "png");
+        await OpenEditorOnANewImagePageAsync();
+        var release = await HoldTheUnfilteredListAsync();
+
+        await ChooseButton.ClickAsync();
+        await Expect(Dialog).ToBeVisibleAsync();
+        await Dialog.Locator("#media-picker-search").FillAsync("sample");
+        await Dialog.GetByRole(AriaRole.Button, new() { Name = "Search", Exact = true }).ClickAsync();
+        await Expect(Dialog.Locator("[data-media-picker-status]")).ToContainTextAsync("match ‘sample’");
+
+        await ReleaseAndLetThePageHandleItAsync(release);
+
+        await Expect(Dialog.Locator("[data-media-picker-status]")).ToContainTextAsync("match ‘sample’");
+        await Dialog.Locator($"label[for='media-picker-item-{sample.Id}']").ClickAsync();
+        await Dialog.GetByRole(AriaRole.Button, new() { Name = "Use this image" }).ClickAsync();
+        await Expect(Dialog).Not.ToBeVisibleAsync();
+        await Expect(Field("mediaId")).ToHaveValueAsync(sample.Id.ToString());
+    }
+
+    // Opened a second time, the dialog shows no images until its new list has loaded. The images
+    // left from the first time would be replaced as soon as that list came back, taking the focus
+    // of a keyboard user who had already moved onto one of them.
+    [Fact]
+    public async Task ThePickerOpenedAgain_ShowsNoImages_UntilItsNewListHasLoaded()
+    {
+        await MediaSeedHelpers.SeedSampleAsync(Fixture.SeedClient, "png");
+        await OpenEditorOnANewImagePageAsync();
+
+        await ChooseButton.ClickAsync();
+        await Expect(Dialog.Locator("input[type='radio']").First).ToBeAttachedAsync();
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(Dialog).Not.ToBeVisibleAsync();
+
+        var release = await HoldTheUnfilteredListAsync();
+        await ChooseButton.ClickAsync();
+        await Expect(Dialog).ToBeVisibleAsync();
+        await Expect(Dialog.Locator("input[type='radio']")).ToHaveCountAsync(0);
+
+        await ReleaseAndLetThePageHandleItAsync(release);
+        await Expect(Dialog.Locator("input[type='radio']").First).ToBeAttachedAsync();
+    }
+
     [SkippableFact]
     public async Task TheEditorAndThePicker_HaveNoWcagViolations()
     {

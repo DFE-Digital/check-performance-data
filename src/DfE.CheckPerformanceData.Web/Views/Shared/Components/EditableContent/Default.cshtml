@@ -1,3 +1,8 @@
+@using DfE.CheckPerformanceData.Application.Media.RichText
+@using DfE.CheckPerformanceData.Application.Media.Serving
+@using DfE.CheckPerformanceData.Application.Media.Widget
+@inject IMediaVersionResolver MediaResolver
+@inject IMediaUrlBuilder MediaUrls
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.EditableContentViewModel
 
 @if (Model.IsEditing)
@@ -94,9 +99,13 @@
 }
 else
 {
+    // ValueHtml is already sanitised. Each media library image is pointed at its newest version,
+    // with signed responsive copies, as the rich-text widget does. A block has no page version,
+    // so the newest file always shows, and an image no longer in the library is dropped.
+    var blockHtml = await MediaResolver.RenderRichTextImagesAsync(Model.ValueHtml, MediaUrls, null, showEditorNotices: false);
     <div class="content-block content-block--content" id="block-@Model.Key">
         <div class="govuk-body">
-            @Html.Raw(Model.ValueHtml)
+            @Html.Raw(blockHtml)
         </div>
         @if (ViewData["Impersonating"] is not true && User.IsInRole(DfE.CheckPerformanceData.Web.Controllers.WikiConstants.EditorRole))
         {

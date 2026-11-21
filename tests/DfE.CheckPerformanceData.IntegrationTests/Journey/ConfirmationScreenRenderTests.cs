@@ -100,6 +100,7 @@ public sealed class ConfirmationScreenRenderTests(PostgresFixture fixture)
                     services.AddGovUkFrontend();
                     services.AddSingleton<ISearchSurfaceFilter, AllSearchSurfaces>();
                     services.AddSingleton<IContentBlockService>(contentBlockService);
+                    services.AddEmptyMediaLibrary();
                 });
                 web.Configure(_ => { });
             })

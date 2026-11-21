@@ -27,7 +27,10 @@ public sealed class MediaFileController(IMediaDeliveryService media) : Controlle
 
     // No route constraints: a malformed id or version is answered here with a bare 404, rather
     // than falling through to the content page route.
+    // HEAD answers as GET does, without the body (the server drops it), so a link checker or a
+    // cache that asks with HEAD gets the file's headers, not the sign-in redirect.
     [HttpGet("media/{id}/{version}/{file}")]
+    [HttpHead("media/{id}/{version}/{file}")]
     public async Task<IActionResult> Get(string id, string version, CancellationToken ct)
     {
         if (!Guid.TryParseExact(id, "D", out var assetId)

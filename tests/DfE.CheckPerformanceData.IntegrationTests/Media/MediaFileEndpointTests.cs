@@ -203,6 +203,29 @@ public sealed class MediaFileEndpointTests(PostgresFixture postgres, AzuriteFixt
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    // Link checkers and caches ask with HEAD. It gets the headers a GET gets, not a sign-in redirect.
+    [Fact]
+    public async Task AHeadRequest_GetsTheSameHeadersAsAGet_Anonymously()
+    {
+        var (asset, urls) = await UploadAsync(Svg(), "logo.svg");
+
+        using var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Head, urls.Original(asset, asset.Latest)));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("image/svg+xml", response.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(SvgPolicy, Assert.Single(response.Headers.GetValues("Content-Security-Policy")));
+        Assert.Equal(LongCache, response.Headers.CacheControl!.ToString());
+        Assert.Equal($"\"{asset.Id:N}.1\"", response.Headers.ETag!.Tag);
+    }
+
+    [Fact]
+    public async Task AHeadRequestForAnUnknownImage_IsABare404()
+    {
+        using var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Head, $"/media/{Guid.NewGuid():D}/1/missing.png"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     [Fact]
     public async Task AnSvg_IsServedWithItsOwnContentSecurityPolicy()
     {

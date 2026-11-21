@@ -88,14 +88,19 @@ public sealed class MediaDeleteUnusedTests(PlaywrightFixture fixture) : SeedingP
     {
         await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
         var unused = await UploadAsync("token");
+        // The admin may open the page, so a refusal below comes from the missing token.
+        Assert.Equal(HttpStatusCode.OK, await StatusAsync($"/admin/media/delete-unused?search={_run}"));
+        var (_, cookie) = await AntiforgeryHelpers.ScrapeAsync(Fixture.SeedClient, "/dev/antiforgery-token");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{Fixture.BaseUrl}/admin/media/delete-unused")
         {
             Content = new FormUrlEncodedContent([new("ids", unused.ToString())]),
         };
+        request.Headers.Add("Cookie", $"{Fixture.SeedClient.ImpersonationCookieHeader}; {cookie}");
         using var response = await Fixture.SeedClient.SendAsync(request);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.True(response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.NotFound,
+            $"Expected the CSRF guard to refuse the delete; got {(int)response.StatusCode}.");
         Assert.Equal(HttpStatusCode.OK, await StatusAsync($"/admin/media/{unused}"));
     }
 

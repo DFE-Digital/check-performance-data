@@ -61,6 +61,9 @@ HEAD. The id and version choose the file. The slug and extension are for people 
 - **Rendition:** `w` (width), `crop=x,y,w,h`, `ar` (aspect ratio, for example `16:9`) and `focal=x,y`
   (only with `ar`) ask for a resized or cropped copy. Fractions are 0 to 1, rounded to 3 decimal
   places.
+- The focal point matters only when `ar` cuts the image or a crop of another shape. So the Image
+  widget editor disables "Set focal point" while a preset crop shape and a crop are both set. A
+  hint says why. Free shape or "Reset crop" turns it on again.
 - **Widths:** only 320, 640, 960, 1280 and 1920 (`MediaRenditionQuery.AllowedWidths`).
 - **Signature:** a rendition URL must carry `sig`. It is an HMAC-SHA256 of the id, the version and
   the canonical settings, cut to 128 bits, in URL-safe base64. Only the server makes these URLs,

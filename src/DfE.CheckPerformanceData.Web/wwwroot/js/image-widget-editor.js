@@ -10,6 +10,9 @@
 // - adds a crop tool (Cropper.js) with shape presets, and a focal point tool that works with a
 //   click or the arrow keys. Both write into the same props[crop], props[aspect] and
 //   props[focal] fields that the form posts. An SVG, GIF or animated image has neither tool.
+// - disables the focal point button while a preset shape and a crop are both set. That crop is
+//   already in the shape, so the focal point cannot change the picture. A hint says why, and a
+//   status message announces the change. The typed focal field stays, so its value still posts.
 // - shows a live preview: the server renders the widget's own view from the unsaved values, so
 //   the preview matches the page.
 //
@@ -63,6 +66,8 @@
         var focalImg = q('[data-image-editor-focal-img]');
         var focalMarker = q('[data-image-editor-focal-marker]');
         var focalStatus = q('[data-image-editor-focal-status]');
+        var focalOff = q('[data-image-editor-focal-off]');
+        var focalAnnounce = q('[data-image-editor-focal-announce]');
         var aspectField = q('[data-image-editor-aspect]');
         var cropField = q('[data-image-editor-crop]');
         var focalField = q('[data-image-editor-focal]');
@@ -104,6 +109,27 @@
             cropTools.hidden = !item.canCrop;
         }
 
+        // A preset shape with a crop: the crop is in that shape, so no part of it is cut and the
+        // focal point does nothing. A shape with no crop still cuts the image, so focal applies.
+        var focalWasOff = null;
+        function syncFocalAvailability() {
+            var off = !!aspectField.value && !!cropField.value.trim();
+            focalToggle.disabled = off;
+            if (off) {
+                focalToggle.setAttribute('aria-describedby', focalOff.id);
+                togglePanel(focalToggle, focalPanel, false);
+            } else {
+                focalToggle.removeAttribute('aria-describedby');
+            }
+            focalOff.hidden = !off;
+            if (focalWasOff !== null && focalWasOff !== off) {
+                focalAnnounce.textContent = off
+                    ? 'Focal point is not available while the crop has a fixed shape.'
+                    : 'Focal point is available.';
+            }
+            focalWasOff = off;
+        }
+
         function syncShapeRadios() {
             Array.prototype.forEach.call(shapes, function (radio) { radio.checked = radio.value === aspectField.value; });
         }
@@ -122,6 +148,7 @@
             h = round(h);
             var whole = x === 0 && y === 0 && w === 1 && h === 1;
             cropField.value = whole || w <= 0 || h <= 0 ? '' : [x, y, w, h].map(number).join(',');
+            syncFocalAvailability();
             schedulePreview();
         }
 
@@ -183,6 +210,7 @@
                     cropper.setAspectRatio(PRESETS[radio.value] || NaN);
                     writeCrop();
                 } else {
+                    syncFocalAvailability();
                     schedulePreview();
                 }
             });
@@ -196,12 +224,14 @@
                 cropper.setAspectRatio(NaN);
                 cropper.reset();
             }
+            syncFocalAvailability();
             schedulePreview();
         });
 
         // A typed crop or aspect ratio moves the crop box, and a typed focal point moves the marker.
         function applyTypedCrop() {
             syncShapeRadios();
+            syncFocalAvailability();
             if (!cropper) { return; }
             cropper.setAspectRatio(PRESETS[aspectField.value] || NaN);
             var typed = parseFractions(cropField.value, 4);
@@ -299,6 +329,7 @@
                 togglePanel(focalToggle, focalPanel, false);
             }
             showChosen();
+            syncFocalAvailability();
             schedulePreview();
         }
 
@@ -339,6 +370,7 @@
         form.addEventListener('change', schedulePreview);
 
         showChosen();
+        syncFocalAvailability();
         if (item) { schedulePreview(); }
         root.setAttribute('data-image-editor-init', 'true');
     }

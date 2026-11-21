@@ -101,13 +101,6 @@ public sealed class ImageWidgetEditorE2ETests(PlaywrightFixture fixture) : Seedi
         await Expect(Widget.Locator("[data-image-editor-name]")).Not.ToBeEmptyAsync();
         await Field("alt").FillAsync("Two coloured blocks side by side");
 
-        // Crop to a square. The sample is 64 x 32, so the largest square is its middle half.
-        await Widget.GetByRole(AriaRole.Button, new() { Name = "Crop image" }).ClickAsync();
-        await Expect(Widget.Locator("[data-image-editor-cropper='ready']")).ToBeAttachedAsync();
-        await Widget.Locator("label[for='ie-shape-0.0-1-1']").ClickAsync();
-        await Expect(Field("crop")).ToHaveValueAsync("0.25,0,0.5,1");
-        await Expect(Field("aspect")).ToHaveValueAsync("1:1");
-
         // Set the focal point with a click, then move it with the keyboard.
         await Widget.GetByRole(AriaRole.Button, new() { Name = "Set focal point" }).ClickAsync();
         var focalImage = Widget.Locator("[data-image-editor-focal-img]");
@@ -122,6 +115,13 @@ public sealed class ImageWidgetEditorE2ETests(PlaywrightFixture fixture) : Seedi
         Assert.Equal(clicked.X + 0.01m, moved.X);
         Assert.Equal(clicked.Y, moved.Y);
         await Expect(Widget.Locator("[data-image-editor-focal-status]")).ToContainTextAsync("across");
+
+        // Crop to a square. The sample is 64 x 32, so the largest square is its middle half.
+        await Widget.GetByRole(AriaRole.Button, new() { Name = "Crop image" }).ClickAsync();
+        await Expect(Widget.Locator("[data-image-editor-cropper='ready']")).ToBeAttachedAsync();
+        await Widget.Locator("label[for='ie-shape-0.0-1-1']").ClickAsync();
+        await Expect(Field("crop")).ToHaveValueAsync("0.25,0,0.5,1");
+        await Expect(Field("aspect")).ToHaveValueAsync("1:1");
 
         await Widget.Locator("label[for='wf-width-0.0-one-half']").ClickAsync();
 
@@ -145,6 +145,58 @@ public sealed class ImageWidgetEditorE2ETests(PlaywrightFixture fixture) : Seedi
         Assert.Contains("&sig=", src);
         var response = await Page.APIRequest.GetAsync($"{Fixture.BaseUrl}{src}");
         Assert.Equal(200, response.Status);
+    }
+
+    // A preset crop is already in its shape, so the focal point cannot change the picture. The
+    // focal point button is then disabled, with a hint that says why, and the change is announced.
+    // Free shape or Reset crop turns it on again.
+    [Fact]
+    public async Task AfterAPresetCrop_TheFocalPointIsOff_UntilTheShapeIsFreeOrTheCropIsReset()
+    {
+        var sample = await MediaSeedHelpers.SeedSampleAsync(Fixture.SeedClient, "png");
+        await OpenEditorOnANewImagePageAsync();
+        await ChooseThroughThePickerAsync(sample.Id, "sample");
+
+        var focalButton = Widget.GetByRole(AriaRole.Button, new() { Name = "Set focal point" });
+        var hint = Widget.Locator("[data-image-editor-focal-off]");
+        var announce = Widget.Locator("[data-image-editor-focal-announce]");
+        await Expect(focalButton).ToBeEnabledAsync();
+        await Expect(hint).ToBeHiddenAsync();
+
+        // Open the focal point tool first: the preset crop closes it.
+        await focalButton.ClickAsync();
+        await Expect(Widget.Locator("[data-image-editor-focal-panel]")).ToBeVisibleAsync();
+
+        await Widget.GetByRole(AriaRole.Button, new() { Name = "Crop image" }).ClickAsync();
+        await Expect(Widget.Locator("[data-image-editor-cropper='ready']")).ToBeAttachedAsync();
+        await Widget.Locator("label[for='ie-shape-0.0-16-9']").ClickAsync();
+        await Expect(Field("aspect")).ToHaveValueAsync("16:9");
+        await Expect(Field("crop")).Not.ToHaveValueAsync("");
+
+        await Expect(focalButton).ToBeDisabledAsync();
+        await Expect(focalButton).ToHaveAttributeAsync("aria-describedby", "ie-focal-off-0.0");
+        await Expect(hint).ToBeVisibleAsync();
+        await Expect(hint).ToHaveAttributeAsync("id", "ie-focal-off-0.0");
+        await Expect(hint).ToHaveClassAsync(new Regex("govuk-hint"));
+        await Expect(hint).ToContainTextAsync("crop shape");
+        await Expect(announce).ToHaveAttributeAsync("role", "status");
+        await Expect(announce).ToContainTextAsync("Focal point is not available");
+        await Expect(Widget.Locator("[data-image-editor-focal-panel]")).ToBeHiddenAsync();
+
+        // Free shape: the focal point applies again.
+        await Widget.Locator("label[for='ie-shape-0.0-free']").ClickAsync();
+        await Expect(focalButton).ToBeEnabledAsync();
+        await Expect(focalButton).Not.ToHaveAttributeAsync("aria-describedby", new Regex("."));
+        await Expect(hint).ToBeHiddenAsync();
+        await Expect(announce).ToContainTextAsync("Focal point is available");
+
+        // A preset again, then Reset crop.
+        await Widget.Locator("label[for='ie-shape-0.0-4-3']").ClickAsync();
+        await Expect(focalButton).ToBeDisabledAsync();
+        await Widget.GetByRole(AriaRole.Button, new() { Name = "Reset crop" }).ClickAsync();
+        await Expect(Field("crop")).ToHaveValueAsync("");
+        await Expect(focalButton).ToBeEnabledAsync();
+        await Expect(hint).ToBeHiddenAsync();
     }
 
     [Fact]

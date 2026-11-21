@@ -492,6 +492,13 @@
                                                 <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button"
                                                         aria-expanded="false" aria-controls="ie-focal-@Model.Path" data-image-editor-focal-toggle>Set focal point</button>
                                             </div>
+                                            @* A preset crop is already in its shape, so the focal point cannot change the
+                                               picture. The script then disables the button and shows this hint. *@
+                                            <div class="govuk-hint" id="ie-focal-off-@Model.Path" data-image-editor-focal-off hidden>
+                                                The focal point has no effect, because the crop shape already sets what the page shows.
+                                                To use it, choose the Free crop shape or reset the crop.
+                                            </div>
+                                            <p class="govuk-visually-hidden" role="status" data-image-editor-focal-announce></p>
                                             <div class="app-image-editor__panel" id="ie-crop-@Model.Path" data-image-editor-crop-panel hidden>
                                                 <div class="govuk-form-group">
                                                     <fieldset class="govuk-fieldset" aria-describedby="ie-shape-@Model.Path-hint">

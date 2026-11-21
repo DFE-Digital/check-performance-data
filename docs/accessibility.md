@@ -178,6 +178,11 @@ The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cp
   that opened it. A `role="status"` region announces "Loading images" and then the number of
   images. The list is emptied when a new list is asked for, so focus never sits on an image that
   is about to be replaced.
+- **Image widget focal point** (`image-widget-editor.js`). A preset crop shape with a crop makes
+  the focal point useless. The "Set focal point" button is then `disabled`, not only styled. A
+  visible GOV.UK hint says why and how to turn it on again, and the button's `aria-describedby`
+  names it. A visually hidden `role="status"` message announces each change. The typed focal
+  field is not disabled, so its value still posts.
 - **Library page.** Each control has a label. A `role="status"` region announces each upload's
   start and end. A refused upload shows its reason beside the file.
 - **Reports and the embedded-image move.** Each page's title matches its `<h1>`. Each table has

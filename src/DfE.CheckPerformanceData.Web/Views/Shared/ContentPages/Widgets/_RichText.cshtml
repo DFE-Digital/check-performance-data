@@ -1,11 +1,24 @@
 @using DfE.CheckPerformanceData.Application.Common
 @using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Application.Media.RichText
+@using DfE.CheckPerformanceData.Application.Media.Serving
+@using DfE.CheckPerformanceData.Application.Media.Widget
+@using DfE.CheckPerformanceData.Web.PageTree
 @inject IHtmlRenderingService Renderer
+@inject IMediaVersionResolver MediaResolver
+@inject IMediaUrlBuilder MediaUrls
 @model WidgetNode
 @*
     Rich-text body. The stored HTML is sanitised through the shared renderer (Markdig + HTML
-    sanitiser) before it reaches the page — never emit the raw draft value.
+    sanitiser) before it reaches the page — never emit the raw draft value. Then each media library
+    image is pointed at the version the page shows (see MediaRenderContext), with signed responsive
+    copies. This runs after the sanitiser, so the srcset it writes is never stored or indexed.
 *@
+@{
+    var context = ViewData[MediaRenderContext.ViewDataKey] as MediaRenderContext ?? MediaRenderContext.Public;
+    var html = Renderer.RenderHtml(Model.GetString("html") ?? string.Empty) ?? string.Empty;
+    html = await MediaResolver.RenderRichTextImagesAsync(html, MediaUrls, context.PageVersionId, context.ShowEditorNotices);
+}
 <div class="govuk-body">
-    @Html.Raw(Renderer.RenderHtml(Model.GetString("html") ?? string.Empty))
+    @Html.Raw(html)
 </div>

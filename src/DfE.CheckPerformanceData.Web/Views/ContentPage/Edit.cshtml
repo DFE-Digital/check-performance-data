@@ -321,6 +321,7 @@
 <script src="~/lib/cropperjs/cropper.min.js"></script>
 <script src="~/js/media-picker.js" asp-append-version="true"></script>
 <script src="~/js/image-widget-editor.js" asp-append-version="true"></script>
+<script src="~/js/rich-text-media.js" asp-append-version="true"></script>
 
 @* Rich-text widgets use the same TinyMCE editor as content blocks. They live inside collapsed
    <details>, and TinyMCE renders incorrectly when initialised on a hidden element, so each editor
@@ -338,33 +339,14 @@
             if (started.has(textarea)) return;
             started.add(textarea);
 
-            tinymce.init({
+            // Images come from the media library (see rich-text-media.js): picked in the image
+            // dialog, or pasted and dropped, which uploads them to the library.
+            tinymce.init(Object.assign({
                 target: textarea,
                 height: 360,
                 menubar: true,
                 plugins: 'lists link table code wordcount searchreplace fullscreen image',
                 toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | warningtext | code fullscreen',
-                // Images are embedded inline as data: URIs so they travel with the
-                // content-staging export/import bundle. No blob storage needed; the
-                // sanitiser allows data: URIs on <img src="..."> via the app-side
-                // HtmlSanitizer allow-list.
-                automatic_uploads: false,
-                paste_data_images: true,
-                images_file_types: 'png,jpg,jpeg,gif,webp',
-                file_picker_types: 'image',
-                file_picker_callback: function (cb) {
-                    var input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/png,image/jpeg,image/gif,image/webp';
-                    input.onchange = function () {
-                        var file = input.files && input.files[0];
-                        if (!file) return;
-                        var reader = new FileReader();
-                        reader.onload = function () { cb(reader.result, { title: file.name }); };
-                        reader.readAsDataURL(file);
-                    };
-                    input.click();
-                },
                 style_formats: [
                     { title: 'Heading 2 (section)', block: 'h2', classes: 'govuk-heading-l' },
                     { title: 'Heading 3 (sub-section)', block: 'h3', classes: 'govuk-heading-m' },
@@ -402,9 +384,10 @@
                                 '</strong></div>');
                         }
                     });
+                    window.RichTextMedia.setup(editor);
                     editor.on('change', function () { editor.save(); });
                 }
-            });
+            }, window.RichTextMedia.options(textarea)));
         }
 
         document.querySelectorAll('details').forEach(function (details) {

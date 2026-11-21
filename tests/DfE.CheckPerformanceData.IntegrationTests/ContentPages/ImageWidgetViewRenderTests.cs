@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.Media.Serving;
@@ -25,6 +26,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.ContentPages;
 // Renders the Image widget through the real Razor view engine, with the image versions given by a
 // stub resolver and URLs from the real URL builder. Covers the markup a visitor's browser gets:
 // the figure, the signed srcset, the link, the caption and credit, and what a missing image shows.
+// Library images in rich text render through the same resolver and URL builder.
 public sealed class ImageWidgetViewRenderTests
 {
     private static readonly Guid PngId = Guid.Parse("11111111-38a9-4a65-9e3a-5f8f2f0f7a11");
@@ -198,6 +200,66 @@ public sealed class ImageWidgetViewRenderTests
         Assert.Contains("<figure class=\"app-image app-image--full\"", html);
     }
 
+    // --- Library images in a rich-text widget ---
+
+    private static WidgetNode RichText(string html) =>
+        new() { Type = "richtext", Props = new JsonObject { ["html"] = html } };
+
+    private const string RichTextView = "~/Views/Shared/ContentPages/Widgets/_RichText.cshtml";
+
+    [Fact]
+    public async Task ARichTextLibraryImage_GetsSignedResponsiveCopies_AfterTheSanitiser()
+    {
+        var html = await RenderAsync(RichText(
+            $"<p><img data-media-id=\"{PngId}\" src=\"/media/{PngId}/1/school-photo.png\" alt=\"Pupils reading\" onerror=\"alert(1)\"></p>"),
+            viewPath: RichTextView);
+
+        Assert.Contains($"src=\"/media/{PngId:D}/4/school-photo.webp?w=960&amp;sig=", html);
+        Assert.Contains("srcset=\"/media/", html);
+        Assert.Contains("sizes=\"", html);
+        Assert.Contains("loading=\"lazy\"", html);
+        Assert.Contains("decoding=\"async\"", html);
+        Assert.Contains("alt=\"Pupils reading\"", html);
+        Assert.Contains("width=\"2000\"", html);
+        Assert.DoesNotContain("onerror", html);
+    }
+
+    [Fact]
+    public async Task ARichTextImageNoLongerInTheLibrary_IsDroppedFromAPublicPage_AndWarnedAboutInTheEditor()
+    {
+        var stored = $"<p>Before</p><p><img data-media-id=\"{Guid.NewGuid()}\" src=\"/media/x.png\" alt=\"Gone\"></p>";
+
+        var page = await RenderAsync(RichText(stored), viewPath: RichTextView);
+        Assert.DoesNotContain("<img", page);
+        Assert.DoesNotContain("govuk-warning-text", page);
+        Assert.Contains("Before", page);
+
+        var editor = await RenderAsync(RichText(stored), new MediaRenderContext(null, ShowEditorNotices: true), RichTextView);
+        Assert.Contains("This image is no longer in the media library", editor);
+    }
+
+    [Fact]
+    public async Task ARichTextImageOnAHistoricPageVersion_AsksForTheVersionsRecordedForIt()
+    {
+        var pageVersion = Guid.NewGuid();
+
+        await RenderAsync(RichText($"<img data-media-id=\"{PngId}\" src=\"/media/{PngId}/1/a.png\" alt=\"x\">"),
+            new MediaRenderContext(pageVersion, ShowEditorNotices: true), RichTextView);
+
+        await _resolver.Received().ResolveAsync(
+            Arg.Is<IEnumerable<Guid>>(ids => ids.Contains(PngId)), pageVersion, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnInlineDataImageInRichText_StillRenders()
+    {
+        const string dataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+        var html = await RenderAsync(RichText($"<p><img src=\"{dataUri}\" alt=\"Dot\"></p>"), viewPath: RichTextView);
+
+        Assert.Contains($"src=\"{dataUri}\"", html);
+    }
+
     private async Task<string> RenderAsync(WidgetNode model, MediaRenderContext? context = null,
         string viewPath = "~/Views/Shared/ContentPages/Widgets/_Image.cshtml")
     {
@@ -211,6 +273,7 @@ public sealed class ImageWidgetViewRenderTests
                         .AddApplicationPart(typeof(PageController).Assembly);
                     services.AddGovUkFrontend();
                     services.AddSingleton(_resolver);
+                    services.AddSingleton<IHtmlRenderingService, HtmlRenderingService>();
                     services.AddSingleton<IMediaUrlBuilder>(new MediaUrlBuilder(new MediaUrlSigner(new FixedKey())));
                 });
                 web.Configure(_ => { });

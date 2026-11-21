@@ -2074,8 +2074,8 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
   color: #d4351c;
 }
 
-/* Rich-text widget images. Inserted via the TinyMCE image dialog as inline base64 data
-   URIs — the sanitiser strips inline `style` attributes, so image sizing has to come
+/* Rich-text widget images: media library images, and older inline data: images. The
+   sanitiser strips inline `style` attributes, so image sizing has to come
    from a class instead. Applied automatically to every <img> inside a rich-text widget
    so authors don't need to remember to add the class themselves. */
 .govuk-body img {
@@ -2087,6 +2087,11 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
 }
 .govuk-body figure {
   margin: 1.5em 0;
+}
+/* The editor's warning for a rich-text image that is no longer in the media library. It is
+   built from inline elements so it can sit in a paragraph, and shown as a block. */
+.govuk-body span.govuk-warning-text {
+  display: block;
 }
 .govuk-body figure img {
   margin: 0;

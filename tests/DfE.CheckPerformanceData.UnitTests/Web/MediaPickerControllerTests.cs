@@ -28,6 +28,8 @@ public sealed class MediaPickerControllerTests
         _media.ListAsync(Arg.Any<MediaAssetQuery>(), Arg.Any<CancellationToken>()).Returns(new MediaAssetPage([], 0, 1, 12));
         _urls.Rendition(Arg.Any<MediaAssetDto>(), Arg.Any<MediaAssetVersionDto>(), Arg.Any<int>())
             .Returns(ci => $"/r/{ci.Arg<MediaAssetDto>().Id}/{ci.ArgAt<int>(2)}");
+        _urls.Original(Arg.Any<MediaAssetDto>(), Arg.Any<MediaAssetVersionDto>())
+            .Returns(ci => $"/o/{ci.Arg<MediaAssetDto>().Id}/{ci.Arg<MediaAssetVersionDto>().Version}");
         var http = new DefaultHttpContext();
         _sut = new MediaPickerController(_media, _uploads, _urls)
         {
@@ -162,6 +164,8 @@ public sealed class MediaPickerControllerTests
         Assert.Equal(asset.Id, json.GetProperty("id").GetGuid());
         Assert.Equal("new.png", json.GetProperty("fileName").GetString());
         Assert.False(json.GetProperty("duplicate").GetBoolean());
+        // Rich text stores the unsigned original; the page signs a rendition when it renders.
+        Assert.Equal($"/o/{asset.Id}/{asset.Latest.Version}", json.GetProperty("src").GetString());
     }
 
     [Fact]

@@ -9,10 +9,11 @@
 //   });
 //   MediaPicker.close();        // closes the dialog without a choice
 //   MediaPicker.isAvailable();  // false when the page has no picker dialog
+//   MediaPicker.upload(file)    // a Promise of the uploaded item, or of { error: message }
 //
-// An item is { id, fileName, alt, width, height, thumbUrl, editUrl, isSvg, isAnimated, canCrop,
-// duplicate }. alt is the library's default alt text ("" when none). editUrl is a signed copy,
-// large enough to crop on. canCrop is false for an image always shown as uploaded.
+// An item is { id, fileName, alt, width, height, thumbUrl, editUrl, src, isSvg, isAnimated,
+// canCrop, duplicate }. alt is the library's default alt text ("" when none). src is the unsigned
+// stored file, which rich text keeps with the id. editUrl is a signed copy, large enough to crop on. canCrop is false for an image always shown as uploaded.
 //
 // Keyboard: the images are radio buttons. Tab moves into them, the arrow keys move between
 // them, and Enter chooses the focused image. Escape closes the dialog. Tab stays inside it.
@@ -247,17 +248,13 @@
         fileInput.setAttribute('aria-describedby', 'media-picker-file-hint');
     }
 
-    uploadButton.addEventListener('click', function () {
-        clearUploadError();
-        var file = fileInput.files && fileInput.files[0];
-        if (!file) { showUploadError('Select an image to upload'); fileInput.focus(); return; }
-        if (maxBytes && file.size > maxBytes) { showUploadError(TOO_LARGE); fileInput.focus(); return; }
-
+    // Sends one file to the library. Resolves with the new (or matching) image, or with
+    // { error: message } when the server or the network refuses it. Never rejects.
+    function upload(file) {
+        if (maxBytes && file.size > maxBytes) { return Promise.resolve({ error: TOO_LARGE }); }
         var body = new FormData();
         body.append('file', file, file.name);
-        uploadButton.disabled = true;
-        announce('Uploading ' + file.name);
-        fetch(uploadUrl, {
+        return fetch(uploadUrl, {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Accept': 'application/json', 'X-XSRF-TOKEN': token ? token.value : '' },
@@ -270,7 +267,22 @@
                 return response.json();
             })
             .then(function (result) {
-                if (!result || result.error || !result.id) { showUploadError((result && result.error) || UPLOAD_FAILED); fileInput.focus(); return; }
+                return result && !result.error && result.id ? result : { error: (result && result.error) || UPLOAD_FAILED };
+            })
+            .catch(function () { return { error: UPLOAD_FAILED }; });
+    }
+
+    uploadButton.addEventListener('click', function () {
+        clearUploadError();
+        var file = fileInput.files && fileInput.files[0];
+        if (!file) { showUploadError('Select an image to upload'); fileInput.focus(); return; }
+        if (maxBytes && file.size > maxBytes) { showUploadError(TOO_LARGE); fileInput.focus(); return; }
+
+        uploadButton.disabled = true;
+        announce('Uploading ' + file.name);
+        upload(file)
+            .then(function (result) {
+                if (result.error) { showUploadError(result.error); fileInput.focus(); return; }
                 fileInput.value = '';
                 searchInput.value = '';
                 return load('', 1, result).then(function () {
@@ -297,6 +309,7 @@
     window.MediaPicker = {
         open: open,
         close: close,
+        upload: upload,
         isAvailable: function () { return true; }
     };
     document.documentElement.setAttribute('data-media-picker-init', 'true');

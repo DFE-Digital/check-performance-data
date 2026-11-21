@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using DfE.CheckPerformanceData.Application.ContentPages;
 
@@ -119,11 +120,18 @@ public static partial class MediaReferenceExtractor
         var document = new HtmlParser().ParseDocument(html);
         foreach (var img in document.QuerySelectorAll("img"))
         {
-            // The data attribute names the image the editor chose, so it wins over the src.
-            if (TryGuid(img.GetAttribute(MediaIdAttribute), out var id) || TryMediaPath(img.GetAttribute("src"), out id))
+            if (TryGetImageId(img, out var id))
                 found.Add(new MediaReference(id, MediaUsageLocations.RichText, path));
         }
     }
+
+    /// <summary>
+    /// The library image that a rich-text <c>&lt;img&gt;</c> shows. The data attribute names the
+    /// image the editor chose, so it wins over the src. The page render uses the same rule, so the
+    /// versions recorded here are the ones a historic page version shows.
+    /// </summary>
+    public static bool TryGetImageId(IElement img, out Guid id) =>
+        TryGuid(img.GetAttribute(MediaIdAttribute), out id) || TryMediaPath(img.GetAttribute("src"), out id);
 
     // A body that is not a widget tree may be markdown, so its images are found by pattern rather
     // than as <img> elements: a data-media-id attribute or a /media/{id}/ address.

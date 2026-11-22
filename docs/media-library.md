@@ -38,6 +38,21 @@ The flow:
   (`ck_media_usages_owner`). `AssetVersion` is the image version that the use is pinned to.
   `Location` is `widget` or `richtext`.
 
+Every reference is a foreign key that the database checks:
+
+| Column | References | On delete |
+| --- | --- | --- |
+| `media_asset_versions.asset_id` | `media_assets.id` | cascade |
+| `media_assets (id, current_version)` | `media_asset_versions (asset_id, version)` | refused. Checked at the end of the transaction, because an image and its first version are added in one save. The migration adds it in SQL |
+| `media_usages (asset_id, asset_version)` | `media_asset_versions (asset_id, version)` | refused while a usage pins the version |
+| `media_usages (page_node_version_id, page_node_id)` | `PageNodeVersions (Id, PageNodeId)` | cascade. A usage cannot name another page than its page version's page |
+| `media_usages.page_node_id` | `PageNodes.Id` | cascade |
+| `media_usages.content_block_id` | `ContentBlocks.Id` | cascade |
+| `PageNodeVersions.SupersededById` | `PageNodeVersions.Id` | set null |
+
+Page content refers to an image by its id only, in JSON or HTML, which no key can check. The
+`media_usages` rows are the checked record of those uses.
+
 See [domain-model.md](domain-model.md) for when the rows are written.
 
 ## Version rules
@@ -50,9 +65,8 @@ See [domain-model.md](domain-model.md) for when the rows are written.
 - A content block always shows the current version.
 - Replacing a file adds version N+1 and moves the pins of current page versions and blocks to it,
   in the same save. Older page versions keep their pins.
-- "Current" page versions are the live version, each scheduled version and the working draft. A
-  scheduled version is not current when a higher-numbered version has the same start and lasts
-  at least as long, because that version goes live instead.
+- "Current" page versions are the live version, each scheduled version and the working draft.
+  A version that another version replaced (`SupersededById` is set) is never current.
 - An image that any page version or block uses cannot be deleted.
 
 ## Serving and signed renditions
@@ -190,13 +204,17 @@ pages (live, scheduled and draft) and in content blocks.
 - Each current version that changes gets a new page version with the next number. The run
   does what an editor's publish does, with the library images in place of the embedded ones:
   - A live version gets a new published version with the same "publish from" and "publish to".
-    The new version goes live at once, because the higher number wins on the same window.
-  - A scheduled version gets a new scheduled version with the same dates. The old one shows as
-    "Replaced" in the version history. It does not go live.
+  - A scheduled version gets a new scheduled version with the same dates.
   - A draft gets a new draft.
-- The old versions stay in the version history as they were. They keep their embedded images,
-  and a preview of them still shows those images. Only the live flag of the old live version
-  changes.
+- Each new version takes the next free number for the page. The editor's draft keeps its number,
+  so no two versions show the same number.
+- The run sets the old version's `SupersededById` to the new version's id. The old version shows
+  as "Replaced" in the version history. It is never live, scheduled or the working draft again,
+  even when an editor re-dates, unschedules or unpublishes the new version. Its dates cannot be
+  edited. **Publish** on its row takes it back on purpose.
+- The old versions stay in the version history with their content. They keep their embedded
+  images, and a preview of them still shows those images. Only the live flag and the
+  replacement marker of an old version change.
 - The URL, the live and draft versions and the schedule stay as they were. The new versions show
   the person who ran the move in "Modified by". A page version has no field for a note.
 - `media_usages` rows are written for the new versions only.

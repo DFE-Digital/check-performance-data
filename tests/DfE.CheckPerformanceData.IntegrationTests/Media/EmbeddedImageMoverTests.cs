@@ -758,6 +758,51 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         Assert.Null(await LiveAtAsync(copy, DateTime.UtcNow));
     }
 
+    // Where-used and Replace follow the same rule: a replaced version is history. A library image
+    // that only a replaced version still shows is listed as used by an older version only, and
+    // replacing its file leaves that version's pin alone.
+    [Fact]
+    public async Task AnImageOnlyAReplacedVersionShows_IsHistory_ForWhereUsedAndReplace()
+    {
+        var source = await PageAsync("source");
+        await SaveDraftAsync(source, Tree(Img(DataUri(Png(5, 5, SKColors.Green)), "Green")));
+        await PublishDraftAsync(source);
+        await MoveAsync();
+        var green = Assert.Single(await LibraryAsync()).Id;
+
+        // Live v1 with an embedded image, and scheduled v2 with the library image and an embedded one.
+        var page = await PageAsync("library-image");
+        await SaveDraftAsync(page, Tree(Img(Red, "Live")));
+        await PublishDraftAsync(page);
+        await SaveDraftAsync(page, Tree($"<img data-media-id=\"{green}\" src=\"/media/{green}/1/green.png\" alt=\"Green\">" + Img(Blue, "Soon")));
+        var from = DateTime.UtcNow.AddDays(7);
+        await WithServiceAsync(s => s.PublishAsync(page, 2, from, from.AddDays(7), "test"));
+
+        // The move replaces v1 and v2 with v3 and v4. The editor unschedules v4 and removes the
+        // library image from it, so only the replaced v2 still shows that image.
+        await MoveAsync();
+        await WithServiceAsync(s => s.PublishAsync(page, 4, null, null, "test"));
+        await SaveDraftAsync(page, Tree("<p>No library image now</p>"));
+
+        await using (var ctx = postgres.CreateContext())
+        {
+            var assets = new MediaAssetRepository(ctx, new FakeCurrentUserService());
+            var usedOn = Assert.Single(await assets.GetUsagePagesAsync(green), u => u.PageNodeId == page);
+            Assert.False(usedOn.InCurrentVersion);
+
+            await assets.AddVersionAsync(green, 2, new NewMediaAssetVersion($"{green}/2", "image/png", 5, 5, 1, new string('0', 64), false));
+        }
+
+        await using (var ctx = postgres.CreateContext())
+        {
+            var oldVersion = (await VersionsAsync(page))[1].Id;
+            var pins = await ctx.MediaUsages.AsNoTracking().Where(u => u.AssetId == green).ToListAsync();
+            Assert.Equal(1, Assert.Single(pins, u => u.PageNodeVersionId == oldVersion).AssetVersion);
+            // The source page's live version is current, so its pin moves to the new file.
+            Assert.Equal(2, Assert.Single(pins, u => u.PageNodeId == source).AssetVersion);
+        }
+    }
+
     private sealed class SaveFirst(Func<Task> other) : SaveChangesInterceptor
     {
         public bool Ran { get; private set; }

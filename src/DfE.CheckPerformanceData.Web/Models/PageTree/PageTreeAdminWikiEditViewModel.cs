@@ -20,7 +20,7 @@ public sealed class PageTreeAdminWikiEditViewModel
     /// <summary>Display label of the currently-live version (e.g. "1"), or null if none is live.</summary>
     public string? PublishedVersionLabel =>
         Versions.FirstOrDefault(v => v.IsCurrent) is { } live
-            ? PageVersionNumbering.Label(Versions, live)
+            ? PageVersionNumbering.Label(live)
             : null;
 
     /// <summary>
@@ -33,7 +33,7 @@ public sealed class PageTreeAdminWikiEditViewModel
         {
             var draft = Versions.FirstOrDefault(v => v.MinorVersion >= 1);
             if (draft is null && PublishedVersionLabel is null) draft = Versions.FirstOrDefault();
-            return draft is null ? null : PageVersionNumbering.Label(Versions, draft);
+            return draft is null ? null : PageVersionNumbering.Label(draft);
         }
     }
 }

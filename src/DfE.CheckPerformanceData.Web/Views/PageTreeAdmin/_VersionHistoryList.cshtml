@@ -44,7 +44,7 @@ else
                 var fromError = rowError?.FromError;
                 var toError = rowError?.ToError;
                 <tr class="govuk-table__row">
-                    <td class="govuk-table__cell">@PageVersionNumbering.Label(Model.Versions, v)</td>
+                    <td class="govuk-table__cell">@PageVersionNumbering.Label(v)</td>
                     <td class="govuk-table__cell">@v.UpdatedDate.ToLondonString("dd MMM yyyy HH:mm")</td>
                     <td class="govuk-table__cell">@(v.UpdatedBy ?? "—")</td>
                     <td class="govuk-table__cell">

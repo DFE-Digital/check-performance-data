@@ -35,11 +35,11 @@ public sealed class EditViewModelVersionTests
 
     // ── ContentPageEditViewModel ──────────────────────────────────────────────
 
-    // live v2 + working-draft v3 → Published="1", Draft="2" (the draft will publish as v2).
+    // live v1 + working-draft v2 → Published="1", Draft="2" (the draft will publish as v2).
     [Fact]
     public void ContentVm_LivePlusWorkingDraft_ReturnsCorrectLabels()
     {
-        var vm = MakeContentVm([WorkingDraft(3), Live(2)]);
+        var vm = MakeContentVm([WorkingDraft(2), Live(1)]);
         Assert.Equal("1", vm.PublishedVersionLabel);
         Assert.Equal("2", vm.DraftVersionLabel);
     }
@@ -67,11 +67,11 @@ public sealed class EditViewModelVersionTests
         Assert.Equal("1", vm.DraftVersionLabel);
     }
 
-    // live v2 only (no draft) → Published="1", Draft=null
+    // live v1 only (no draft) → Published="1", Draft=null
     [Fact]
     public void ContentVm_LiveWithNoWorkingDraft_DraftIsNull()
     {
-        var vm = MakeContentVm([Live(2)]);
+        var vm = MakeContentVm([Live(1)]);
         Assert.Equal("1", vm.PublishedVersionLabel);
         Assert.Null(vm.DraftVersionLabel);
     }
@@ -89,7 +89,7 @@ public sealed class EditViewModelVersionTests
     [Fact]
     public void WikiVm_LivePlusWorkingDraft_ReturnsCorrectLabels()
     {
-        var vm = MakeWikiVm([WorkingDraft(3), Live(2)]);
+        var vm = MakeWikiVm([WorkingDraft(2), Live(1)]);
         Assert.Equal("1", vm.PublishedVersionLabel);
         Assert.Equal("2", vm.DraftVersionLabel);
     }
@@ -117,7 +117,7 @@ public sealed class EditViewModelVersionTests
     [Fact]
     public void WikiVm_LiveWithNoWorkingDraft_DraftIsNull()
     {
-        var vm = MakeWikiVm([Live(2)]);
+        var vm = MakeWikiVm([Live(1)]);
         Assert.Equal("1", vm.PublishedVersionLabel);
         Assert.Null(vm.DraftVersionLabel);
     }

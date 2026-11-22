@@ -573,6 +573,43 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
     }
 
     // Runs another save, once, just before the first save of the context it is added to.
+    // ── version numbers ──────────────────────────────────────────────────────
+
+    private async Task<List<string>> LabelsAsync(Guid page)
+    {
+        await using var ctx = postgres.CreateContext();
+        var versions = await new PageNodeService(new PageNodeRepository(ctx)).GetVersionsAsync(page);
+        return versions.OrderBy(v => v.VersionId).Select(v => PageVersionNumbering.Label(v)).ToList();
+    }
+
+    // The move adds a live version above the editor's saved draft, then a new draft. Every
+    // version in the history has its own number.
+    [Fact]
+    public async Task AMoveOverASavedDraft_GivesEveryVersionItsOwnNumber()
+    {
+        var page = await PageWithLiveAndDraftAsync();
+        Assert.Equal(["1", "2"], await LabelsAsync(page));
+
+        await MoveAsync();
+
+        Assert.Equal(["1", "2", "3", "4"], await LabelsAsync(page));
+    }
+
+    // The editor had the page open with no draft saved yet. Their first save after the move is a
+    // new draft above the move's live version, with the next number.
+    [Fact]
+    public async Task ASaveAfterAMove_NumbersTheNewDraftAboveTheMovesVersion()
+    {
+        var page = await PageAsync("open-in-editor");
+        await SaveDraftAsync(page, Tree(Img(Red, "Live")));
+        await PublishDraftAsync(page);
+
+        await MoveAsync();
+        await SaveDraftAsync(page, Tree("<p>The editor's change</p>"));
+
+        Assert.Equal(["1", "2", "3"], await LabelsAsync(page));
+    }
+
     private sealed class SaveFirst(Func<Task> other) : SaveChangesInterceptor
     {
         public bool Ran { get; private set; }

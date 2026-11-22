@@ -29,6 +29,9 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
             .IsRequired()
             .HasDefaultValueSql("'{}'::text[]");
 
+        // (id, current_version) is a foreign key to media_asset_versions (asset_id, version),
+        // checked at the end of the transaction. The AddMediaReferenceConstraints migration adds
+        // it in SQL, because the model cannot describe a deferred key that forms a cycle.
         builder.Property(x => x.CurrentVersion).HasColumnName("current_version");
 
         builder.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc").HasColumnType("timestamp with time zone");

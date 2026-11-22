@@ -1912,6 +1912,8 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.HasIndex("AssetId", "AssetVersion")
                         .HasDatabaseName("ix_media_usages_asset_id_asset_version");
 
+                    b.HasIndex("PageNodeVersionId", "PageNodeId");
+
                     b.ToTable("media_usages", null, t =>
                         {
                             t.HasCheckConstraint("ck_media_usages_location", "location IN ('widget', 'richtext')");
@@ -2399,18 +2401,19 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("fk_media_usages_page_nodes");
 
-                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.PageNodeVersion", null)
-                        .WithMany()
-                        .HasForeignKey("PageNodeVersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .HasConstraintName("fk_media_usages_page_node_versions");
-
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.MediaAssetVersion", null)
                         .WithMany()
                         .HasForeignKey("AssetId", "AssetVersion")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_media_usages_media_asset_versions");
+
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.PageNodeVersion", null)
+                        .WithMany()
+                        .HasForeignKey("PageNodeVersionId", "PageNodeId")
+                        .HasPrincipalKey("Id", "PageNodeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_media_usages_page_node_versions");
 
                     b.Navigation("ContentBlock");
                 });

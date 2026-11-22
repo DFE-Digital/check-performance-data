@@ -36,10 +36,12 @@ internal sealed class MediaUsageConfiguration : IEntityTypeConfiguration<MediaUs
             .OnDelete(DeleteBehavior.Restrict);
 
         // Cascade: usages are derived from page versions, and content import replaces a page's
-        // versions by deleting them.
+        // versions by deleting them. The key includes the page, so a usage's page is always the
+        // page of its page version.
         builder.HasOne<PageNodeVersion>()
             .WithMany()
-            .HasForeignKey(x => x.PageNodeVersionId)
+            .HasForeignKey(x => new { x.PageNodeVersionId, x.PageNodeId })
+            .HasPrincipalKey(v => new { v.Id, v.PageNodeId })
             .HasConstraintName("fk_media_usages_page_node_versions")
             .OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<PageNode>()

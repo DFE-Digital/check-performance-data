@@ -2,9 +2,9 @@ namespace DfE.CheckPerformanceData.Application.PageTree;
 
 /// <summary>
 /// Derives the display status of a page version for the version history list.
-/// A superseded version (was live, replaced by a newer publish) shows "Past".
-/// Only versions with no publish window at all are "Draft". A scheduled version that a newer
-/// version on the same window replaces shows "Replaced".
+/// A version that was live and that a newer publish took over shows "Past".
+/// Only versions with no publish window at all are "Draft". A version that another version
+/// replaced (the embedded image move records this) shows "Replaced", whatever its window says.
 /// </summary>
 public static class PageVersionStatus
 {
@@ -19,16 +19,11 @@ public static class PageVersionStatus
     }
 
     /// <summary>
-    /// The status of a version among all the page's versions. A scheduled version is "Replaced"
-    /// when a higher-numbered version has the same start and lasts at least as long: that version
-    /// goes live instead, so this one never will. Moving embedded images replaces one this way.
+    /// The status of a version. A replaced version is never live, scheduled or the working draft
+    /// again, so it shows "Replaced".
     /// </summary>
-    public static Status Of(PageNodeVersionDto version, IReadOnlyCollection<PageNodeVersionDto> all, DateTime nowUtc)
-    {
-        if (!version.IsCurrent && version.PublishFrom is { } from && from > nowUtc
-            && all.Any(o => o.VersionId > version.VersionId && o.PublishFrom == from
-                && (o.PublishTo is null || (version.PublishTo is { } to && o.PublishTo >= to))))
-            return new("Replaced", "govuk-tag--grey");
-        return Of(version.IsCurrent, version.PublishFrom, nowUtc);
-    }
+    public static Status Of(PageNodeVersionDto version, DateTime nowUtc) =>
+        version.IsSuperseded
+            ? new("Replaced", "govuk-tag--grey")
+            : Of(version.IsCurrent, version.PublishFrom, nowUtc);
 }

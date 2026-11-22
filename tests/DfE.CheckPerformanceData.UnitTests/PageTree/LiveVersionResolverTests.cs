@@ -49,4 +49,18 @@ public class LiveVersionResolverTests
             [new PageVersionWindow(1, null, null)], Now);
         Assert.Null(live);
     }
+
+    // A superseded version is never live, even when its window is the latest open one: the
+    // version that replaced it decides, or the versions below it.
+    [Fact]
+    public void Ignores_ASupersededVersion()
+    {
+        int? live = LiveVersionResolver.Resolve(
+        [
+            new PageVersionWindow(1, Now.AddDays(-10), null),
+            new PageVersionWindow(2, Now.AddDays(-2), null, Superseded: true),
+            new PageVersionWindow(3, Now.AddDays(5), null),
+        ], Now);
+        Assert.Equal(1, live);
+    }
 }

@@ -34,7 +34,10 @@ else
             @{ var now = DateTime.UtcNow; }
             @foreach (var v in Model.Versions)
             {
-                var st = PageVersionStatus.Of(v, Model.Versions, now);
+                var st = PageVersionStatus.Of(v, now);
+                // A replaced version's window no longer decides anything, so it cannot be edited.
+                // Publish still takes the version back on purpose.
+                var replaced = v.IsSuperseded;
                 // A <form> cannot be a direct child of <tr>, so the per-row form lives in the
                 // Actions cell and the date inputs in the other cells associate with it via form=.
                 var formId = $"version-form-{v.VersionId}";
@@ -65,7 +68,8 @@ else
                                    name="from"
                                    aria-label="Publish from (UK time)"
                                    aria-describedby="publish-window-hint@(fromError is null ? "" : $" from-{v.VersionId}-error")"
-                                   value="@fromValue" />
+                                   value="@fromValue"
+                                   disabled="@replaced" />
                         </div>
                     </td>
                     <td class="govuk-table__cell">
@@ -83,7 +87,8 @@ else
                                    name="to"
                                    aria-label="Publish to (UK time)"
                                    aria-describedby="publish-window-hint@(toError is null ? "" : $" to-{v.VersionId}-error")"
-                                   value="@toValue" />
+                                   value="@toValue"
+                                   disabled="@replaced" />
                         </div>
                     </td>
                     <td class="govuk-table__cell">
@@ -91,7 +96,10 @@ else
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="versionId" value="@v.VersionId" />
                             <div class="govuk-button-group">
-                                <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0">Save</button>
+                                @if (!replaced)
+                                {
+                                    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0">Save</button>
+                                }
                                 @if (!v.IsCurrent)
                                 {
                                     <button type="submit" class="govuk-button govuk-!-margin-bottom-0"

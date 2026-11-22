@@ -6,6 +6,15 @@ public sealed class PageNodeVersionDto
     public int VersionId { get; init; }
     public int MinorVersion { get; init; }
     public bool IsCurrent { get; init; }
+
+    // The version that replaced this one, or null. A replaced version is never live, scheduled
+    // or the working draft.
+    public Guid? SupersededById { get; init; }
+
+    // Staging import only: the VersionId, in the same page, of the version that replaced this one.
+    public int? SupersededByVersionId { get; init; }
+
+    public bool IsSuperseded => SupersededById is not null;
     public DateTime? PublishFrom { get; init; }
     public DateTime? PublishTo { get; init; }
     public required string Content { get; init; }

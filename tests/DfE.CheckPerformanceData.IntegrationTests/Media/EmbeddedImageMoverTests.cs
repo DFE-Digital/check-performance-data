@@ -610,6 +610,154 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         Assert.Equal(["1", "2", "3"], await LabelsAsync(page));
     }
 
+    // ── replaced versions ────────────────────────────────────────────────────
+
+    private async Task<PageNodeVersionDto?> LiveAtAsync(Guid page, DateTime moment)
+    {
+        await using var ctx = postgres.CreateContext();
+        return await new PageNodeRepository(ctx).GetLiveVersionAsync(page, moment);
+    }
+
+    // Live v1, scheduled v2 (both with an image) and a draft v3 with none. The move adds live v4
+    // and scheduled v5 in their place.
+    private async Task<(Guid Page, DateTime From, DateTime To)> PageWithAScheduledVersionMovedAsync()
+    {
+        var page = await PageAsync("scheduled-moved");
+        await SaveDraftAsync(page, Tree(Img(Red, "Live")));
+        await PublishDraftAsync(page);
+        await SaveDraftAsync(page, Tree(Img(Blue, "Soon")));
+        var from = DateTime.UtcNow.AddDays(7);
+        var to = from.AddDays(7);
+        await WithServiceAsync(s => s.PublishAsync(page, 2, from, to, "test"));
+        await SaveDraftAsync(page, Tree("<p>The editor's draft</p>"));
+        await MoveAsync();
+        return (page, from, to);
+    }
+
+    [Fact]
+    public async Task TheMove_MarksEachVersionItReplaces()
+    {
+        var (page, _, _) = await PageWithAScheduledVersionMovedAsync();
+
+        var versions = await VersionsAsync(page);
+        Assert.Equal(versions[3].Id, versions[0].SupersededById);
+        Assert.Equal(versions[4].Id, versions[1].SupersededById);
+        Assert.Null(versions[2].SupersededById);
+        Assert.Null(versions[3].SupersededById);
+        Assert.Null(versions[4].SupersededById);
+    }
+
+    // The editor moves the new scheduled version to a later date. The old one stays replaced: it
+    // does not go live on the old date with its embedded image.
+    [Fact]
+    public async Task ReDatingTheNewScheduledVersion_DoesNotBringTheOldOneBack()
+    {
+        var (page, from, to) = await PageWithAScheduledVersionMovedAsync();
+
+        await WithServiceAsync(s => s.PublishAsync(page, 5, from.AddDays(3), to, "test"));
+
+        Assert.Equal(4, (await LiveAtAsync(page, from.AddMinutes(1)))!.VersionId);
+        Assert.Equal(5, (await LiveAtAsync(page, from.AddDays(3).AddMinutes(1)))!.VersionId);
+    }
+
+    [Fact]
+    public async Task UnschedulingTheNewScheduledVersion_DoesNotBringTheOldOneBack()
+    {
+        var (page, from, _) = await PageWithAScheduledVersionMovedAsync();
+
+        await WithServiceAsync(s => s.PublishAsync(page, 5, null, null, "test"));
+
+        Assert.Equal(4, (await LiveAtAsync(page, from.AddMinutes(1)))!.VersionId);
+        await using var ctx = postgres.CreateContext();
+        var versions = await new PageNodeService(new PageNodeRepository(ctx)).GetVersionsAsync(page);
+        var scheduled = versions.Where(v => PageVersionStatus.Of(v, DateTime.UtcNow).Label == "Scheduled");
+        Assert.Empty(scheduled);
+        Assert.Equal("Replaced", PageVersionStatus.Of(versions.Single(v => v.VersionId == 2), DateTime.UtcNow).Label);
+    }
+
+    // Unpublishing the new live version takes the page down, as unpublishing the old one would
+    // have. The old version, with its embedded image, does not go live again.
+    [Fact]
+    public async Task UnpublishingTheNewLiveVersion_DoesNotBringTheOldOneBack()
+    {
+        var page = await PageAsync("live-moved");
+        await SaveDraftAsync(page, Tree(Img(Red, "Live")));
+        await PublishDraftAsync(page);
+        await MoveAsync();
+
+        await WithServiceAsync(s => s.UnpublishAsync(page, "test"));
+
+        Assert.Null(await LiveAtAsync(page, DateTime.UtcNow));
+    }
+
+    // The editor publishes the move's new draft. The old draft, with its embedded images, does
+    // not become the draft they edit.
+    [Fact]
+    public async Task PublishingTheNewDraft_LeavesTheOldDraftReplaced()
+    {
+        var page = await PageWithLiveAndDraftAsync();
+        await MoveAsync();
+
+        await PublishDraftAsync(page);
+
+        await using (var ctx = postgres.CreateContext())
+        {
+            var service = new PageNodeService(new PageNodeRepository(ctx));
+            Assert.DoesNotContain("data:", (await service.GetWorkingOrLatestContentAsync(page))!);
+        }
+        await SaveDraftAsync(page, Tree("<p>Next change</p>"));
+        var versions = await VersionsAsync(page);
+        Assert.Equal(5, versions.Count);
+        Assert.Contains("Next change", versions[4].Content);
+        Assert.DoesNotContain("Next change", versions[1].Content);
+    }
+
+    // An editor who publishes a replaced version on purpose takes it back.
+    [Fact]
+    public async Task PublishingAReplacedVersion_TakesItBack()
+    {
+        var page = await PageAsync("take-back");
+        await SaveDraftAsync(page, Tree(Img(Red, "Live")));
+        await PublishDraftAsync(page);
+        await MoveAsync();
+
+        await WithServiceAsync(s => s.PublishAsync(page, 1, DateTime.UtcNow, null, "test"));
+
+        Assert.Equal(1, (await LiveAtAsync(page, DateTime.UtcNow.AddSeconds(1)))!.VersionId);
+        Assert.Null((await VersionsAsync(page))[0].SupersededById);
+    }
+
+    // Unpublishing a replaced version changes nothing that goes live: it stays replaced.
+    [Fact]
+    public async Task UnpublishingAReplacedVersion_LeavesItReplaced()
+    {
+        var (page, from, _) = await PageWithAScheduledVersionMovedAsync();
+
+        await WithServiceAsync(s => s.PublishAsync(page, 2, null, null, "test"));
+
+        Assert.NotNull((await VersionsAsync(page))[1].SupersededById);
+        Assert.Equal(5, (await LiveAtAsync(page, from.AddMinutes(1)))!.VersionId);
+    }
+
+    // A copy of the page keeps its history, so it keeps which versions were replaced.
+    [Fact]
+    public async Task CopyingAPage_KeepsWhichVersionsWereReplaced()
+    {
+        var page = await PageAsync("copied");
+        await SaveDraftAsync(page, Tree(Img(Red, "Live")));
+        await PublishDraftAsync(page);
+        await MoveAsync();
+
+        Guid copy;
+        await using (var ctx = postgres.CreateContext())
+            copy = (await new PageNodeRepository(ctx).CopyNodeAsync(page, "copied-copy", "Copy", "test"))!.Id;
+
+        var versions = await VersionsAsync(copy);
+        Assert.Equal(versions[1].Id, versions[0].SupersededById);
+        await WithServiceAsync(s => s.UnpublishAsync(copy, "test"));
+        Assert.Null(await LiveAtAsync(copy, DateTime.UtcNow));
+    }
+
     private sealed class SaveFirst(Func<Task> other) : SaveChangesInterceptor
     {
         public bool Ran { get; private set; }

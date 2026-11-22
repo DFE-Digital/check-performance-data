@@ -168,6 +168,7 @@ public sealed class ContentStagingService(
     // the same files in the target.
     private async Task<List<PageNodeVersionBundleItem>> ExportVersionsAsync(List<PageNodeVersionDto> versions)
     {
+        var numbers = versions.ToDictionary(v => v.Id, v => v.VersionId);
         var items = new List<PageNodeVersionBundleItem>(versions.Count);
         foreach (var v in versions)
         {
@@ -175,6 +176,7 @@ public sealed class ContentStagingService(
             {
                 VersionId = v.VersionId,
                 MinorVersion = v.MinorVersion,
+                SupersededByVersionId = v.SupersededById is { } by && numbers.TryGetValue(by, out var number) ? number : null,
                 PublishFrom = v.PublishFrom,
                 PublishTo = v.PublishTo,
                 Content = v.Content,
@@ -220,7 +222,7 @@ public sealed class ContentStagingService(
         var keptIds = kept.Select(v => v.VersionId).ToHashSet();
 
         var windows = versions
-            .Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo))
+            .Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo, v.IsSuperseded))
             .ToList();
 
         // The live version can only change at a moment when some window opens or closes, so
@@ -884,6 +886,7 @@ public sealed class ContentStagingService(
                 Id = Guid.Empty,       // Ignored by ReplaceAllVersionsForStagingAsync (new GUID assigned)
                 VersionId = v.VersionId,
                 MinorVersion = v.MinorVersion,
+                SupersededByVersionId = v.SupersededByVersionId,
                 IsCurrent = false,     // Recomputed on write from windows
                 PublishFrom = v.PublishFrom,
                 PublishTo = v.PublishTo,

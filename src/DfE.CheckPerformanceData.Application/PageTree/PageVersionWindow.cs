@@ -1,3 +1,5 @@
 namespace DfE.CheckPerformanceData.Application.PageTree;
 
-public sealed record PageVersionWindow(int VersionId, DateTime? PublishFrom, DateTime? PublishTo);
+// A version's publish window. A superseded version was replaced by a newer version and is never
+// live, whatever its window says.
+public sealed record PageVersionWindow(int VersionId, DateTime? PublishFrom, DateTime? PublishTo, bool Superseded = false);

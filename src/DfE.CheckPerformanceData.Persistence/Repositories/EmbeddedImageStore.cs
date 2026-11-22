@@ -15,10 +15,11 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 //
 // A page change adds versions, as every page change does. Each current version that changes gets a
 // new version with the next number: a live version a new published version, a scheduled version a
-// new scheduled version, both on the same window, and the draft a new draft. On the same window
-// the higher number wins (LiveVersionResolver and PageVersionStates), so the new version replaces
-// the old one, which stays in the history as it was. The generic audit capture records the new
-// versions, and this store adds one readable entry for the page.
+// new scheduled version, both on the same window, and the draft a new draft. The old version is
+// marked as superseded by the new one (SupersededById). It stays in the history with its content,
+// but is never live, scheduled or the working draft again, even when an editor re-dates or
+// unschedules the new version. The generic audit capture records the new versions, and this store
+// adds one readable entry for the page.
 public sealed class EmbeddedImageStore(IPortalDbContext context) : IEmbeddedImageStore
 {
     private const string DataUriPattern = "%data:%";
@@ -150,7 +151,7 @@ public sealed class EmbeddedImageStore(IPortalDbContext context) : IEmbeddedImag
             var windows = await context.PageNodeVersions
                 .AsNoTracking()
                 .Where(v => v.PageNodeId == nodeId)
-                .Select(v => new { v.Id, v.VersionId, v.PublishFrom, v.PublishTo, v.IsCurrent })
+                .Select(v => new { v.Id, v.VersionId, v.PublishFrom, v.PublishTo, v.IsCurrent, Superseded = v.SupersededById != null })
                 .ToListAsync(ct);
 
             // New versions are numbered in the order of the versions they replace, so a new
@@ -179,11 +180,13 @@ public sealed class EmbeddedImageStore(IPortalDbContext context) : IEmbeddedImag
                     UpdatedBy = save.ModifiedBy
                 };
                 context.PageNodeVersions.Add(copy);
+                old.SupersededById = copy.Id;
                 changes.Add((old, copy, State(old.PublishFrom, now)));
             }
 
             SetLiveFlags(nodeId, now, sources,
-                windows.Select(w => (w.Id, w.VersionId, w.PublishFrom, w.PublishTo, w.IsCurrent)).ToList(),
+                windows.Select(w => (w.Id, w.VersionId, w.PublishFrom, w.PublishTo, w.IsCurrent,
+                    w.Superseded || sources.ContainsKey(w.Id))).ToList(),
                 changes.Select(c => c.New).ToList());
 
             await MediaUsageWriter.StageAsync(context,
@@ -236,11 +239,11 @@ public sealed class EmbeddedImageStore(IPortalDbContext context) : IEmbeddedImag
     // the flag changes on an old version. A version that is not loaded is updated by its key alone.
     private void SetLiveFlags(
         Guid nodeId, DateTime now, IReadOnlyDictionary<Guid, PageNodeVersion> loaded,
-        IReadOnlyList<(Guid Id, int VersionId, DateTime? PublishFrom, DateTime? PublishTo, bool IsCurrent)> existing,
+        IReadOnlyList<(Guid Id, int VersionId, DateTime? PublishFrom, DateTime? PublishTo, bool IsCurrent, bool Superseded)> existing,
         IReadOnlyList<PageNodeVersion> added)
     {
         var liveId = LiveVersionResolver.Resolve(
-            existing.Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo))
+            existing.Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo, v.Superseded))
                 .Concat(added.Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo))),
             now);
 

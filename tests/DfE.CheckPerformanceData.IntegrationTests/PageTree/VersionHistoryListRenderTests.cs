@@ -80,6 +80,37 @@ public sealed class VersionHistoryListRenderTests
         Assert.Contains("aria-describedby=\"publish-window-hint from-3-error\"", html);
     }
 
+    // A replaced version shows "Replaced". Its window no longer decides anything, so its dates
+    // cannot be edited and it has no Save. Publish stays, to take the version back on purpose.
+    [Fact]
+    public async Task AReplacedVersion_ShowsReplaced_AndCannotBeReDated()
+    {
+        var replaced = new PageNodeVersionDto
+        {
+            Id = Guid.NewGuid(), VersionId = 1, Content = "[]",
+            PublishFrom = new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc),
+            SupersededById = Guid.NewGuid(),
+            UpdatedDate = new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc),
+        };
+        var model = new PageTreeAdminVersionHistoryModel { NodeId = NodeId, Versions = [.. Model().Versions, replaced] };
+
+        var html = await RenderAsync("_VersionHistoryList", model, error: null);
+
+        var rows = html.Split("<tr class=\"govuk-table__row\">");
+        var row = Assert.Single(rows, r => r.Contains("id=\"from-1\""));
+        var other = Assert.Single(rows, r => r.Contains("id=\"from-3\""));
+        Assert.Contains(">Replaced</strong>", row);
+        Assert.Equal(2, CountOf(row, "disabled=\"disabled\""));
+        Assert.DoesNotContain(">Save</button>", row);
+        Assert.Contains(">Publish</button>", row);
+
+        // The other version can still be re-dated.
+        Assert.DoesNotContain("disabled", other);
+        Assert.Contains(">Save</button>", other);
+    }
+
+    private static int CountOf(string text, string part) => text.Split(part).Length - 1;
+
     [Fact]
     public async Task ErrorSummary_LinksToTheRejectedField()
     {

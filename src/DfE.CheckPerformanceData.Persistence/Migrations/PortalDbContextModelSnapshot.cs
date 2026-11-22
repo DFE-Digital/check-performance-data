@@ -2083,6 +2083,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("tsvector")
                         .HasComputedColumnSql("setweight(to_tsvector('english', coalesce(\"BodyPlainText\", '')), 'D')", true);
 
+                    b.Property<Guid?>("SupersededById")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
@@ -2096,6 +2099,8 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
                     b.HasIndex("SearchVector")
                         .HasAnnotation("Npgsql:IndexMethod", "gin");
+
+                    b.HasIndex("SupersededById");
 
                     b.HasIndex("PageNodeId", "IsCurrent");
 
@@ -2426,6 +2431,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasForeignKey("PageNodeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.PageNodeVersion", null)
+                        .WithMany()
+                        .HasForeignKey("SupersededById")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("PageNode");
                 });

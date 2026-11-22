@@ -12,23 +12,21 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 // version goes live. The working draft is the highest-numbered version with no publish window,
 // as in PageNodeService.
 //
-// A scheduled version is replaced when a higher-numbered version has the same start and lasts at
-// least as long: it can never go live, so it is history. Moving embedded images replaces a
-// scheduled version this way.
+// A superseded version (SupersededById is set) is never current: a newer version replaced it.
+// It does not count for any of the three, so it cannot come back when the newer version is
+// re-dated or unscheduled.
 internal static class PageVersionStates
 {
     public static IQueryable<Guid> CurrentVersionIds(IPortalDbContext context, DateTime nowUtc)
     {
-        var versions = context.PageNodeVersions;
+        var versions = context.PageNodeVersions.Where(v => v.SupersededById == null);
         return versions
             .Where(v =>
                 (v.PublishFrom != null && v.PublishFrom <= nowUtc && (v.PublishTo == null || v.PublishTo > nowUtc)
                     && !versions.Any(o => o.PageNodeId == v.PageNodeId
                         && o.PublishFrom != null && o.PublishFrom <= nowUtc && (o.PublishTo == null || o.PublishTo > nowUtc)
                         && (o.PublishFrom > v.PublishFrom || (o.PublishFrom == v.PublishFrom && o.VersionId > v.VersionId))))
-                || (v.PublishFrom > nowUtc
-                    && !versions.Any(o => o.PageNodeId == v.PageNodeId && o.PublishFrom == v.PublishFrom && o.VersionId > v.VersionId
-                        && (o.PublishTo == null || (v.PublishTo != null && o.PublishTo >= v.PublishTo))))
+                || v.PublishFrom > nowUtc
                 || (v.PublishFrom == null
                     && !versions.Any(o => o.PageNodeId == v.PageNodeId && o.PublishFrom == null && o.VersionId > v.VersionId)))
             .Select(v => v.Id);

@@ -8,6 +8,10 @@ public sealed record PageNodeVersionBundleItem
 {
     public int VersionId { get; init; }
     public int MinorVersion { get; init; }
+
+    // The VersionId, in the same page, of the version that replaced this one, or null. A replaced
+    // version is never live, scheduled or the working draft. Optional: older bundles have none.
+    public int? SupersededByVersionId { get; init; }
     public DateTime? PublishFrom { get; init; }
     public DateTime? PublishTo { get; init; }
 

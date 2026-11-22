@@ -84,6 +84,23 @@ public sealed class EditViewModelVersionTests
         Assert.Null(vm.DraftVersionLabel);
     }
 
+    // A draft that a newer version replaced is not the working draft: after the move's new
+    // draft is published, the page has no draft.
+    [Fact]
+    public void ContentVm_AReplacedDraft_IsNotTheDraft()
+    {
+        var replacedDraft = new PageNodeVersionDto
+        {
+            VersionId = 2, MinorVersion = 1, PublishFrom = null, Content = string.Empty, SupersededById = Guid.NewGuid()
+        };
+        var vm = MakeContentVm([Live(4), replacedDraft]);
+        Assert.Equal("4", vm.PublishedVersionLabel);
+        Assert.Null(vm.DraftVersionLabel);
+
+        var wiki = MakeWikiVm([Live(4), replacedDraft]);
+        Assert.Null(wiki.DraftVersionLabel);
+    }
+
     // ── PageTreeAdminWikiEditViewModel ────────────────────────────────────────
 
     [Fact]

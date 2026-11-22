@@ -111,14 +111,15 @@ public sealed class MediaMoveEmbeddedTests(PlaywrightFixture fixture) : SeedingP
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media/{mediaId}");
         await Expect(Page.Locator("h1")).ToHaveTextAsync($"{alt}.png");
 
-        // The move added a new live version. The old version stays in the history, as it was.
+        // The move added a new live version. The old version stays in the history, as it was,
+        // marked as replaced.
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/pages/{pageId}/edit");
         var history = Page.Locator("#version-history + p + table tbody tr");
         await Expect(history).ToHaveCountAsync(2);
         var newRow = history.Filter(new() { Has = Page.Locator($"a[href='/admin/pages/{pageId}/versions/2/preview']") });
         var oldRow = history.Filter(new() { Has = Page.Locator($"a[href='/admin/pages/{pageId}/versions/1/preview']") });
         await Expect(newRow.Locator(".govuk-tag")).ToHaveTextAsync("Live");
-        await Expect(oldRow.Locator(".govuk-tag")).ToHaveTextAsync("Past");
+        await Expect(oldRow.Locator(".govuk-tag")).ToHaveTextAsync("Replaced");
 
         // The old version still shows its embedded image. The new one shows the library image.
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/pages/{pageId}/versions/1/preview");
@@ -130,6 +131,33 @@ public sealed class MediaMoveEmbeddedTests(PlaywrightFixture fixture) : SeedingP
         await Page.GotoAsync($"{Fixture.BaseUrl}{MoveUrl}");
         await Expect(Page.Locator("h1")).ToHaveTextAsync("Move embedded images");
         await Expect(PageRow(pageId)).ToHaveCountAsync(0);
+    }
+
+    // The editor has a saved draft with an embedded image above the live version. The move adds a
+    // new live version and a new draft above it. Each version in the history shows its own number,
+    // and the versions the move replaced show "Replaced".
+    [Fact]
+    public async Task AfterAMoveOverASavedDraft_EveryVersionInTheHistoryHasItsOwnNumber()
+    {
+        await SignInAsAdminAsync();
+        var dataUri = "data:image/png;base64," + Convert.ToBase64String(MediaFixtures.UniquePng(64, 32));
+        var html = $"<p><img src=\"{dataUri}\" alt=\"{_term} label\"></p>";
+        var (pageId, url) = await PublishedRichTextPageAsync(html);
+        await CmsSeedHelpers.UpdateWidgetAsync(Fixture.SeedClient, pageId, "0.0", "richtext", [new("html", html + "<p>Draft</p>")]);
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{MoveUrl}");
+        await Page.Locator("[data-move-embedded-form] button").ClickAsync();
+        await Expect(Page.Locator("h1")).ToHaveTextAsync("Embedded images moved");
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        var id = await Page.Locator($"main .govuk-body img[alt='{_term} label']").GetAttributeAsync("data-media-id");
+        _images.Add(Guid.Parse(id!));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/pages/{pageId}/edit");
+        var history = Page.Locator("#version-history + p + table tbody tr");
+        await Expect(history).ToHaveCountAsync(4);
+        Assert.Equal(["4", "3", "2", "1"], await history.Locator("td:first-child").AllInnerTextsAsync());
+        Assert.Equal(["Draft", "Live", "Replaced", "Replaced"], await history.Locator(".govuk-tag").AllInnerTextsAsync());
     }
 
     [SkippableFact]

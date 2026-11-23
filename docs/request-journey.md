@@ -72,29 +72,30 @@ This first page is usually a `PupilSearch` page (the Add journey's is not) — s
   (AB#307773). `Back` does not check, and it writes nothing. It redirects to What to change,
   which checks, or to Check your pupil data, which starts no journey.
 - **Offered change types only.** `StartJourneyAsync` refuses a change type that the window type
-  does not offer. It refuses before it reads the flow or changes the state. A posted form can
+  does not offer. It refuses before it changes the state. A posted form can
   carry a value that the page does not show (`docs/ks2-journeys.md`, decision 1).
-- **The previous request.** Check your pupil data clears the whole request state. But a user
-  can start a journey without that page: from What to change after Back, or from a link on
-  another page. A flow that has a `PupilSearch` page refreshes the request each time the user
+- **The previous request.** Check your pupil data clears the whole request state. A user can
+  also start a journey without that page. Back leads to What to change, and other pages have
+  links to it. A flow that has a `PupilSearch` page refreshes the request each time the user
   selects a pupil. It sets a new reference number and selected pupil, and clears the matched
   pupil and the selected result. A flow with no `PupilSearch` page (Add) has nothing that does
   this, so `ClearPreviousRequest` does it. Without it, the new request uses the reference
   number of a submitted request and overwrites its row. The matched pupil of an abandoned Merge
-  journey also shows on the Add summary (AB#297310). The check looks at the pages of the flow,
-  not at the change type. The next flow with no pupil search gets the same protection.
+  journey also goes into the Add request document (AB#297310). The check looks at the pages of
+  the flow, not at the change type. The next flow with no pupil search gets the same protection.
 - **An unknown flow.** When the change type has no flow config, the previous request stays. A
-  missing flow is not a flow with no pupil search. This case does not occur today, because a
-  change type is offered only when its flow file exists.
+  missing flow is not a flow with no pupil search. This case does not occur today, because the
+  service offers a change type only when its flow file exists.
 - **The cleared fields.** `SelectedResultQualification` goes with `SelectedResult` (AB#301903).
   `SelectedQualification` belongs to the missing-qualification enquiry (AB#297848). The
-  amendment journeys do not read it, but it is cleared with the other fields.
+  amendment journeys do not read it, but `ClearPreviousRequest` clears it too.
   `OriginCountryLanguageCapture` changes `OriginCountryCode` and `OriginCountryLanguages` only
-  on a page that has the country question. On a flow with no pupil search and no such page,
-  the country data of an abandoned journey stays. So `ClearPreviousRequest` clears it.
-- **The fields that are not cleared.** `ClearPreviousRequest` does not clear `DuplicateCheck`,
-  `IncludeSearchLabel` and `IncludeMatchedPupils`. `JourneyController` sets and clears them in
-  the Add and Include journeys.
+  on a page that has the country question. `ClearPreviousRequest` clears them, so a flow with
+  no pupil search does not keep the country data of an abandoned journey.
+- **The fields it leaves.** `ClearPreviousRequest` leaves three per-request fields:
+  `DuplicateCheck`, `IncludeSearchLabel` and `IncludeMatchedPupils`. `JourneyController` sets
+  and clears them in the Add and Include journeys. `ClearPreviousRequest` also leaves
+  `SelectedNextStep`, which Check your pupil data sets.
 - **A new field.** When you add a field to `RequestState`, decide if `ClearPreviousRequest`
   must clear it.
 - **Edit modes.** A journey that starts here is not an edit of a request. The controller ends

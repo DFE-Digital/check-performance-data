@@ -424,7 +424,7 @@ Routing fields (the views filter on these tag values):
 | Key stage | `16-18` |
 | Graded exam (CYPMD) | Always `no_graded` |
 | T Level Exams (CYPMD) | `yes_tlevel_cypmd` when the QAN is on the T Level list, else `no_tlevel_cypmd` |
-| Withdrawal qualification (CYPMD) | Always `no_withdraw_cypmd`. DCI agents change it by hand. |
+| Withdrawal qualification (CYPMD) | `yes_withdraw_cypmd` for an Incorrect grade or Result does not belong enquiry whose additional information contains a form of "withdraw" (#908). Else `no_withdraw_cypmd`. See [Withdrawal qualification](#withdrawal-qualification). |
 | Type of Organisation | Always `training_provider` |
 | Whole cohort affected? (CYPMD) | `yes_re` or `no_re`, from the meaning of the answer with role `Enquiry.CohortScope`. Left out when there is no such answer (Result does not belong). |
 
@@ -449,6 +449,21 @@ Data fields:
   Contingency).
 - The field ids are `ZendeskTicketFields__*Id` settings. The non-production config files hold the
   pre-prod ids. `production.yml` holds 0 until the prod ids are confirmed.
+
+#### Withdrawal qualification
+
+The prod view "RE – Withdrawn qualification" needs Withdrawal qualification = yes. The Incorrect
+grade and Result does not belong views need it to be no. The ticket builder sets the field from
+the answer with role `Enquiry.AdditionalComments` (#908):
+
+- The enquiry type is Incorrect grade or Result does not belong, and the answer contains `withdr`
+  in any case → `yes_withdraw_cypmd`. The stem matches every form of the word, for example
+  "withdrawn", "withdrawal", "withdrew" and the misspelling "withdrawl".
+- In all other cases, including every Missing qualification enquiry → `no_withdraw_cypmd`.
+
+The match is a simple word match. Text such as "not withdrawn" also gives "yes". This is
+acceptable: the ticket still goes to Zendesk, and an operator moves it out of the view by hand.
+The ticket does not set the separate Withdrawal (CYPMD) checkbox.
 
 **The T Level list** is `Application/ResultsEnquiry/Data/t-level-qans.csv`, an embedded resource
 that `TLevelQualifications` reads. It holds the 21 T Levels that DCI gave for 2026. When DCI

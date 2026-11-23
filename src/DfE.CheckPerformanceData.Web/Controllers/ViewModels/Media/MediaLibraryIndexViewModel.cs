@@ -3,8 +3,8 @@ using DfE.CheckPerformanceData.Application.Media;
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media;
 
 /// <summary>
-/// The media library page: one page of images with the search, filters and sort that chose it,
-/// and, after a plain form upload, what happened to each file.
+/// The media library page: one page of images with the search, filters, sort and view that chose
+/// it, and, after a plain form upload, what happened to each file.
 /// </summary>
 public sealed class MediaLibraryIndexViewModel
 {
@@ -21,6 +21,12 @@ public sealed class MediaLibraryIndexViewModel
     /// <summary>"newest" or "name", as the sort control and page links send it.</summary>
     public string Sort { get; init; } = "newest";
 
+    /// <summary>One of <see cref="MediaLibraryView"/>: grid, details or large.</summary>
+    public string View { get; init; } = MediaLibraryView.Grid;
+
+    /// <summary>The list with no search or filters, in the same view.</summary>
+    public string ClearFiltersUrl => View == MediaLibraryView.Grid ? "/admin/media" : "/admin/media?view=" + View;
+
     public IReadOnlyList<MediaUploadItemViewModel> UploadResults { get; init; } = [];
 
     /// <summary>The error for the file control itself, for example when no file was chosen.</summary>
@@ -36,6 +42,7 @@ public sealed class MediaLibraryIndexViewModel
         if (MissingAlt) query.Add("missingAlt=true");
         if (Unused) query.Add("unused=true");
         if (Sort != "newest") query.Add("sort=" + Uri.EscapeDataString(Sort));
+        if (View != MediaLibraryView.Grid) query.Add("view=" + View);
         if (page > 1) query.Add("page=" + page);
         return "/admin/media" + (query.Count == 0 ? "" : "?" + string.Join("&", query));
     }

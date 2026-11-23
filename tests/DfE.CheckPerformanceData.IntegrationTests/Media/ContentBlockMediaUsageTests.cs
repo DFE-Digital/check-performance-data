@@ -49,6 +49,20 @@ public sealed class ContentBlockMediaUsageTests(PostgresFixture fixture) : IAsyn
         return await Service(ctx).SaveAsync(new SaveContentBlockDto { Key = key, BlockType = type, Value = value });
     }
 
+    // A content block that uses an image counts as one use in the library's Details view.
+    [Fact]
+    public async Task CountUses_CountsTheBlocksThatUseTheImage()
+    {
+        var image = await ImageAsync();
+        await SaveAsync("first-block", $"<p>{Img(image)}</p>");
+        await SaveAsync("second-block", $"<p>{Img(image)} {Img(image)}</p>");
+
+        await using var ctx = fixture.CreateContext();
+        var counts = await new MediaAssetRepository(ctx, new FakeCurrentUserService()).CountUsesAsync([image]);
+
+        Assert.Equal(2, counts[image]);
+    }
+
     private sealed record Row(Guid AssetId, int AssetVersion, string Location);
 
     private async Task<List<Row>> UsagesAsync(int blockId)

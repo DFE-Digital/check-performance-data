@@ -66,7 +66,7 @@ public sealed class MediaLibraryControllerTests
     [Fact]
     public async Task Index_PassesTheSearchFiltersSortAndPage_AtTheCmsPageLength()
     {
-        await _sut.Index(search: " chart ", missingAlt: true, unused: true, sort: "name", page: 2, CancellationToken.None);
+        await _sut.Index(search: " chart ", missingAlt: true, unused: true, sort: "name", view: null, page: 2, CancellationToken.None);
 
         await _media.Received(1).ListAsync(
             Arg.Is<MediaAssetQuery>(q => q.Search == "chart" && q.MissingAltText && q.UnusedOnly
@@ -80,7 +80,7 @@ public sealed class MediaLibraryControllerTests
     [InlineData("newest")]
     public async Task Index_SortsNewestFirst_UnlessNameIsAsked(string? sort)
     {
-        var view = Assert.IsType<ViewResult>(await _sut.Index(null, false, false, sort, 1, CancellationToken.None));
+        var view = Assert.IsType<ViewResult>(await _sut.Index(null, false, false, sort, null, 1, CancellationToken.None));
 
         await _media.Received(1).ListAsync(Arg.Is<MediaAssetQuery>(q => q.Sort == MediaAssetSort.Newest), Arg.Any<CancellationToken>());
         Assert.Equal("newest", Assert.IsType<MediaLibraryIndexViewModel>(view.Model).Sort);
@@ -91,7 +91,7 @@ public sealed class MediaLibraryControllerTests
     {
         _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(0);
 
-        await _sut.Index(null, false, false, null, 1, CancellationToken.None);
+        await _sut.Index(null, false, false, null, null, 1, CancellationToken.None);
 
         await _media.Received(1).ListAsync(Arg.Is<MediaAssetQuery>(q => q.PageSize == 20), Arg.Any<CancellationToken>());
     }
@@ -103,7 +103,7 @@ public sealed class MediaLibraryControllerTests
         var logo = Asset("logo.svg", type: "image/svg+xml", width: null, height: null);
         _media.ListAsync(Arg.Any<MediaAssetQuery>(), Arg.Any<CancellationToken>()).Returns(new MediaAssetPage([chart, logo], 2, 1, 25));
 
-        var view = Assert.IsType<ViewResult>(await _sut.Index(null, false, false, null, 1, CancellationToken.None));
+        var view = Assert.IsType<ViewResult>(await _sut.Index(null, false, false, null, null, 1, CancellationToken.None));
 
         var model = Assert.IsType<MediaLibraryIndexViewModel>(view.Model);
         Assert.Equal(2, model.Items.Count);
@@ -116,6 +116,40 @@ public sealed class MediaLibraryControllerTests
         Assert.Null(model.Items[1].Dimensions);
         Assert.True(model.Items[1].MissingAltText);
         _urls.Received(1).Rendition(chart, chart.Latest, 320);
+    }
+
+    [Theory]
+    [InlineData(null, "grid")]
+    [InlineData("bogus", "grid")]
+    [InlineData("details", "details")]
+    [InlineData("large", "large")]
+    public async Task Index_ShowsTheViewAsked_AndTheGridForAnythingElse(string? asked, string expected)
+    {
+        var view = Assert.IsType<ViewResult>(await _sut.Index(null, false, false, null, asked, 1, CancellationToken.None));
+
+        Assert.Equal(expected, Assert.IsType<MediaLibraryIndexViewModel>(view.Model).View);
+    }
+
+    [Fact]
+    public async Task Index_GivesEachImage_ItsUses_WhoUploadedItsFile_AndALargeCopy()
+    {
+        var chart = Asset("chart.png");
+        var logo = Asset("logo.png");
+        _media.ListAsync(Arg.Any<MediaAssetQuery>(), Arg.Any<CancellationToken>()).Returns(new MediaAssetPage([chart, logo], 2, 1, 25));
+        _media.CountUsesAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int> { [chart.Id] = 3, [logo.Id] = 0 });
+        _urls.Rendition(Arg.Any<MediaAssetDto>(), Arg.Any<MediaAssetVersionDto>(), 960).Returns(ci => $"/large/{ci.Arg<MediaAssetDto>().Id}");
+
+        var view = Assert.IsType<ViewResult>(await _sut.Index(null, false, false, null, "details", 1, CancellationToken.None));
+
+        var items = Assert.IsType<MediaLibraryIndexViewModel>(view.Model).Items;
+        Assert.Equal(3, items[0].Uses);
+        Assert.Equal(0, items[1].Uses);
+        Assert.Equal("u", items[0].UploadedBy);
+        Assert.Equal(chart.Latest.UploadedAtUtc, items[0].UploadedAtUtc);
+        Assert.Equal($"/large/{chart.Id}", items[0].LargeUrl);
+        await _media.Received(1).CountUsesAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { chart.Id, logo.Id })), Arg.Any<CancellationToken>());
     }
 
     [Fact]

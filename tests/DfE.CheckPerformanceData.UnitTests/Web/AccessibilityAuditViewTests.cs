@@ -838,6 +838,58 @@ public sealed class AccessibilityAuditViewTests
 	}
 
 	[Fact]
+	public void MediaLibraryIndex_UsesTheFullWidthAdminLayout()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("ViewData[\"AdminWide\"] = true;", view);
+	}
+
+	// The View control works without JavaScript: a GET form with a labelled select and a button.
+	// site.js submits the form when the select changes; the button then sits in a noscript.
+	// The form carries the search, filters and sort, so a change of view keeps them.
+	[Fact]
+	public void MediaLibraryIndex_ViewControl_IsALabelledSelectInAGetForm_ThatKeepsTheFilters()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("<form method=\"get\" action=\"/admin/media\" data-media-library-view-form>", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"view\">View</label>", view);
+		Assert.Contains("<select class=\"govuk-select\" id=\"view\" name=\"view\" data-auto-submit=\"true\">", view);
+		Assert.Contains("<noscript><button type=\"submit\" class=\"govuk-button govuk-button--secondary\">Show</button></noscript>", view);
+		Assert.Contains("<input type=\"hidden\" name=\"search\"", view);
+		Assert.Contains("<input type=\"hidden\" name=\"view\" value=\"@Model.View\" />", view);
+		// The View control sits just above the images.
+		Assert.True(view.IndexOf("data-media-library-view-form", StringComparison.Ordinal)
+			< view.IndexOf("data-media-library-region", StringComparison.Ordinal));
+		Assert.True(view.IndexOf("data-media-library-filters", StringComparison.Ordinal)
+			< view.IndexOf("data-media-library-view-form", StringComparison.Ordinal));
+	}
+
+	// Details is a GOV.UK table: a caption, column headers, and a decorative thumbnail because the
+	// file name is the link text.
+	[Fact]
+	public void MediaLibraryIndex_DetailsView_IsATableWithACaptionAndColumnHeaders()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("<table class=\"govuk-table app-media-details\" data-media-library-table>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Images</caption>", view);
+		foreach (var header in new[] { "Image", "Name", "Details" })
+			Assert.Contains($"<th scope=\"col\" class=\"govuk-table__header\">{header}</th>", view);
+		Assert.Contains("<img src=\"@item.ThumbnailUrl\" alt=\"\" loading=\"lazy\" decoding=\"async\" class=\"app-media-details__img\" />", view);
+	}
+
+	[Fact]
+	public void MediaLibraryIndex_LargeView_ListsOneImagePerRow_WithADecorativeImage()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("<ul class=\"govuk-list app-media-large\" data-media-library-large>", view);
+		Assert.Contains("<img src=\"@item.LargeUrl\" alt=\"\" loading=\"lazy\" decoding=\"async\"", view);
+	}
+
+	[Fact]
 	public void MediaLibraryIndex_DeleteUnusedLink_IsALinkStyledAsAButton()
 	{
 		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");

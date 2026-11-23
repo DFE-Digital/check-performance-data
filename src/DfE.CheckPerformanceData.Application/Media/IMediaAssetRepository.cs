@@ -53,6 +53,12 @@ public interface IMediaAssetRepository
     Task<IReadOnlyList<MediaUsageBlock>> GetUsageBlocksAsync(Guid assetId, CancellationToken ct = default);
 
     /// <summary>
+    /// For each image, the number of places that use it: the pages of <see cref="GetUsagePagesAsync"/>
+    /// plus the blocks of <see cref="GetUsageBlocksAsync"/>. Every id given has a count, 0 when unused.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, int>> CountUsesAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default);
+
+    /// <summary>
     /// Deletes the image and every version row, when no page version or content block uses it. Removes no files:
     /// the caller deletes those after the rows. On <see cref="MediaDeleteOutcome.InUse"/> the
     /// scoped context's change tracker is cleared.

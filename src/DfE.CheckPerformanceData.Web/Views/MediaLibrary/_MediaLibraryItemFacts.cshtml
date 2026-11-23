@@ -1,0 +1,38 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
+@model MediaLibraryItemViewModel
+@* The facts about one image, one to a line, for the Details and Large views of the library. *@
+<dl class="govuk-summary-list govuk-summary-list--no-border app-media-facts" data-media-facts>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Type</dt>
+        <dd class="govuk-summary-list__value">@Model.TypeName</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Dimensions</dt>
+        <dd class="govuk-summary-list__value">@(Model.Dimensions ?? "Not known")</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">File size</dt>
+        <dd class="govuk-summary-list__value">@Model.Size</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Alt text</dt>
+        <dd class="govuk-summary-list__value">
+            @if (Model.MissingAltText)
+            {
+                <strong class="govuk-tag govuk-tag--yellow" data-media-missing-alt>No alt text</strong>
+            }
+            else
+            {
+                @Model.AltText
+            }
+        </dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Uses</dt>
+        <dd class="govuk-summary-list__value" data-media-uses>@(Model.Uses == 0 ? "Not used" : Model.Uses == 1 ? "1 page or block" : $"{Model.Uses} pages or blocks")</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Uploaded</dt>
+        <dd class="govuk-summary-list__value">@Model.UploadedAtUtc.ToString("d MMM yyyy, HH:mm") by @(string.IsNullOrWhiteSpace(Model.UploadedBy) ? "not known" : Model.UploadedBy)</dd>
+    </div>
+</dl>

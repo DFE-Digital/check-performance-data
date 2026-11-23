@@ -185,6 +185,11 @@ The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cp
   field is not disabled, so its value still posts.
 - **Library page.** Each control has a label. A `role="status"` region announces each upload's
   start and end. A refused upload shows its reason beside the file.
+- **Library views.** The "View" select is in a GET form with a `<label>`. `site.js` submits the
+  form when the select changes (`data-auto-submit`). Without JavaScript, a "Show" button in a
+  `<noscript>` submits it. The Details view is a table with a `<caption>` and column headers. In
+  every view the file name is the link text, so each thumbnail or large image has `alt=""`. The
+  alt text shows as text in the image's facts.
 - **Delete unused images** (`DeleteUnused.cshtml`). The title matches the `<h1>`. The images to
   delete are a table with a `<caption>` and column headers. The "Delete unused images" link on the
   library page is a link styled as a button, with `role="button"`.

@@ -4,6 +4,9 @@
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaLibraryIndexViewModel
 @{
+    @* The full-width admin layout, so the grid shows more images in each row. The flag, not the
+       _AdminWideLayout wrapper, because the wrapper does not pass on the Scripts section. *@
+    ViewData["AdminWide"] = true;
     ViewData["Title"] = "Media library";
     var library = Model.Page;
     // One message per problem: no file chosen, or a refused file with its name.
@@ -153,12 +156,41 @@
             <option value="name" selected="@(Model.Sort == "name")">File name (A to Z)</option>
         </select>
     </div>
+    <input type="hidden" name="view" value="@Model.View" />
     <div class="govuk-button-group">
         <button type="submit" class="govuk-button govuk-button--secondary">Apply</button>
         @if (Model.IsFiltered)
         {
-            <a class="govuk-link" href="/admin/media">Clear search and filters</a>
+            <a class="govuk-link" href="@Model.ClearFiltersUrl">Clear search and filters</a>
         }
+    </div>
+</form>
+
+@* The view keeps the search, filters and sort, and goes back to the first page. site.js submits
+   the form when the select changes (data-auto-submit); without JavaScript the button does. *@
+<form method="get" action="/admin/media" data-media-library-view-form>
+    @if (!string.IsNullOrEmpty(Model.Search))
+    {
+        <input type="hidden" name="search" value="@Model.Search" />
+    }
+    @if (Model.MissingAlt)
+    {
+        <input type="hidden" name="missingAlt" value="true" />
+    }
+    @if (Model.Unused)
+    {
+        <input type="hidden" name="unused" value="true" />
+    }
+    <input type="hidden" name="sort" value="@Model.Sort" />
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="view">View</label>
+        <select class="govuk-select" id="view" name="view" data-auto-submit="true">
+            @foreach (var option in MediaLibraryView.All)
+            {
+                <option value="@option.Value" selected="@(option.Value == Model.View)">@option.Label</option>
+            }
+        </select>
+        <noscript><button type="submit" class="govuk-button govuk-button--secondary">Show</button></noscript>
     </div>
 </form>
 
@@ -185,32 +217,82 @@
             <a href="@deleteUnusedUrl" role="button" draggable="false" class="govuk-button govuk-button--warning"
                data-module="govuk-button" data-media-delete-unused-link>Delete unused images</a>
         }
-        <ul class="govuk-list app-media-grid" data-media-library-list>
-            @foreach (var item in Model.Items)
-            {
-                <li class="app-media-grid__item" data-media-item="@item.Id">
-                    <a class="govuk-link app-media-grid__link" href="@item.DetailUrl">
-                        <span class="app-media-grid__thumb">
-                            @* The file name is the link text, so the thumbnail adds nothing for a screen reader. *@
-                            <img src="@item.ThumbnailUrl" alt="" loading="lazy" decoding="async"
-                                 class="@(item.IsShownAsStored ? "app-media-grid__img app-media-grid__img--fixed" : "app-media-grid__img")" />
-                        </span>
-                        <span class="app-media-grid__name">@item.FileName</span>
-                    </a>
-                    <span class="govuk-body-s app-media-grid__meta">
-                        @if (item.Dimensions is not null)
+        @switch (Model.View)
+        {
+            case MediaLibraryView.Details:
+                <table class="govuk-table app-media-details" data-media-library-table>
+                    <caption class="govuk-table__caption govuk-table__caption--m">Images</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header">Image</th>
+                            <th scope="col" class="govuk-table__header">Name</th>
+                            <th scope="col" class="govuk-table__header">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var item in Model.Items)
                         {
-                            @item.Dimensions<br />
+                            <tr class="govuk-table__row" data-media-item="@item.Id">
+                                <td class="govuk-table__cell app-media-details__thumb">
+                                    @* The file name is the link text, so the thumbnail adds nothing for a screen reader. *@
+                                    <img src="@item.ThumbnailUrl" alt="" loading="lazy" decoding="async" class="app-media-details__img" />
+                                </td>
+                                <td class="govuk-table__cell app-media-details__name">
+                                    <a class="govuk-link" href="@item.DetailUrl">@item.FileName</a>
+                                </td>
+                                <td class="govuk-table__cell">
+                                    <partial name="_MediaLibraryItemFacts" model="item" />
+                                </td>
+                            </tr>
                         }
-                        @item.Size
-                    </span>
-                    @if (item.MissingAltText)
+                    </tbody>
+                </table>
+                break;
+            case MediaLibraryView.Large:
+                <ul class="govuk-list app-media-large" data-media-library-large>
+                    @foreach (var item in Model.Items)
                     {
-                        <strong class="govuk-tag govuk-tag--yellow" data-media-missing-alt>No alt text</strong>
+                        <li class="app-media-large__item" data-media-item="@item.Id">
+                            <h3 class="govuk-heading-s app-media-large__name">
+                                <a class="govuk-link" href="@item.DetailUrl">@item.FileName</a>
+                            </h3>
+                            @* The file name is the link text, and the facts below give the alt text. *@
+                            <img src="@item.LargeUrl" alt="" loading="lazy" decoding="async"
+                                 class="@(item.IsShownAsStored ? "app-media-large__img app-media-large__img--fixed" : "app-media-large__img")" />
+                            <partial name="_MediaLibraryItemFacts" model="item" />
+                        </li>
                     }
-                </li>
-            }
-        </ul>
+                </ul>
+                break;
+            default:
+            <ul class="govuk-list app-media-grid" data-media-library-list>
+                @foreach (var item in Model.Items)
+                {
+                    <li class="app-media-grid__item" data-media-item="@item.Id">
+                        <a class="govuk-link app-media-grid__link" href="@item.DetailUrl">
+                            <span class="app-media-grid__thumb">
+                                @* The file name is the link text, so the thumbnail adds nothing for a screen reader. *@
+                                <img src="@item.ThumbnailUrl" alt="" loading="lazy" decoding="async"
+                                     class="@(item.IsShownAsStored ? "app-media-grid__img app-media-grid__img--fixed" : "app-media-grid__img")" />
+                            </span>
+                            <span class="app-media-grid__name">@item.FileName</span>
+                        </a>
+                        <span class="govuk-body-s app-media-grid__meta">
+                            @if (item.Dimensions is not null)
+                            {
+                                @item.Dimensions<br />
+                            }
+                            @item.Size
+                        </span>
+                        @if (item.MissingAltText)
+                        {
+                            <strong class="govuk-tag govuk-tag--yellow" data-media-missing-alt>No alt text</strong>
+                        }
+                    </li>
+                }
+            </ul>
+                break;
+        }
 
         @if (library.TotalPages > 1)
         {

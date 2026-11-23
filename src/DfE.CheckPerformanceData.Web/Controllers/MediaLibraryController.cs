@@ -10,7 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // CMS media library admin. Gated on the media section, which admins and content editors hold by
-// default. The index lists the library as a grid of thumbnails, one CMS page length at a time,
+// default. The index lists the library as a grid, a details table or large images (the "view"
+// query value), one CMS page length at a time,
 // with a search, two filters and a sort. The upload form works as a plain multipart post; with
 // JavaScript, media-library-upload.js posts one file per request and asks for JSON instead.
 [RequireAdminSection(AdminNavKeys.Media)]
@@ -52,9 +53,9 @@ public sealed class MediaLibraryController(
     public const string SuccessKey = "MediaLibrarySuccess";
 
     [HttpGet("admin/media")]
-    public async Task<IActionResult> Index(string? search, bool missingAlt, bool unused, string? sort, int page = 1, CancellationToken ct = default)
+    public async Task<IActionResult> Index(string? search, bool missingAlt, bool unused, string? sort, string? view, int page = 1, CancellationToken ct = default)
     {
-        return View(IndexView, await BuildIndexAsync(search, missingAlt, unused, sort, page, ct));
+        return View(IndexView, await BuildIndexAsync(search, missingAlt, unused, sort, view, page, ct));
     }
 
     // One image: a large preview, its facts and public link, the "Image details" form, the
@@ -255,7 +256,7 @@ public sealed class MediaLibraryController(
         {
             if (WantsJson) return new JsonResult(new { error = NoFileError }) { StatusCode = StatusCodes.Status400BadRequest };
             Response.StatusCode = StatusCodes.Status400BadRequest;
-            var empty = await BuildIndexAsync(null, false, false, null, 1, ct);
+            var empty = await BuildIndexAsync(null, false, false, null, null, 1, ct);
             return View(IndexView, new MediaLibraryIndexViewModel
             {
                 Page = empty.Page, Items = empty.Items, UploadError = NoFileError
@@ -272,7 +273,7 @@ public sealed class MediaLibraryController(
 
         if (WantsJson) return new JsonResult(results);
 
-        var index = await BuildIndexAsync(null, false, false, null, 1, ct);
+        var index = await BuildIndexAsync(null, false, false, null, null, 1, ct);
         return View(IndexView, new MediaLibraryIndexViewModel
         {
             Page = index.Page, Items = index.Items, UploadResults = results
@@ -295,7 +296,7 @@ public sealed class MediaLibraryController(
         urls.Rendition(asset, asset.Latest, MediaLibraryItemViewModel.ThumbnailWidth);
 
     private async Task<MediaLibraryIndexViewModel> BuildIndexAsync(
-        string? search, bool missingAlt, bool unused, string? sort, int page, CancellationToken ct)
+        string? search, bool missingAlt, bool unused, string? sort, string? view, int page, CancellationToken ct)
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.Media;
         var term = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
@@ -307,15 +308,17 @@ public sealed class MediaLibraryController(
             Page: Math.Max(1, page),
             PageSize: await ResolvePageSizeAsync(),
             Sort: byName ? MediaAssetSort.Name : MediaAssetSort.Newest), ct);
+        var uses = await media.CountUsesAsync(result.Items.Select(a => a.Id).ToList(), ct);
 
         return new MediaLibraryIndexViewModel
         {
             Page = result,
-            Items = result.Items.Select(a => MediaLibraryItemViewModel.From(a, urls)).ToList(),
+            Items = result.Items.Select(a => MediaLibraryItemViewModel.From(a, urls, uses.GetValueOrDefault(a.Id))).ToList(),
             Search = term,
             MissingAlt = missingAlt,
             Unused = unused,
             Sort = byName ? SortByName : SortNewest,
+            View = MediaLibraryView.Normalise(view),
         };
     }
 

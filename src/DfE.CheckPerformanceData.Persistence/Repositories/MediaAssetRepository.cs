@@ -215,6 +215,27 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
             .ToListAsync(ct);
     }
 
+    // One grouped query for a page of the library: distinct pages plus distinct blocks per image.
+    public async Task<IReadOnlyDictionary<Guid, int>> CountUsesAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
+    {
+        var counts = assetIds.Distinct().ToDictionary(id => id, _ => 0);
+        if (counts.Count == 0) return counts;
+
+        var ids = counts.Keys.ToList();
+        var rows = await context.MediaUsages.AsNoTracking()
+            .Where(u => ids.Contains(u.AssetId))
+            .GroupBy(u => u.AssetId)
+            .Select(g => new
+            {
+                AssetId = g.Key,
+                Pages = g.Where(u => u.PageNodeId != null).Select(u => u.PageNodeId).Distinct().Count(),
+                Blocks = g.Where(u => u.ContentBlockId != null).Select(u => u.ContentBlockId).Distinct().Count(),
+            })
+            .ToListAsync(ct);
+        foreach (var row in rows) counts[row.AssetId] = row.Pages + row.Blocks;
+        return counts;
+    }
+
     // A tracked remove, so the generic audit capture writes a row for the image and each version.
     // The usage check runs first; the foreign key from media_usages catches a usage saved after it.
     public async Task<MediaDeleteOutcome> DeleteAsync(Guid assetId, CancellationToken ct = default)

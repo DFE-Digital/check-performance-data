@@ -463,6 +463,17 @@ public class TestFixtureSeedBundleTests
         Assert.Contains("alt=\\\"\\\" width=\\\"1280\\\" height=\\\"640\\\" role=\\\"presentation\\\"", page.Versions.Single().Content);
     }
 
+    // The guide has steps for the library's views and for an image the editor gives another shape.
+    [Fact]
+    public void TheMediaLibraryGuide_HasStepsForTheViews_AndForAnImageOfAnotherShape()
+    {
+        var content = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-library-test-page").Versions.Single().Content;
+
+        Assert.Contains("choose “Details” in the View list", content);
+        Assert.Contains("Choose “Large”", content);
+        Assert.Contains("Select “Constrain proportions” to unlock it", content);
+    }
+
     // A wide sample image that the editor stretched into a square box. The page shows the square.
     [Fact]
     public void TheMediaRichTextTestPage_HasAnImageInAnotherShapeThanItsFile()

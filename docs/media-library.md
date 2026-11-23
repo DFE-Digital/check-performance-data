@@ -175,6 +175,26 @@ Decoding a 50 megapixel image needs about 400 MB of memory. `MediaProcessingGate
 `Media:MaxConcurrentProcessing` images decode at once, across uploads, the embedded-image move,
 content import and new renditions. The default is 2. Other requests wait at the gate.
 
+## The library page
+
+`/admin/media` uses the full-width admin layout (`ViewData["AdminWide"]`), so the grid fills the
+screen. The "View" select above the images chooses how the page lists them:
+
+| View | `view=` | Shows |
+| --- | --- | --- |
+| Grid | `grid` (or none) | A thumbnail, the file name, the size and a "No alt text" tag |
+| Details | `details` | A table: a small thumbnail, the file name, and the facts one to a line |
+| Large | `large` | One image to a row, a 960 pixel copy, with the same facts |
+
+The facts are the type, the dimensions, the file size, the alt text, the uses and who uploaded
+the current file, with the time (UTC). "Uses" is the number of pages and content blocks that use
+the image, the same as "Where the image is used" on the image page
+(`IMediaAssetRepository.CountUsesAsync`, one query for each page of the list).
+
+The view is in the query string only. Page links, the search and filters form and "Clear search
+and filters" keep it. A value that is not one of the three shows the grid. The service keeps no
+view for each user.
+
 ## Permissions
 
 - The **`media`** admin section manages the library: the library page, image pages, metadata,

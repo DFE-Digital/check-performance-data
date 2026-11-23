@@ -654,6 +654,7 @@ public class ContentMediaStagingTests
         public Task<IReadOnlyList<MediaAssetDto>> FindBySha256Async(string sha256, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<MediaUsagePage>> GetUsagePagesAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<MediaUsageBlock>> GetUsageBlocksAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyDictionary<Guid, int>> CountUsesAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<MediaDeleteOutcome> DeleteAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task RecordUnusedDeleteAsync(MediaUnusedDeleteResult result, CancellationToken ct = default) => throw new NotSupportedException();
 

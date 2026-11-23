@@ -310,6 +310,41 @@ public sealed class MediaAssetRepositoryTests(PostgresFixture fixture) : IAsyncL
         }
     }
 
+    // The library's Details view shows how many places use each image: each page once, however
+    // many of its versions or widgets use the image. An unused image counts 0.
+    [Fact]
+    public async Task CountUses_CountsEachPageOnce_AndGivesEveryImageACount()
+    {
+        var used = Guid.NewGuid();
+        var unused = Guid.NewGuid();
+        var (firstPage, firstVersion) = await SeedPageVersionAsync("First");
+        var (secondPage, secondVersion) = await SeedPageVersionAsync("Second");
+        try
+        {
+            await using (var ctx = fixture.CreateContext())
+            {
+                var sut = new MediaAssetRepository(ctx, new FakeCurrentUserService());
+                await sut.CreateAsync(Asset(used));
+                await sut.CreateAsync(Asset(unused));
+                ctx.MediaUsages.Add(Usage(used, 1, firstPage, firstVersion));
+                ctx.MediaUsages.Add(Usage(used, 1, firstPage, firstVersion, MediaUsageLocations.RichText));
+                ctx.MediaUsages.Add(Usage(used, 1, secondPage, secondVersion));
+                await ctx.SaveChangesAsync();
+            }
+
+            await using var read = fixture.CreateContext();
+            var counts = await new MediaAssetRepository(read, new FakeCurrentUserService()).CountUsesAsync([used, unused]);
+
+            Assert.Equal(2, counts[used]);
+            Assert.Equal(0, counts[unused]);
+        }
+        finally
+        {
+            await DeletePageAsync(firstPage);
+            await DeletePageAsync(secondPage);
+        }
+    }
+
     // "Delete unused images" against the database: the image a page version started to use after
     // the confirmation page stays, the unused one goes with every version, and one audit row
     // records the run as the signed-in user.

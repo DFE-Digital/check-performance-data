@@ -141,10 +141,11 @@ public sealed class RulesConsumer : ConsumerBase
 
         var snapshot = _rulesProvider.Current;
         var rulesVersion = snapshot.Version;
+        RuleContext? context = null;
         Decision decision;
         try
         {
-            var context = _contextMapper.Map(parsed);
+            context = _contextMapper.Map(parsed);
             decision = _rulesEngine.Evaluate(snapshot.Rules, context, snapshot.Lookups);
         }
         catch (RuleContextMappingException ex)
@@ -158,6 +159,21 @@ public sealed class RulesConsumer : ConsumerBase
             _logger.LogError(ex,
                 "Engine threw for Reference={Reference}; routing to Scrutiny.", parsed.ReferenceNumber);
             decision = Decision.SyntheticScrutiny("_engine_error", ex.GetType().Name + ": " + ex.Message);
+        }
+
+        // A message with no PupilData exercise start date cannot resolve any window-relative
+        // rule date (#800), so every branch carrying one leaves the request to manual
+        // handling. That is the intended fail-closed behaviour, but a producer that stopped
+        // sending the field would otherwise show up only as a rise in Scrutiny decisions; the
+        // warning makes it visible. Only a rule set that actually uses relative dates is
+        // affected, so an anchorless message under a fixed-date rule set stays quiet.
+        if (WarnsAboutUnresolvableRelativeDates(snapshot, context))
+        {
+            _logger.LogWarning(
+                "Message for Reference={Reference} has no PupilData exercise start date; " +
+                "window-relative rule dates could not be resolved, so branches comparing " +
+                "window-relative dates left the request to manual handling.",
+                parsed.ReferenceNumber);
         }
 
         _logger.LogInformation(
@@ -223,6 +239,15 @@ public sealed class RulesConsumer : ConsumerBase
             }
         }
     }
+
+    /// <summary>
+    /// True when the message carries no PupilData exercise start date and the current rule
+    /// set uses at least one window-relative date (#800): every branch comparing a
+    /// window-relative date then leaves the request to manual handling, and a warning makes
+    /// that visible (see ProcessAsync).
+    /// </summary>
+    internal static bool WarnsAboutUnresolvableRelativeDates(RulesSnapshot snapshot, RuleContext? context) =>
+        context is { PupilDataStartDate: null } && snapshot.Rules.UsesWindowRelativeDates();
 
     // Newline-joins the trace for storage, bounded by MaxPersistedTraceChars. An empty trace is
     // stored as null rather than "" so "no trace recorded" and "decided before this column

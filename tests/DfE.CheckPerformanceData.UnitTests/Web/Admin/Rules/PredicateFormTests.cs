@@ -188,4 +188,109 @@ public sealed class PredicateFormTests
     {
         Assert.Equal(expected, PredicateForm.OperatorToken(kind, null));
     }
+
+    // #800: a window-relative date literal round-trips through the flat form as its canonical
+    // token, losslessly.
+
+    [Fact]
+    public void RelativeDateToken_Carries_The_Canonical_Form()
+    {
+        Assert.Equal("window:secondMondayOfMay",
+            PredicateForm.RelativeDateToken(new RelativeDateSpec.SecondMondayOfMay()));
+        Assert.Equal("window:firstSeptemberMinusYears:3",
+            PredicateForm.RelativeDateToken(new RelativeDateSpec.FirstSeptemberMinusYears(3)));
+        Assert.Equal("window:dayMonthOfWindowYear:4-1",
+            PredicateForm.RelativeDateToken(new RelativeDateSpec.DayMonthOfWindowYear(4, 1)));
+    }
+
+    [Fact]
+    public void Flatten_Puts_The_Token_In_The_Leaf_Value()
+    {
+        // The relative date is carried by its canonical token in the value; the form keeps
+        // no separate flag (the token in the value is the only state).
+        var leaf = new Predicate.FieldEq("dateOfRemoval",
+            new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay()));
+
+        var node = PredicateForm.Flatten(leaf).Single();
+
+        Assert.Equal("window:secondMondayOfMay", node.Value);
+    }
+
+    [Fact]
+    public void Flatten_Then_Rebuild_Round_Trips_A_Relative_Leaf()
+    {
+        Predicate leaf = new Predicate.FieldCompare("schoolAdmissionDate", CompareOp.Lte,
+            new FieldValue.RelativeDate(new RelativeDateSpec.FirstSeptemberMinusYears(3)));
+
+        var rebuilt = PredicateForm.RebuildPredicate(PredicateForm.Flatten(leaf));
+
+        Assert.Equal(Json(leaf), Json(rebuilt));
+    }
+
+    [Fact]
+    public void FlattenForEditing_Then_Rebuild_Round_Trips_A_Relative_Leaf()
+    {
+        Predicate leaf = new Predicate.FieldEq("dateAddedToRoll",
+            new FieldValue.RelativeDate(new RelativeDateSpec.DayMonthOfWindowYear(4, 1)));
+
+        var rebuilt = PredicateForm.RebuildPredicate(PredicateForm.FlattenForEditing(leaf));
+
+        Assert.Equal(Json(leaf), Json(rebuilt));
+    }
+
+    [Fact]
+    public void Rebuild_Reconstructs_Each_Token_Back_To_Its_Spec()
+    {
+        var leaves = new (string Token, RelativeDateSpec Spec)[]
+        {
+            ("window:secondMondayOfMay", new RelativeDateSpec.SecondMondayOfMay()),
+            ("window:firstSeptemberMinusYears:3", new RelativeDateSpec.FirstSeptemberMinusYears(3)),
+            ("window:dayMonthOfWindowYear:4-1", new RelativeDateSpec.DayMonthOfWindowYear(4, 1)),
+        };
+
+        foreach (var (token, spec) in leaves)
+        {
+            var flat = new List<PredicateNodeForm>
+            {
+                new() { Id = 1, ParentId = null, Kind = PredicateKind.FieldEq,
+                        Field = "dateOfRemoval", Operator = "eq", Value = token }
+            };
+
+            var rebuilt = PredicateForm.RebuildPredicate(flat);
+            Assert.Equal(Json(new Predicate.FieldEq("dateOfRemoval", new FieldValue.RelativeDate(spec))),
+                Json(rebuilt));
+        }
+    }
+
+    [Fact]
+    public void Rebuild_Falls_Back_To_Str_When_A_Token_Is_Malformed()
+    {
+        // The form is lenient mid-edit: a token that does not parse stays a string literal,
+        // so RuleSetValidator reports a friendly error on save.
+        var flat = new List<PredicateNodeForm>
+        {
+            new() { Id = 1, ParentId = null, Kind = PredicateKind.FieldEq,
+                    Field = "dateOfRemoval", Operator = "eq", Value = "window:notAForm:9" }
+        };
+
+        var rebuilt = Assert.IsType<Predicate.FieldEq>(PredicateForm.RebuildPredicate(flat));
+
+        Assert.IsType<FieldValue.Str>(rebuilt.Value);
+    }
+
+    [Fact]
+    public void Rebuild_Leaves_A_Token_On_A_String_Field_As_A_String()
+    {
+        // window-relative dates belong to Date fields; a token on another field type
+        // stays a plain string.
+        var flat = new List<PredicateNodeForm>
+        {
+            new() { Id = 1, ParentId = null, Kind = PredicateKind.FieldEq,
+                    Field = "checkingWindowType", Operator = "eq", Value = "window:secondMondayOfMay" }
+        };
+
+        var rebuilt = Assert.IsType<Predicate.FieldEq>(PredicateForm.RebuildPredicate(flat));
+
+        Assert.Equal("window:secondMondayOfMay", Assert.IsType<FieldValue.Str>(rebuilt.Value).Value);
+    }
 }

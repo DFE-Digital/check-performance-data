@@ -131,6 +131,63 @@ public sealed class RulesConsumerTests
         await _dbContext.Received().ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>());
     }
 
+    // --- A message without a PupilData start date warns when the rules use relative dates (#800) ---
+
+    [Fact]
+    public void Warns_WhenAnchorMissing_AndRulesUseRelativeDates()
+    {
+        var snapshot = new RulesSnapshot(RuleSetWithRelativeDate(), Lookups.Empty, "v1", DateTimeOffset.UtcNow, RulesHealth.Healthy);
+
+        Assert.True(RulesConsumer.WarnsAboutUnresolvableRelativeDates(
+            snapshot, new RuleContext("Deceased", "KS4June", new Dictionary<string, FieldValue>(), null)));
+    }
+
+    [Fact]
+    public void DoesNotWarn_WhenAnchorPresent()
+    {
+        var snapshot = new RulesSnapshot(RuleSetWithRelativeDate(), Lookups.Empty, "v1", DateTimeOffset.UtcNow, RulesHealth.Healthy);
+
+        Assert.False(RulesConsumer.WarnsAboutUnresolvableRelativeDates(
+            snapshot, new RuleContext("Deceased", "KS4June", new Dictionary<string, FieldValue>(), new DateOnly(2026, 1, 1))));
+    }
+
+    [Fact]
+    public void DoesNotWarn_WhenRulesHaveNoRelativeDates()
+    {
+        var rules = new RuleSet("v1", DateTimeOffset.UtcNow, new[]
+        {
+            new OutcomeRules("Deceased", "Deceased", new[]
+            {
+                new RuleBranch("D1", DecisionStatus.AutoApproved,
+                    new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))),
+                new RuleBranch("D2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance),
+            }),
+        });
+        var snapshot = new RulesSnapshot(rules, Lookups.Empty, "v1", DateTimeOffset.UtcNow, RulesHealth.Healthy);
+
+        Assert.False(RulesConsumer.WarnsAboutUnresolvableRelativeDates(
+            snapshot, new RuleContext("Deceased", "KS4June", new Dictionary<string, FieldValue>(), null)));
+    }
+
+    [Fact]
+    public void DoesNotWarn_WhenTheMapperNeverBuiltAContext()
+    {
+        var snapshot = new RulesSnapshot(RuleSetWithRelativeDate(), Lookups.Empty, "v1", DateTimeOffset.UtcNow, RulesHealth.Healthy);
+
+        Assert.False(RulesConsumer.WarnsAboutUnresolvableRelativeDates(snapshot, null));
+    }
+
+    private static RuleSet RuleSetWithRelativeDate() => new("v1", DateTimeOffset.UtcNow, new[]
+    {
+        new OutcomeRules("Deceased", "Deceased", new[]
+        {
+            new RuleBranch("D1", DecisionStatus.AutoApproved,
+                new Predicate.FieldCompare("dateOfRemoval", CompareOp.Gte,
+                    new FieldValue.RelativeDate(new RelativeDateSpec.FirstSeptemberMinusYears(4)))),
+            new RuleBranch("D2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance),
+        }),
+    });
+
     // --- The decision trace is persisted so the reason survives the worker process ---
 
     [Fact]

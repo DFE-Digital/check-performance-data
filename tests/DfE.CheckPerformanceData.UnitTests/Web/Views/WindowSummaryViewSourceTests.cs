@@ -81,6 +81,15 @@ public sealed class WindowSummaryViewSourceTests
         Assert.Contains("@closeRefused", view);
     }
 
+    [Fact]
+    public void The_rules_link_points_at_the_window_rules_page()
+    {
+        // #800: the "Rules for this window" link sits on the summary page's detail list.
+        var view = View();
+        var row = Between(view, "<key>Rules</key>", "</row>");
+        Assert.Contains("<a class=\"govuk-link\" href=\"@Model.RulesLink\">Rules for this window</a>", row);
+    }
+
     private static string RepoRoot => Path.GetFullPath(Path.Combine(
         Path.GetDirectoryName(ThisFilePath())!, "..", "..", "..", ".."));
 

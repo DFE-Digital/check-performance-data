@@ -214,6 +214,200 @@ public sealed class RuleSetValidatorTests
         Assert.Contains(result.Errors, e => e.Contains("Bool field 'isAddBack'"));
     }
 
+    // --- window-relative date literals (#800) ---
+
+    [Fact]
+    public void Accepts_ValidDayMonthOfWindowYear_KeepsTheSpec()
+    {
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("EHE",
+                Branch("B1", DecisionStatus.AutoRejected,
+                    new Predicate.FieldEq("dateOfRemoval", new FieldValue.RelativeDate(new RelativeDateSpec.DayMonthOfWindowYear(4, 1)))),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.True(result.IsValid, "Expected validation to succeed: " + string.Join("; ", result.Errors));
+        var resolved = (Predicate.FieldEq)result.ResolvedRules!.Outcomes[0].Rules[0].When;
+        Assert.Equal(new FieldValue.RelativeDate(new RelativeDateSpec.DayMonthOfWindowYear(4, 1)), resolved.Value);
+    }
+
+    [Fact]
+    public void Accepts_Feb29_DayMonthOfWindowYear_LeapYearIsLegalAtInstall()
+    {
+        // 29 February is legal at install; it simply does not resolve in a
+        // non-leap window year (the engine fails closed there).
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("EHE",
+                Branch("B1", DecisionStatus.AutoRejected,
+                    new Predicate.FieldEq("dateOfRemoval", new FieldValue.RelativeDate(new RelativeDateSpec.DayMonthOfWindowYear(2, 29)))),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.True(result.IsValid, "29 Feb is a valid leap-year date: " + string.Join("; ", result.Errors));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(13)]
+    [InlineData(-1)]
+    public void Rejects_DayMonthOfWindowYear_MonthOutOfRange(int month)
+    {
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("EHE",
+                Branch("B1", DecisionStatus.AutoRejected,
+                    new Predicate.FieldEq("dateOfRemoval", new FieldValue.RelativeDate(new RelativeDateSpec.DayMonthOfWindowYear(month, 15)))),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("Outcome 'EHE'") && e.Contains("branch 'B1'") && e.Contains("month"));
+    }
+
+    [Theory]
+    [InlineData(2, 30)]
+    [InlineData(4, 31)]
+    [InlineData(2, 0)]
+    public void Rejects_DayMonthOfWindowYear_DayNotValidInLeapYear(int month, int day)
+    {
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("EHE",
+                Branch("B1", DecisionStatus.AutoRejected,
+                    new Predicate.FieldEq("dateOfRemoval", new FieldValue.RelativeDate(new RelativeDateSpec.DayMonthOfWindowYear(month, day)))),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("Outcome 'EHE'") && e.Contains("branch 'B1'") && e.Contains("day"));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(100)]
+    public void Rejects_FirstSeptemberMinusYears_YearsOutOfRange(int years)
+    {
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("EAL",
+                Branch("B1", DecisionStatus.AutoApproved,
+                    new Predicate.FieldCompare("schoolAdmissionDate", CompareOp.Gte, new FieldValue.RelativeDate(new RelativeDateSpec.FirstSeptemberMinusYears(years)))),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("Outcome 'EAL'") && e.Contains("branch 'B1'") && e.Contains("years"));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(99)]
+    public void Accepts_FirstSeptemberMinusYears_BoundaryValues(int years)
+    {
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("EAL",
+                Branch("B1", DecisionStatus.AutoApproved,
+                    new Predicate.FieldCompare("schoolAdmissionDate", CompareOp.Gte, new FieldValue.RelativeDate(new RelativeDateSpec.FirstSeptemberMinusYears(years)))),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.True(result.IsValid, $"years {years} is within 0-99: " + string.Join("; ", result.Errors));
+    }
+
+    [Fact]
+    public void Accepts_SecondMondayOfMay_TakesNoParameters()
+    {
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("EHE",
+                Branch("B1", DecisionStatus.AutoRejected,
+                    new Predicate.FieldCompare("dateOfRemoval", CompareOp.Gte, new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay()))),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.True(result.IsValid, "Expected validation to succeed: " + string.Join("; ", result.Errors));
+    }
+
+    [Fact]
+    public void Rejects_RelativeDate_OnNonDateField()
+    {
+        // A relative date on a non-Date field is malformed: it could never
+        // compare, so it must be refused at install rather than install a rule
+        // that silently matches nothing.
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("Deceased",
+                Branch("B1", DecisionStatus.AutoApproved,
+                    new Predicate.FieldEq("checkingWindowType", new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay()))),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("Outcome 'Deceased'") && e.Contains("branch 'B1'") && e.Contains("checkingWindowType"));
+    }
+
+    [Fact]
+    public void Rejects_RelativeDate_InsideInList_OnDateField()
+    {
+        // The engine resolves a relative date in an 'in' list, but the admin editor renders
+        // 'in' values as editable text, so a stored token would be corrupted by the next
+        // save. Refuse it at install; a comparison operator is the supported shape.
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("EAL",
+                Branch("B1", DecisionStatus.AutoApproved,
+                    new Predicate.FieldIn("schoolAdmissionDate", new FieldValue[]
+                    {
+                        new FieldValue.RelativeDate(new RelativeDateSpec.FirstSeptemberMinusYears(4)),
+                    })),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.False(result.IsValid);
+        Assert.Null(result.ResolvedRules);
+        Assert.Contains(result.Errors, e => e.Contains("Outcome 'EAL'") && e.Contains("branch 'B1'") && e.Contains("'in' list"));
+    }
+
+    [Fact]
+    public void Rejection_KeepsThePreviousGoodSetServing_NoResolvedRulesCarried()
+    {
+        // A refusal carries no resolved set, so the provider keeps the
+        // previous good copy serving (FR-004).
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("EHE",
+                Branch("B1", DecisionStatus.AutoRejected,
+                    new Predicate.FieldEq("dateOfRemoval", new FieldValue.RelativeDate(new RelativeDateSpec.FirstSeptemberMinusYears(100)))),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.False(result.IsValid);
+        Assert.Null(result.ResolvedRules);
+    }
+
     [Fact]
     public void Succeeds_OnMinimalWellFormedRuleSet()
     {

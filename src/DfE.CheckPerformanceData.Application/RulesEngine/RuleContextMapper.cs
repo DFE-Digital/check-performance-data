@@ -18,6 +18,11 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 ///         maps (plain copy, option fan-out, vocabulary translation, window-type-resolved
 ///         sat-exams), parsed against the <see cref="FieldCatalogue"/>'s expected types.
 ///         The engine-facing <c>RawValue</c> is preferred over the display <c>Value</c>.</item>
+///   <item><c>PupilDataStartDate</c> from <see cref="RequestDocument.PupilDataExerciseStartDate"/>
+///         (the date part only). The rules engine resolves window-relative rule dates from the
+///         PupilData exercise's start date, not the window's, so an earlier data-share exercise
+///         cannot move the year (#800). Null when the window has no PupilData exercise; a
+///         window-relative rule literal then resolves to no date.</item>
 /// </list>
 ///
 /// Throws <see cref="RuleContextMappingException"/> when an answer's value is
@@ -65,7 +70,13 @@ public sealed class RuleContextMapper : IRuleContextMapper
             if (evidence is not null) fields["hasSupportingEvidence"] = evidence;
         }
 
-        return new RuleContext(outcomeKey, checkingWindowType, fields);
+        // Date part only: the PupilData exercise start date is a UK wall-clock deadline (#800).
+        // Anchoring on it (not the window's start) keeps the year fixed when an earlier
+        // data-share exercise changes the window's earliest start date.
+        var pupilDataStartDate = message.PupilDataExerciseStartDate is { } start
+            ? DateOnly.FromDateTime(start)
+            : (DateOnly?)null;
+        return new RuleContext(outcomeKey, checkingWindowType, fields, pupilDataStartDate);
     }
 
     /// <summary>

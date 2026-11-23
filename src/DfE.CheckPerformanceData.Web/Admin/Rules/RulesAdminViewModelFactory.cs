@@ -67,9 +67,78 @@ public static class RulesAdminViewModelFactory
             Key = outcome.Key,
             Label = outcome.Label,
             Branches = outcome.Rules
-                .Select(b => new BranchViewModel(b.Id, b.Status, PredicateDescriber.Describe(b.When), b.When is Predicate.Otherwise))
+                .Select(b => MapBranch(b, pupilDataStartDate: null))
                 .ToList()
         };
+    }
+
+    /// <summary>
+    /// #800: the window rules page. Every branch condition is described with the
+    /// window-aware describer, resolving window-relative dates against the window's
+    /// PupilData exercise start date. Branches whose <c>checkingWindowType</c> condition
+    /// can never match this window's type are hidden: their dates do not apply here.
+    /// A missing or empty rules set yields the "no rules configured" state.
+    /// </summary>
+    public static WindowRulesViewModel WindowRules(
+        string windowTitle, Guid windowId, DateOnly? pupilDataStartDate,
+        CheckingWindowType windowType, RuleSet? rules) => new()
+    {
+        Title = $"{windowTitle} rules",
+        WindowTitle = windowTitle,
+        WindowId = windowId,
+        StartDate = pupilDataStartDate,
+        WindowType = windowType,
+        RulesVersion = rules?.Version,
+        HasRules = rules is not null && rules.Outcomes.Count > 0,
+        Outcomes = rules is null
+            ? Array.Empty<WindowOutcomeRules>()
+            : rules.Outcomes
+                .Select(o => new WindowOutcomeRules(o.Label,
+                    o.Rules
+                        .Where(b => AppliesToWindowType(b.When, windowType))
+                        .Select(b => MapBranch(b, pupilDataStartDate))
+                        .ToList()))
+                .ToList()
+    };
+
+    /// <summary>Maps one branch to its view model, describing the condition with the
+    /// window-aware describer when an anchor date is available.</summary>
+    private static BranchViewModel MapBranch(RuleBranch branch, DateOnly? pupilDataStartDate) =>
+        new(branch.Id, branch.Status, PredicateDescriber.Describe(branch.When, pupilDataStartDate),
+            branch.When is Predicate.Otherwise);
+
+    /// <summary>
+    /// True when a branch's <c>checkingWindowType</c> condition can match
+    /// <paramref name="windowType"/>. Only equality tests can prove the opposite: a branch
+    /// is hidden when a direct <c>checkingWindowType</c> <c>eq</c> or <c>in</c> test (or one
+    /// such test inside the branch's top-level <c>all</c>) lists values that all exclude
+    /// the window's type. <c>neq</c> and comparison shapes are kept (fail safe): they cannot
+    /// prove a branch never applies, so showing it is the safe direction.
+    /// </summary>
+    private static bool AppliesToWindowType(Predicate when, CheckingWindowType windowType)
+    {
+        var target = AnswerFieldMap.NormaliseCheckingWindowType(windowType.ToString());
+
+        if (when is Predicate.AllOf { Items: { Count: > 0 } } allOf)
+        {
+            return allOf.Items.All(i => AppliesToWindowType(i, windowType));
+        }
+
+        // Only eq and in can prove a branch never applies. A field test on another field,
+        // a neq, or a comparison cannot, so the branch stays visible.
+        var test = when switch
+        {
+            Predicate.FieldEq f when f.Field == "checkingWindowType" => new[] { f.Value },
+            Predicate.FieldIn f when f.Field == "checkingWindowType" => f.Values,
+            _ => null
+        };
+        if (test is null) return true;
+
+        var constrained = test
+            .OfType<FieldValue.Str>()
+            .Select(v => AnswerFieldMap.NormaliseCheckingWindowType(v.Value))
+            .ToHashSet(StringComparer.Ordinal);
+        return constrained.Count == 0 || constrained.Contains(target);
     }
 
     public static LookupsViewModel Lookups(Lookups? lookups) => new()

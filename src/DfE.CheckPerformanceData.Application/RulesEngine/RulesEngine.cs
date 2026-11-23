@@ -265,10 +265,11 @@ public sealed class RulesEngine : IRulesEngine
     }
 
     /// <summary>
-    /// A field value or rule literal in trace text. A relative date that
-    /// cannot resolve in this window shows the form name only; a resolved
-    /// literal never reaches this method (the leaf renders it through
-    /// <see cref="RenderLiteral"/> with the form name) (#800).
+    /// A field value or rule literal in trace text. A relative date that resolves shows
+    /// the date plus the form name; one that cannot resolve in this window shows the
+    /// form name only (#800). Resolved rule literals on a matched leaf render through
+    /// <see cref="RenderLiteral"/>; this method also serves the unresolvable,
+    /// type-mismatch and FieldIn traces, where a resolvable literal can appear.
     /// </summary>
     private static string Render(FieldValue v, DateOnly? pupilDataStartDate) => v switch
     {

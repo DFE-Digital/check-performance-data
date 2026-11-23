@@ -50,14 +50,15 @@ public sealed class WindowRulesPageTests(PlaywrightFixture fixture) : SeedingPag
             await HeaderRowValueAsync("Pupil data start date"));
 
         // A seeded window-relative cutoff resolves against the run year, and the row keeps the
-        // form name so an admin can see it is not a fixed calendar date.
-        var expectedCutoff = new DateOnly(DateTime.Today.Year - 3, 9, 1)
+        // form name so an admin can see it is not a fixed calendar date. The new-admission
+        // cutoff is 1 September four years before the window year.
+        var expectedCutoff = new DateOnly(DateTime.Today.Year - 4, 9, 1)
             .ToString("d MMMM yyyy", CultureInfo.InvariantCulture);
         var branch = BranchRow("EAL-ACC-NEWADM-2022-ALL");
         await Expect(branch).ToHaveCountAsync(1);
         var condition = await branch.Locator("ul.govuk-list--bullet").First.InnerTextAsync();
         Assert.Contains($"schoolAdmissionDate is greater than or equal to {expectedCutoff}", condition);
-        Assert.Contains("1 September, 3 years before the window year", condition);
+        Assert.Contains("1 September, 4 years before the window year", condition);
     }
 
     [Fact]

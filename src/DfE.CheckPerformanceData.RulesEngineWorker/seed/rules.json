@@ -51,8 +51,8 @@
             { "field": "isAddBack", "eq": false },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
-            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } },
-            { "field": "firstSchoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } }
+            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } },
+            { "field": "firstSchoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } }
           ] } },
         { "id": "EAL-ACC-NEWADM-2022-ARRIVAL", "status": "AutoApproved",
           "when": { "all": [
@@ -60,9 +60,9 @@
             { "field": "isAddBack", "eq": false },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
-            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } },
+            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } },
             { "isKnownAndCertain": "dateOfArrivalInEngland" },
-            { "field": "dateOfArrivalInEngland", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } }
+            { "field": "dateOfArrivalInEngland", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } }
           ] } },
 
         { "id": "EAL-ACC-ADDBACK-2021-ALL", "status": "AutoApproved",
@@ -71,8 +71,8 @@
             { "field": "isAddBack", "eq": true },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
-            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } },
-            { "field": "firstSchoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } }
+            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 5 } },
+            { "field": "firstSchoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 5 } }
           ] } },
         { "id": "EAL-ACC-ADDBACK-2021-ARRIVAL", "status": "AutoApproved",
           "when": { "all": [
@@ -80,9 +80,9 @@
             { "field": "isAddBack", "eq": true },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
-            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } },
+            { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 5 } },
             { "isKnownAndCertain": "dateOfArrivalInEngland" },
-            { "field": "dateOfArrivalInEngland", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 4 } }
+            { "field": "dateOfArrivalInEngland", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 5 } }
           ] } },
 
         { "id": "EAL-ACC-KS2-ALL", "status": "AutoApproved",

@@ -201,7 +201,7 @@ These are the date facts:
 
 | Fact | Value |
 |---|---|
-| `cohort.start` | 1 September of the school year four years back (in 2026, 1 September 2022). This journey fact follows the clock. The rules engine's EAL boundary on `schoolAdmissionDate` in `RulesEngineWorker/seed/rules.json` is window-relative: 1 September of three years before the window's year. The two sides move separately, so a change to one does not require a change to the other. |
+| `cohort.start` | 1 September of the school year four years back (in 2026, 1 September 2022). This journey fact follows the clock. The rules engine's EAL new-admission boundary on `schoolAdmissionDate` in `RulesEngineWorker/seed/rules.json` is the same value, window-relative: 1 September of four years before the window's PupilData exercise start year (in a 2026 window, 1 September 2022). The journey accepts a date the rules engine must also accept, so the two sides must stay in step — if one changes, change the other. `CohortStartDateFactTests` pins the journey side and `Ks4RemovalRulesTests` pins the seed side. |
 
 - `IJourneyDateFact` (Application, `Application/Journey/DateRules/`) has a `Name` and `DateOnly? Value(JourneyConditionContext ctx, DateOnly today)`. Use a date fact only for a date that the answers do not hold. The code gives the date, and the flow file holds the rule.
 - **Adding a new date fact:** implement `IJourneyDateFact` in `Application/Journey/DateRules/`, register it in the Application `DependencyManager`, add it to the table above, and reference its `Name` from a rule's `fact` field.

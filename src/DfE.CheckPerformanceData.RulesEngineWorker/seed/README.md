@@ -69,10 +69,13 @@ JSON shape:
 
 The shipped `rules.json` was converted from the fixed dates of two different windows:
 
-- The **KS4** branches (window type `KS4June`) reproduce the fixed dates of the **2025** window:
-  `EAL-ACC-NEWADM-2022-*` resolve to 1 September 2022, `EAL-ACC-ADDBACK-2021-*` to
-  1 September 2021, and `EHE-KS4` / `PEX-KS4` to 16 January 2025.
-- The **KS2** branches reproduce the fixed dates of the **2027** window: the EAL split at
+- The **KS4** branches (window type `KS4June`) were written for the **2026** window:
+  `EAL-ACC-NEWADM-2022-*` resolve to 1 September 2022 — 1 September four years before the
+  window year, the same boundary the KS4 journey validates as `cohort.start` — and
+  `EAL-ACC-ADDBACK-2021-*` to 1 September 2021, five years back. `EHE-KS4` / `PEX-KS4`
+  resolve to 16 January of the window year (16 January 2026); their fixed date of 16 January
+  2025 rolled forward to the window year at conversion, by agreement.
+- The **KS2** branches were written for the **2027** window: the EAL split at
   1 September 2024, `AFE-KS2` at 1 September 2025, the May rules at 10 May 2027, and
   `PAS-REJ` at 1 April 2027.
 

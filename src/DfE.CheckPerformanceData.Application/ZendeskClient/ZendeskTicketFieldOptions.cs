@@ -59,7 +59,8 @@ public static class ZendeskTicketFieldOptions
             public const string ResultDoesNotBelong = "query_result";
         }
 
-        /// <summary>"Graded exam (CYPMD)". A 16-19 enquiry is never a graded exam.</summary>
+        /// <summary>"Graded exam (CYPMD)". Only a KS4 Autumn enquiry can be a graded exam (#899).</summary>
+        public const string GradedExam = "yes_graded";
         public const string NotGradedExam = "no_graded";
 
         /// <summary>"T Level Exams (CYPMD)".</summary>

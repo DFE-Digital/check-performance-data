@@ -20,6 +20,7 @@ public sealed class WhatToChangeController(
     ICurrentUserService currentUserService,
     IAnalyticsService analytics) : Controller
 {
+    // Index and Confirm check this exercise. Back only redirects. See docs/request-journey.md, Stage 2.
     private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
 
     [HttpGet]

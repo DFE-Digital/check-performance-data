@@ -400,6 +400,26 @@ public sealed class WhatToChangeControllerTests
     }
 
     [Fact]
+    public async Task Back_WithNoChangeType_IsAnError()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.Back(WindowId));
+    }
+
+    [Fact]
+    public async Task Confirm_WithNoSelectionAndNoChangeType_IsAnError()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null }));
+
+        Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<ChangeTypeSelectedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Back_WithOneChangeType_GoesToCheckYourPupilData()
     {
         _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);

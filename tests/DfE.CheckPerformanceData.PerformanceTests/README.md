@@ -82,7 +82,7 @@ k6 can reject these options because they override the scenario configuration def
 
 # Profiles
 
-Five execution profiles are supported.
+Six execution profiles are supported.
 
 | PROFILE | Journeys | Execution | Purpose |
 | --- | --- | --- | --- |
@@ -90,7 +90,8 @@ Five execution profiles are supported.
 | `single` | Journey specified by `JOURNEY` | 1 VU, 1 iteration | Run and debug one journey |
 | `regression` | All 25 registered journeys | Sequential, each journey once | Full functional regression of the performance-test journeys |
 | `sequential` | Repeating weighted journey schedule | 1 VU, configured iteration count and pause | Repeated journeys without overlap within this test instance |
-| `load` | Weighted journey schedule | Constant arrival rate | Concurrent workload execution |
+| `concurrent` | Weighted journey schedule | One iteration per VU, started together | Run a fixed number of journeys concurrently |
+| `load` | Weighted journey schedule | Constant arrival rate | Generate a workload at a target arrival rate |
 
 If `PROFILE` is not supplied:
 
@@ -650,18 +651,19 @@ This allows new journeys to reuse the same HTTP and flow implementation where th
 | Variable | Used by | Meaning |
 | --- | --- | --- |
 | `BASE_URL` | all | Target URL. Defaults to local application |
-| `PROFILE` | all | `smoke`, `single`, `regression`, `sequential` or `load` |
+| `PROFILE` | all | `smoke`, `single`, `regression`, `sequential`, `concurrent` or `load` |
 | `JOURNEY` | single/regression | Journey ID. `all` is accepted with regression |
 | `RUN_ID` | Add Pupil | Optional run identifier. Generated in `setup()` when unset |
 | `SEQUENTIAL_ITERATIONS` | sequential | Required positive whole number of journeys to run |
 | `SEQUENTIAL_PAUSE_SECONDS` | sequential | Required pause after each journey; finite number of at least 0, including fractions |
+| `CONCURRENT_ITERATIONS` | concurrent | Required positive whole number of journeys to start concurrently |
 | `LOAD_RATE_PER_MINUTE` | load | Iterations started per minute |
 | `LOAD_DURATION` | load | Load duration using `Ns` or `Nm` format |
 | `LOAD_PREALLOCATED_VUS` | load | Number of pre-allocated VUs |
 | `LOAD_MAX_VUS` | load | Maximum VUs; must be at least the pre-allocated VU count |
-| `JOURNEY_WEIGHTS` | load/sequential | JSON journey-to-weight mapping |
+| `JOURNEY_WEIGHTS` | load/sequential/concurrent | JSON journey-to-weight mapping |
 
-Profile-specific variables are rejected under other profiles. `JOURNEY_WEIGHTS` is accepted only by `load` and `sequential`.
+Profile-specific variables are rejected under other profiles. `JOURNEY_WEIGHTS` is accepted only by `load`, `sequential` and `concurrent`.
 
 ---
 
@@ -706,7 +708,7 @@ k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=ks4-add-pu
 
 # JOURNEY_WEIGHTS
 
-The load and sequential profiles can select journeys using weighted scheduling.
+The load, sequential and concurrent profiles can select journeys using weighted scheduling.
 
 `JOURNEY_WEIGHTS` is JSON mapping journey IDs to integer weights.
 
@@ -737,9 +739,9 @@ Invalid journey IDs or invalid weights cause configuration validation to fail be
 
 ## Default workload mix
 
-The default mix for load and sequential profiles is provisional.
+The default mix for load, sequential and concurrent profiles is provisional.
 
-It currently gives weight `1` to every registered journey, so Add Pupil and Results Enquiry run as often as the other journeys. Load and sequential runs generate a run ID when `RUN_ID` is unset. Override the mix with `JOURNEY_WEIGHTS` if required.
+It currently gives weight `1` to every registered journey, so Add Pupil and Results Enquiry run as often as the other journeys. These profiles generate a run ID when `RUN_ID` is unset. Override the mix with `JOURNEY_WEIGHTS` if required.
 
 These weights do not represent agreed production traffic volumes.
 
@@ -761,9 +763,25 @@ Throughput depends on journey duration plus the pause; there is no fixed arrival
 
 ---
 
+# Concurrent profile
+
+`PROFILE=concurrent` starts one iteration on each VU at scenario start. Set `CONCURRENT_ITERATIONS` to the number of journeys to run:
+
+```bash
+k6 run -e PROFILE=concurrent -e RUN_ID=concurrent-01 -e CONCURRENT_ITERATIONS=10 tests/journey.ts
+```
+
+Each VU runs one journey from the weighted schedule. The profile uses the default mix or `JOURNEY_WEIGHTS`, as the load and sequential profiles do. Add Pupil is in the default mix, so the count cannot exceed 17,576 per run ID.
+
+This profile starts journeys together, but it does not guarantee their submit requests happen at the exact same time. It applies concurrency to full journeys.
+
+---
+
 # Load profile
 
 The load profile uses a constant arrival-rate workload.
+
+`LOAD_RATE_PER_MINUTE` sets how often k6 starts an iteration. Journeys can overlap when one journey lasts longer than the interval between starts. A rate below 60 iterations per minute can still produce overlapping journeys, but the rate alone does not guarantee overlapping submit requests.
 
 A load execution requires:
 
@@ -815,6 +833,8 @@ Current correctness thresholds include:
 For smoke and single profiles, `N` is `1`.
 
 For the regression profile, `N` is `25`.
+
+For sequential and concurrent profiles, `N` is the configured journey count.
 
 A journey-count threshold is not used for the load profile.
 
@@ -1016,7 +1036,7 @@ The current full sequential regression baseline is:
 
 This baseline was established using sequential execution, with one regression run.
 
-It does not demonstrate concurrent load behaviour. Run a `load` profile execution to measure that behaviour.
+It does not demonstrate concurrent behaviour. Use the `concurrent` profile to run a fixed number of journeys together, or the `load` profile to measure a constant arrival rate.
 
 Changes to the number of configured checks may legitimately change the expected `1792` total. Journey completion and threshold results remain the primary regression criteria.
 

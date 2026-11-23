@@ -125,7 +125,7 @@ export const post16ResultsEnquiryMissingQualificationWholeCohort = {
             pageId: "additional-info",
 
             expectedHeading:
-                "Additional information (Optional)",
+                "Additional information (optional)",
 
             answers: {
                 q_q_additional_info:

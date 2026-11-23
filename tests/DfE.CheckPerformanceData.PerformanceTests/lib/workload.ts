@@ -35,6 +35,7 @@ export const PROFILES = [
     "regression",
     "single",
     "sequential",
+    "concurrent",
     "load",
 ] as const;
 
@@ -77,6 +78,10 @@ const LOAD_ONLY_VARIABLES = [
     "LOAD_DURATION",
     "LOAD_PREALLOCATED_VUS",
     "LOAD_MAX_VUS",
+];
+
+const CONCURRENT_ONLY_VARIABLES = [
+    "CONCURRENT_ITERATIONS",
 ];
 
 /* Scenario fields the execution model must match. */
@@ -133,7 +138,7 @@ function resolveProfile(): ProfileName {
     if (requested === undefined) {
         if (journey === undefined) {
             throw new Error(
-                "PROFILE is required: smoke, regression, single, sequential or load. " +
+                "PROFILE is required: smoke, regression, single, sequential, concurrent or load. " +
                 "Example: -e PROFILE=smoke"
             );
         }
@@ -146,7 +151,7 @@ function resolveProfile(): ProfileName {
     if (!isProfile(requested)) {
         throw new Error(
             `Unknown PROFILE "${requested}". ` +
-            "Use smoke, regression, single, sequential or load."
+            "Use smoke, regression, single, sequential, concurrent or load."
         );
     }
 
@@ -160,7 +165,12 @@ function checkJourneyVariable(
     profile: ProfileName,
     journey: string | undefined
 ): void {
-    if (profile === "smoke" || profile === "load" || profile === "sequential") {
+    if (
+        profile === "smoke" ||
+        profile === "load" ||
+        profile === "sequential" ||
+        profile === "concurrent"
+    ) {
         if (journey !== undefined) {
             throw new Error(
                 `JOURNEY is not used by PROFILE=${profile}. ` +
@@ -197,10 +207,10 @@ function checkJourneyVariable(
 }
 
 /**
- * Rejects load-only variables under other profiles, so
- * they cannot be set by accident.
+ * Rejects profile-specific variables when another profile
+ * is active, so they cannot be set by accident.
  */
-function rejectLoadOnlyVariables(
+function rejectProfileVariables(
     profile: ProfileName
 ): void {
     for (const name of ["SEQUENTIAL_ITERATIONS", "SEQUENTIAL_PAUSE_SECONDS"]) {
@@ -209,8 +219,25 @@ function rejectLoadOnlyVariables(
         }
     }
 
-    if (profile !== "load" && profile !== "sequential" && env("JOURNEY_WEIGHTS") !== undefined) {
-        throw new Error("JOURNEY_WEIGHTS is only used by PROFILE=load or PROFILE=sequential");
+    if (
+        profile !== "load" &&
+        profile !== "sequential" &&
+        profile !== "concurrent" &&
+        env("JOURNEY_WEIGHTS") !== undefined
+    ) {
+        throw new Error(
+            "JOURNEY_WEIGHTS is only used by PROFILE=load, PROFILE=sequential or PROFILE=concurrent"
+        );
+    }
+
+    if (profile !== "concurrent") {
+        for (const name of CONCURRENT_ONLY_VARIABLES) {
+            if (env(name) !== undefined) {
+                throw new Error(
+                    `${name} is only used by PROFILE=concurrent`
+                );
+            }
+        }
     }
 
     if (profile === "load") {
@@ -567,6 +594,80 @@ function sequentialWorkload(): Workload {
 }
 
 /**
+ * Builds PROFILE=concurrent. Each VU runs one journey
+ * iteration, so the configured journeys start together.
+ */
+function concurrentWorkload(): Workload {
+    const iterations =
+        positiveInteger("CONCURRENT_ITERATIONS", "concurrent");
+
+    const weightsText = env("JOURNEY_WEIGHTS");
+    const weights = weightsText === undefined
+        ? defaultLoadWeights()
+        : parseJourneyWeights(weightsText);
+    const schedule = buildSchedule(weights);
+    const mix = journeyRegistry.filter((journey) => (weights[journey.id] ?? 0) > 0);
+
+    if (mix.some(isAddPupil) && iterations > ADD_PUPIL_ITERATIONS_PER_RUN) {
+        throw new Error(`Add Pupil allows at most ${ADD_PUPIL_ITERATIONS_PER_RUN} iterations per RUN_ID`);
+    }
+
+    const expectedScenarios: Record<string, ScenarioFields> = {
+        concurrent: {
+            executor: "per-vu-iterations",
+            vus: iterations,
+            iterations: 1,
+            maxDuration: "2h",
+        },
+    };
+
+    const addPupilShare =
+        schedule.filter(isAddPupil).length /
+        schedule.length;
+
+    const resultsEnquiryShare =
+        schedule.filter(isResultsEnquiry).length /
+        schedule.length;
+
+    const mixLines = mix.map(
+        (journey) =>
+            `  ${journey.id}: weight ${weights[journey.id] ?? 0}`
+    );
+
+    return {
+        profile: "concurrent",
+        pauseSeconds: 1,
+        options: {
+            scenarios: expectedScenarios as unknown as NonNullable<Options["scenarios"]>,
+            thresholds: thresholdsFor(iterations),
+        },
+        journeyFor(iteration) {
+            return schedule[iteration % schedule.length]!;
+        },
+        pupilIterationFor(iteration) {
+            return iteration;
+        },
+        assertExecutionModel() {
+            assertScenarios(expectedScenarios);
+        },
+        describe() {
+            return [
+                "Profile: concurrent",
+                `Concurrent iterations: ${iterations}`,
+                `Virtual users: ${iterations} (one iteration per VU)`,
+                `Expected completions: ${iterations}`,
+                "Maximum duration: 2h",
+                `Journey mix (${schedule.length} schedule slots):`,
+                ...mixLines,
+                `Expected ks4-add-pupil iterations: about ${Math.round(iterations * addPupilShare)}`,
+                `Expected results enquiry iterations: about ${Math.round(iterations * resultsEnquiryShare)}`,
+                "Default mix is PROVISIONAL unless JOURNEY_WEIGHTS is set.",
+            ];
+        },
+    };
+}
+
+/**
  * Builds PROFILE=load. It runs a weighted, deterministic
  * schedule at a constant arrival rate.
  */
@@ -701,7 +802,7 @@ export function resolveWorkload(): Workload {
     const journey = env("JOURNEY");
 
     checkJourneyVariable(profile, journey);
-    rejectLoadOnlyVariables(profile);
+    rejectProfileVariables(profile);
 
     switch (profile) {
         case "smoke":
@@ -724,6 +825,9 @@ export function resolveWorkload(): Workload {
 
         case "sequential":
             return sequentialWorkload();
+
+        case "concurrent":
+            return concurrentWorkload();
 
         case "load":
             return loadWorkload();

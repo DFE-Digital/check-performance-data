@@ -337,7 +337,7 @@ Test pages:
 - `/development-testing/widgets/image-test-page`: the Image widget at each width, crop and focal
   point.
 - `/development-testing/media-rich-text-test-page`: rich text with library images, a figure, a
-  weak alt text and a decorative image.
+  weak alt text, a decorative image and a wide image that the editor stretched into a square box.
 - `/development-testing/embedded-image-test-page`: a `data:` image for the embedded-image move.
   The next start, or "Seed sample CMS pages", puts it back after a move.
 - Content block `development-testing-image`: a block with a library image.

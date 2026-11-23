@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Media.Embedded;
 using DfE.CheckPerformanceData.Application.Media.Reports;
+using DfE.CheckPerformanceData.Application.Media.Variants;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,6 +47,56 @@ public sealed class MediaReportStore(IPortalDbContext context) : IMediaReportSto
             .Where(b => used.Contains(b.Id))
             .Select(b => new MediaReportBlock(b.Id, b.Key, b.UpdatedAt, b.Value))
             .ToListAsync(ct);
+    }
+
+    // One query: the current versions that record any of the images, each with the images it records.
+    public async Task<IReadOnlyList<MediaVariantPageVersion>> ListCurrentPageVersionsUsingAsync(
+        IReadOnlyCollection<Guid> assetIds, DateTime nowUtc, CancellationToken ct = default)
+    {
+        if (assetIds.Count == 0) return [];
+        var ids = assetIds.Distinct().ToList();
+        var current = PageVersionStates.CurrentVersionIds(context, nowUtc);
+        var usages = context.MediaUsages.Where(u => u.PageNodeVersionId != null && ids.Contains(u.AssetId));
+
+        var versions = await context.PageNodeVersions
+            .AsNoTracking()
+            .Where(v => current.Contains(v.Id) && usages.Any(u => u.PageNodeVersionId == v.Id))
+            .OrderBy(v => v.PageNode.Title).ThenBy(v => v.PageNodeId).ThenBy(v => v.VersionId)
+            .Select(v => new
+            {
+                v.PageNodeId,
+                v.PageNode.Title,
+                v.PublishFrom,
+                v.Content,
+                Assets = usages.Where(u => u.PageNodeVersionId == v.Id).Select(u => u.AssetId).Distinct().ToList(),
+            })
+            .ToListAsync(ct);
+
+        return versions
+            .Select(v => new MediaVariantPageVersion(v.PageNodeId, v.Title, State(v.PublishFrom, nowUtc), v.Content, v.Assets))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<MediaVariantBlock>> ListContentBlocksUsingAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
+    {
+        if (assetIds.Count == 0) return [];
+        var ids = assetIds.Distinct().ToList();
+        var usages = context.MediaUsages.Where(u => u.ContentBlockId != null && ids.Contains(u.AssetId));
+
+        var blocks = await context.ContentBlocks
+            .AsNoTracking()
+            .Where(b => usages.Any(u => u.ContentBlockId == b.Id))
+            .OrderBy(b => b.Key)
+            .Select(b => new
+            {
+                b.Id,
+                b.Key,
+                b.Value,
+                Assets = usages.Where(u => u.ContentBlockId == b.Id).Select(u => u.AssetId).Distinct().ToList(),
+            })
+            .ToListAsync(ct);
+
+        return blocks.Select(b => new MediaVariantBlock(b.Id, b.Key, b.Value, b.Assets)).ToList();
     }
 
     public async Task<MediaSizeTotals> GetSizeTotalsAsync(CancellationToken ct = default)

@@ -790,6 +790,22 @@ public sealed class AccessibilityAuditViewTests
 	}
 
 	[Fact]
+	public void MediaCropsAndSizes_UseSummaryCards_PreviewsHaveAltText_AndRepeatedLinksNameTheirCard()
+	{
+		var view = ReadView("Views", "MediaLibrary", "_MediaVariants.cshtml");
+
+		Assert.Contains("class=\"govuk-summary-card app-media-variant\"", view);
+		Assert.Contains("class=\"govuk-summary-list\"", view);
+		Assert.Contains("alt=\"@variant.PreviewAlt\"", view);
+		// The same page can show the image in several ways, so each link names its card.
+		Assert.Contains("<span class=\"govuk-visually-hidden\"> (@(use.IsBlock ? \"edit content block\" : \"edit page\"), @variant.Title)</span>", view);
+		Assert.Contains("aria-labelledby=\"@MediaVariantViewModel.SectionId-heading\"", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+		Assert.Contains("_MediaVariants.cshtml", ReadView("Views", "MediaLibrary", "Detail.cshtml"));
+	}
+
+	[Fact]
 	public void MediaLibraryIndex_TitleMatchesTheH1_AndEveryControlHasALabel()
 	{
 		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");

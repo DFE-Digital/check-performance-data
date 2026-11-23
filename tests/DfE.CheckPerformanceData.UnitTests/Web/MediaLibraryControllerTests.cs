@@ -3,6 +3,8 @@ using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.Media.Folders;
 using DfE.CheckPerformanceData.Application.Media.Serving;
 using DfE.CheckPerformanceData.Application.Media.Upload;
+using DfE.CheckPerformanceData.Application.Media.Variants;
+using DfE.CheckPerformanceData.Application.Media.Embedded;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
@@ -23,6 +25,7 @@ public sealed class MediaLibraryControllerTests
     private readonly ISettingService _settings = Substitute.For<ISettingService>();
     private readonly IMediaDeletionService _deletions = Substitute.For<IMediaDeletionService>();
     private readonly IMediaFolderService _folders = Substitute.For<IMediaFolderService>();
+    private readonly IMediaVariantService _variants = Substitute.For<IMediaVariantService>();
     private readonly MediaLibraryController _sut;
 
     private static readonly Guid Photos = Guid.NewGuid();
@@ -39,7 +42,10 @@ public sealed class MediaLibraryControllerTests
         http.Request.Scheme = "https";
         http.Request.Host = new HostString("cms.example");
         _folders.GetTreeAsync(Arg.Any<CancellationToken>()).Returns(Tree);
-        _sut = new MediaLibraryController(_media, _uploads, _urls, _settings, _deletions, _folders)
+        _variants.GetVariantsAsync(Arg.Any<MediaAssetDto>(), Arg.Any<CancellationToken>()).Returns([]);
+        _variants.CountVariantsAsync(Arg.Any<IReadOnlyCollection<MediaAssetDto>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int>());
+        _sut = new MediaLibraryController(_media, _uploads, _urls, _settings, _deletions, _folders, _variants)
         {
             ControllerContext = new ControllerContext { HttpContext = http },
             TempData = new TempDataDictionary(http, Substitute.For<ITempDataProvider>())
@@ -747,5 +753,60 @@ public sealed class MediaLibraryControllerTests
 
         await _media.Received(1).ListAsync(
             Arg.Is<MediaAssetQuery>(q => q.UnusedOnly && q.FolderId == Photos && !q.IncludeSubfolders), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Detail_ShowsEachWayTheImageIsUsed_WithAPreviewOfThatCrop_AndItsPages()
+    {
+        var asset = Asset(width: 1280, height: 640);
+        _media.GetAsync(asset.Id, Arg.Any<CancellationToken>()).Returns(asset);
+        _media.GetVersionsAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([asset.Latest]);
+        _media.GetUsagePagesAsync(asset.Id, Arg.Any<CancellationToken>()).Returns([]);
+        var page = Guid.NewGuid();
+        var cut = MediaRenditionQuery.Normalise(null, null, new MediaAspectRatio(16, 9), new MediaFocalPoint(0.25m, 0.5m));
+        _variants.GetVariantsAsync(asset, Arg.Any<CancellationToken>()).Returns(
+        [
+            new MediaVariant(MediaVariantShape.Original, [new MediaVariantUse(page, null, "Image test page", MediaUsageLocations.Widget, 2, [EmbeddedVersionState.Live])]),
+            new MediaVariant(new MediaVariantShape(cut, null, null), [new MediaVariantUse(page, null, "Image test page", MediaUsageLocations.Widget, 1, [EmbeddedVersionState.Live, EmbeddedVersionState.Draft])]),
+            new MediaVariant(new MediaVariantShape(null, 320, 320), [new MediaVariantUse(null, 7, "home-intro", MediaUsageLocations.RichText, 1, [])]),
+        ]);
+        _urls.Rendition(asset, asset.Latest, 640, null, new MediaAspectRatio(16, 9), new MediaFocalPoint(0.25m, 0.5m)).Returns("/cut-640");
+        _urls.Rendition(asset, asset.Latest, 640, null, null, null).Returns("/whole-640");
+
+        var view = Assert.IsType<ViewResult>(await _sut.Detail(asset.Id, ct: CancellationToken.None));
+
+        var variants = Assert.IsType<MediaDetailViewModel>(view.Model).Variants;
+        Assert.Equal(["Original, not cropped", "Cropped to 16:9, focal point centre-left", "Shown at 320 × 320 in rich text"], variants.Select(v => v.Title));
+        Assert.Equal(["/whole-640", "/cut-640", "/whole-640"], variants.Select(v => v.PreviewUrl));
+        Assert.Equal("chart.png, cropped to 16:9, focal point centre-left", variants[1].PreviewAlt);
+        // The preview box has the shape that the page shows, at most 320 pixels wide.
+        Assert.Equal((320, 180), (variants[1].PreviewWidth, variants[1].PreviewHeight));
+        Assert.Equal((320, 320), (variants[2].PreviewWidth, variants[2].PreviewHeight));
+        Assert.Equal((320, 160), (variants[0].PreviewWidth, variants[0].PreviewHeight));
+        Assert.Equal("Live, Draft", variants[1].Uses[0].StateText);
+        Assert.Equal("/admin/pages/" + page, variants[1].Uses[0].Url);
+        Assert.Equal("/admin/content-blocks?edit=home-intro#edit-home-intro", variants[2].Uses[0].Url);
+        Assert.Equal("Rich text", variants[2].Uses[0].Where);
+        Assert.Equal("Image widget, 2 times", variants[0].Uses[0].Where);
+    }
+
+    [Fact]
+    public async Task Index_GivesEachImage_TheNumberOfWaysItIsUsed_FromOneRead()
+    {
+        var chart = Asset("chart.png");
+        var logo = Asset("logo.png");
+        _media.ListAsync(Arg.Any<MediaAssetQuery>(), Arg.Any<CancellationToken>()).Returns(new MediaAssetPage([chart, logo], 2, 1, 25));
+        _media.CountUsesAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns(new Dictionary<Guid, int>());
+        _variants.CountVariantsAsync(Arg.Any<IReadOnlyCollection<MediaAssetDto>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int> { [chart.Id] = 3, [logo.Id] = 1 });
+
+        var view = Assert.IsType<ViewResult>(await _sut.Index(null, false, false, null, null, 1, ct: CancellationToken.None));
+
+        var items = Assert.IsType<MediaLibraryIndexViewModel>(view.Model).Items;
+        Assert.Equal((3, 1), (items[0].Variants, items[1].Variants));
+        Assert.True(items[0].HasVariants);
+        Assert.False(items[1].HasVariants);
+        Assert.Equal($"/admin/media/{chart.Id}#crops-and-sizes", items[0].VariantsUrl);
+        await _variants.Received(1).CountVariantsAsync(Arg.Any<IReadOnlyCollection<MediaAssetDto>>(), Arg.Any<CancellationToken>());
     }
 }

@@ -443,6 +443,10 @@ else
                         {
                             <strong class="govuk-tag govuk-tag--yellow" data-media-missing-alt>No alt text</strong>
                         }
+                        @if (item.HasVariants)
+                        {
+                            <a class="govuk-link govuk-body-s app-media-variant-badge" href="@item.VariantsUrl" data-media-variant-count="@item.Variants">Used in @item.Variants ways<span class="govuk-visually-hidden">: crops and sizes of @item.FileName</span></a>
+                        }
                         <partial name="_MediaLibrarySelect" model="item" />
                     </li>
                 }

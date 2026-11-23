@@ -10,7 +10,7 @@ Admin pages: **Admin > Content > Media** (`/admin/media`).
 
 | Layer | Parts |
 | --- | --- |
-| Application (`Application/Media`) | `IMediaUploadService` (upload and replace), `IMediaFileCleaner` (type sniffing, limits, re-encoding, `SvgSanitiser`), `MediaProcessingGate`, `IMediaDeliveryService` (serving and renditions), `IMediaUrlBuilder` and `MediaUrlSigner` (signed URLs), `MediaReferenceExtractor` (finds images in content), `RichTextImageRewriter`, `IEmbeddedImageMover`, the reports in `Media/Reports` |
+| Application (`Application/Media`) | `IMediaUploadService` (upload and replace), `IMediaFileCleaner` (type sniffing, limits, re-encoding, `SvgSanitiser`), `MediaProcessingGate`, `IMediaDeliveryService` (serving and renditions), `IMediaUrlBuilder` and `MediaUrlSigner` (signed URLs), `MediaReferenceExtractor` (finds images in content), `RichTextImageRewriter`, `IEmbeddedImageMover`, the reports in `Media/Reports`, `IMediaVariantService` and `MediaVariantGrouper` (crops and sizes) |
 | Infrastructure | `MediaBlobStore` (the `cms-media` container), `SkiaRasterImageCleaner` and the rendition renderer (SkiaSharp), `BlobMediaUrlSigningKey` |
 | Persistence | `MediaAssetRepository`, `MediaFolderRepository`, `MediaUsageWriter`, `EmbeddedImageStore`, the `media_assets`, `media_asset_versions`, `media_usages` and `media_folders` tables |
 | Web | `MediaLibraryController` (with "Delete unused images"), `MediaPickerController`, `MediaReportsController`, `MediaFileController` (`/media/...`), `media-library-upload.js`, `media-library-detail.js`, `media-picker.js`, `image-widget-editor.js`, `rich-text-media.js` |
@@ -200,6 +200,68 @@ the image, the same as "Where the image is used" on the image page
 The view is in the query string only. Page links, the search and filters form and "Clear search
 and filters" keep it. A value that is not one of the three shows the grid. The service keeps no
 view for each user.
+
+An image that current content shows in more than one way has the link "Used in N ways" under it
+in the grid, and a "Crops and sizes" row in the Details and Large views. The link opens the
+"Crops and sizes" section of the image page (`#crops-and-sizes`). The counts for one page of the
+list take two queries (see below).
+
+## Crops and sizes
+
+A crop is a setting of each use of an image. It is not a separate file. The Image widget stores
+its crop, aspect ratio and focal point in its props. Rich text stores a width and a height on the
+`<img>`. When a page renders, the server makes a signed rendition URL from the original file with
+those settings (see "Serving and signed renditions"). So the library holds one file for each
+image version, and cropping never changes it.
+
+The image page shows how current content uses the image in a "Crops and sizes" section, under
+the facts about the file. Current content is the live, scheduled and draft versions of pages that
+are not deleted, and content blocks. Older page versions are not listed.
+
+Each way is a GOV.UK summary card with:
+
+- a title and the settings in words, for example "Cropped to 16:9, focal point centre-left" or
+  "Shown at 320 × 320 in rich text";
+- a preview, made from the current file through the same signed rendition URLs as a page. The
+  preview of a rich-text size is the whole image in a box of that shape, because a rendition never
+  stretches an image. Its alt text is the file name and the title;
+- the pages and content blocks that show the image that way. Each link opens the editor. A page
+  has a tag for each state that shows it this way: Live, Scheduled or Draft. "Image widget, 2
+  times" means one version shows it twice.
+
+### How uses are grouped
+
+`MediaVariantGrouper` groups the uses with the rules the renderers use, so two uses that look the
+same on a page are one card:
+
+| Use | Key |
+| --- | --- |
+| Image widget | The crop, aspect ratio and focal point, rounded as a rendition URL rounds them (`MediaRenditionQuery.Normalise`). A focal point with no aspect ratio is dropped. A crop of the whole image with no aspect ratio is the original |
+| Image widget showing an SVG or an animation | Always the original: these files are never cut |
+| Rich text | The box that `RichTextImageRewriter.Box` gives the img. One side only gives the other side from the shape of the file. No size, or a box of the file's own size, is the original |
+| A use that `media_usages` records but no `<img>` shows (a markdown image) | The original |
+
+The widget's width and alignment are not part of the key: they place the image, and do not
+change which part of it shows. There is no rotation setting.
+
+The original comes first, then the crops, then the rich-text sizes. Pages come in title order,
+then blocks in key order. A page whose live and draft versions show the image the same way is one
+row with both tags. A draft that changes the crop puts the page under both cards.
+
+"Used in N ways" counts the cards, the original included.
+
+### Where the settings come from
+
+`media_usages` records which image each page version and block uses, but not the settings of
+each use. So `IMediaVariantService` reads them from the content each time:
+
+- `IMediaReportStore.ListCurrentPageVersionsUsingAsync` reads the current page versions that
+  record a use of any of the images, with their content and the images that each one records.
+- `IMediaReportStore.ListContentBlocksUsingAsync` does the same for content blocks.
+- `MediaImageUseReader.ReadShapes` reads each use's settings with the same tree walk as the alt
+  text report.
+
+That is two queries for the image page, and two queries for each page of the library list.
 
 ## Folders
 
@@ -408,7 +470,7 @@ The pages under `/development-testing` carry the media library samples:
 
 | Id | File | Use |
 | --- | --- | --- |
-| `00000000-cd94-4a01-8f01-0000000e0201` | `blocks.png`, 1280 × 640 | Image test page, rich text page |
+| `00000000-cd94-4a01-8f01-0000000e0201` | `blocks.png`, 1280 × 640 | Image test page (whole, 16:9 with a focal point, and the left half), rich text page (whole, and a 320 × 320 box). Its image page lists these 4 ways |
 | `00000000-cd94-4a01-8f01-0000000e0202` | `blocks.svg` | Image test page, rich text page |
 | `00000000-cd94-4a01-8f01-0000000e0203` | `landscape.jpg` | Rich text page, the `development-testing-image` content block |
 | `00000000-cd94-4a01-8f01-0000000e0204` | `moving-square.gif` (animated, no default alt text) | Rich text page |
@@ -425,7 +487,7 @@ import runs again on each start, finds the same images and adds nothing.
 Test pages:
 
 - `/development-testing/media-library-test-page`: links to each part of the library, with steps
-  to try it, also for folders. It also has a hostile SVG to upload, and an SVG with a DTD that the library refuses.
+  to try it, also for folders and for crops and sizes. It also has a hostile SVG to upload, and an SVG with a DTD that the library refuses.
 - `/development-testing/widgets/image-test-page`: the Image widget at each width, crop and focal
   point.
 - `/development-testing/media-rich-text-test-page`: rich text with library images, a figure, a

@@ -506,4 +506,19 @@ public class TestFixtureSeedBundleTests
         Assert.Equal(["Samples", "Photos"], assets["00000000-cd94-4a01-8f01-0000000e0203"].FolderPath!.Select(f => f.Name));
         Assert.Empty(assets["00000000-cd94-4a01-8f01-0000000e0204"].FolderPath!);
     }
+
+    // The guide has steps for "Crops and sizes", and the image test page shows the sample PNG in
+    // more than one crop, so the image page lists more than one way.
+    [Fact]
+    public void TheMediaLibraryGuide_HasStepsForCropsAndSizes_AndTheImageTestPageCropsThePngTwoWays()
+    {
+        var guide = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-library-test-page").Versions.Single().Content;
+        var images = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "image-test-page").Versions.Single().Content;
+
+        Assert.Contains("\"text\": \"Crops and sizes\"", guide);
+        Assert.Contains("href=\\\"/admin/media/00000000-cd94-4a01-8f01-0000000e0201#crops-and-sizes\\\"", guide);
+        Assert.Contains("“Used in 4 ways”", guide);
+        Assert.Contains("\"aspect\": \"16:9\"", images);
+        Assert.Contains("\"crop\": \"0,0,0.5,1\"", images);
+    }
 }

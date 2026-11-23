@@ -35,6 +35,13 @@
         <dt class="govuk-summary-list__key">Uses</dt>
         <dd class="govuk-summary-list__value" data-media-uses>@(Model.Uses == 0 ? "Not used" : Model.Uses == 1 ? "1 page or block" : $"{Model.Uses} pages or blocks")</dd>
     </div>
+    @if (Model.HasVariants)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Crops and sizes</dt>
+            <dd class="govuk-summary-list__value"><a class="govuk-link" href="@Model.VariantsUrl" data-media-variant-count="@Model.Variants">Used in @Model.Variants ways<span class="govuk-visually-hidden">: crops and sizes of @Model.FileName</span></a></dd>
+        </div>
+    }
     <div class="govuk-summary-list__row">
         <dt class="govuk-summary-list__key">Uploaded</dt>
         <dd class="govuk-summary-list__value">@Model.UploadedAtUtc.ToString("d MMM yyyy, HH:mm") by @(string.IsNullOrWhiteSpace(Model.UploadedBy) ? "not known" : Model.UploadedBy)</dd>

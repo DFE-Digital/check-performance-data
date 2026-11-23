@@ -2479,6 +2479,20 @@ dialog.seed-progress-modal {
   height: auto;
 }
 
+/* "Crops and sizes" on the image page. The preview takes the width and height attributes, so a
+   rich-text box of another shape shows stretched, as it does on the page. */
+.app-media-variant__img {
+  display: block;
+  max-width: 100%;
+  margin-bottom: 15px;
+  background: #f3f2f1;
+}
+
+.app-media-variant-badge {
+  display: inline-block;
+  margin-top: 5px;
+}
+
 /* Narrow screens scroll the version table instead of the page. */
 .app-media-versions {
   overflow-x: auto;

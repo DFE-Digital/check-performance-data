@@ -4,7 +4,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media;
 
 /// <summary>
 /// One library image's page: a large preview, the facts about its current file, its public link,
-/// the "Image details" form, the replace form, its version history and where pages use it.
+/// how current content crops and sizes it, the "Image details" form, the replace form, its
+/// version history and where pages use it.
 /// </summary>
 public sealed class MediaDetailViewModel
 {
@@ -29,6 +30,9 @@ public sealed class MediaDetailViewModel
     public IReadOnlyList<MediaUsageBlock> UsageBlocks { get; init; } = [];
 
     public MediaUsageSummary Usage => new(UsagePages, UsageBlocks);
+
+    /// <summary>The ways that current content shows the image, the original first.</summary>
+    public IReadOnlyList<MediaVariantViewModel> Variants { get; init; } = [];
 
     public required MediaMetadataForm Metadata { get; init; }
 

@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.Media.Folders;
 using DfE.CheckPerformanceData.Application.Media.Serving;
 using DfE.CheckPerformanceData.Application.Media.Upload;
+using DfE.CheckPerformanceData.Application.Media.Variants;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
@@ -24,7 +25,8 @@ public sealed class MediaLibraryController(
     IMediaUrlBuilder urls,
     ISettingService settings,
     IMediaDeletionService deletions,
-    IMediaFolderService folders) : Controller
+    IMediaFolderService folders,
+    IMediaVariantService variants) : Controller
 {
     private const string IndexView = "Index";
     private const string DetailView = "Detail";
@@ -393,6 +395,7 @@ public sealed class MediaLibraryController(
                 v.Version == asset.CurrentVersion)).ToList(),
             UsagePages = await media.GetUsagePagesAsync(id, ct),
             UsageBlocks = await media.GetUsageBlocksAsync(id, ct),
+            Variants = (await variants.GetVariantsAsync(asset, ct)).Select(v => MediaVariantViewModel.From(asset, v, urls)).ToList(),
             Metadata = form ?? MediaMetadataForm.From(asset),
         };
     }
@@ -485,12 +488,17 @@ public sealed class MediaLibraryController(
             FolderId: folder?.Id,
             IncludeSubfolders: state.Subfolders), ct);
         var uses = await media.CountUsesAsync(result.Items.Select(a => a.Id).ToList(), ct);
+        var ways = await variants.CountVariantsAsync(result.Items, ct);
 
         return new MediaLibraryIndexViewModel
         {
             Page = result,
             Items = result.Items
-                .Select(a => MediaLibraryItemViewModel.From(a, urls, uses.GetValueOrDefault(a.Id)) with { Folder = tree.PathText(a.FolderId) })
+                .Select(a => MediaLibraryItemViewModel.From(a, urls, uses.GetValueOrDefault(a.Id)) with
+                {
+                    Folder = tree.PathText(a.FolderId),
+                    Variants = ways.GetValueOrDefault(a.Id),
+                })
                 .ToList(),
             Search = term,
             MissingAlt = state.MissingAlt,

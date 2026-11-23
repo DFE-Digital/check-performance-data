@@ -25,6 +25,17 @@ public sealed record MediaLibraryItemViewModel(
     /// <summary>The number of pages and content blocks that use the image.</summary>
     public int Uses { get; init; }
 
+    /// <summary>
+    /// The number of ways that current content shows the image: the original, each crop and each
+    /// rich-text size. The library marks an image that is shown in more than one way.
+    /// </summary>
+    public int Variants { get; init; }
+
+    public bool HasVariants => Variants > 1;
+
+    /// <summary>The "Crops and sizes" section of the image page.</summary>
+    public string VariantsUrl => $"{DetailUrl}#{MediaVariantViewModel.SectionId}";
+
     /// <summary>Who uploaded the current file, and when.</summary>
     public string? UploadedBy { get; init; }
 

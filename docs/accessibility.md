@@ -190,6 +190,11 @@ The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cp
   `<noscript>` submits it. The Details view is a table with a `<caption>` and column headers. In
   every view the file name is the link text, so each thumbnail or large image has `alt=""`. The
   alt text shows as text in the image's facts.
+- **Crops and sizes** (`_MediaVariants.cshtml`). A `<section>` labelled by its `<h2>`. Each way
+  is a GOV.UK summary card with an `<h3>` title. Each preview has alt text: the file name and the
+  title of its card. A page can be on more than one card, so each link has a visually hidden
+  suffix that names the card. The "Used in N ways" link in the library has a visually hidden
+  suffix with the file name.
 - **Delete unused images** (`DeleteUnused.cshtml`). The title matches the `<h1>`. The images to
   delete are a table with a `<caption>` and column headers. The "Delete unused images" link on the
   library page is a link styled as a button, with `role="button"`.
@@ -197,7 +202,7 @@ The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cp
   a `<caption>`. The alt text report has two lists, each with its own pagination, so each
   `govuk-pagination` has its own `landmark-label` ("Library images", "Where images are used").
 
-`AccessibilityAuditViewTests` pins the markup of the library page and the two reports.
+`AccessibilityAuditViewTests` pins the markup of the library page, the crops and sizes section and the two reports.
 
 ## Option groups
 

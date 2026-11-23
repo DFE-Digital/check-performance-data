@@ -131,15 +131,29 @@ public static class RichTextImageRewriter
     {
         var storedWidth = Number(img, "width");
         var storedHeight = Number(img, "height");
+        if (storedWidth is null && storedHeight is null && (img.HasAttribute("width") || img.HasAttribute("height")))
+            return (null, null);
+        return Box(storedWidth, storedHeight, version);
+    }
+
+    /// <summary>
+    /// The box that a page gives a rich-text image, from the width and height that the editor set
+    /// (each null when not set) and the version shown. Both sides stay; one side gives the other
+    /// from the shape of the version; neither gives the size of the version.
+    /// </summary>
+    public static (int? Width, int? Height) Box(int? storedWidth, int? storedHeight, MediaAssetVersionDto version)
+    {
         if (storedWidth is not null && storedHeight is not null) return (storedWidth, storedHeight);
         if (version.Width is not > 0 || version.Height is not > 0) return (storedWidth, storedHeight);
 
         var (vw, vh) = (version.Width.Value, version.Height.Value);
         if (storedWidth is { } w) return (w, (int)Math.Round(w * (double)vh / vw, MidpointRounding.AwayFromZero));
         if (storedHeight is { } h) return ((int)Math.Round(h * (double)vw / vh, MidpointRounding.AwayFromZero), h);
-        if (img.HasAttribute("width") || img.HasAttribute("height")) return (null, null);
         return (vw, vh);
     }
+
+    /// <summary>A whole number above 0 in the attribute, or null.</summary>
+    public static int? SizeAttribute(IElement img, string attribute) => Number(img, attribute);
 
     private static bool HasNumber(IElement img, string attribute) => Number(img, attribute) is not null;
 

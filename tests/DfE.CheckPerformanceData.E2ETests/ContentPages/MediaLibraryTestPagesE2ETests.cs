@@ -120,6 +120,61 @@ public sealed partial class MediaLibraryTestPagesE2ETests(PlaywrightFixture fixt
         Assert.InRange(size[1], 319, 321);
     }
 
+    // The Image test page crops the sample PNG in more than one way. Its image page lists each way
+    // under "Crops and sizes", with a preview made from the original, and links to the pages. The
+    // grid marks the image with a link to that section.
+    [Fact]
+    public async Task TheSamplePng_ListsItsCropsAndSizes_WithWorkingPreviewsAndPageLinks()
+    {
+        const string samplePng = "00000000-cd94-4a01-8f01-0000000e0201";
+        await SignInAsAdminAsync();
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media?folder=00000000-cd94-4a01-8f01-0000000e0302");
+
+        var badge = Page.Locator($"[data-media-item='{samplePng}'] [data-media-variant-count]");
+        await Expect(badge).ToContainTextAsync(new Regex(@"^Used in \d+ ways"));
+        await badge.ClickAsync();
+
+        await Expect(Page).ToHaveURLAsync(new Regex($"/admin/media/{samplePng}#crops-and-sizes$"));
+        var section = Page.Locator("#crops-and-sizes");
+        await Expect(section.Locator("h2")).ToHaveTextAsync("Crops and sizes");
+        await Expect(section).ToContainTextAsync("It is not a separate file.");
+
+        var cards = section.Locator("[data-media-variant]");
+        Assert.True(await cards.CountAsync() >= 2, "The sample PNG is used in at least two ways.");
+        var titles = await section.Locator("[data-media-variant-title]").AllTextContentsAsync();
+        Assert.Contains("Original, not cropped", titles);
+        Assert.Contains(titles, t => t.StartsWith("Cropped to", StringComparison.Ordinal));
+        await Expect(section.Locator("[data-media-variant-title]", new() { HasText = "Cropped to 16:9, focal point centre-left" })).ToBeVisibleAsync();
+
+        // Each preview is a signed copy that loads, with alt text that names the crop.
+        var previews = section.Locator("img[data-media-variant-preview]");
+        for (var i = 0; i < await previews.CountAsync(); i++)
+        {
+            var img = previews.Nth(i);
+            await img.ScrollIntoViewIfNeededAsync();
+            await img.EvaluateAsync("i => i.complete && i.naturalWidth > 0 ? null : new Promise(r => i.addEventListener('load', r, { once: true }))");
+            Assert.True(await img.EvaluateAsync<bool>("i => i.naturalWidth > 0"), $"preview {i} did not load");
+            Assert.StartsWith("blocks.png, ", await img.GetAttributeAsync("alt"));
+            Assert.Contains("sig=", await img.GetAttributeAsync("src"));
+        }
+
+        // The cropped copy really has the shape of the crop.
+        var cut = section.Locator("[data-media-variant]", new() { Has = Page.Locator("[data-media-variant-title]", new() { HasText = "16:9" }) })
+            .Locator("img[data-media-variant-preview]");
+        var ratio = await cut.EvaluateAsync<double>("i => i.naturalWidth / i.naturalHeight");
+        Assert.InRange(ratio, 1.70, 1.85);
+
+        // Each page link opens its editor, with the page's state beside it.
+        var links = await section.Locator("[data-media-variant-uses] a").EvaluateAllAsync<string[]>("els => els.map(e => e.getAttribute('href'))");
+        Assert.Contains(links, l => l.StartsWith("/admin/pages/", StringComparison.Ordinal));
+        foreach (var href in links.Distinct())
+        {
+            var response = await Page.APIRequest.GetAsync($"{Fixture.BaseUrl}{href}");
+            Assert.True(response.Status == 200, $"{href} answered {response.Status}");
+        }
+        await Expect(section.Locator("[data-media-variant-state]").First).ToHaveTextAsync(new Regex("^(Live|Scheduled|Draft|Content block)$"));
+    }
+
     // The Image test page's images are the reserved samples, so a new stack shows them.
     [Fact]
     public async Task TheImageTestPage_ShowsTheSampleImages()

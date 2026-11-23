@@ -56,6 +56,7 @@ public static class DependencyManager
         // Moves images embedded in page content as data: URIs into the media library.
         services.AddScoped<Media.Embedded.IEmbeddedImageMover, Media.Embedded.EmbeddedImageMover>();
         services.AddScoped<Media.Reports.IMediaReportService, Media.Reports.MediaReportService>();
+        services.AddScoped<Media.Variants.IMediaVariantService, Media.Variants.MediaVariantService>();
         // The Image widget: props checked on save, and image versions resolved once per request.
         services.AddScoped<ContentPages.IWidgetPropsValidator, Media.Widget.ImageWidgetValidator>();
         services.AddScoped<Media.Widget.IMediaVersionResolver, Media.Widget.MediaVersionResolver>();

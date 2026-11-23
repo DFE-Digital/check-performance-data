@@ -147,7 +147,7 @@ Edit on Amendment requests.
 
 ## Skip link and breadcrumbs
 
-**Breadcrumbs render before `<main>`, never inside it.** A breadcrumb is a repeated navigation block, so landing on it is exactly what "Skip to main content" exists to avoid (audit #377). `Views/Page/Content.cshtml` puts its breadcrumb in an `@section Breadcrumbs`, which `_Layout.cshtml` renders inside the `Header` section — after the banner landmark closes, before `@RenderBody()`. The section supplies its own `govuk-width-container`, because the layout renders it outside the template's.
+**Breadcrumbs render before `<main>`, never inside it.** A breadcrumb is a repeated navigation block, so landing on it is exactly what "Skip to main content" exists to avoid (audit #377). `Views/Page/Content.cshtml` puts its breadcrumb in an `@section Breadcrumbs`, which `_Layout.cshtml` renders inside the `Header` section — after the banner landmark closes, before `@RenderBody()`. The section supplies its own `govuk-width-container`, because the layout renders it outside the template's. An admin page does the same: `_AdminLayout.cshtml` renders an `@section Breadcrumbs` before the navigation rail and `<main>`, in a container of its own. The media library and its folder pages use it for the folder path.
 
 The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cpb-content` wrapper that `Content.cshtml` puts around the authored tree. They do not key off the breadcrumb position inside `<main>`. `AccessibilityAuditViewTests` pins these rules.
 

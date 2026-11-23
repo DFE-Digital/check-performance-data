@@ -43,8 +43,12 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
   deleted), and `imagesNotFound`. Each deleted image is also a `MediaAsset` and
   `MediaAssetVersion` `Delete` row from the generic capture. A content
   block's new version is a `ContentBlockVersion` `Insert` row. A content import's
-  `ContentBundle/Import` row adds `MediaAssetsCreated`, `MediaAssetsUpdated` and
-  `MediaAssetsReused`.
+  `ContentBundle/Import` row adds `MediaAssetsCreated`, `MediaAssetsUpdated`,
+  `MediaAssetsReused` and `MediaFoldersCreated`.
+  Folders: the generic capture records each folder that is created, renamed, moved or deleted
+  as a `MediaFolder` `Insert`, `Update` or `Delete` row. The log shows them as "Media library
+  folder". "Move selected images" and a content import that moves an image write one
+  `MediaAsset` `Update` row for each image, with `FolderId` in `ChangedColumns`.
 - **Egress pulls.** The run row itself is not excluded from the generic capture, so every pull is
   also an `EgressRun`/`Insert` row (PascalCase payload with the window id and the starter's name).
   The log shows it as **Data egress · Run started**, naming the person who pulled, with no status;

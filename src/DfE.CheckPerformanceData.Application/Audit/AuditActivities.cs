@@ -77,6 +77,7 @@ public static class AuditActivities
         ["ContentBlockVersion"] = "Content block version",
         [EmbeddedImageMove] = "Embedded images moved to the media library",
         [MediaUnusedDelete] = "Unused images deleted from the media library",
+        ["MediaFolder"] = "Media library folder",
         ["HomeBanner"] = "Home page banner",
         ["HomeBannerVersion"] = "Home page banner version",
         ["ContentStagingSession"] = "Content staging session",

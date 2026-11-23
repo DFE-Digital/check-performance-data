@@ -12,7 +12,7 @@ Admin pages: **Admin > Content > Media** (`/admin/media`).
 | --- | --- |
 | Application (`Application/Media`) | `IMediaUploadService` (upload and replace), `IMediaFileCleaner` (type sniffing, limits, re-encoding, `SvgSanitiser`), `MediaProcessingGate`, `IMediaDeliveryService` (serving and renditions), `IMediaUrlBuilder` and `MediaUrlSigner` (signed URLs), `MediaReferenceExtractor` (finds images in content), `RichTextImageRewriter`, `IEmbeddedImageMover`, the reports in `Media/Reports` |
 | Infrastructure | `MediaBlobStore` (the `cms-media` container), `SkiaRasterImageCleaner` and the rendition renderer (SkiaSharp), `BlobMediaUrlSigningKey` |
-| Persistence | `MediaAssetRepository`, `MediaUsageWriter`, `EmbeddedImageStore`, the `media_assets`, `media_asset_versions` and `media_usages` tables |
+| Persistence | `MediaAssetRepository`, `MediaFolderRepository`, `MediaUsageWriter`, `EmbeddedImageStore`, the `media_assets`, `media_asset_versions`, `media_usages` and `media_folders` tables |
 | Web | `MediaLibraryController` (with "Delete unused images"), `MediaPickerController`, `MediaReportsController`, `MediaFileController` (`/media/...`), `media-library-upload.js`, `media-library-detail.js`, `media-picker.js`, `image-widget-editor.js`, `rich-text-media.js` |
 
 The flow:
@@ -28,7 +28,11 @@ The flow:
 
 - **`media_assets`** (`MediaAsset`): one row for each image. `Id` (chosen by the caller, kept by
   content staging), `FileName`, `Slug` (for the URL), `DefaultAltText`, `Caption`, `Credit`,
-  `Tags`, `CurrentVersion`, and who created and last changed it, with the times.
+  `Tags`, `CurrentVersion`, `FolderId` (null at the top of the library), and who created and
+  last changed it, with the times.
+- **`media_folders`** (`MediaFolder`): one row for each folder. `Id`, `Name`, `NameKey`
+  (`lower(name)`, made by the database), `ParentId` (null at the top), and who created and last
+  changed it, with the times.
 - **`media_asset_versions`** (`MediaAssetVersion`): one row for each stored file of an image. The
   key is (`AssetId`, `Version`). It holds `BlobKey`, `ContentType`, `Width`, `Height`,
   `SizeBytes`, `Sha256` (of the stored bytes), `IsAnimated`, and who uploaded it, with the time.
@@ -49,6 +53,8 @@ Every reference is a foreign key that the database checks:
 | `media_usages.page_node_id` | `PageNodes.Id` | cascade |
 | `media_usages.content_block_id` | `ContentBlocks.Id` | cascade |
 | `PageNodeVersions.SupersededById` | `PageNodeVersions.Id` | set null |
+| `media_assets.folder_id` | `media_folders.id` | refused while an image is in the folder |
+| `media_folders.parent_id` | `media_folders.id` | refused while a folder is in the folder |
 
 Page content refers to an image by its id only, in JSON or HTML, which no key can check. The
 `media_usages` rows are the checked record of those uses.
@@ -195,6 +201,79 @@ The view is in the query string only. Page links, the search and filters form an
 and filters" keep it. A value that is not one of the three shows the grid. The service keeps no
 view for each user.
 
+## Folders
+
+The library is a tree of folders. An image is in one folder, or at the top of the library. A
+folder does not change an image's id, URL or versions, so moving images never changes a page.
+
+### Rules
+
+- A name has 1 to 100 characters, with no slash and no control character. Spaces at the ends are
+  removed.
+- Two folders in the same place cannot have the same name, ignoring case. This is true at the top
+  too.
+- A folder cannot move into itself or into a folder inside it. `IMediaFolderService` refuses the
+  move first. The trigger `trg_media_folders_refuse_cycle` refuses it again (constraint name
+  `ck_media_folders_no_cycle`). The trigger takes a lock, so two moves at the same time that
+  would make a loop cannot both pass.
+- Only an empty folder can be deleted: no images and no folders in it. The page says what a full
+  folder holds. Both foreign keys refuse the delete too.
+
+### The admin navigation
+
+The "Media library" entry in the admin navigation shows the folder tree under it, in name order
+(`MediaFolderNavEntry`, grafted by `AdminNavNodeViewModel.GraftMediaFolders`). A folder opens
+`/admin/media?folder={id}`. The layout reads the folders in one query. A user without the `media`
+section sees neither the entry nor the folders.
+
+### The library page in a folder
+
+- `folder={id}` shows one folder. Breadcrumbs show its path. An unknown id gets 404.
+- "Folders" lists the folders in it. "Create a folder" makes one inside the folder shown
+  (`POST /admin/media/folders`).
+- "Rename, move or delete this folder" opens `/admin/media/folders/{id}`. It has three forms:
+  `…/rename`, `…/move` (`parent` is a folder id, or `top`) and `…/delete`.
+- **Include subfolders.** Ticked, the list holds the folder and every folder inside it, at any
+  depth. Unticked, it holds the folder only. At the top of the library, ticked is the whole
+  library and unticked is the images in no folder.
+- **The default is ticked.** So `/admin/media` lists every image, as before folders, and a
+  search finds an image wherever it is. "Off" is `subfolders=false` in the address. The check box
+  sends `true` before a hidden `false`, and the first value wins.
+- The folder and `subfolders=false` stay in the address. Page links, the view select, the search
+  and filters form and "Delete unused images" keep them. "Clear search and filters" keeps the
+  folder and the view.
+- Each image in the grid, details and large views has a "Select" check box. "Move selected
+  images to" puts the ticked images in a folder, or at the top
+  (`POST /admin/media/move`). The editor goes back to the same list.
+- In the grid, an image that is not in the folder shown says where it is. The details and large
+  views show the folder of each image.
+- An upload goes into the folder shown (`/admin/media/upload?folder={id}`). An upload that
+  matches an image already in the library offers that image, in whatever folder it is.
+
+The subtree is one recursive SQL query (`MediaFolderQueries.SubtreeIds`), in the same SQL as the
+list.
+
+### The picker
+
+The picker has a folder tree above the images, with "Media library" at the top, and the check box
+"Find images in this folder and its subfolders" (ticked by default). The list endpoint takes the
+same `folder` and `subfolders` values. The default (the top, with subfolders) adds nothing to the
+address, so the first list is the whole library, as before.
+
+- The folders are buttons in nested lists. The chosen folder is pressed (`aria-pressed`) and is
+  the tree's one Tab stop. The up and down arrow keys, Home and End move between folders. Enter
+  or Space chooses one.
+- The dialog's Upload button puts the file in the chosen folder.
+- A pasted or dropped image in rich text (`MediaPicker.upload`) goes to the top of the library.
+- The folder stays chosen when the dialog opens again on the same page.
+
+### Other pages
+
+- The alt text report and the size report cover every folder, and show each image's folder.
+- "Delete unused images" works across all folders from the top of the library. From a folder, it
+  lists the unused images in that folder (with its subfolders when they are included), and shows
+  a folder column.
+
 ## Permissions
 
 - The **`media`** admin section manages the library: the library page, image pages, metadata,
@@ -283,8 +362,9 @@ A content-staging bundle carries the images that its pages and blocks use. The s
 `cpd-content-v2`, version 2. A bundle with no images imports as before.
 
 - `mediaAssets[]`: `id`, `fileName`, `defaultAltText`, `caption`, `credit`, `tags[]`,
-  `currentVersion`, and `versions[]` of `version`, `sha256`, `contentType`, `width`, `height`,
-  `sizeBytes` and `isAnimated`.
+  `currentVersion`, `folderPath[]` of `id` and `name` (the folders that hold the image, from the
+  top down; empty at the top), and `versions[]` of `version`, `sha256`, `contentType`, `width`,
+  `height`, `sizeBytes` and `isAnimated`.
 - `mediaFiles[]`: `sha256` and `data` (base64). There is one entry for each different file.
 - Each page version has `media[]` of `mediaId` and `version`: the version the page version was
   saved with.
@@ -308,6 +388,13 @@ Import runs before the pages and blocks, and keeps each image's id. For each ver
 - Import never deletes an image, even one that no content uses after the import. To remove
   unused images, use "Delete unused images" on the library page (see below).
 - Type, size and the animated flag come from the cleaning, never from the bundle.
+- **Folders.** Import finds each folder of an image's `folderPath` by its name in the folder
+  before it, ignoring case. So the path wins over the id. A folder that is not there is made, with
+  the bundle's id when that id is free. A new image goes into the last folder of the path. An
+  existing image moves there, and counts as updated. A bad name or a path deeper than 20 folders
+  gives a warning or an error. A bundle made before folders has no `folderPath`: a new image goes
+  to the top, and an existing image stays where it is.
+- The result adds "Image folders: N added." when the import made folders.
 - Every problem is a warning, not an error. A page that uses an image that is in neither the
   bundle nor the library gets a warning.
 - The result says "Images: N added, N updated, N already here." An image is updated when it gets
@@ -326,6 +413,11 @@ The pages under `/development-testing` carry the media library samples:
 | `00000000-cd94-4a01-8f01-0000000e0203` | `landscape.jpg` | Rich text page, the `development-testing-image` content block |
 | `00000000-cd94-4a01-8f01-0000000e0204` | `moving-square.gif` (animated, no default alt text) | Rich text page |
 
+The PNG and the SVG are in the folder Samples / Graphics, and the photo is in Samples / Photos.
+The animation is at the top of the library. The folders have fixed ids: Samples
+`00000000-cd94-4a01-8f01-0000000e0301`, Graphics `…0302` and Photos `…0303`. Each start puts the
+samples back in these folders.
+
 The images are in `Data/Import/development-testing.json`, with the pages, as `mediaAssets` and
 `mediaFiles`. The import brings them in before the pages, so the pages record their uses. The
 import runs again on each start, finds the same images and adds nothing.
@@ -333,7 +425,7 @@ import runs again on each start, finds the same images and adds nothing.
 Test pages:
 
 - `/development-testing/media-library-test-page`: links to each part of the library, with steps
-  to try it. It also has a hostile SVG to upload, and an SVG with a DTD that the library refuses.
+  to try it, also for folders. It also has a hostile SVG to upload, and an SVG with a DTD that the library refuses.
 - `/development-testing/widgets/image-test-page`: the Image widget at each width, crop and focal
   point.
 - `/development-testing/media-rich-text-test-page`: rich text with library images, a figure, a

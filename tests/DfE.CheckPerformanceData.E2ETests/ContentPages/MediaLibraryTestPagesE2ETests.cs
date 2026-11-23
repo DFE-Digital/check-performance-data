@@ -70,6 +70,22 @@ public sealed partial class MediaLibraryTestPagesE2ETests(PlaywrightFixture fixt
         Assert.Equal(3, refused);
     }
 
+    // The guide's folder steps need the sample folders: Samples holds Graphics (the PNG and the
+    // SVG) and Photos (the photo). The start puts the samples back in them.
+    [Fact]
+    public async Task TheSampleFolders_HoldTheSampleImages_AndShowInTheAdminNav()
+    {
+        await SignInAsAdminAsync();
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media?folder=00000000-cd94-4a01-8f01-0000000e0302&subfolders=false");
+
+        await Expect(Page.Locator("h1")).ToHaveTextAsync("Graphics");
+        await Expect(Page.Locator("[data-media-item='00000000-cd94-4a01-8f01-0000000e0201']")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-media-item='00000000-cd94-4a01-8f01-0000000e0202']")).ToBeVisibleAsync();
+        await Expect(Page.Locator("#admin-rail a[href='/admin/media?folder=00000000-cd94-4a01-8f01-0000000e0301']")).ToHaveTextAsync("Samples");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media?folder=00000000-cd94-4a01-8f01-0000000e0303&subfolders=false");
+        await Expect(Page.Locator($"[data-media-item='{SamplePhoto}']")).ToBeVisibleAsync();
+    }
+
     [Fact]
     public async Task TheRichTextTestPage_ShowsEachLibraryImage_AndKeepsTheDecorativeOne()
     {

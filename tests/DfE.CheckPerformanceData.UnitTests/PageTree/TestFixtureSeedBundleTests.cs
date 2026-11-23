@@ -482,4 +482,28 @@ public class TestFixtureSeedBundleTests
 
         Assert.Contains("blocks.png\\\" alt=\\\"Coloured blocks, stretched into a square\\\" width=\\\"320\\\" height=\\\"320\\\"", page.Versions.Single().Content);
     }
+
+    // The guide has steps for folders: the nav tree, include subfolders, create, move and the picker.
+    [Fact]
+    public void TheMediaLibraryGuide_HasStepsForFolders()
+    {
+        var content = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-library-test-page").Versions.Single().Content;
+
+        Assert.Contains("\"text\": \"Folders in the media library\"", content);
+        Assert.Contains("href=\\\"/admin/media?folder=00000000-cd94-4a01-8f01-0000000e0301\\\"", content);
+        Assert.Contains("Untick “Find images in this folder and its subfolders”", content);
+        Assert.Contains("“Move selected images”", content);
+    }
+
+    // The sample images sit in sample folders, so a fresh stack has folders to try. The animation
+    // stays at the top of the library.
+    [Fact]
+    public void TheSampleImages_AreInSampleFolders()
+    {
+        var assets = ShippedContent.Fixtures().MediaAssets.ToDictionary(a => a.Id.ToString());
+
+        Assert.Equal(["Samples", "Graphics"], assets["00000000-cd94-4a01-8f01-0000000e0201"].FolderPath!.Select(f => f.Name));
+        Assert.Equal(["Samples", "Photos"], assets["00000000-cd94-4a01-8f01-0000000e0203"].FolderPath!.Select(f => f.Name));
+        Assert.Empty(assets["00000000-cd94-4a01-8f01-0000000e0204"].FolderPath!);
+    }
 }

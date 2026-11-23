@@ -42,7 +42,7 @@ public sealed class TestFixtureMediaImportTests(PostgresFixture postgres, Azurit
     {
         await using var ctx = postgres.CreateContext();
         await ctx.Database.ExecuteSqlRawAsync(
-            @"TRUNCATE media_usages, media_asset_versions, media_assets, ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"" RESTART IDENTITY CASCADE;");
+            @"TRUNCATE media_usages, media_asset_versions, media_assets, media_folders, ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"" RESTART IDENTITY CASCADE;");
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
@@ -130,5 +130,24 @@ public sealed class TestFixtureMediaImportTests(PostgresFixture postgres, Azurit
         // The fixture block is the same as last time, so it gets no new version.
         Assert.Equal(blockVersions, await ctx.ContentBlockVersions.CountAsync());
         Assert.Equal(usages, await ctx.MediaUsages.CountAsync());
+    }
+
+    // The samples land in their sample folders, with the fixture's folder ids. Importing again
+    // makes no folder and moves no image.
+    [Fact]
+    public async Task TheSampleImages_LandInTheirSampleFolders_Once()
+    {
+        var first = await ImportAsync();
+        var again = await ImportAsync();
+
+        Assert.Equal(3, first.MediaFoldersCreated);
+        Assert.Equal(0, again.MediaFoldersCreated);
+        await using var ctx = postgres.CreateContext();
+        var folders = await ctx.MediaFolders.AsNoTracking().ToDictionaryAsync(f => f.Id);
+        var photoFolder = (await ctx.MediaAssets.SingleAsync(a => a.Id == SamplePhoto)).FolderId!.Value;
+        Assert.Equal("Photos", folders[photoFolder].Name);
+        Assert.Equal("Samples", folders[folders[photoFolder].ParentId!.Value].Name);
+        Assert.Equal(new Guid("00000000-cd94-4a01-8f01-0000000e0303"), photoFolder);
+        Assert.Null((await ctx.MediaAssets.SingleAsync(a => a.Id == SampleAnimation)).FolderId);
     }
 }

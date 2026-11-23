@@ -165,7 +165,8 @@ public sealed class MediaFolderTests(PlaywrightFixture fixture) : SeedingPageTes
         // At the top of the library, off means the images in no folder: these two are in folders.
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media?search={_term}&subfolders=false");
         await Expect(Page.Locator("[data-media-library-empty]")).ToBeVisibleAsync();
-        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media?search={_term}");
+        // The browser remembers Details from above, so the grid is asked for by name.
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media?search={_term}&view=grid");
         await Expect(Items).ToHaveCountAsync(2);
         await Expect(Page.Locator($"[data-media-item='{inChild:D}'] [data-media-item-folder]")).ToContainTextAsync($"{_term}-parent / {_term}-child");
     }

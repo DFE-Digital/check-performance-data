@@ -1759,6 +1759,10 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("file_name");
 
+                    b.Property<Guid?>("FolderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("folder_id");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1782,6 +1786,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnName("updated_by");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FolderId")
+                        .HasDatabaseName("ix_media_assets_folder_id");
 
                     b.HasIndex("UpdatedAtUtc")
                         .HasDatabaseName("ix_media_assets_updated_at_utc");
@@ -1858,6 +1865,63 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("media_asset_versions", null, t =>
                         {
                             t.HasCheckConstraint("ck_media_asset_versions_version", "version >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.MediaFolder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NameKey")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name_key")
+                        .HasComputedColumnSql("lower(name)", true);
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId", "NameKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_media_folders_parent_id_name_key")
+                        .HasAnnotation("Npgsql:NullsDistinct", false);
+
+                    b.ToTable("media_folders", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_media_folders_name_not_blank", "btrim(name) <> ''");
+
+                            t.HasCheckConstraint("ck_media_folders_not_own_parent", "parent_id IS NULL OR parent_id <> id");
                         });
                 });
 
@@ -2375,6 +2439,15 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Navigation("HomeBanner");
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.MediaAsset", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.MediaFolder", null)
+                        .WithMany()
+                        .HasForeignKey("FolderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_media_assets_media_folders_folder_id");
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.MediaAssetVersion", b =>
                 {
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.MediaAsset", "Asset")
@@ -2385,6 +2458,15 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasConstraintName("fk_media_asset_versions_media_assets_asset_id");
 
                     b.Navigation("Asset");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.MediaFolder", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.MediaFolder", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_media_folders_media_folders_parent_id");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.MediaUsage", b =>

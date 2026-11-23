@@ -34,6 +34,15 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
         // it in SQL, because the model cannot describe a deferred key that forms a cycle.
         builder.Property(x => x.CurrentVersion).HasColumnName("current_version");
 
+        // Restrict: a folder that holds an image cannot be deleted.
+        builder.Property(x => x.FolderId).HasColumnName("folder_id");
+        builder.HasOne<MediaFolder>()
+            .WithMany()
+            .HasForeignKey(x => x.FolderId)
+            .HasConstraintName("fk_media_assets_media_folders_folder_id")
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.FolderId).HasDatabaseName("ix_media_assets_folder_id");
+
         builder.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc").HasColumnType("timestamp with time zone");
         builder.Property(x => x.CreatedBy).HasColumnName("created_by").HasMaxLength(200);
         builder.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc").HasColumnType("timestamp with time zone");

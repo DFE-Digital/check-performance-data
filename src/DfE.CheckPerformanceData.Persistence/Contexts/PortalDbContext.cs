@@ -26,6 +26,7 @@ public sealed class PortalDbContext(
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<MediaAssetVersion> MediaAssetVersions => Set<MediaAssetVersion>();
     public DbSet<MediaUsage> MediaUsages => Set<MediaUsage>();
+    public DbSet<MediaFolder> MediaFolders => Set<MediaFolder>();
     public DbSet<ContentStagingSession> ContentStagingSessions => Set<ContentStagingSession>();
     public DbSet<RulesConfigVersion> RulesConfigVersions => Set<RulesConfigVersion>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
@@ -66,6 +67,7 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new MediaAssetConfiguration());
         modelBuilder.ApplyConfiguration(new MediaAssetVersionConfiguration());
         modelBuilder.ApplyConfiguration(new MediaUsageConfiguration());
+        modelBuilder.ApplyConfiguration(new MediaFolderConfiguration());
         modelBuilder.ApplyConfiguration(new ContentStagingSessionConfiguration());
         modelBuilder.ApplyConfiguration(new RulesConfigVersionConfiguration());
         modelBuilder.ApplyConfiguration(new ChangeRequestConfiguration());

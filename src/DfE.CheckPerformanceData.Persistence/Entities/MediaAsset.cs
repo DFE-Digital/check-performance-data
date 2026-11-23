@@ -14,6 +14,8 @@ public sealed class MediaAsset
     public string? Credit { get; set; }
     public List<string> Tags { get; set; } = [];
     public int CurrentVersion { get; set; }
+    // The folder that holds the image, or null for the top of the library.
+    public Guid? FolderId { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public string? CreatedBy { get; set; }
     public DateTime UpdatedAtUtc { get; set; }

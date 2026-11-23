@@ -17,4 +17,5 @@ public sealed record MediaAssetDto(
     DateTime CreatedAtUtc,
     string? CreatedBy,
     DateTime UpdatedAtUtc,
-    string? UpdatedBy);
+    string? UpdatedBy,
+    Guid? FolderId = null);

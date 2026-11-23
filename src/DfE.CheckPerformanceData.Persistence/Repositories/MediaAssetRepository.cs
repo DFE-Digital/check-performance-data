@@ -33,6 +33,7 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
             FileName = asset.FileName.Trim(),
             Slug = asset.Slug.Trim(),
             CurrentVersion = 1,
+            FolderId = asset.FolderId,
             CreatedAtUtc = now,
             CreatedBy = currentUser.Email,
             UpdatedAtUtc = now,
@@ -149,6 +150,24 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
 
         if (query.UnusedOnly)
             assets = assets.Where(a => !context.MediaUsages.Any(u => u.AssetId == a.Id));
+
+        // The folder: one recursive query finds the folders inside it, in the same SQL.
+        if (query.FolderId is Guid folderId)
+        {
+            if (query.IncludeSubfolders)
+            {
+                var subtree = MediaFolderQueries.SubtreeIds(context, folderId);
+                assets = assets.Where(a => a.FolderId != null && subtree.Contains(a.FolderId.Value));
+            }
+            else
+            {
+                assets = assets.Where(a => a.FolderId == folderId);
+            }
+        }
+        else if (!query.IncludeSubfolders)
+        {
+            assets = assets.Where(a => a.FolderId == null);
+        }
 
         var pageSize = Math.Max(1, query.PageSize);
         var total = await assets.CountAsync(ct);
@@ -342,7 +361,7 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
                 x.Latest.AssetId, x.Latest.Version, x.Latest.BlobKey, x.Latest.ContentType, x.Latest.Width,
                 x.Latest.Height, x.Latest.SizeBytes, x.Latest.Sha256, x.Latest.IsAnimated,
                 x.Latest.UploadedAtUtc, x.Latest.UploadedBy),
-            x.Asset.CreatedAtUtc, x.Asset.CreatedBy, x.Asset.UpdatedAtUtc, x.Asset.UpdatedBy));
+            x.Asset.CreatedAtUtc, x.Asset.CreatedBy, x.Asset.UpdatedAtUtc, x.Asset.UpdatedBy, x.Asset.FolderId));
 
     private static readonly Expression<Func<MediaAssetVersion, MediaAssetVersionDto>> VersionProjection = v =>
         new MediaAssetVersionDto(v.AssetId, v.Version, v.BlobKey, v.ContentType, v.Width, v.Height,
@@ -354,5 +373,5 @@ public sealed class MediaAssetRepository(IPortalDbContext context, ICurrentUserS
 
     private static MediaAssetDto ToDto(MediaAsset a, MediaAssetVersion latest) =>
         new(a.Id, a.FileName, a.Slug, a.DefaultAltText, a.Caption, a.Credit, a.Tags.ToList(), a.CurrentVersion,
-            ToDto(latest), a.CreatedAtUtc, a.CreatedBy, a.UpdatedAtUtc, a.UpdatedBy);
+            ToDto(latest), a.CreatedAtUtc, a.CreatedBy, a.UpdatedAtUtc, a.UpdatedBy, a.FolderId);
 }

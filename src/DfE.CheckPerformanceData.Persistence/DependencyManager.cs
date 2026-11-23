@@ -59,6 +59,7 @@ public static class DependencyManager
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
         services.AddScoped<IHomeBannerRepository, HomeBannerRepository>();
         services.AddScoped<DfE.CheckPerformanceData.Application.Media.IMediaAssetRepository, MediaAssetRepository>();
+        services.AddScoped<DfE.CheckPerformanceData.Application.Media.Folders.IMediaFolderRepository, MediaFolderRepository>();
         services.AddScoped<DfE.CheckPerformanceData.Application.Media.Embedded.IEmbeddedImageStore, EmbeddedImageStore>();
         services.AddScoped<DfE.CheckPerformanceData.Application.Media.Reports.IMediaReportStore, MediaReportStore>();
         services.AddScoped<Application.ContentStaging.IContentStagingLock,

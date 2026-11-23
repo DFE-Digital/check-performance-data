@@ -52,6 +52,7 @@ public static class DependencyManager
         services.AddScoped<Media.Serving.IMediaDeliveryService, Media.Serving.MediaDeliveryService>();
         services.AddScoped<Media.Upload.IMediaUploadService, Media.Upload.MediaUploadService>();
         services.AddScoped<Media.IMediaDeletionService, Media.MediaDeletionService>();
+        services.AddScoped<Media.Folders.IMediaFolderService, Media.Folders.MediaFolderService>();
         // Moves images embedded in page content as data: URIs into the media library.
         services.AddScoped<Media.Embedded.IEmbeddedImageMover, Media.Embedded.EmbeddedImageMover>();
         services.AddScoped<Media.Reports.IMediaReportService, Media.Reports.MediaReportService>();

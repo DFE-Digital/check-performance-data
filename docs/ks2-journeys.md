@@ -46,6 +46,14 @@ KS2 has no Merge, Include or Add journey. The requirements say so.
 7. **"Tests", never "exams"**, on every KS2 page.
 8. **Only included pupils can be removed.** `select-pupil` uses `pupilFilter: "Included"`. The
    KS2 schema stamps `INCLUDED` for P_INCL 201 only.
+9. **What to change is skipped when a window type offers one change type** (#874). KS2 offers
+   Remove only, so "request an amendment to pupil data" goes straight to the Remove journey's
+   first page. `IChangeTypeSelectionService` decides. The automatic selection does the same work
+   as the POST and sends the same `change_type_selected` event. The journey's Back links go to
+   `/WhatToChange/{windowId}/back`. That action sends the user to Check your pupil data when the
+   page is skipped, and to What to change otherwise. A window type with no change type is a
+   configuration error: the page is not shown, the service throws and the user sees the error
+   page. The POST does what it did before this change.
 
 ## Removal categories
 

@@ -28,10 +28,12 @@ public sealed class JourneyBackLinkViewSourceTests
     }
 
     [Fact]
-    public void An_amendment_first_page_still_goes_back_to_the_what_to_change_chooser()
+    public void An_amendment_first_page_goes_back_through_the_what_to_change_back_action()
     {
-        // The live KS4 journeys must be unaffected.
-        Assert.Contains("asp-controller=\"WhatToChange\"", ViewSource());
+        var view = ViewSource();
+
+        Assert.Contains("asp-action=\"Back\" asp-controller=\"WhatToChange\"", view);
+        Assert.DoesNotContain("asp-action=\"Index\" asp-controller=\"WhatToChange\"", view);
     }
 
     [Fact]

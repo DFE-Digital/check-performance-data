@@ -45,7 +45,8 @@ public sealed class WhatToChangeControllerTests
         _service.GetCheckingWindowAsync(WindowId).Returns(Window());
         // Every pupil-data change has a flow file unless a test says otherwise.
         _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>()).Returns(AllPupilDataChanges);
-        _sut = new WhatToChangeController(_service, _flowService, _checkingExercises, _currentUser, _analytics)
+        _sut = new WhatToChangeController(
+            _service, new ChangeTypeSelectionService(_flowService, _analytics), _checkingExercises, _currentUser, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>())
@@ -100,18 +101,30 @@ public sealed class WhatToChangeControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task Confirm_WhenNoSelection_AddsTheErrorMessageOfTheQuestion()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+
+        await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null });
+
+        var error = Assert.Single(_sut.ModelState[nameof(WhatToChangeViewModel.SelectedWhatToChange)]!.Errors);
+        Assert.Equal("Select what pupil data you would like to amend", error.ErrorMessage);
+    }
+
     // ── AB#297310: CheckingWindowType feeds the Add-radio gate ───────────────
 
     [Fact]
     public async Task Index_OffersOnlyTheChangesThatHaveAFlowFile()
     {
         _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
-        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Merge, WhatToChange.Remove]);
 
         var result = await _sut.Index(WindowId);
 
         var vm = Assert.IsType<WhatToChangeViewModel>(Assert.IsType<ViewResult>(result).Model);
-        Assert.Equal([WhatToChange.Remove], vm.AvailableChanges);
+        Assert.Equal([WhatToChange.Merge, WhatToChange.Remove], vm.AvailableChanges);
     }
 
     [Fact]
@@ -281,6 +294,163 @@ public sealed class WhatToChangeControllerTests
         await _analytics.Received(1).TrackAsync(
             Arg.Is<ChangeTypeSelectedEvent>(e => e.WhatToChange == "Include" && e.CheckingWindowType == "KS4June"),
             Arg.Any<CancellationToken>());
+    }
+
+    // ── #874: a window type with one change type skips the page ──
+
+    [Fact]
+    public async Task Index_WithOneChangeType_StartsItsJourneyWithoutShowingThePage()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
+        _flowService.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS4June).Returns(FlowWithPupilSearch);
+
+        var result = await _sut.Index(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Journey", redirect.ControllerName);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("select-pupil", redirect.RouteValues!["pageId"]);
+        var journey = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.Remove, journey.SelectedWhatToChange);
+        Assert.Equal(WindowId, journey.CheckingWindow!.Id);
+    }
+
+    [Fact]
+    public async Task Index_WithOneChangeType_SendsTheChangeTypeSelectedEvent()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
+        _flowService.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS4June).Returns(FlowWithPupilSearch);
+
+        await _sut.Index(WindowId);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ChangeTypeSelectedEvent>(e => e.WhatToChange == "Remove" && e.CheckingWindowType == "KS4June"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Index_WithOneChangeType_ClearsBothEditModes()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
+        _flowService.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS4June).Returns(FlowWithPupilSearch);
+        _session.SetBulkEditMode(WindowId);
+        _session.SetSingleEditMode(WindowId);
+
+        await _sut.Index(WindowId);
+
+        Assert.False(_session.IsBulkEditMode(WindowId));
+        Assert.False(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
+    public async Task Confirm_ForAnOfferedChange_ClearsBothEditModes()
+    {
+        _flowService.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS4June).Returns(FlowWithPupilSearch);
+        _session.SetBulkEditMode(WindowId);
+        _session.SetSingleEditMode(WindowId);
+
+        await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Remove });
+
+        Assert.False(_session.IsBulkEditMode(WindowId));
+        Assert.False(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
+    public async Task Confirm_ForAChangeTheWindowDoesNotOffer_KeepsBothEditModes()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
+        _session.SetBulkEditMode(WindowId);
+        _session.SetSingleEditMode(WindowId);
+
+        await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Merge });
+
+        Assert.True(_session.IsBulkEditMode(WindowId));
+        Assert.True(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
+    public async Task Index_WithOneChangeTypeForAFlowWithoutAPupilSearch_StartsClean()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Add]);
+        _flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.KS4June).Returns(FlowWithoutPupilSearch);
+        _session.SaveRequestState(WindowId, SeedStaleIdentity);
+
+        await _sut.Index(WindowId);
+
+        var journey = _session.GetRequestState(WindowId);
+        Assert.Null(journey.ReferenceNumber);
+        Assert.Null(journey.SelectedPupil);
+        Assert.Empty(journey.QuestionHistory);
+    }
+
+    [Fact]
+    public async Task Index_WithOneChangeType_WhenTheExerciseIsClosed_StartsNoJourney()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
+        _flowService.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS4June).Returns(FlowWithPupilSearch);
+        _checkingExercises.Close();
+
+        var result = await _sut.Index(WindowId);
+
+        Assert.Equal("CheckYourPupilData", Assert.IsType<RedirectToActionResult>(result).ControllerName);
+        Assert.Equal(
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData, LearnerNoun.Pupil),
+            _sut.TempData[ClosedExerciseGuard.TempDataKey]);
+        Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<ChangeTypeSelectedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Index_WithNoChangeType_IsAnError()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.Index(WindowId));
+        Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
+    }
+
+    [Fact]
+    public async Task Back_WithNoChangeType_IsAnError()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.Back(WindowId));
+    }
+
+    [Fact]
+    public async Task Confirm_WithNoSelectionAndNoChangeType_IsAnError()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null }));
+    }
+
+    [Fact]
+    public async Task Back_WithOneChangeType_GoesToCheckYourPupilData()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
+
+        var result = await _sut.Back(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal(WindowId, redirect.RouteValues!["windowId"]);
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<ChangeTypeSelectedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Back_WithMoreThanOneChangeType_GoesToTheChangeTypePage()
+    {
+        var result = await _sut.Back(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Null(redirect.ControllerName);
+        Assert.Equal(nameof(WhatToChangeController.Index), redirect.ActionName);
+        Assert.Equal(WindowId, redirect.RouteValues!["windowId"]);
     }
 
     private static readonly QuestionFlowConfig FlowWithoutPupilSearch = new()

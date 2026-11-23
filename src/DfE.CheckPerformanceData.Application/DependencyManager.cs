@@ -85,6 +85,7 @@ public static class DependencyManager
         services.AddScoped<IJourneyValidationService, JourneyValidationService>();
         services.AddScoped<IRequestService, RequestService>();
         services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
+        services.AddScoped<IChangeTypeSelectionService, ChangeTypeSelectionService>();
         services.AddScoped<ICountryService, CountryService>();
         services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
         services.AddScoped<IQuestionOptionalityService, QuestionOptionalityService>();

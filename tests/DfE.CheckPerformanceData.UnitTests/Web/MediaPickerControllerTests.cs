@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.Media;
+using DfE.CheckPerformanceData.Application.Media.Folders;
 using DfE.CheckPerformanceData.Application.Media.Serving;
 using DfE.CheckPerformanceData.Application.Media.Upload;
 using DfE.CheckPerformanceData.Web.Admin;
@@ -21,7 +22,9 @@ public sealed class MediaPickerControllerTests
     private readonly IMediaAssetRepository _media = Substitute.For<IMediaAssetRepository>();
     private readonly IMediaUploadService _uploads = Substitute.For<IMediaUploadService>();
     private readonly IMediaUrlBuilder _urls = Substitute.For<IMediaUrlBuilder>();
+    private readonly IMediaFolderService _folders = Substitute.For<IMediaFolderService>();
     private readonly MediaPickerController _sut;
+    private static readonly Guid Photos = Guid.NewGuid();
 
     public MediaPickerControllerTests()
     {
@@ -31,7 +34,8 @@ public sealed class MediaPickerControllerTests
         _urls.Original(Arg.Any<MediaAssetDto>(), Arg.Any<MediaAssetVersionDto>())
             .Returns(ci => $"/o/{ci.Arg<MediaAssetDto>().Id}/{ci.Arg<MediaAssetVersionDto>().Version}");
         var http = new DefaultHttpContext();
-        _sut = new MediaPickerController(_media, _uploads, _urls)
+        _folders.GetTreeAsync(Arg.Any<CancellationToken>()).Returns(new MediaFolderTree([new MediaFolderDto(Photos, "Photos", null)]));
+        _sut = new MediaPickerController(_media, _uploads, _urls, _folders)
         {
             ControllerContext = new ControllerContext { HttpContext = http },
         };
@@ -79,7 +83,7 @@ public sealed class MediaPickerControllerTests
     [Fact]
     public async Task List_SearchesTheLibrary_OnePickerPageAtATime_NewestFirst()
     {
-        await _sut.List(" chart ", 3, CancellationToken.None);
+        await _sut.List(" chart ", 3, ct: CancellationToken.None);
 
         await _media.Received(1).ListAsync(
             Arg.Is<MediaAssetQuery>(q => q.Search == "chart" && q.Page == 3 && q.PageSize == MediaPickerController.PageSize
@@ -90,7 +94,7 @@ public sealed class MediaPickerControllerTests
     [Fact]
     public async Task List_TreatsABlankSearchAsNone_AndAPageBelowOneAsTheFirst()
     {
-        await _sut.List("  ", 0, CancellationToken.None);
+        await _sut.List("  ", 0, ct: CancellationToken.None);
 
         await _media.Received(1).ListAsync(Arg.Is<MediaAssetQuery>(q => q.Search == null && q.Page == 1), Arg.Any<CancellationToken>());
     }
@@ -102,7 +106,7 @@ public sealed class MediaPickerControllerTests
         var svg = Asset("logo.svg", null, "image/svg+xml", 64, 32);
         _media.ListAsync(Arg.Any<MediaAssetQuery>(), Arg.Any<CancellationToken>()).Returns(new MediaAssetPage([png, svg], 30, 2, 12));
 
-        var json = Json(await _sut.List(null, 2, CancellationToken.None));
+        var json = Json(await _sut.List(null, 2, ct: CancellationToken.None));
 
         Assert.Equal(2, json.GetProperty("page").GetInt32());
         Assert.Equal(3, json.GetProperty("totalPages").GetInt32());
@@ -144,21 +148,21 @@ public sealed class MediaPickerControllerTests
     [Fact]
     public async Task Upload_WithNoFile_AnswersAnError()
     {
-        var result = await _sut.Upload(null, CancellationToken.None);
+        var result = await _sut.Upload(null, ct: CancellationToken.None);
 
         var json = Assert.IsType<JsonResult>(result);
         Assert.Equal(StatusCodes.Status400BadRequest, json.StatusCode);
         Assert.Equal(MediaPickerController.NoFileError, Json(result).GetProperty("error").GetString());
-        await _uploads.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default);
+        await _uploads.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default, default);
     }
 
     [Fact]
     public async Task Upload_StoresTheFileThroughThePipeline_AndAnswersTheNewImage()
     {
         var asset = Asset("new.png", null);
-        _uploads.UploadAsync(Arg.Any<Stream>(), "new.png", Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Created(asset));
+        _uploads.UploadAsync(Arg.Any<Stream>(), "new.png", Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Created(asset));
 
-        var result = await _sut.Upload(File("new.png"), CancellationToken.None);
+        var result = await _sut.Upload(File("new.png"), ct: CancellationToken.None);
 
         Assert.Null(Assert.IsType<JsonResult>(result).StatusCode);
         var json = Json(result);
@@ -173,9 +177,9 @@ public sealed class MediaPickerControllerTests
     public async Task Upload_OfAFileAlreadyInTheLibrary_AnswersTheExistingImage_MarkedDuplicate()
     {
         var existing = Asset("first.png");
-        _uploads.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Duplicate(existing));
+        _uploads.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Duplicate(existing));
 
-        var json = Json(await _sut.Upload(File("again.png"), CancellationToken.None));
+        var json = Json(await _sut.Upload(File("again.png"), ct: CancellationToken.None));
 
         Assert.Equal(existing.Id, json.GetProperty("id").GetGuid());
         Assert.Equal("first.png", json.GetProperty("fileName").GetString());
@@ -185,9 +189,9 @@ public sealed class MediaPickerControllerTests
     [Fact]
     public async Task Upload_OfARefusedFile_AnswersTheReason()
     {
-        _uploads.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Rejected("The file must be an image"));
+        _uploads.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Rejected("The file must be an image"));
 
-        var result = await _sut.Upload(File("notes.txt"), CancellationToken.None);
+        var result = await _sut.Upload(File("notes.txt"), ct: CancellationToken.None);
 
         Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<JsonResult>(result).StatusCode);
         Assert.Equal("The file must be an image", Json(result).GetProperty("error").GetString());
@@ -235,4 +239,30 @@ public sealed class MediaPickerControllerTests
     private static string? Route(string action) =>
         typeof(MediaPickerController).GetMethod(action)!.GetCustomAttributes()
             .OfType<Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute>().Single().Template;
+
+    [Fact]
+    public async Task List_InAFolder_WithOrWithoutSubfolders()
+    {
+        await _sut.List(null, 1, Photos, false, CancellationToken.None);
+        await _sut.List(null, 1, ct: CancellationToken.None);
+
+        await _media.Received(1).ListAsync(Arg.Is<MediaAssetQuery>(q => q.FolderId == Photos && !q.IncludeSubfolders), Arg.Any<CancellationToken>());
+        await _media.Received(1).ListAsync(Arg.Is<MediaAssetQuery>(q => q.FolderId == null && q.IncludeSubfolders), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task List_ForAFolderThatIsGone_IsNotFound()
+    {
+        Assert.IsType<NotFoundResult>(await _sut.List(null, 1, Guid.NewGuid(), true, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Upload_PutsTheFileInTheChosenFolder()
+    {
+        _uploads.UploadAsync(Arg.Any<Stream>(), "new.png", Photos, Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Rejected("x"));
+
+        await _sut.Upload(File("new.png"), Photos, CancellationToken.None);
+
+        await _uploads.Received(1).UploadAsync(Arg.Any<Stream>(), "new.png", Photos, Arg.Any<CancellationToken>());
+    }
 }

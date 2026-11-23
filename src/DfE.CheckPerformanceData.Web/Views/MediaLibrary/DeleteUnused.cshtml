@@ -1,9 +1,7 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaDeleteUnusedViewModel
 @{
     ViewData["Title"] = "Delete unused images";
-    var backUrl = string.IsNullOrEmpty(Model.Search)
-        ? "/admin/media?unused=true"
-        : $"/admin/media?unused=true&search={Uri.EscapeDataString(Model.Search)}";
+    var backUrl = Model.BackUrl;
     var count = Model.Items.Count;
 }
 
@@ -26,6 +24,14 @@
         {
             <p class="govuk-body">
                 These images are not used by any page version or content block.
+                @if (Model.Folder is not null)
+                {
+                    @:They are in the folder ‘@Model.Folder.Name’@(Model.IncludeSubfolders ? " or a folder inside it" : "").
+                }
+                else if (!Model.IncludeSubfolders)
+                {
+                    @:They are in no folder.
+                }
                 @if (!string.IsNullOrEmpty(Model.Search))
                 {
                     @:They match the search ‘@Model.Search’.
@@ -43,6 +49,7 @@
                 <thead class="govuk-table__head">
                     <tr class="govuk-table__row">
                         <th scope="col" class="govuk-table__header">File name</th>
+                        <th scope="col" class="govuk-table__header">Folder</th>
                         <th scope="col" class="govuk-table__header">Size</th>
                     </tr>
                 </thead>
@@ -51,6 +58,7 @@
                     {
                         <tr class="govuk-table__row" data-media-item="@item.Id">
                             <td class="govuk-table__cell"><a class="govuk-link" href="@item.DetailUrl">@item.FileName</a></td>
+                            <td class="govuk-table__cell" data-media-folder-fact>@(item.Folder.Length == 0 ? "Top of the library" : item.Folder)</td>
                             <td class="govuk-table__cell">@item.Size</td>
                         </tr>
                     }
@@ -69,6 +77,14 @@
             <form method="post" action="/admin/media/delete-unused" data-media-delete-unused-form>
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="search" value="@Model.Search" />
+                @if (Model.Folder is not null)
+                {
+                    <input type="hidden" name="folder" value="@Model.Folder.Id" />
+                }
+                @if (!Model.IncludeSubfolders)
+                {
+                    <input type="hidden" name="subfolders" value="false" />
+                }
                 @foreach (var item in Model.Items)
                 {
                     <input type="hidden" name="ids" value="@item.Id" />

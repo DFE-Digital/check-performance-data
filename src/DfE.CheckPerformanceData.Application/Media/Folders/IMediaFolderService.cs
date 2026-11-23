@@ -18,5 +18,8 @@ public interface IMediaFolderService
     /// <summary>Deletes an empty folder. A folder that holds images or folders is refused with a message that says what it holds.</summary>
     Task<MediaFolderResult> DeleteAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>How many images and folders sit directly inside the folder.</summary>
+    Task<(int Images, int Folders)> CountContentsAsync(Guid id, CancellationToken ct = default);
+
     Task<MediaImageMoveResult> MoveImagesAsync(IReadOnlyCollection<Guid> assetIds, Guid? folderId, CancellationToken ct = default);
 }

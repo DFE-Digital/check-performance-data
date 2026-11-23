@@ -255,4 +255,23 @@ public sealed class MediaFolderRepositoryTests(PostgresFixture fixture) : IAsync
         var folderText = folder.ToString();
         Assert.True(await read.AuditEntries.AnyAsync(a => a.EntityType == nameof(MediaFolder) && a.Action == "Insert" && a.EntityId == folderText));
     }
+
+    // The alt text and size reports read every image, in any folder, with its folder.
+    [Fact]
+    public async Task TheReports_ReadImagesInEveryFolder_WithTheirFolder()
+    {
+        var folder = await FolderAsync("Deep");
+        var inner = await FolderAsync("Deeper", folder);
+        var top = await ImageAsync(null);
+        var nested = await ImageAsync(inner);
+
+        await using var ctx = fixture.CreateContext();
+        var store = new MediaReportStore(ctx);
+        var assets = await store.ListAssetsAsync();
+        var largest = await store.ListLargestAsync(10);
+
+        Assert.Equal(inner, assets.Single(a => a.Id == nested).FolderId);
+        Assert.Null(assets.Single(a => a.Id == top).FolderId);
+        Assert.Equal(inner, largest.Single(a => a.Id == nested).FolderId);
+    }
 }

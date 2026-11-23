@@ -20,6 +20,11 @@ public sealed record MediaAssetBundleItem
 
     public int CurrentVersion { get; init; }
 
+    // The folders that hold the image, from the top of the library down. Empty means the top. A
+    // bundle made before the library had folders has none (null): import then leaves an existing
+    // image where it is, and puts a new one at the top.
+    public List<MediaFolderBundleItem>? FolderPath { get; init; }
+
     private readonly List<MediaAssetVersionBundleItem> _versions = [];
     public List<MediaAssetVersionBundleItem> Versions
     {

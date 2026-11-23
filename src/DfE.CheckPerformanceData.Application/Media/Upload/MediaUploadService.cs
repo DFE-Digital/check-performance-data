@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using DfE.CheckPerformanceData.Application.Media.Folders;
 using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.Media.Upload;
@@ -26,10 +27,15 @@ public sealed class MediaUploadService(
     IMediaAssetRepository assets,
     IMediaBlobStore blobs,
     MediaProcessingGate gate,
-    ILogger<MediaUploadService> logger) : IMediaUploadService
+    ILogger<MediaUploadService> logger,
+    IMediaFolderRepository folders) : IMediaUploadService
 {
-    public async Task<MediaUploadResult> UploadAsync(Stream content, string fileName, CancellationToken ct = default)
+    public async Task<MediaUploadResult> UploadAsync(Stream content, string fileName, Guid? folderId = null, CancellationToken ct = default)
     {
+        // Checked before the file is cleaned or stored. The foreign key checks it again on save.
+        if (folderId is Guid folder && await folders.GetAsync(folder, ct) is null)
+            return MediaUploadResult.Rejected(MediaRejections.FolderGone);
+
         var check = await CleanAsync(content, ct);
         if (!check.IsAccepted)
         {
@@ -53,7 +59,7 @@ public sealed class MediaUploadService(
         try
         {
             var created = await assets.CreateAsync(
-                new NewMediaAsset(id, name, MediaFileNames.Slug(name),MediaAssetMetadata.Empty, Version(key, file, sha256)), ct);
+                new NewMediaAsset(id, name, MediaFileNames.Slug(name),MediaAssetMetadata.Empty, Version(key, file, sha256), folderId), ct);
             logger.LogInformation("Media item {AssetId} uploaded ({ContentType}, {SizeBytes} bytes)", id, file.ContentType, file.Bytes.Length);
             return MediaUploadResult.Created(created);
         }

@@ -43,7 +43,8 @@ public sealed class MediaUploadServiceTests(PostgresFixture postgres, AzuriteFix
         repository ?? new MediaAssetRepository(ctx, new FakeCurrentUserService()),
         BlobStore,
         new MediaProcessingGate(Options.Create(new MediaProcessingOptions())),
-        NullLogger<MediaUploadService>.Instance);
+        NullLogger<MediaUploadService>.Instance,
+        new MediaFolderRepository(ctx, new FakeCurrentUserService()));
 
     private static byte[] Png(int width, int height, SKColor colour)
     {

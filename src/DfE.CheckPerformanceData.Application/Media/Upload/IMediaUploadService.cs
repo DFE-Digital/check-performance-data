@@ -9,9 +9,11 @@ public interface IMediaUploadService
 {
     /// <summary>
     /// Adds a new image. When the library already holds the same cleaned file, nothing is stored
-    /// and the result names the existing image so the editor can use it instead.
+    /// and the result names the existing image so the editor can use it instead, wherever it is.
+    /// A new image goes into the folder <paramref name="folderId"/>, or at the top of the library
+    /// for null. A folder that no longer exists refuses the upload.
     /// </summary>
-    Task<MediaUploadResult> UploadAsync(Stream content, string fileName, CancellationToken ct = default);
+    Task<MediaUploadResult> UploadAsync(Stream content, string fileName, Guid? folderId = null, CancellationToken ct = default);
 
     /// <summary>
     /// Stores a new version of an existing image and makes it current. Earlier versions stay, so

@@ -794,7 +794,12 @@ public sealed class AccessibilityAuditViewTests
 	{
 		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
 
-		Assert.Contains("ViewData[\"Title\"] = \"Media library\"", view);
+		Assert.Contains("ViewData[\"Title\"] = Model.Heading;", view);
+		// In a folder, the h1 is the folder name, the same words as the title.
+		Assert.Contains("<h1 class=\"govuk-heading-xl\" data-media-folder-heading>@Model.Folder.Name</h1>", view);
+		Assert.Contains("<label class=\"govuk-label govuk-label--s\" for=\"new-folder-name\">", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"move-target\">", view);
+		Assert.Contains("for=\"subfolders\"", view);
 		Assert.Contains("<h1 class=\"govuk-heading-xl\">Media library</h1>", view);
 		Assert.Contains("<label class=\"govuk-label\" for=\"files\">", view);
 		Assert.Contains("<label class=\"govuk-label\" for=\"search\">", view);
@@ -894,7 +899,7 @@ public sealed class AccessibilityAuditViewTests
 	{
 		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
 
-		Assert.Matches("<a href=\"@deleteUnusedUrl\" role=\"button\" draggable=\"false\" class=\"govuk-button govuk-button--warning\"\\s+data-module=\"govuk-button\" data-media-delete-unused-link>Delete unused images</a>", view);
+		Assert.Matches("<a href=\"@Model.DeleteUnusedUrl\" role=\"button\" draggable=\"false\" class=\"govuk-button govuk-button--warning\"\\s+data-module=\"govuk-button\" data-media-delete-unused-link>Delete unused images</a>", view);
 	}
 
 	[Fact]
@@ -1078,5 +1083,21 @@ public sealed class AccessibilityAuditViewTests
 			Assert.Contains(rule, css);
 		// Full width on a phone; the grid widths apply from the GOV.UK tablet break.
 		Assert.Contains("@media (min-width: 40.0625em)", css[css.IndexOf(".app-image {", StringComparison.Ordinal)..]);
+	}
+
+	// The folder page: its title is its h1, every form control has a label, and a refused change
+	// shows an error summary that links to the control.
+	[Fact]
+	public void MediaFolder_TitleMatchesTheH1_AndEveryControlHasALabel()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Folder.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = $\"Folder: {Model.Folder.Name}\";", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Folder: @Model.Folder.Name</h1>", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"folder-name\">", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"folder-parent\">", view);
+		Assert.Contains("<a href=\"#folder-name\">", view);
+		Assert.Contains("@section Breadcrumbs", view);
+		Assert.DoesNotContain("Html.Raw", view);
 	}
 }

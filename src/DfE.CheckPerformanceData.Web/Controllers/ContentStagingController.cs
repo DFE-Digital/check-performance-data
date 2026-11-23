@@ -540,7 +540,8 @@ public sealed class ContentStagingController(
         $" Home page banners: {r.HomeBannersCreated} added, {r.HomeBannersUpdated} updated, {r.HomeBannersSkipped} skipped." +
         (r.MediaAssetsCreated + r.MediaAssetsUpdated + r.MediaAssetsReused == 0
             ? ""
-            : $" Images: {r.MediaAssetsCreated} added, {r.MediaAssetsUpdated} updated, {r.MediaAssetsReused} already here.");
+            : $" Images: {r.MediaAssetsCreated} added, {r.MediaAssetsUpdated} updated, {r.MediaAssetsReused} already here.") +
+        (r.MediaFoldersCreated == 0 ? "" : $" Image folders: {r.MediaFoldersCreated} added.");
 
     // Records an AuditEntry for a content-staging import, so an incident responder can answer
     // "who imported what, when" without replaying the bundle.
@@ -584,6 +585,7 @@ public sealed class ContentStagingController(
             result.MediaAssetsCreated,
             result.MediaAssetsUpdated,
             result.MediaAssetsReused,
+            result.MediaFoldersCreated,
             WarningCount = result.Warnings.Count,
             ErrorCount = result.Errors.Count,
             BundleJsonBytes = bundleJson.Length,

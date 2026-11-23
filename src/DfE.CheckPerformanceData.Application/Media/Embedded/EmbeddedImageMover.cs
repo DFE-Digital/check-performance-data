@@ -192,7 +192,7 @@ public sealed class EmbeddedImageMover(
         {
             foreach (var image in images)
             {
-                var upload = await uploads.UploadAsync(new MemoryStream(image.Decoded.Bytes!, writable: false), image.FileName, ct);
+                var upload = await uploads.UploadAsync(new MemoryStream(image.Decoded.Bytes!, writable: false), image.FileName, ct: ct);
                 if (upload.Outcome == MediaUploadOutcome.Rejected)
                 {
                     await RemoveAsync(createdIds);

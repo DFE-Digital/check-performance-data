@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Media;
+using DfE.CheckPerformanceData.Application.Media.Folders;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
@@ -19,8 +20,10 @@ public sealed class MediaLibraryViewModelTests
     }
 
     private static MediaLibraryIndexViewModel Model(string? search = null, bool missingAlt = false, bool unused = false, string sort = "newest",
-        string view = MediaLibraryView.Grid) => new()
+        string view = MediaLibraryView.Grid, Guid? folder = null, bool subfolders = true) => new()
     {
+        Folder = folder is Guid id ? new MediaFolderDto(id, "Photos", null) : null,
+        IncludeSubfolders = subfolders,
         Page = new MediaAssetPage([], 0, 1, 20),
         Items = [],
         Search = search,
@@ -57,6 +60,38 @@ public sealed class MediaLibraryViewModelTests
     {
         Assert.Equal("/admin/media?view=details", Model("chart", missingAlt: true, sort: "name", view: MediaLibraryView.Details).ClearFiltersUrl);
         Assert.Equal("/admin/media", Model("chart", unused: true).ClearFiltersUrl);
+    }
+
+    private static readonly Guid FolderId = Guid.Parse("11111111-2222-3333-4444-555555555555");
+
+    [Fact]
+    public void PageUrl_KeepsTheFolder_AndSubfoldersOnlyWhenTheyAreOff()
+    {
+        Assert.Equal($"/admin/media?folder={FolderId}&search=chart&page=2", Model("chart", folder: FolderId).PageUrl(2));
+        Assert.Equal($"/admin/media?folder={FolderId}&subfolders=false&view=large", Model(view: MediaLibraryView.Large, folder: FolderId, subfolders: false).PageUrl(1));
+        Assert.Equal("/admin/media?subfolders=false", Model(subfolders: false).PageUrl(1));
+    }
+
+    [Fact]
+    public void ClearFiltersUrl_StaysInTheFolder()
+    {
+        Assert.Equal($"/admin/media?folder={FolderId}&view=details", Model("chart", view: MediaLibraryView.Details, folder: FolderId, subfolders: false).ClearFiltersUrl);
+    }
+
+    [Fact]
+    public void TheFolder_IsNotAFilter_ButSubfoldersOffIs()
+    {
+        Assert.False(Model(folder: FolderId).IsFiltered);
+        Assert.True(Model(folder: FolderId, subfolders: false).IsFiltered);
+    }
+
+    [Fact]
+    public void UploadsAndDeleteUnused_KeepTheFolder()
+    {
+        Assert.Equal($"/admin/media/upload?folder={FolderId}", Model(folder: FolderId).UploadUrl);
+        Assert.Equal("/admin/media/upload", Model().UploadUrl);
+        Assert.Equal($"/admin/media/delete-unused?folder={FolderId}&subfolders=false&search=a%20b", Model("a b", folder: FolderId, subfolders: false).DeleteUnusedUrl);
+        Assert.Equal("/admin/media/delete-unused", Model().DeleteUnusedUrl);
     }
 
     [Theory]

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Media.Folders;
 using System.Reflection;
 using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.Media.Embedded;
@@ -18,12 +19,13 @@ public sealed class MediaReportsControllerTests
 {
     private readonly IMediaReportService _reports = Substitute.For<IMediaReportService>();
     private readonly ISettingService _settings = Substitute.For<ISettingService>();
+    private readonly IMediaFolderService _folders = Substitute.For<IMediaFolderService>();
     private readonly MediaReportsController _sut;
 
     public MediaReportsControllerTests()
     {
         _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(2);
-        _sut = new MediaReportsController(_reports, _settings);
+        _sut = new MediaReportsController(_reports, _settings, _folders);
     }
 
     private static MediaAltTextAssetRow AssetRow(int n) => new(Guid.NewGuid(), $"file-{n}.png", null, AltTextProblem.Missing);
@@ -93,5 +95,19 @@ public sealed class MediaReportsControllerTests
         var view = Assert.IsType<ViewResult>(result);
         Assert.Equal(MediaReportsController.SizeView, view.ViewName);
         Assert.Same(report, view.Model);
+    }
+
+    // Both reports cover every folder and name each image's folder from the tree.
+    [Fact]
+    public async Task BothReports_GetTheFolderTree()
+    {
+        var tree = new MediaFolderTree([new MediaFolderDto(Guid.NewGuid(), "Photos", null)]);
+        _folders.GetTreeAsync(Arg.Any<CancellationToken>()).Returns(tree);
+        _reports.GetAltTextReportAsync(Arg.Any<CancellationToken>()).Returns(new MediaAltTextReport([], []));
+
+        await _sut.AltText(ct: CancellationToken.None);
+        Assert.Same(tree, _sut.ViewData[MediaReportsController.FoldersKey]);
+        await _sut.Size(CancellationToken.None);
+        await _folders.Received(2).GetTreeAsync(Arg.Any<CancellationToken>());
     }
 }

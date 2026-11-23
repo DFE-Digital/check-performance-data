@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Application.Media.Folders;
+
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media;
 
 /// <summary>
@@ -12,4 +14,12 @@ public sealed class MediaDeleteUnusedViewModel
     public required int TotalCount { get; init; }
 
     public string? Search { get; init; }
+
+    /// <summary>The folder the list came from, or null for the top of the library.</summary>
+    public MediaFolderDto? Folder { get; init; }
+
+    public bool IncludeSubfolders { get; init; } = true;
+
+    /// <summary>The library list of unused images this page came from.</summary>
+    public string BackUrl { get; init; } = "/admin/media?unused=true";
 }

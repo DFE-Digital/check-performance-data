@@ -14,7 +14,7 @@ public sealed class MediaReportStore(IPortalDbContext context) : IMediaReportSto
     public async Task<IReadOnlyList<MediaReportAsset>> ListAssetsAsync(CancellationToken ct = default) =>
         await context.MediaAssets
             .AsNoTracking()
-            .Select(a => new MediaReportAsset(a.Id, a.FileName, a.DefaultAltText, a.Caption, a.UpdatedAtUtc))
+            .Select(a => new MediaReportAsset(a.Id, a.FileName, a.DefaultAltText, a.Caption, a.UpdatedAtUtc, a.FolderId))
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<MediaReportPageVersion>> ListCurrentPageVersionsAsync(DateTime nowUtc, CancellationToken ct = default)
@@ -73,7 +73,8 @@ public sealed class MediaReportStore(IPortalDbContext context) : IMediaReportSto
                 v.Version,
                 v.SizeBytes,
                 v.Asset.Versions.Count,
-                v.Asset.Versions.Sum(o => o.SizeBytes)))
+                v.Asset.Versions.Sum(o => o.SizeBytes),
+                v.Asset.FolderId))
             .ToListAsync(ct);
 
     private static EmbeddedVersionState State(DateTime? publishFrom, DateTime nowUtc) =>

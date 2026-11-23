@@ -33,6 +33,9 @@ public sealed record MediaLibraryItemViewModel(
     /// <summary>A signed copy for the Large view, or the original when the file is never resized.</summary>
     public string LargeUrl { get; init; } = "";
 
+    /// <summary>The folder that holds the image, as a path of names. Empty at the top of the library.</summary>
+    public string Folder { get; init; } = "";
+
     public const int ThumbnailWidth = 320;
 
     public const int LargeWidth = 960;

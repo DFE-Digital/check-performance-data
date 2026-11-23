@@ -76,13 +76,15 @@ public sealed class DevE2eSupportController(
         };
         if (sample is null) return BadRequest();
 
-        var result = await uploads.UploadAsync(new MemoryStream(sample.Value.Bytes), sample.Value.Name, ct);
+        var result = await uploads.UploadAsync(new MemoryStream(sample.Value.Bytes), sample.Value.Name, ct: ct);
         if (result.Asset is not { } asset) return UnprocessableEntity(result.Rejection);
         if (!string.IsNullOrWhiteSpace(alt))
             await assets.UpdateMetadataAsync(asset.Id, new MediaAssetMetadata(alt, asset.Caption, asset.Credit, asset.Tags), ct);
         return Json(new { asset.Id, Version = asset.CurrentVersion, Url = urls.Original(asset, asset.Latest), SrcSet = urls.SrcSet(asset, asset.Latest) });
-    }
-
+    }
+
+
+
     [HttpPost("dev/media/usage")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> MediaUsage(Guid mediaId, Guid pageId, [FromServices] IPortalDbContext db, CancellationToken ct)

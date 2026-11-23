@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using DfE.CheckPerformanceData.Application.Media;
+using DfE.CheckPerformanceData.Application.Media.Folders;
 using DfE.CheckPerformanceData.Application.Media.Upload;
 using Microsoft.Extensions.Logging;
 
@@ -28,13 +29,20 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 /// wins: an image that already exists takes the bundle's alt text, caption, credit and tags. They
 /// are written only when they differ, so an import that changes nothing writes nothing. Import
 /// never deletes an image.
+///
+/// Folders: each image carries its folder path (names from the top of the library down). Import
+/// finds each folder by name under the one before it, ignoring case, so the path wins over the
+/// id. A missing folder is made, with the bundle's id when that id is free. The image goes into
+/// the last folder of the path, or to the top for an empty path. A bundle without paths (made
+/// before folders) leaves an existing image where it is and puts a new one at the top.
 /// </summary>
 public sealed class ContentMediaStaging(
     IMediaAssetRepository assets,
     IMediaBlobStore blobs,
     IMediaFileCleaner cleaner,
     MediaProcessingGate gate,
-    ILogger<ContentMediaStaging> logger) : IContentMediaStaging
+    ILogger<ContentMediaStaging> logger,
+    IMediaFolderRepository folders) : IContentMediaStaging
 {
     // The column sizes of media_assets, and the tag limits of the library's edit form.
     private const int MaxAltText = 1000;
@@ -76,6 +84,7 @@ public sealed class ContentMediaStaging(
         if (wanted.Count == 0) return ContentBundleMedia.Empty;
 
         var media = ContentBundleMedia.Empty;
+        var tree = new MediaFolderTree(await folders.ListAsync(ct));
         var fileHashes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var asset in (await assets.GetManyAsync(wanted.Keys, ct)).OrderBy(a => a.Id))
         {
@@ -114,6 +123,7 @@ public sealed class ContentMediaStaging(
                 Caption = asset.Caption,
                 Credit = asset.Credit,
                 Tags = [.. asset.Tags],
+                FolderPath = tree.PathOf(asset.FolderId).Select(f => new MediaFolderBundleItem { Id = f.Id, Name = f.Name }).ToList(),
                 CurrentVersion = asset.CurrentVersion,
                 Versions = versions,
             });
@@ -125,6 +135,7 @@ public sealed class ContentMediaStaging(
     public async Task<MediaImportMap> ImportAsync(ContentBundle bundle, ContentImportResult result, CancellationToken ct = default)
     {
         var map = new MediaImportMap();
+        var placer = new FolderPlacer(folders, result);
         var files = bundle.MediaFiles
             .GroupBy(f => f.Sha256.ToLowerInvariant(), StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
@@ -139,7 +150,7 @@ public sealed class ContentMediaStaging(
 
             try
             {
-                await ImportAssetAsync(asset, files, map, result, ct);
+                await ImportAssetAsync(asset, files, map, result, placer, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -154,8 +165,13 @@ public sealed class ContentMediaStaging(
 
     private async Task ImportAssetAsync(
         MediaAssetBundleItem asset, Dictionary<string, MediaFileBundleItem> files, MediaImportMap map,
-        ContentImportResult result, CancellationToken ct)
+        ContentImportResult result, FolderPlacer placer, CancellationToken ct)
     {
+        // Where the bundle puts the image. Not placed: an old bundle, or a path import cannot use.
+        var (placed, folderId) = asset.FolderPath is null
+            ? (false, (Guid?)null)
+            : await placer.ResolveAsync(asset.FolderPath, Describe(asset), ct);
+
         var existing = await assets.GetAsync(asset.Id, ct);
         var targetVersions = existing is null ? [] : (await assets.GetVersionsAsync(asset.Id, ct)).ToList();
         var current = existing?.CurrentVersion ?? 0;
@@ -219,7 +235,7 @@ public sealed class ContentMediaStaging(
                 continue;
             }
 
-            var stored = await StoreAsync(asset, current + 1, cleaned, cleanedHash, label, result, ct);
+            var stored = await StoreAsync(asset, current + 1, cleaned, cleanedHash, label, placed ? folderId : null, result, ct);
             if (stored is null) continue;
 
             targetVersions.Add(stored);
@@ -229,6 +245,12 @@ public sealed class ContentMediaStaging(
         }
 
         var detailsChanged = existing is not null && await TakeBundleDetailsAsync(existing, asset, ct);
+        if (existing is not null && placed && existing.FolderId != folderId)
+        {
+            var moved = await folders.MoveImagesAsync([asset.Id], folderId, ct);
+            if (moved is null) result.Warnings.Add($"Did not move image {Describe(asset)} into its folder: the folder was deleted during the import.");
+            else if (moved > 0) detailsChanged = true;
+        }
 
         if (existing is null)
         {
@@ -247,7 +269,7 @@ public sealed class ContentMediaStaging(
     // Stores the file, then its row: a row must never point at a missing file. A failed row save
     // removes the file again.
     private async Task<MediaAssetVersionDto?> StoreAsync(
-        MediaAssetBundleItem asset, int number, CleanedMediaFile file, string sha256, string label,
+        MediaAssetBundleItem asset, int number, CleanedMediaFile file, string sha256, string label, Guid? folderId,
         ContentImportResult result, CancellationToken ct)
     {
         var key = MediaBlobKeys.Original(asset.Id, number);
@@ -264,7 +286,7 @@ public sealed class ContentMediaStaging(
             if (number == 1)
             {
                 var name = MediaFileNames.Safe(asset.FileName);
-                var created = await assets.CreateAsync(new NewMediaAsset(asset.Id, name, MediaFileNames.Slug(name), Metadata(asset), row), ct);
+                var created = await assets.CreateAsync(new NewMediaAsset(asset.Id, name, MediaFileNames.Slug(name), Metadata(asset), row, folderId), ct);
                 return created.Latest;
             }
             return await assets.AddVersionAsync(asset.Id, number, row, ct);
@@ -364,5 +386,59 @@ public sealed class ContentMediaStaging(
         {
             logger.LogWarning(ex, "Could not delete media blob {BlobKey} after a failed save; it has no row", key);
         }
+    }
+
+    // Finds or makes the folders of the images' paths during one import. It reads the folders
+    // once, and remembers each folder it makes, so the images of one folder share it.
+    private sealed class FolderPlacer(IMediaFolderRepository folders, ContentImportResult result)
+    {
+        private List<MediaFolderDto>? _known;
+
+        // (true, id) when the path is usable: id is its last folder, or null for the top.
+        public async Task<(bool Placed, Guid? FolderId)> ResolveAsync(
+            IReadOnlyList<MediaFolderBundleItem> path, string image, CancellationToken ct)
+        {
+            _known ??= (await folders.ListAsync(ct)).ToList();
+            Guid? parent = null;
+            foreach (var step in path)
+            {
+                var (name, error) = MediaFolderNames.Check(step.Name);
+                if (name is null)
+                {
+                    result.Warnings.Add($"Did not put image {image} in its folder: a folder name on its path is not allowed. {error}");
+                    return (false, null);
+                }
+
+                var found = Find(parent, name);
+                if (found is null)
+                {
+                    var id = step.Id != Guid.Empty && _known.All(f => f.Id != step.Id) ? step.Id : Guid.NewGuid();
+                    var outcome = await folders.CreateAsync(id, name, parent, ct);
+                    if (outcome == MediaFolderOutcome.Done)
+                    {
+                        found = new MediaFolderDto(id, name, parent);
+                        _known.Add(found);
+                        result.MediaFoldersCreated++;
+                    }
+                    else
+                    {
+                        // Someone made or removed a folder at the same time. Read the folders again.
+                        _known = (await folders.ListAsync(ct)).ToList();
+                        found = Find(parent, name);
+                    }
+                }
+
+                if (found is null)
+                {
+                    result.Warnings.Add($"Did not put image {image} in its folder: could not make the folder ‘{name}’.");
+                    return (false, null);
+                }
+                parent = found.Id;
+            }
+            return (true, parent);
+        }
+
+        private MediaFolderDto? Find(Guid? parent, string name) =>
+            _known!.FirstOrDefault(f => f.ParentId == parent && string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -76,6 +76,9 @@ public sealed class MediaFolderService(IMediaFolderRepository folders) : IMediaF
         return Refusal(outcome, existing.Name);
     }
 
+    public Task<(int Images, int Folders)> CountContentsAsync(Guid id, CancellationToken ct = default) =>
+        folders.CountContentsAsync(id, ct);
+
     public async Task<MediaImageMoveResult> MoveImagesAsync(IReadOnlyCollection<Guid> assetIds, Guid? folderId, CancellationToken ct = default)
     {
         var ids = assetIds.Where(id => id != Guid.Empty).Distinct().ToList();

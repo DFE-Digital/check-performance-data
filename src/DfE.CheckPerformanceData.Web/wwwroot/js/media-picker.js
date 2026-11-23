@@ -9,7 +9,8 @@
 //   });
 //   MediaPicker.close();        // closes the dialog without a choice
 //   MediaPicker.isAvailable();  // false when the page has no picker dialog
-//   MediaPicker.upload(file)    // a Promise of the uploaded item, or of { error: message }
+//   MediaPicker.upload(file)    // a Promise of the uploaded item, or of { error: message }.
+//                               // It goes to the top of the library (rich text paste and drop).
 //
 // An item is { id, fileName, alt, width, height, thumbUrl, editUrl, src, isSvg, isAnimated,
 // canCrop, duplicate }. alt is the library's default alt text ("" when none). src is the unsigned
@@ -17,6 +18,11 @@
 //
 // Keyboard: the images are radio buttons. Tab moves into them, the arrow keys move between
 // them, and Enter chooses the focused image. Escape closes the dialog. Tab stays inside it.
+// Folders: the folder buttons are one Tab stop (the chosen folder). The up and down arrow keys,
+// Home and End move between them, and Enter or Space chooses one. The list then shows that
+// folder, with its subfolders while "Find images in this folder and its subfolders" is ticked.
+// The Upload button in the dialog puts the file in the chosen folder. The folder stays chosen
+// when the dialog opens again on the same page.
 // Uploads go one file at a time, with the antiforgery token in the X-XSRF-TOKEN header. Text
 // from the server is set with textContent only.
 (function () {
@@ -43,12 +49,42 @@
     var uploadGroup = dialog.querySelector('[data-media-picker-upload-group]');
     var uploadError = dialog.querySelector('[data-media-picker-upload-error]');
     var uploadButton = dialog.querySelector('[data-media-picker-upload]');
+    var tree = dialog.querySelector('[data-media-picker-tree]');
+    var subfoldersBox = dialog.querySelector('[data-media-picker-subfolders]');
 
     var FAILED = 'The images could not be loaded. Close this window and try again.';
     var UPLOAD_FAILED = 'The file could not be uploaded. Try again.';
     var TOO_LARGE = 'The selected file must be smaller than 20 MB';
 
-    var state = { opener: null, onSelect: null, query: '', page: 1, totalPages: 1, items: {}, request: 0 };
+    var state = { opener: null, onSelect: null, query: '', page: 1, totalPages: 1, items: {}, request: 0, folder: '', folderName: '' };
+
+    function folderButtons() { return tree ? Array.prototype.slice.call(tree.querySelectorAll('[data-media-picker-folder]')) : []; }
+
+    function includeSubfolders() { return !subfoldersBox || subfoldersBox.checked; }
+
+    // The list address. The defaults (the top, with subfolders) add nothing, so the first list
+    // asked for is always "?q=&page=1".
+    function listAddress(query, page) {
+        var url = listUrl + '?q=' + encodeURIComponent(query) + '&page=' + page;
+        if (state.folder) { url += '&folder=' + encodeURIComponent(state.folder); }
+        if (!includeSubfolders()) { url += '&subfolders=false'; }
+        return url;
+    }
+
+    // Marks one folder as chosen: it is pressed and is the tree's only Tab stop.
+    function markFolder(button) {
+        folderButtons().forEach(function (b) {
+            var chosen = b === button;
+            b.setAttribute('aria-pressed', chosen ? 'true' : 'false');
+            b.tabIndex = chosen ? 0 : -1;
+        });
+        state.folder = button.getAttribute('data-media-picker-folder') || '';
+        state.folderName = state.folder ? button.textContent : '';
+    }
+
+    function where() {
+        return state.folderName ? '‘' + state.folderName + '’' : 'the library';
+    }
 
     function element(tag, className, text) {
         var node = document.createElement(tag);
@@ -115,7 +151,7 @@
         state.items = {};
         setUseEnabled(false);
         announce('Loading images');
-        var url = listUrl + '?q=' + encodeURIComponent(query) + '&page=' + page;
+        var url = listAddress(query, page);
         return fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
             .then(function (response) {
                 if (!response.ok) { throw new Error(String(response.status)); }
@@ -134,11 +170,14 @@
                 pageText.textContent = 'Page ' + state.page + ' of ' + state.totalPages;
                 setUseEnabled(false);
                 if (!data.totalCount && !select) {
-                    announce(query ? 'No images match ‘' + query + '’' : 'The media library has no images yet. Upload one below.');
+                    announce(query ? 'No images match ‘' + query + '’'
+                        : state.folder ? 'This folder has no images. Upload one below.'
+                        : includeSubfolders() ? 'The media library has no images yet. Upload one below.'
+                        : 'No images are at the top of the library.');
                 } else {
                     announce(query
                         ? data.totalCount + (data.totalCount === 1 ? ' image matches ‘' : ' images match ‘') + query + '’'
-                        : data.totalCount + (data.totalCount === 1 ? ' image in the library' : ' images in the library'));
+                        : data.totalCount + (data.totalCount === 1 ? ' image in ' : ' images in ') + where());
                 }
                 if (select) {
                     var radio = grid.querySelector('input[value="' + select.id + '"]');
@@ -168,8 +207,10 @@
         var sel = 'button:not([disabled]), [href], input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
         return Array.prototype.filter.call(dialog.querySelectorAll(sel), function (el) {
             if (el.offsetParent === null && el !== document.activeElement) { return false; }
+            // A folder button that is not the chosen one is reached with the arrow keys, not Tab.
+            if (el.tabIndex < 0) { return false; }
             // Only one radio of the group is a Tab stop: the checked one, or else the first.
-            if (el.type === 'radio') {
+            if (el.type === 'radio' && grid.contains(el)) {
                 var checked = grid.querySelector('input[type="radio"]:checked');
                 return checked ? el === checked : el === radios()[0];
             }
@@ -221,6 +262,34 @@
         load(searchInput.value.trim(), 1);
     });
 
+    // Choosing a folder lists it from the first page, with the search kept.
+    if (tree) {
+        tree.addEventListener('click', function (event) {
+            var button = event.target.closest ? event.target.closest('[data-media-picker-folder]') : null;
+            if (!button) { return; }
+            markFolder(button);
+            load(state.query, 1);
+        });
+
+        tree.addEventListener('keydown', function (event) {
+            var buttons = folderButtons();
+            var index = buttons.indexOf(document.activeElement);
+            if (index < 0) { return; }
+            var next = null;
+            if (event.key === 'ArrowDown') { next = buttons[Math.min(index + 1, buttons.length - 1)]; }
+            else if (event.key === 'ArrowUp') { next = buttons[Math.max(index - 1, 0)]; }
+            else if (event.key === 'Home') { next = buttons[0]; }
+            else if (event.key === 'End') { next = buttons[buttons.length - 1]; }
+            if (!next) { return; }
+            event.preventDefault();
+            next.focus();
+        });
+    }
+
+    if (subfoldersBox) {
+        subfoldersBox.addEventListener('change', function () { load(state.query, 1); });
+    }
+
     prev.addEventListener('click', function () { if (state.page > 1) { load(state.query, state.page - 1); } });
     next.addEventListener('click', function () { if (state.page < state.totalPages) { load(state.query, state.page + 1); } });
 
@@ -259,10 +328,12 @@
 
     // Sends one file to the library. Resolves with the new (or matching) image, or with
     // { error: message } when the server or the network refuses it. Never rejects.
-    function upload(file) {
+    // The file goes into the folder given, or to the top of the library for ''.
+    function upload(file, folder) {
         if (maxBytes && file.size > maxBytes) { return Promise.resolve({ error: TOO_LARGE }); }
         var body = new FormData();
         body.append('file', file, file.name);
+        if (folder) { body.append('folder', folder); }
         return fetch(uploadUrl, {
             method: 'POST',
             credentials: 'same-origin',
@@ -289,7 +360,7 @@
 
         uploadButton.disabled = true;
         announce('Uploading ' + file.name);
-        upload(file)
+        upload(file, state.folder)
             .then(function (result) {
                 if (result.error) { showUploadError(result.error); fileInput.focus(); return; }
                 fileInput.value = '';
@@ -318,7 +389,7 @@
     window.MediaPicker = {
         open: open,
         close: close,
-        upload: upload,
+        upload: function (file) { return upload(file, ''); },
         isAvailable: function () { return true; }
     };
     document.documentElement.setAttribute('data-media-picker-init', 'true');

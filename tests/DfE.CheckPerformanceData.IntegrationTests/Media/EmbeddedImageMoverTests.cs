@@ -77,7 +77,8 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
     {
         var assets = new MediaAssetRepository(ctx, new FakeCurrentUserService());
         var uploads = new MediaUploadService(new MediaFileCleaner(new SkiaRasterImageCleaner()), assets, BlobStore,
-            new MediaProcessingGate(Options.Create(new MediaProcessingOptions())), NullLogger<MediaUploadService>.Instance);
+            new MediaProcessingGate(Options.Create(new MediaProcessingOptions())), NullLogger<MediaUploadService>.Instance,
+            new MediaFolderRepository(ctx, new FakeCurrentUserService()));
         return new EmbeddedImageMover(
             new EmbeddedImageStore(ctx), uploads, assets,
             new MediaDeletionService(assets, BlobStore, NullLogger<MediaDeletionService>.Instance),

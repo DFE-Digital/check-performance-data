@@ -14,6 +14,7 @@
 @inject IEnumerable<IAdminNavEntry> AdminNavEntries
 @inject IPageNodeService PageNodeService
 @inject IContentBlockService ContentBlockService
+@inject DfE.CheckPerformanceData.Application.Media.Folders.IMediaFolderService MediaFolderService
 @inject IAdminAccessPolicy AdminAccessPolicy
 @*
     Admin chrome — black-banded header and "Administration" wordmark
@@ -68,6 +69,17 @@
     catch
     {
         // Page-tree failure must not break the rest of admin — degrade gracefully.
+    }
+
+    // The media library's folders under "Media library", read in one query. Its own try, so a
+    // folder failure shows as no folder tree and leaves the page trees in place.
+    try
+    {
+        adminNavTreeModel = AdminNavNodeViewModel.GraftMediaFolders(adminNavTreeModel, await MediaFolderService.GetTreeAsync());
+    }
+    catch
+    {
+        // As above: degrade to the plain "Media library" entry.
     }
 
     // Role-based access filter: hide sections the current user's roles don't grant. Runs after
@@ -196,6 +208,13 @@
 @Html.GovUkFrontendJsEnabledScript(CspNonce.Get(Context))
 @* The nav is collapsible on every admin page. AdminWide only chooses whether the shell is
    edge-to-edge (dashboards, grids) or bounded by govuk-width-container (default). *@
+@* A page's breadcrumbs go before <main>, as on the public layout. *@
+@if (IsSectionDefined("Breadcrumbs"))
+{
+    <div class="@(adminWide ? "admin-breadcrumbs admin-breadcrumbs--wide" : "govuk-width-container admin-breadcrumbs")">
+        @RenderSection("Breadcrumbs", required: false)
+    </div>
+}
 @if (adminWide)
 {
     <div class="admin-layout admin-layout--wide" data-admin-nav-collapse-root>

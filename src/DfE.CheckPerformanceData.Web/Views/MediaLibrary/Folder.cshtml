@@ -1,0 +1,124 @@
+@using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
+@model MediaFolderViewModel
+@{
+    ViewData["Title"] = $"Folder: {Model.Folder.Name}";
+    if (Model.HasErrors) ViewData["HasError"] = true;
+}
+
+@section Breadcrumbs {
+    <nav class="govuk-breadcrumbs" aria-label="Breadcrumb" data-media-breadcrumbs>
+        <ol class="govuk-breadcrumbs__list">
+            <li class="govuk-breadcrumbs__list-item"><a class="govuk-breadcrumbs__link" href="/admin">Administration</a></li>
+            <li class="govuk-breadcrumbs__list-item"><a class="govuk-breadcrumbs__link" href="/admin/media">Media library</a></li>
+            @foreach (var step in Model.Path)
+            {
+                <li class="govuk-breadcrumbs__list-item"><a class="govuk-breadcrumbs__link" href="@MediaFolderViewModel.LibraryUrlFor(step.Id)">@step.Name</a></li>
+            }
+        </ol>
+    </nav>
+}
+
+@if (TempData[MediaLibraryController.SuccessKey] is string done)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="folder-banner-title" data-module="govuk-notification-banner" data-media-success>
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="folder-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@done</p>
+        </div>
+    </div>
+}
+
+@if (Model.HasErrors)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary" data-media-folder-errors>
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+                    @if (Model.NameError is not null)
+                    {
+                        <li><a href="#folder-name">@Model.NameError</a></li>
+                    }
+                    @if (Model.MoveError is not null)
+                    {
+                        <li><a href="#folder-parent">@Model.MoveError</a></li>
+                    }
+                    @if (Model.DeleteError is not null)
+                    {
+                        <li><a href="#delete-folder">@Model.DeleteError</a></li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-l">Folder: @Model.Folder.Name</h1>
+
+        <p class="govuk-body">
+            The folder holds @(Model.ImageCount == 1 ? "1 image" : $"{Model.ImageCount} images")
+            and @(Model.SubfolderCount == 1 ? "1 folder" : $"{Model.SubfolderCount} folders").
+            <a class="govuk-link" href="@Model.LibraryUrl" data-media-open-folder>Open the folder</a>
+        </p>
+
+        <form method="post" action="@($"{Model.Url}/rename")" data-media-rename-folder-form novalidate>
+            @Html.AntiForgeryToken()
+            <h2 class="govuk-heading-m">Rename the folder</h2>
+            <div class="govuk-form-group @(Model.NameError is null ? "" : "govuk-form-group--error")">
+                <label class="govuk-label" for="folder-name">Folder name</label>
+                @if (Model.NameError is not null)
+                {
+                    <p id="folder-name-error" class="govuk-error-message"><span class="govuk-visually-hidden">Error:</span> @Model.NameError</p>
+                }
+                <input class="govuk-input govuk-input--width-20 @(Model.NameError is null ? "" : "govuk-input--error")" id="folder-name" name="name" type="text"
+                       value="@Model.Name" maxlength="100" spellcheck="false"
+                       @(Model.NameError is null ? "" : "aria-describedby=folder-name-error") />
+            </div>
+            <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-prevent-double-click="true">Save name</button>
+        </form>
+
+        <form method="post" action="@($"{Model.Url}/move")" data-media-move-folder-form novalidate>
+            @Html.AntiForgeryToken()
+            <h2 class="govuk-heading-m">Move the folder</h2>
+            <div class="govuk-form-group @(Model.MoveError is null ? "" : "govuk-form-group--error")">
+                <label class="govuk-label" for="folder-parent">Move into</label>
+                <div id="folder-parent-hint" class="govuk-hint">The folder moves with everything in it. A folder cannot move into itself or into a folder inside it.</div>
+                @if (Model.MoveError is not null)
+                {
+                    <p id="folder-parent-error" class="govuk-error-message"><span class="govuk-visually-hidden">Error:</span> @Model.MoveError</p>
+                }
+                <select class="govuk-select @(Model.MoveError is null ? "" : "govuk-select--error")" id="folder-parent" name="parent"
+                        aria-describedby="folder-parent-hint@(Model.MoveError is null ? "" : " folder-parent-error")">
+                    <option value="@MediaLibraryController.TopLevel" selected="@(Model.Folder.ParentId is null)">Media library (top level)</option>
+                    @foreach (var option in Model.MoveTargets)
+                    {
+                        <option value="@option.Id" selected="@(option.Id == Model.Folder.ParentId)">@option.Label</option>
+                    }
+                </select>
+            </div>
+            <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-prevent-double-click="true">Move folder</button>
+        </form>
+
+        <h2 class="govuk-heading-m" id="delete-folder">Delete the folder</h2>
+        @if (Model.CanDelete && Model.DeleteError is null)
+        {
+            <form method="post" action="@($"{Model.Url}/delete")" data-media-delete-folder-form>
+                @Html.AntiForgeryToken()
+                <p class="govuk-body">The folder is empty, so you can delete it.</p>
+                <button type="submit" class="govuk-button govuk-button--warning" data-module="govuk-button" data-prevent-double-click="true">Delete folder</button>
+            </form>
+        }
+        else
+        {
+            <div class="govuk-inset-text" data-media-folder-not-empty>
+                @(Model.DeleteError ?? Model.NotEmptyMessage)
+            </div>
+        }
+    </div>
+</div>

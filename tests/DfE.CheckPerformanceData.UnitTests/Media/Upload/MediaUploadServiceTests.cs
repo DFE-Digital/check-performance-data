@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Media.Folders;
 using System.Security.Cryptography;
 using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.Media.Upload;
@@ -19,12 +20,13 @@ public sealed class MediaUploadServiceTests
     private readonly IMediaAssetRepository _assets = Substitute.For<IMediaAssetRepository>();
     private readonly IMediaBlobStore _blobs = Substitute.For<IMediaBlobStore>();
     private readonly MediaProcessingGate _gate = new(Options.Create(new MediaProcessingOptions { MaxConcurrentProcessing = 2 }));
+    private readonly IMediaFolderRepository _folders = Substitute.For<IMediaFolderRepository>();
     private readonly MediaUploadService _sut;
     private readonly List<string> _calls = [];
 
     public MediaUploadServiceTests()
     {
-        _sut = new MediaUploadService(_cleaner, _assets, _blobs, _gate, NullLogger<MediaUploadService>.Instance);
+        _sut = new MediaUploadService(_cleaner, _assets, _blobs, _gate, NullLogger<MediaUploadService>.Instance, _folders);
         _cleaner.CleanAsync(Arg.Any<Stream>(), Arg.Any<CancellationToken>())
             .Returns(MediaCheckResult.Accept(new CleanedMediaFile(CleanBytes, MediaFormat.Png, 30, 20, false)));
         _assets.FindBySha256Async(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
@@ -310,5 +312,26 @@ public sealed class MediaUploadServiceTests
 
         using var place = await _gate.EnterAsync().WaitAsync(TimeSpan.FromSeconds(5));
         using var second = await _gate.EnterAsync().WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task Upload_IntoAFolder_PutsTheNewImageInIt()
+    {
+        var folder = Guid.NewGuid();
+        _folders.GetAsync(folder, Arg.Any<CancellationToken>()).Returns(new MediaFolderDto(folder, "Photos", null));
+
+        await _sut.UploadAsync(new MemoryStream([1]), "a.png", folder);
+
+        await _assets.Received(1).CreateAsync(Arg.Is<NewMediaAsset>(a => a.FolderId == folder), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Upload_IntoAFolderThatIsGone_IsRefused_AndStoresNothing()
+    {
+        var result = await _sut.UploadAsync(new MemoryStream([1]), "a.png", Guid.NewGuid());
+
+        Assert.Equal(MediaRejections.FolderGone, result.Rejection);
+        await _blobs.DidNotReceiveWithAnyArgs().PutAsync(default!, default!, default!, default);
+        await _assets.DidNotReceiveWithAnyArgs().CreateAsync(default!, default);
     }
 }

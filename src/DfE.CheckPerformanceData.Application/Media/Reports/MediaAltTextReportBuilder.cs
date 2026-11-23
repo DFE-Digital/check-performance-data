@@ -23,7 +23,7 @@ public static class MediaAltTextReportBuilder
             .Where(x => x.Problem != AltTextProblem.None)
             .OrderByDescending(x => x.Asset.UpdatedAtUtc)
             .ThenBy(x => x.Asset.FileName, StringComparer.OrdinalIgnoreCase)
-            .Select(x => new MediaAltTextAssetRow(x.Asset.Id, x.Asset.FileName, x.Asset.DefaultAltText, x.Problem))
+            .Select(x => new MediaAltTextAssetRow(x.Asset.Id, x.Asset.FileName, x.Asset.DefaultAltText, x.Problem, x.Asset.FolderId))
             .ToList();
 
         var pageRows = pageVersions

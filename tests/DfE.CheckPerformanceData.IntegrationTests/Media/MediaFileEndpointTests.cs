@@ -103,7 +103,8 @@ public sealed class MediaFileEndpointTests(PostgresFixture postgres, AzuriteFixt
             new MediaAssetRepository(ctx, new FakeCurrentUserService()),
             Blobs,
             new MediaProcessingGate(Options.Create(new MediaProcessingOptions())),
-            NullLogger<MediaUploadService>.Instance);
+            NullLogger<MediaUploadService>.Instance,
+            new MediaFolderRepository(ctx, new FakeCurrentUserService()));
         var result = await service.UploadAsync(new MemoryStream(bytes), name);
         Assert.Equal(MediaUploadOutcome.Created, result.Outcome);
         return (result.Asset!, new MediaUrlBuilder(_signer));

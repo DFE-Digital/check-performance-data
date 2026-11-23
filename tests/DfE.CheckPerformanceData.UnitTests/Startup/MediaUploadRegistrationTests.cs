@@ -29,6 +29,7 @@ public sealed class MediaUploadRegistrationTests
         services.AddMemoryCache();
         services.AddSingleton<IHostEnvironment>(new StubHostEnvironment());
         services.AddSingleton(Substitute.For<IMediaAssetRepository>());
+        services.AddSingleton(Substitute.For<DfE.CheckPerformanceData.Application.Media.Folders.IMediaFolderRepository>());
         services.AddApplicationDependencies();
         services.AddCpdBlobStorage(configuration);
 
@@ -77,6 +78,7 @@ public sealed class MediaUploadRegistrationTests
         services.AddDataProtection();
         services.AddSingleton<IHostEnvironment>(new StubHostEnvironment());
         services.AddSingleton(Substitute.For<IMediaAssetRepository>());
+        services.AddSingleton(Substitute.For<DfE.CheckPerformanceData.Application.Media.Folders.IMediaFolderRepository>());
         services.AddApplicationDependencies();
         services.AddCpdBlobStorage(configuration);
 

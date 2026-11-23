@@ -13,6 +13,7 @@ public static class MediaRejections
     public const string AnimationTooLarge = "The animation is too large. Use fewer frames or smaller dimensions.";
     public const string SvgUnreadable =
         "The selected SVG could not be read. It may be damaged, too large or use features that are not allowed.";
+    public const string FolderGone = "The folder no longer exists. Choose another folder and upload the file again.";
     public const string ReplacedConcurrently =
         "Someone else replaced this image at the same time. Reload the page and try again.";
 }

@@ -50,6 +50,9 @@ public static class ContentBundleValidator
     // Media library images carried by a bundle. The files are bounded by the bundle size cap;
     // these bound how many entries the import works through.
     public const int MaxMediaAssets = 2000;
+
+    /// <summary>The most folders on one image's folder path. Each name is checked at import.</summary>
+    public const int MaxMediaFolderDepth = 20;
     public const int MaxMediaFiles = 5000;
     public const int MaxMediaVersionsPerAsset = 100;
 
@@ -129,6 +132,12 @@ public static class ContentBundleValidator
         {
             issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BUNDLE_TOO_MANY_MEDIA_FILES",
                 $"Bundle has {bundle.MediaFiles.Count} image files; the limit is {MaxMediaFiles}."));
+        }
+
+        if (bundle.MediaAssets.FirstOrDefault(a => a.FolderPath?.Count > MaxMediaFolderDepth) is { } deep)
+        {
+            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BUNDLE_MEDIA_FOLDERS_TOO_DEEP",
+                $"Image {deep.Id} is {deep.FolderPath!.Count} folders deep; the limit is {MaxMediaFolderDepth}."));
         }
 
         if (bundle.MediaAssets.FirstOrDefault(a => a.Versions.Count > MaxMediaVersionsPerAsset) is { } crowded)

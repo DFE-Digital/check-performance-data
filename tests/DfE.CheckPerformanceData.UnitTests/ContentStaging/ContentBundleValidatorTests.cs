@@ -495,6 +495,19 @@ public sealed class ContentBundleValidatorTests
     }
 
     [Fact]
+    public void AnImageFolderPathThatIsTooDeep_IsFatal()
+    {
+        var path = Enumerable.Range(0, ContentBundleValidator.MaxMediaFolderDepth + 1)
+            .Select(i => new MediaFolderBundleItem { Id = Guid.NewGuid(), Name = $"f{i}" }).ToList();
+        var bundle = new ContentBundle
+        {
+            MediaAssets = [new MediaAssetBundleItem { Id = Guid.NewGuid(), Versions = [new() { Version = 1 }], FolderPath = path }]
+        };
+
+        Assert.Contains(ContentBundleValidator.Validate(bundle), i => i.Code == "BUNDLE_MEDIA_FOLDERS_TOO_DEEP" && i.Severity == ValidationSeverity.Fatal);
+    }
+
+    [Fact]
     public void MediaWithinCaps_RaisesNoIssue()
     {
         var bundle = new ContentBundle

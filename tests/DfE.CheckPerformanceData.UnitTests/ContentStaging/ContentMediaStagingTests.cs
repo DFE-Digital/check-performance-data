@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.Media;
+using DfE.CheckPerformanceData.Application.Media.Folders;
 using DfE.CheckPerformanceData.Application.Media.Upload;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -20,11 +21,18 @@ public class ContentMediaStagingTests
 
     private readonly FakeMediaLibrary _library = new();
     private readonly FakeCleaner _cleaner = new();
+    private readonly FakeFolders _folders;
+
+    public ContentMediaStagingTests()
+    {
+        _folders = new FakeFolders(_library);
+    }
 
     private ContentMediaStaging Sut() => new(
         _library, _library, _cleaner,
         new MediaProcessingGate(Options.Create(new MediaProcessingOptions())),
-        NullLogger<ContentMediaStaging>.Instance);
+        NullLogger<ContentMediaStaging>.Instance,
+        _folders);
 
     private static byte[] Bytes(string text) => Encoding.UTF8.GetBytes(text);
 
@@ -558,6 +566,189 @@ public class ContentMediaStagingTests
     }
 
     // The library rows and blob store, in memory.
+
+    // ── folders ──────────────────────────────────────────────────────────────
+
+    private static readonly Guid PhotosFolder = new("44444444-4444-4444-8444-444444444444");
+    private static readonly Guid SchoolsFolder = new("55555555-5555-4555-8555-555555555555");
+
+    private static List<MediaFolderBundleItem> Path(params (Guid Id, string Name)[] steps) =>
+        steps.Select(s => new MediaFolderBundleItem { Id = s.Id, Name = s.Name }).ToList();
+
+    [Fact]
+    public async Task Collect_carries_each_images_folder_path_from_the_top_down()
+    {
+        _folders.Add(PhotosFolder, "Photos", null);
+        _folders.Add(SchoolsFolder, "Schools", PhotosFolder);
+        _library.Seed(Photo, Bytes("photo"));
+        _library.Assets[Photo] = _library.Assets[Photo] with { FolderId = SchoolsFolder };
+        _library.Seed(Chart, Bytes("chart"));
+
+        var media = await Sut().CollectAsync([Page("Home", Version(1, ImageWidget(Photo)), Version(2, ImageWidget(Chart)))], []);
+
+        var photo = media.Assets.Single(a => a.Id == Photo);
+        Assert.Equal(["Photos", "Schools"], photo.FolderPath!.Select(f => f.Name));
+        Assert.Equal([PhotosFolder, SchoolsFolder], photo.FolderPath!.Select(f => f.Id));
+        Assert.Empty(media.Assets.Single(a => a.Id == Chart).FolderPath!);
+    }
+
+    [Fact]
+    public async Task Import_makes_the_missing_folders_with_their_bundle_ids_and_puts_a_new_image_in_them()
+    {
+        var v1 = Bytes("photo v1");
+        var bundle = new ContentBundle
+        {
+            MediaAssets = [BundleAsset(Photo, (1, v1)) with { FolderPath = Path((PhotosFolder, "Photos"), (SchoolsFolder, "Schools")) }],
+            MediaFiles = Files(v1)
+        };
+        var result = new ContentImportResult();
+
+        await Sut().ImportAsync(bundle, result);
+
+        Assert.Equal(SchoolsFolder, _library.Assets[Photo].FolderId);
+        Assert.Equal(new MediaFolderDto(SchoolsFolder, "Schools", PhotosFolder), _folders.Folders[SchoolsFolder]);
+        Assert.Equal(2, result.MediaFoldersCreated);
+        Assert.Empty(result.Warnings);
+    }
+
+    // The path wins: a folder of the same name in the same place is used, whatever its id.
+    [Fact]
+    public async Task Import_uses_a_folder_of_the_same_name_ignoring_case()
+    {
+        var here = Guid.NewGuid();
+        _folders.Add(here, "PHOTOS", null);
+        var v1 = Bytes("photo v1");
+        var bundle = new ContentBundle
+        {
+            MediaAssets = [BundleAsset(Photo, (1, v1)) with { FolderPath = Path((PhotosFolder, "Photos")) }],
+            MediaFiles = Files(v1)
+        };
+        var result = new ContentImportResult();
+
+        await Sut().ImportAsync(bundle, result);
+
+        Assert.Equal(here, _library.Assets[Photo].FolderId);
+        Assert.Single(_folders.Folders);
+        Assert.Equal(0, result.MediaFoldersCreated);
+    }
+
+    // A bundle from before folders carries no path: a new image goes to the top, and an image
+    // that is already here stays in its folder.
+    [Fact]
+    public async Task Import_of_a_bundle_without_folders_leaves_existing_images_where_they_are()
+    {
+        _folders.Add(PhotosFolder, "Photos", null);
+        var v1 = Bytes("photo v1");
+        _library.Seed(Photo, v1);
+        _library.Assets[Photo] = _library.Assets[Photo] with { FolderId = PhotosFolder };
+        var chart = Bytes("chart");
+        var bundle = new ContentBundle { MediaAssets = [BundleAsset(Photo, (1, v1)), BundleAsset(Chart, (1, chart))], MediaFiles = Files(v1, chart) };
+
+        await Sut().ImportAsync(bundle, new ContentImportResult());
+
+        Assert.Equal(PhotosFolder, _library.Assets[Photo].FolderId);
+        Assert.Null(_library.Assets[Chart].FolderId);
+        Assert.Equal(0, _folders.Moves);
+    }
+
+    [Fact]
+    public async Task Import_moves_an_existing_image_to_the_bundles_folder_and_counts_it_updated()
+    {
+        _folders.Add(PhotosFolder, "Photos", null);
+        var v1 = Bytes("photo v1");
+        _library.Seed(Photo, v1);
+        _library.Assets[Photo] = _library.Assets[Photo] with
+        {
+            DefaultAltText = "A photo", Caption = "Caption", Credit = "Credit", Tags = ["one", "two"], FolderId = PhotosFolder
+        };
+        var bundle = new ContentBundle { MediaAssets = [BundleAsset(Photo, (1, v1)) with { FolderPath = [] }], MediaFiles = Files(v1) };
+        var result = new ContentImportResult();
+
+        await Sut().ImportAsync(bundle, result);
+
+        Assert.Null(_library.Assets[Photo].FolderId);
+        Assert.Equal(1, result.MediaAssetsUpdated);
+        Assert.Equal(0, result.MediaAssetsReused);
+    }
+
+    [Fact]
+    public async Task Import_again_finds_the_same_folders_and_changes_nothing()
+    {
+        var v1 = Bytes("photo v1");
+        var bundle = new ContentBundle
+        {
+            MediaAssets = [BundleAsset(Photo, (1, v1)) with { FolderPath = Path((PhotosFolder, "Photos")) }],
+            MediaFiles = Files(v1)
+        };
+        await Sut().ImportAsync(bundle, new ContentImportResult());
+        var again = new ContentImportResult();
+
+        await Sut().ImportAsync(bundle, again);
+
+        Assert.Equal(1, again.MediaAssetsReused);
+        Assert.Equal(0, again.MediaFoldersCreated);
+        Assert.Equal(0, _folders.Moves);
+    }
+
+    [Fact]
+    public async Task Import_warns_about_a_folder_name_it_cannot_use_and_puts_a_new_image_at_the_top()
+    {
+        var v1 = Bytes("photo v1");
+        var bundle = new ContentBundle
+        {
+            MediaAssets = [BundleAsset(Photo, (1, v1)) with { FolderPath = Path((PhotosFolder, "a/b")) }],
+            MediaFiles = Files(v1)
+        };
+        var result = new ContentImportResult();
+
+        await Sut().ImportAsync(bundle, result);
+
+        Assert.Null(_library.Assets[Photo].FolderId);
+        Assert.Empty(_folders.Folders);
+        Assert.Contains(result.Warnings, w => w.Contains("folder") && w.Contains(MediaFolderNames.BadCharacter));
+    }
+
+    private sealed class FakeFolders(FakeMediaLibrary library) : IMediaFolderRepository
+    {
+        public Dictionary<Guid, MediaFolderDto> Folders { get; } = [];
+        public int Moves { get; private set; }
+
+        public void Add(Guid id, string name, Guid? parent) => Folders[id] = new MediaFolderDto(id, name, parent);
+
+        public Task<IReadOnlyList<MediaFolderDto>> ListAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<MediaFolderDto>>(Folders.Values.ToList());
+
+        public Task<MediaFolderDto?> GetAsync(Guid id, CancellationToken ct = default) => Task.FromResult(Folders.GetValueOrDefault(id));
+
+        public Task<MediaFolderOutcome> CreateAsync(Guid id, string name, Guid? parentId, CancellationToken ct = default)
+        {
+            if (Folders.ContainsKey(id)) throw new InvalidOperationException("id taken");
+            if (Folders.Values.Any(f => f.ParentId == parentId && string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase)))
+                return Task.FromResult(MediaFolderOutcome.NameTaken);
+            Add(id, name, parentId);
+            return Task.FromResult(MediaFolderOutcome.Done);
+        }
+
+        public Task<int?> MoveImagesAsync(IReadOnlyCollection<Guid> assetIds, Guid? folderId, CancellationToken ct = default)
+        {
+            var moved = 0;
+            foreach (var id in assetIds.Where(library.Assets.ContainsKey))
+            {
+                if (library.Assets[id].FolderId == folderId) continue;
+                library.Assets[id] = library.Assets[id] with { FolderId = folderId };
+                moved++;
+            }
+            Moves += moved;
+            return Task.FromResult<int?>(moved);
+        }
+
+        public Task<MediaFolderOutcome> RenameAsync(Guid id, string name, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<MediaFolderOutcome> MoveAsync(Guid id, Guid? parentId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<MediaFolderOutcome> DeleteAsync(Guid id, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<(int Images, int Folders)> CountContentsAsync(Guid id, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> SubtreeIdsAsync(Guid id, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
     private sealed class FakeMediaLibrary : IMediaAssetRepository, IMediaBlobStore
     {
         public Dictionary<Guid, MediaAssetDto> Assets { get; } = [];
@@ -604,7 +795,7 @@ public class ContentMediaStagingTests
             var first = Row(asset.Id, 1, asset.FirstVersion);
             var created = new MediaAssetDto(asset.Id, asset.FileName, asset.Slug, asset.Metadata.DefaultAltText,
                 asset.Metadata.Caption, asset.Metadata.Credit, asset.Metadata.Tags, 1, first,
-                DateTime.UtcNow, "import", DateTime.UtcNow, "import");
+                DateTime.UtcNow, "import", DateTime.UtcNow, "import", asset.FolderId);
             Assets[asset.Id] = created;
             return Task.FromResult(created);
         }

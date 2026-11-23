@@ -28,6 +28,10 @@
         </dd>
     </div>
     <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Folder</dt>
+        <dd class="govuk-summary-list__value" data-media-folder-fact>@(Model.Folder.Length == 0 ? "Top of the library" : Model.Folder)</dd>
+    </div>
+    <div class="govuk-summary-list__row">
         <dt class="govuk-summary-list__key">Uses</dt>
         <dd class="govuk-summary-list__value" data-media-uses>@(Model.Uses == 0 ? "Not used" : Model.Uses == 1 ? "1 page or block" : $"{Model.Uses} pages or blocks")</dd>
     </div>

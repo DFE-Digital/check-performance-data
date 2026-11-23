@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Media.Folders;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 
@@ -64,6 +65,52 @@ public sealed class AdminNavNodeViewModel
 
         return GraftInForest(forest, pruned, AdminNavKeys.ContentBlocks,
             (node, parentKey) => MapContentBlockPageNode(node, parentKey, pagesWithBlocks));
+    }
+
+    // Grafts the media library's folders under the Media library node, each folder with its
+    // subfolders. No folders returns the forest unchanged.
+    public static IReadOnlyList<AdminNavNodeViewModel> GraftMediaFolders(
+        IReadOnlyList<AdminNavNodeViewModel> forest,
+        MediaFolderTree folders)
+    {
+        if (folders is null || folders.Count == 0)
+            return forest;
+
+        AdminNavNodeViewModel Map(MediaFolderDto folder, string parentKey)
+        {
+            var entry = new MediaFolderNavEntry(folder.Id, folder.Name, parentKey);
+            return new AdminNavNodeViewModel
+            {
+                Entry = entry,
+                Children = folders.ChildrenOf(folder.Id).Select(c => Map(c, entry.Key)).ToList(),
+            };
+        }
+
+        return ReplaceChildren(forest, AdminNavKeys.Media,
+            () => folders.ChildrenOf(null).Select(f => Map(f, AdminNavKeys.Media)).ToList());
+    }
+
+    private static IReadOnlyList<AdminNavNodeViewModel> ReplaceChildren(
+        IReadOnlyList<AdminNavNodeViewModel> forest, string targetKey, Func<IReadOnlyList<AdminNavNodeViewModel>> children)
+    {
+        var result = new List<AdminNavNodeViewModel>(forest.Count);
+        var changed = false;
+        foreach (var node in forest)
+        {
+            AdminNavNodeViewModel next;
+            if (node.Entry.Key == targetKey)
+            {
+                next = new AdminNavNodeViewModel { Entry = node.Entry, Children = children() };
+            }
+            else
+            {
+                var inner = ReplaceChildren(node.Children, targetKey, children);
+                next = ReferenceEquals(inner, node.Children) ? node : new AdminNavNodeViewModel { Entry = node.Entry, Children = inner };
+            }
+            result.Add(next);
+            if (!ReferenceEquals(next, node)) changed = true;
+        }
+        return changed ? result : forest;
     }
 
     private static IReadOnlyList<AdminNavNodeViewModel> GraftInForest(
@@ -161,13 +208,17 @@ public sealed class AdminNavNodeViewModel
     // is longer than /admin/pages) rather than the parent content-pages entry. When grafting
     // failed (exception) the forest contains only DI-registered entries, giving the same
     // result as passing AdminNavEntries directly.
-    public static IEnumerable<IAdminNavEntry> CollectEntries(IReadOnlyList<AdminNavNodeViewModel> forest)
+    public static IEnumerable<IAdminNavEntry> CollectEntries(IReadOnlyList<AdminNavNodeViewModel> forest) =>
+        CollectNodes(forest).Select(n => n.Entry);
+
+    // Every node of the forest, depth-first.
+    public static IEnumerable<AdminNavNodeViewModel> CollectNodes(IReadOnlyList<AdminNavNodeViewModel> forest)
     {
         foreach (var node in forest)
         {
-            yield return node.Entry;
-            foreach (var entry in CollectEntries(node.Children))
-                yield return entry;
+            yield return node;
+            foreach (var child in CollectNodes(node.Children))
+                yield return child;
         }
     }
 
@@ -204,10 +255,15 @@ public sealed class AdminNavNodeViewModel
         // access to them follows the parent group's grant, not their own).
         // Containers (no URL): keep only when at least one descendant survived — an empty
         // group would render as a bare heading with nothing under it.
+        // A media folder follows the Media section, so it never keeps a node the user cannot reach.
         var hasUrl = !string.IsNullOrEmpty(node.Entry.Url);
-        var selfAllowed = hasUrl
-            ? (isSynthetic || canAccessSection(node.Entry.Key))
-            : filteredChildren.Count > 0;
+        var selfAllowed = node.Entry is MediaFolderNavEntry
+            ? canAccessSection(AdminNavKeys.Media)
+            : hasUrl
+                ? (isSynthetic || canAccessSection(node.Entry.Key))
+                : filteredChildren.Count > 0;
+        if (node.Entry is MediaFolderNavEntry && !selfAllowed) return null;
+        if (node.Entry.Key == AdminNavKeys.Media && !selfAllowed) return null;
 
         if (!selfAllowed && filteredChildren.Count == 0) return null;
 

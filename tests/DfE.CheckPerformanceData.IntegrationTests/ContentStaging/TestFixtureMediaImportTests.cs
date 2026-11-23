@@ -56,7 +56,8 @@ public sealed class TestFixtureMediaImportTests(PostgresFixture postgres, Azurit
             new HtmlRenderingService(),
             media: new ContentMediaStaging(
                 new MediaAssetRepository(ctx, new FakeCurrentUserService()), new MediaBlobStore(_blobs, _container),
-                new MediaFileCleaner(new SkiaRasterImageCleaner()), gate, NullLogger<ContentMediaStaging>.Instance));
+                new MediaFileCleaner(new SkiaRasterImageCleaner()), gate, NullLogger<ContentMediaStaging>.Instance,
+                new MediaFolderRepository(ctx, new FakeCurrentUserService())));
         var result = await new ManifestContentImporter(new PageNodeRepository(ctx), staging, NullLogger<ManifestContentImporter>.Instance)
             .ImportFileAsync(ImportFolder, TestFixtureSeedBundle.FileName);
         Assert.Empty(result.Errors);

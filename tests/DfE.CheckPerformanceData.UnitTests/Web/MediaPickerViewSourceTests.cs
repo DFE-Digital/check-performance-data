@@ -112,4 +112,31 @@ public sealed class MediaPickerViewSourceTests
         Assert.Contains("Cropper.js v1.6.2", Read("wwwroot", "lib", "cropperjs", "cropper.min.css"));
         Assert.Contains("The MIT License", Read("wwwroot", "lib", "cropperjs", "LICENSE"));
     }
+
+    // The folder tree: buttons in nested lists, named by a heading, with one Tab stop (the chosen
+    // folder), and a labelled "subfolders" box. The script lists and uploads into the chosen folder.
+    [Fact]
+    public void TheDialog_HasAFolderTree_AndASubfoldersBox()
+    {
+        var src = Dialog();
+
+        Assert.Contains("role=\"group\" aria-labelledby=\"media-picker-folders-title\"", src);
+        Assert.Contains("id=\"media-picker-folders-title\"", src);
+        Assert.Matches("<button type=\"button\" class=\"app-media-picker__folder\" tabindex=\"0\" aria-pressed=\"true\"\\s+data-media-picker-folder=\"\">Media library</button>", src);
+        Assert.Contains("tabindex=\"-1\" aria-pressed=\"false\"", src);
+        Assert.Contains("<label class=\"govuk-label govuk-checkboxes__label\" for=\"media-picker-subfolders\">", src);
+        Assert.Contains("id=\"media-picker-subfolders\" type=\"checkbox\" checked", src);
+    }
+
+    [Fact]
+    public void TheScript_ListsAndUploadsIntoTheChosenFolder()
+    {
+        var js = Read("wwwroot", "js", "media-picker.js");
+
+        Assert.Contains("url += '&folder=' + encodeURIComponent(state.folder);", js);
+        Assert.Contains("url += '&subfolders=false';", js);
+        Assert.Contains("body.append('folder', folder);", js);
+        Assert.Contains("upload(file, state.folder)", js);
+        Assert.Contains("event.key === 'ArrowDown'", js);
+    }
 }

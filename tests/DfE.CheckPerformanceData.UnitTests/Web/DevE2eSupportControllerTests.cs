@@ -43,7 +43,7 @@ public sealed class DevE2eSupportControllerTests
         var result = await Controller(devTools, environment).MediaSample("png", null, _uploads, _urls, _assets, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
-        await _uploads.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default);
+        await _uploads.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default, default);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class DevE2eSupportControllerTests
     public async Task MediaSample_UploadsTheSampleAndReturnsItsUrl()
     {
         var asset = Asset();
-        _uploads.UploadAsync(Arg.Any<Stream>(), "sample.svg", Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Created(asset));
+        _uploads.UploadAsync(Arg.Any<Stream>(), "sample.svg", Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Created(asset));
         _urls.Original(asset, asset.Latest).Returns("/media/x/1/sample.svg");
 
         var result = await Controller(devTools: true).MediaSample("svg", null, _uploads, _urls, _assets, CancellationToken.None);
@@ -82,7 +82,7 @@ public sealed class DevE2eSupportControllerTests
     public async Task MediaSample_SetsTheAltText_WhenOneIsGiven()
     {
         var asset = Asset();
-        _uploads.UploadAsync(Arg.Any<Stream>(), "sample.svg", Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Duplicate(asset));
+        _uploads.UploadAsync(Arg.Any<Stream>(), "sample.svg", Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Duplicate(asset));
         _assets.UpdateMetadataAsync(asset.Id, Arg.Any<MediaAssetMetadata>(), Arg.Any<CancellationToken>()).Returns(true);
 
         var result = await Controller(devTools: true).MediaSample("svg", "Green and blue blocks", _uploads, _urls, _assets, CancellationToken.None);
@@ -96,7 +96,7 @@ public sealed class DevE2eSupportControllerTests
     public async Task MediaSample_LeavesTheMetadataAlone_WithoutAltText()
     {
         var asset = Asset();
-        _uploads.UploadAsync(Arg.Any<Stream>(), "sample.png", Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Created(asset));
+        _uploads.UploadAsync(Arg.Any<Stream>(), "sample.png", Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(MediaUploadResult.Created(asset));
 
         await Controller(devTools: true).MediaSample("png", null, _uploads, _urls, _assets, CancellationToken.None);
 

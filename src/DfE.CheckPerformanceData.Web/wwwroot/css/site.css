@@ -2570,6 +2570,41 @@ dialog.seed-progress-modal {
   }
 }
 
+/* Media library folders: the list of folders, and an input with its button on one row. */
+.app-media-folders li {
+  margin-bottom: 5px;
+}
+
+.app-media-folders a::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 0.75em;
+  margin-right: 0.4em;
+  border: 2px solid currentColor;
+  border-top-width: 4px;
+  vertical-align: -0.05em;
+}
+
+.app-media-folder-create {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.app-media-folder-create .govuk-button {
+  margin-bottom: 0;
+}
+
+.app-media-select {
+  margin-top: 5px;
+}
+
+.admin-breadcrumbs--wide {
+  padding: 0 15px;
+}
+
 .app-media-picker__search-row {
   display: flex;
   flex-wrap: wrap;
@@ -2696,4 +2731,53 @@ dialog.seed-progress-modal {
 .app-input--read-only {
   background: #f3f2f1;
   color: #505a5f;
+}
+
+/* Media picker folder tree: nested buttons, the chosen one filled. Long trees scroll. */
+.app-media-picker__tree {
+  max-height: 12rem;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid #b1b4b6;
+}
+
+.app-media-picker__tree-group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-media-picker__tree-group .app-media-picker__tree-group {
+  margin-left: 8px;
+  padding-left: 15px;
+  border-left: 1px dotted #b1b4b6;
+}
+
+.app-media-picker__folder {
+  margin: 1px 0;
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: #1d70b8;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.app-media-picker__folder[aria-pressed="true"] {
+  background: #1d70b8;
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.app-media-picker__folder:focus {
+  outline: 3px solid transparent;
+  background: #ffdd00;
+  color: #0b0c0c;
+  box-shadow: 0 -2px #ffdd00, 0 4px #0b0c0c;
+  text-decoration: none;
 }

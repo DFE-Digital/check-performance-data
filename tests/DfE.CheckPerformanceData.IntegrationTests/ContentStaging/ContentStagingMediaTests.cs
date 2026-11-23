@@ -63,14 +63,16 @@ public sealed class ContentStagingMediaTests(PostgresFixture postgres, AzuriteFi
 
     private MediaUploadService Uploads(PortalDbContext ctx, string container) => new(
         new MediaFileCleaner(new SkiaRasterImageCleaner()), new MediaAssetRepository(ctx, new FakeCurrentUserService()),
-        new MediaBlobStore(_blobs, container), Gate, NullLogger<MediaUploadService>.Instance);
+        new MediaBlobStore(_blobs, container), Gate, NullLogger<MediaUploadService>.Instance,
+        new MediaFolderRepository(ctx, new FakeCurrentUserService()));
 
     private ContentStagingService Staging(PortalDbContext ctx, string container) => new(
         new PageNodeRepository(ctx), new ContentBlockRepository(ctx), new HomeBannerRepository(ctx, new FakeCurrentUserService()),
         new HtmlRenderingService(),
         media: new ContentMediaStaging(
             new MediaAssetRepository(ctx, new FakeCurrentUserService()), new MediaBlobStore(_blobs, container),
-            new MediaFileCleaner(new SkiaRasterImageCleaner()), Gate, NullLogger<ContentMediaStaging>.Instance));
+            new MediaFileCleaner(new SkiaRasterImageCleaner()), Gate, NullLogger<ContentMediaStaging>.Instance,
+                new MediaFolderRepository(ctx, new FakeCurrentUserService())));
 
     private async Task<Guid> UploadAsync(string container, byte[] png, string name)
     {

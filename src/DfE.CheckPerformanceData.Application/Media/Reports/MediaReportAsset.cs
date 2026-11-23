@@ -6,4 +6,5 @@ public sealed record MediaReportAsset(
     string FileName,
     string? DefaultAltText,
     string? Caption,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    Guid? FolderId = null);

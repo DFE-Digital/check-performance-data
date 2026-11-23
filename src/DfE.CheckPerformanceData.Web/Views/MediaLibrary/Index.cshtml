@@ -7,24 +7,60 @@
     @* The full-width admin layout, so the grid shows more images in each row. The flag, not the
        _AdminWideLayout wrapper, because the wrapper does not pass on the Scripts section. *@
     ViewData["AdminWide"] = true;
-    ViewData["Title"] = "Media library";
+    ViewData["Title"] = Model.Heading;
     var library = Model.Page;
     // One message per problem: no file chosen, or a refused file with its name.
-    var errors = Model.UploadResults
+    var uploadErrors = Model.UploadResults
         .Where(r => r.Outcome == MediaUploadOutcome.Rejected)
         .Select(r => $"{r.FileName}: {r.Rejection}")
         .Prepend(Model.UploadError)
         .OfType<string>()
         .ToList();
-    var hasErrors = errors.Count > 0;
+    var hasUploadErrors = uploadErrors.Count > 0;
+    var hasErrors = hasUploadErrors || Model.NewFolderError is not null || Model.MoveError is not null;
     if (hasErrors) ViewData["HasError"] = true;
     var maxFile = MediaFileSize.Format(MediaUploadLimits.MaxFileBytes);
     var maxRequest = MediaFileSize.Format(MediaLibraryController.MaxUploadRequestBytes);
     // Zero-based for PaginationWindow; the list and its links are 1-based.
     var currentIndex = library.Page - 1;
+    var path = Model.FolderPath;
+    var currentPath = Model.Folders.PathText(Model.Folder?.Id);
+    // "‘Photos / Schools’", or "the top of the library".
+    var here = Model.Folder is null ? "the top of the library" : $"‘{currentPath}’";
+    var emptyMessage = Model.IsFiltered && (!string.IsNullOrEmpty(Model.Search) || Model.MissingAlt || Model.Unused)
+        ? "No images match your search and filters."
+        : Model.Folder is not null ? "This folder has no images."
+        : !Model.IncludeSubfolders ? "No images are at the top of the library. The images are in folders."
+        : "The media library is empty.";
 }
 
-<a href="/admin" class="govuk-back-link">Back to administration</a>
+@section Breadcrumbs {
+    @* The folder path. Rendered before <main> by the admin layout, as the GOV.UK pattern asks. *@
+    <nav class="govuk-breadcrumbs" aria-label="Breadcrumb" data-media-breadcrumbs>
+        <ol class="govuk-breadcrumbs__list">
+            <li class="govuk-breadcrumbs__list-item"><a class="govuk-breadcrumbs__link" href="/admin">Administration</a></li>
+            @if (Model.Folder is null)
+            {
+                <li class="govuk-breadcrumbs__list-item" aria-current="page">Media library</li>
+            }
+            else
+            {
+                <li class="govuk-breadcrumbs__list-item"><a class="govuk-breadcrumbs__link" href="@Model.FolderUrl(null)">Media library</a></li>
+                @foreach (var step in path)
+                {
+                    if (step.Id == Model.Folder.Id)
+                    {
+                        <li class="govuk-breadcrumbs__list-item" aria-current="page">@step.Name</li>
+                    }
+                    else
+                    {
+                        <li class="govuk-breadcrumbs__list-item"><a class="govuk-breadcrumbs__link" href="@Model.FolderUrl(step.Id)">@step.Name</a></li>
+                    }
+                }
+            }
+        </ol>
+    </nav>
+}
 
 @if (TempData[MediaLibraryController.SuccessKey] is string done)
 {
@@ -40,50 +76,112 @@
 }
 
 @* The script fills this summary for files refused during a script upload; after a plain form
-   post the server renders it. Either way it links to the file control. *@
+   post the server renders it. Each error links to its own control. *@
 <div class="govuk-error-summary" data-module="govuk-error-summary" data-media-upload-errors @(hasErrors ? "" : "hidden")>
     <div role="alert">
         <h2 class="govuk-error-summary__title">There is a problem</h2>
         <div class="govuk-error-summary__body">
             <ul class="govuk-list govuk-error-summary__list" data-media-upload-error-list>
-                @foreach (var error in errors)
+                @foreach (var error in uploadErrors)
                 {
                     <li><a href="#files">@error</a></li>
+                }
+                @if (Model.NewFolderError is not null)
+                {
+                    <li data-media-new-folder-error-link><a href="#new-folder-name">@Model.NewFolderError</a></li>
+                }
+                @if (Model.MoveError is not null)
+                {
+                    <li data-media-move-error-link><a href="#move-target">@Model.MoveError</a></li>
                 }
             </ul>
         </div>
     </div>
 </div>
 
-<h1 class="govuk-heading-xl">Media library</h1>
+@if (Model.Folder is null)
+{
+    <h1 class="govuk-heading-xl">Media library</h1>
+}
+else
+{
+    <span class="govuk-caption-xl">Media library folder</span>
+    <h1 class="govuk-heading-xl" data-media-folder-heading>@Model.Folder.Name</h1>
+}
 
-<p class="govuk-body">Upload images once and reuse them on any page.</p>
+@if (Model.Folder is null)
+{
+    <p class="govuk-body">Upload images once and reuse them on any page.</p>
 
-<p class="govuk-body">
-    Older pages can hold images saved inside their text.
-    <a class="govuk-link" href="/admin/media/move-embedded" data-media-move-embedded-link>Move embedded images into the library</a>.
-</p>
+    <p class="govuk-body">
+        Older pages can hold images saved inside their text.
+        <a class="govuk-link" href="/admin/media/move-embedded" data-media-move-embedded-link>Move embedded images into the library</a>.
+    </p>
 
-<h2 class="govuk-heading-m">Reports</h2>
-<ul class="govuk-list" data-media-reports>
-    <li><a class="govuk-link" href="/admin/media/reports/alt-text" data-media-alt-text-report-link>Alt text report</a> – images with missing or weak alt text</li>
-    <li><a class="govuk-link" href="/admin/media/reports/size" data-media-size-report-link>Size report</a> – the largest images and the storage the library uses</li>
-</ul>
+    <h2 class="govuk-heading-m">Reports</h2>
+    <ul class="govuk-list" data-media-reports>
+        <li><a class="govuk-link" href="/admin/media/reports/alt-text" data-media-alt-text-report-link>Alt text report</a> – images with missing or weak alt text</li>
+        <li><a class="govuk-link" href="/admin/media/reports/size" data-media-size-report-link>Size report</a> – the largest images and the storage the library uses</li>
+    </ul>
+}
 
-<form id="media-upload-form" method="post" enctype="multipart/form-data" action="/admin/media/upload"
+@* The folders directly inside this one, and a form to add one. Each folder link keeps the view. *@
+<h2 class="govuk-heading-m">Folders</h2>
+@if (Model.Subfolders.Count == 0)
+{
+    <p class="govuk-body" data-media-no-folders>@(Model.Folder is null ? "The library has no folders yet." : "This folder has no folders inside it.")</p>
+}
+else
+{
+    <ul class="govuk-list app-media-folders" data-media-folders>
+        @foreach (var sub in Model.Subfolders)
+        {
+            <li data-media-folder="@sub.Id"><a class="govuk-link" href="@Model.FolderUrl(sub.Id)">@sub.Name</a></li>
+        }
+    </ul>
+}
+@if (Model.Folder is not null)
+{
+    <p class="govuk-body">
+        <a class="govuk-link" href="@MediaFolderViewModel.FolderSettingsUrl(Model.Folder.Id)" data-media-folder-settings-link>Rename, move or delete this folder</a>
+    </p>
+}
+<form method="post" action="/admin/media/folders" data-media-new-folder-form novalidate>
+    @Html.AntiForgeryToken()
+    @if (Model.Folder is not null)
+    {
+        <input type="hidden" name="parent" value="@Model.Folder.Id" />
+    }
+    <div class="govuk-form-group @(Model.NewFolderError is null ? "" : "govuk-form-group--error")">
+        <label class="govuk-label govuk-label--s" for="new-folder-name">Create a folder @(Model.Folder is null ? "in the library" : $"in ‘{Model.Folder.Name}’")</label>
+        @if (Model.NewFolderError is not null)
+        {
+            <p id="new-folder-name-error" class="govuk-error-message"><span class="govuk-visually-hidden">Error:</span> @Model.NewFolderError</p>
+        }
+        <div class="app-media-folder-create">
+            <input class="govuk-input govuk-input--width-20 @(Model.NewFolderError is null ? "" : "govuk-input--error")" id="new-folder-name" name="name" type="text"
+                   value="@Model.NewFolderName" maxlength="100" spellcheck="false"
+                   @(Model.NewFolderError is null ? "" : "aria-describedby=new-folder-name-error") />
+            <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-prevent-double-click="true" data-media-new-folder-submit>Create folder</button>
+        </div>
+    </div>
+</form>
+
+<form id="media-upload-form" method="post" enctype="multipart/form-data" action="@Model.UploadUrl"
       data-max-bytes="@MediaUploadLimits.MaxFileBytes" data-too-large-message="@MediaRejections.TooLarge">
     @Html.AntiForgeryToken()
     <h2 class="govuk-heading-m">Upload images</h2>
-    <div class="govuk-form-group @(hasErrors ? "govuk-form-group--error" : "")">
+    <div class="govuk-form-group @(hasUploadErrors ? "govuk-form-group--error" : "")">
         <label class="govuk-label" for="files">Images</label>
         <div id="files-hint" class="govuk-hint">
             PNG, JPEG, GIF, WebP or SVG. Each file must be smaller than @maxFile.
             You can choose more than one file. Together they must be smaller than @maxRequest.
+            New images go into @here.
         </div>
-        @if (hasErrors)
+        @if (hasUploadErrors)
         {
             <p id="files-error" class="govuk-error-message">
-                @foreach (var error in errors)
+                @foreach (var error in uploadErrors)
                 {
                     <span class="govuk-visually-hidden">Error:</span> @error<br />
                 }
@@ -95,7 +193,7 @@
         <div class="govuk-file-upload-wrapper" data-module="govuk-file-upload">
             <input class="govuk-file-upload" id="files" name="files" type="file" multiple
                    accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,.svg"
-                   aria-describedby="files-hint@(hasErrors ? " files-error" : "")" />
+                   aria-describedby="files-hint@(hasUploadErrors ? " files-error" : "")" />
         </div>
     </div>
     <button type="submit" class="govuk-button" data-prevent-double-click="true" data-media-upload-submit>Upload</button>
@@ -130,9 +228,30 @@
 
 <h2 class="govuk-heading-m">Find images</h2>
 <form method="get" action="/admin/media" class="app-media-filters" data-media-library-filters>
+    @if (Model.Folder is not null)
+    {
+        <input type="hidden" name="folder" value="@Model.Folder.Id" />
+    }
     <div class="govuk-form-group">
         <label class="govuk-label" for="search">Search by file name, alt text or tag</label>
         <input class="govuk-input govuk-!-width-two-thirds" id="search" name="search" type="search" value="@Model.Search" />
+    </div>
+    @* Ticked by default. A ticked box sends true before the hidden false, and the first value
+       wins; an unticked box sends only the false. *@
+    <div class="govuk-form-group">
+        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+            <div class="govuk-checkboxes__item">
+                <input class="govuk-checkboxes__input" id="subfolders" name="subfolders" type="checkbox" value="true"
+                       aria-describedby="subfolders-hint" @(Model.IncludeSubfolders ? "checked" : "") data-media-include-subfolders />
+                <label class="govuk-label govuk-checkboxes__label" for="subfolders">Include subfolders</label>
+                <div id="subfolders-hint" class="govuk-hint govuk-checkboxes__hint">
+                    @(Model.Folder is null
+                        ? "Untick to find only the images that are in no folder."
+                        : $"Untick to find only the images in ‘{Model.Folder.Name}’ itself.")
+                </div>
+            </div>
+        </div>
+        <input type="hidden" name="subfolders" value="false" />
     </div>
     <div class="govuk-form-group">
         <fieldset class="govuk-fieldset">
@@ -166,9 +285,17 @@
     </div>
 </form>
 
-@* The view keeps the search, filters and sort, and goes back to the first page. site.js submits
-   the form when the select changes (data-auto-submit); without JavaScript the button does. *@
+@* The view keeps the folder, search, filters and sort, and goes back to the first page. site.js
+   submits the form when the select changes (data-auto-submit); without JavaScript the button does. *@
 <form method="get" action="/admin/media" data-media-library-view-form>
+    @if (Model.Folder is not null)
+    {
+        <input type="hidden" name="folder" value="@Model.Folder.Id" />
+    }
+    @if (!Model.IncludeSubfolders)
+    {
+        <input type="hidden" name="subfolders" value="false" />
+    }
     @if (!string.IsNullOrEmpty(Model.Search))
     {
         <input type="hidden" name="search" value="@Model.Search" />
@@ -194,13 +321,12 @@
     </div>
 </form>
 
-@* The upload script reloads this region after its uploads finish, so new images appear. *@
+@* The upload script reloads this region after its uploads finish, so new images appear. The
+   region is one form: each image has a check box, and "Move selected images" moves the ticked ones. *@
 <div data-media-library-region>
     @if (library.TotalCount == 0)
     {
-        <p class="govuk-body" data-media-library-empty>
-            @(Model.IsFiltered ? "No images match your search and filters." : "The media library is empty.")
-        </p>
+        <p class="govuk-body" data-media-library-empty>@emptyMessage</p>
     }
     else
     {
@@ -208,15 +334,35 @@
             Showing @((library.Page - 1) * library.PageSize + 1) to @((library.Page - 1) * library.PageSize + library.Items.Count) of @library.TotalCount images.
         </p>
         @* Nothing deletes unused images by itself. With the "Not used on any page" filter on, the
-           editor can delete the ones that match the search, after a confirmation page. *@
+           editor can delete the ones that match the search in this folder, after a confirmation page. *@
         @if (Model.Unused)
         {
-            var deleteUnusedUrl = string.IsNullOrEmpty(Model.Search)
-                ? "/admin/media/delete-unused"
-                : $"/admin/media/delete-unused?search={Uri.EscapeDataString(Model.Search)}";
-            <a href="@deleteUnusedUrl" role="button" draggable="false" class="govuk-button govuk-button--warning"
+            <a href="@Model.DeleteUnusedUrl" role="button" draggable="false" class="govuk-button govuk-button--warning"
                data-module="govuk-button" data-media-delete-unused-link>Delete unused images</a>
         }
+        <form method="post" action="/admin/media/move" data-media-move-form novalidate>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="@Model.PageUrl(library.Page)" />
+            <div class="govuk-form-group app-media-move @(Model.MoveError is null ? "" : "govuk-form-group--error")">
+                <label class="govuk-label" for="move-target">Move selected images to</label>
+                <div id="move-target-hint" class="govuk-hint">Tick the images to move, then choose a folder.</div>
+                @if (Model.MoveError is not null)
+                {
+                    <p id="move-target-error" class="govuk-error-message"><span class="govuk-visually-hidden">Error:</span> @Model.MoveError</p>
+                }
+                <div class="app-media-folder-create">
+                    <select class="govuk-select @(Model.MoveError is null ? "" : "govuk-select--error")" id="move-target" name="target"
+                            aria-describedby="move-target-hint@(Model.MoveError is null ? "" : " move-target-error")">
+                        <option value="">Choose a folder</option>
+                        <option value="@MediaLibraryController.TopLevel">Media library (top level)</option>
+                        @foreach (var option in Model.FolderOptions)
+                        {
+                            <option value="@option.Id">@option.Label</option>
+                        }
+                    </select>
+                    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-prevent-double-click="true" data-media-move-submit>Move selected images</button>
+                </div>
+            </div>
         @switch (Model.View)
         {
             case MediaLibraryView.Details:
@@ -224,6 +370,7 @@
                     <caption class="govuk-table__caption govuk-table__caption--m">Images</caption>
                     <thead class="govuk-table__head">
                         <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Select</span></th>
                             <th scope="col" class="govuk-table__header">Image</th>
                             <th scope="col" class="govuk-table__header">Name</th>
                             <th scope="col" class="govuk-table__header">Details</th>
@@ -233,6 +380,9 @@
                         @foreach (var item in Model.Items)
                         {
                             <tr class="govuk-table__row" data-media-item="@item.Id">
+                                <td class="govuk-table__cell">
+                                    <partial name="_MediaLibrarySelect" model="item" />
+                                </td>
                                 <td class="govuk-table__cell app-media-details__thumb">
                                     @* The file name is the link text, so the thumbnail adds nothing for a screen reader. *@
                                     <img src="@item.ThumbnailUrl" alt="" loading="lazy" decoding="async" class="app-media-details__img" />
@@ -256,6 +406,7 @@
                             <h3 class="govuk-heading-s app-media-large__name">
                                 <a class="govuk-link" href="@item.DetailUrl">@item.FileName</a>
                             </h3>
+                            <partial name="_MediaLibrarySelect" model="item" />
                             @* The file name is the link text, and the facts below give the alt text. *@
                             <img src="@item.LargeUrl" alt="" loading="lazy" decoding="async"
                                  class="@(item.IsShownAsStored ? "app-media-large__img app-media-large__img--fixed" : "app-media-large__img")" />
@@ -283,16 +434,22 @@
                                 @item.Dimensions<br />
                             }
                             @item.Size
+                            @if (item.Folder != currentPath)
+                            {
+                                <br /><span data-media-item-folder>In @(item.Folder.Length == 0 ? "the top of the library" : item.Folder)</span>
+                            }
                         </span>
                         @if (item.MissingAltText)
                         {
                             <strong class="govuk-tag govuk-tag--yellow" data-media-missing-alt>No alt text</strong>
                         }
+                        <partial name="_MediaLibrarySelect" model="item" />
                     </li>
                 }
             </ul>
                 break;
         }
+        </form>
 
         @if (library.TotalPages > 1)
         {

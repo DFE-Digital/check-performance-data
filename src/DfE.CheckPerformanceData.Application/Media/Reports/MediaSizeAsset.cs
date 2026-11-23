@@ -8,4 +8,5 @@ public sealed record MediaSizeAsset(
     int CurrentVersion,
     long CurrentBytes,
     int Versions,
-    long StoredBytes);
+    long StoredBytes,
+    Guid? FolderId = null);

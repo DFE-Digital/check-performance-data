@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.Media;
+using DfE.CheckPerformanceData.Application.Media.Folders;
 using DfE.CheckPerformanceData.Application.Media.Serving;
 using DfE.CheckPerformanceData.Application.Media.Upload;
 using DfE.CheckPerformanceData.Application.Media.Widget;
@@ -22,7 +23,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class MediaPickerController(
     IMediaAssetRepository media,
     IMediaUploadService uploads,
-    IMediaUrlBuilder urls) : Controller
+    IMediaUrlBuilder urls,
+    IMediaFolderService folders) : Controller
 {
     /// <summary>How many images one page of the picker shows.</summary>
     public const int PageSize = 12;
@@ -38,16 +40,21 @@ public sealed class MediaPickerController(
     public const string ImageWidgetView = "~/Views/Shared/ContentPages/Widgets/_Image.cshtml";
 
     // One page of the library, newest first, as JSON. The search matches the file name, alt text,
-    // caption, credit or a tag.
+    // caption, credit or a tag. "folder" and "subfolders" choose the folder as the library page
+    // does: no folder with subfolders (the default) is the whole library. An unknown folder is 404.
     [HttpGet("admin/media/picker")]
-    public async Task<IActionResult> List(string? q, int page = 1, CancellationToken ct = default)
+    public async Task<IActionResult> List(string? q, int page = 1, Guid? folder = null, bool subfolders = true, CancellationToken ct = default)
     {
+        if (folder is Guid id && (await folders.GetTreeAsync(ct)).Find(id) is null) return NotFound();
+
         var term = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
         var result = await media.ListAsync(new MediaAssetQuery(
             Search: term,
             Page: Math.Max(1, page),
             PageSize: PageSize,
-            Sort: MediaAssetSort.Newest), ct);
+            Sort: MediaAssetSort.Newest,
+            FolderId: folder,
+            IncludeSubfolders: subfolders), ct);
 
         var size = Math.Max(1, result.PageSize);
         return new JsonResult(new
@@ -59,19 +66,20 @@ public sealed class MediaPickerController(
         });
     }
 
-    // Puts one file in the library through the upload pipeline. A new image or a file that is
-    // already in the library answers the image; a refused file answers the reason, with a 400.
+    // Puts one file in the library through the upload pipeline, in the folder the picker shows
+    // ("folder", none for the top). A new image or a file that is already in the library answers
+    // the image; a refused file, or a folder that is gone, answers the reason with a 400.
     [HttpPost("admin/media/picker/upload")]
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(MaxUploadRequestBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = MaxUploadRequestBytes)]
-    public async Task<IActionResult> Upload(IFormFile? file, CancellationToken ct)
+    public async Task<IActionResult> Upload(IFormFile? file, Guid? folder = null, CancellationToken ct = default)
     {
         if (file is null || string.IsNullOrEmpty(file.FileName)) return Error(NoFileError);
 
         MediaUploadResult result;
         await using (var stream = file.OpenReadStream())
-            result = await uploads.UploadAsync(stream, file.FileName, ct);
+            result = await uploads.UploadAsync(stream, file.FileName, folder, ct);
 
         return result.Outcome switch
         {

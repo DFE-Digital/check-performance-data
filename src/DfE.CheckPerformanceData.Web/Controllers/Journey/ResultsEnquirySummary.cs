@@ -37,6 +37,9 @@ public sealed class ResultsEnquirySummary
     /// the results file's own name and no AO row, exactly as the details page does.</summary>
     public QualificationReference? Qualification { get; init; }
 
+    /// <summary>The graded exam answer (#899). Null leaves the row out.</summary>
+    public bool? IsGradedExam { get; init; }
+
     /// <summary>False for enquiry kinds with no revised-grade step (AB#298704): the row and its
     /// Change link are omitted entirely rather than rendered empty.</summary>
     public required bool ShowRevisedGrade { get; init; }
@@ -72,6 +75,8 @@ public sealed class ResultsEnquirySummary
             lines.Add(Fixed("Qualification number (QAN)", Result?.Qan ?? string.Empty));
             lines.Add(Fixed("Qualification name and subject",
                 Qualification?.QualificationTitle ?? Result?.QualificationName ?? string.Empty));
+            if (IsGradedExam is { } isGradedExam)
+                lines.Add(GradedExamSummaryLine.For(isGradedExam));
             lines.Add(Fixed("Session", Result?.Session ?? string.Empty));
             lines.Add(Fixed("Current grade", Result?.Grade ?? string.Empty));
 

@@ -27,6 +27,10 @@ public sealed class MissingQualificationSummary
     public string? AwardingOrganisation { get; init; }
     public string? Qan { get; init; }
     public string? QualificationTitle { get; init; }
+
+    /// <summary>The graded exam answer (#899). Null leaves the row out.</summary>
+    public bool? IsGradedExam { get; init; }
+
     public string? SyllabusCode { get; init; }
 
     /// <summary>Issue #577: the syllabus-code question is hidden when the selected qualification
@@ -71,6 +75,8 @@ public sealed class MissingQualificationSummary
                 "Qualification number (QAN)", Qan ?? string.Empty,
                 QualificationPageId, true, "Qualification number (QAN)"));
             lines.Add(Fixed("Qualification name and subject", QualificationTitle ?? string.Empty));
+            if (IsGradedExam is { } isGradedExam)
+                lines.Add(GradedExamSummaryLine.For(isGradedExam));
 
             if (ShowSyllabusCode)
                 lines.Add(new SummaryLine(

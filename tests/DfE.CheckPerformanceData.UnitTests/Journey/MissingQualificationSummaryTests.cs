@@ -4,7 +4,8 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
 public class MissingQualificationSummaryTests
 {
-    private static MissingQualificationSummary Summary(bool isCohortWide, bool showSyllabusCode = true) => new()
+    private static MissingQualificationSummary Summary(
+        bool isCohortWide, bool showSyllabusCode = true, bool? isGradedExam = null) => new()
     {
         DfeNumber = "860/4070",
         KeyStageLabel = "16 to 19",
@@ -17,6 +18,7 @@ public class MissingQualificationSummaryTests
         QualificationTitle = "AQA Level 1/Level 2 GCSE (9-1) in Mathematics",
         SyllabusCode = "8300H",
         ShowSyllabusCode = showSyllabusCode,
+        IsGradedExam = isGradedExam,
         AwardDate = "1 June 2025",
         Ncn = "12345",
         GradeAchieved = "2",
@@ -75,4 +77,25 @@ public class MissingQualificationSummaryTests
     [Fact]
     public void Enquiry_type_reads_Missing_qualification()
         => Assert.Equal("Missing qualification", Summary(false).Lines.Single(l => l.Key == "Enquiry type").Value);
+
+    [Theory]
+    [InlineData(true, "Yes")]
+    [InlineData(false, "No")]
+    public void A_graded_exam_answer_adds_the_row_after_the_qualification_name(bool isGradedExam, string expected)
+    {
+        var lines = Summary(isCohortWide: false, isGradedExam: isGradedExam).Lines.ToList();
+
+        var index = lines.FindIndex(l => l.Key == "Graded Exam");
+        Assert.True(index > 0);
+        Assert.Equal("Qualification name and subject", lines[index - 1].Key);
+        Assert.Equal("Syllabus code", lines[index + 1].Key);
+        Assert.Equal(expected, lines[index].Value);
+        Assert.False(lines[index].HasChange);
+    }
+
+    [Fact]
+    public void No_graded_exam_answer_leaves_the_row_out()
+    {
+        Assert.DoesNotContain(Summary(isCohortWide: false).Lines, l => l.Key == "Graded Exam");
+    }
 }

@@ -75,8 +75,8 @@ This first page is usually a `PupilSearch` page (the Add journey's is not) — s
   does not offer. It refuses before it changes the state. A posted form can
   carry a value that the page does not show (`docs/ks2-journeys.md`, decision 1).
 - **The previous request.** Check your pupil data clears the whole request state. A user can
-  also start a journey without that page. Back leads to What to change, and other pages have
-  links to it. A flow that has a `PupilSearch` page refreshes the request each time the user
+  also start a journey without that page. Back can lead to What to change, and other pages
+  link to it. A flow that has a `PupilSearch` page refreshes the request each time the user
   selects a pupil. It sets a new reference number and selected pupil, and clears the matched
   pupil and the selected result. A flow with no `PupilSearch` page (Add) has nothing that does
   this, so `ClearPreviousRequest` does it. Without it, the new request uses the reference

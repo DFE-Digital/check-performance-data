@@ -24,7 +24,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public string? Type { get; set; }
 
         [JsonProperty("comment")]
-        public TicketComment? Comment { get; set; }
+        public CreateTicketComment? Comment { get; set; }
 
         [JsonProperty("requester_id")]
         public long? RequesterId { get; set; }
@@ -32,13 +32,19 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         [JsonProperty("priority")]
         public string? Priority { get; set; }
 
-        [JsonProperty("description")]
-        public string? Description { get; set; }
-
         [JsonProperty("custom_fields")]
         public List<CustomField>? CustomFields { get; set; }
 
         [JsonProperty("brand_id")]
         public long? BrandId { get; set; }
+    }
+
+    public sealed class CreateTicketComment
+    {
+        [JsonProperty("body")]
+        public string? Body { get; set; }
+
+        [JsonProperty("public")]
+        public bool Public { get; set; }
     }
 }

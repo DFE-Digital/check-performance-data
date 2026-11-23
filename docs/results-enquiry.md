@@ -415,6 +415,7 @@ correct Zendesk view. The prod Zendesk views are the source of truth.
 | `group_id` | `SchoolCheckingExercise__GroupId`. Never the Scrutiny group: the enquiry views accept only this group. |
 | `brand_id` | `SchoolCheckingExercise__BrandId` |
 | Status, type, priority | `new`, `question`, `low` |
+| Ticket text | `comment` with `public: false` (an internal note), so Zendesk does not add the agent signature. See [rules-engine.md](rules-engine.md#current-state). |
 
 Routing fields (the views filter on these tag values):
 

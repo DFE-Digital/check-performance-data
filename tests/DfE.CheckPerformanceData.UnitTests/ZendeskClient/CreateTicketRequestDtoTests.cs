@@ -27,7 +27,6 @@ public class CreateTicketRequestDtoTests
         Assert.Null(dto.Ticket.Comment);
         Assert.Null(dto.Ticket.RequesterId);
         Assert.Equal(string.Empty, dto.Ticket.Priority);
-        Assert.Equal(string.Empty, dto.Ticket.Description);
         Assert.Empty(dto.Ticket.CustomFields);
         Assert.Null(dto.Ticket.BrandId);
     }
@@ -43,8 +42,7 @@ public class CreateTicketRequestDtoTests
             Status = "open",
             GroupId = 123L,
             Type = "task",
-            Priority = "high",
-            Description = "Test description"
+            Priority = "high"
         };
 
         // Act
@@ -57,7 +55,6 @@ public class CreateTicketRequestDtoTests
         Assert.Equal(123L, dto.Ticket.GroupId);
         Assert.Equal("task", dto.Ticket.Type);
         Assert.Equal("high", dto.Ticket.Priority);
-        Assert.Equal("Test description", dto.Ticket.Description);
     }
 
     [Fact]
@@ -109,7 +106,6 @@ public class CreateTicketRequestDtoTests
         Assert.Null(dto.Comment);
         Assert.Null(dto.RequesterId);
         Assert.Equal(string.Empty, dto.Priority);
-        Assert.Equal(string.Empty, dto.Description);
         Assert.Empty(dto.CustomFields);
         Assert.Null(dto.BrandId);
     }
@@ -119,13 +115,7 @@ public class CreateTicketRequestDtoTests
     {
         // Arrange
         var dto = new CreateTicketDto();
-        var comment = new TicketCommentDto
-        {
-            Id = 1L,
-            Body = "Test comment",
-            Public = true,
-            CreatedAt = DateTime.UtcNow
-        };
+        var comment = CreateTicketCommentDto.InternalNote("Test comment");
 
         // Act
         dto.Subject = "Test Subject";
@@ -135,7 +125,6 @@ public class CreateTicketRequestDtoTests
         dto.Comment = comment;
         dto.RequesterId = 456L;
         dto.Priority = "high";
-        dto.Description = "Test description";
         dto.BrandId = 789L;
 
         // Assert
@@ -146,7 +135,6 @@ public class CreateTicketRequestDtoTests
         Assert.Equal(comment, dto.Comment);
         Assert.Equal(456L, dto.RequesterId);
         Assert.Equal("high", dto.Priority);
-        Assert.Equal("Test description", dto.Description);
         Assert.Equal(789L, dto.BrandId);
     }
 
@@ -161,14 +149,12 @@ public class CreateTicketRequestDtoTests
         dto.Status = string.Empty;
         dto.Type = string.Empty;
         dto.Priority = string.Empty;
-        dto.Description = string.Empty;
 
         // Assert
         Assert.Equal(string.Empty, dto.Subject);
         Assert.Equal(string.Empty, dto.Status);
         Assert.Equal(string.Empty, dto.Type);
         Assert.Equal(string.Empty, dto.Priority);
-        Assert.Equal(string.Empty, dto.Description);
     }
 
     [Fact]
@@ -176,7 +162,7 @@ public class CreateTicketRequestDtoTests
     {
         // Arrange
         var dto = new CreateTicketDto();
-        dto.Comment = new TicketCommentDto();
+        dto.Comment = new CreateTicketCommentDto();
 
         // Act
         dto.Comment = null;
@@ -404,19 +390,6 @@ public class CreateTicketRequestDtoTests
     }
 
     [Fact]
-    public void CreateTicketDto_WithUnicodeInDescription_ShouldStoreUnicode()
-    {
-        // Arrange
-        var dto = new CreateTicketDto();
-
-        // Act
-        dto.Description = "Description with unicode: 你好世界 🌍";
-
-        // Assert
-        Assert.Equal("Description with unicode: 你好世界 🌍", dto.Description);
-    }
-
-    [Fact]
     public void CreateTicketDto_WithNumberInStatus_ShouldStoreNumber()
     {
         // Arrange
@@ -495,19 +468,6 @@ public class CreateTicketRequestDtoTests
     }
 
     [Fact]
-    public void CreateTicketDto_WithNullDescription_ShouldAllowNull()
-    {
-        // Arrange
-        var dto = new CreateTicketDto();
-
-        // Act
-        dto.Description = null;
-
-        // Assert
-        Assert.Null(dto.Description);
-    }
-
-    [Fact]
     public void CreateTicketDto_WithMultipleCustomFieldAssignments_ShouldUpdateValue()
     {
         // Arrange
@@ -557,12 +517,7 @@ public class CreateTicketRequestDtoTests
         var dto = new CreateTicketRequestDto();
         var ticket = new CreateTicketDto
         {
-            Comment = new TicketCommentDto
-            {
-                Id = 1L,
-                Body = "Test comment",
-                Public = true
-            }
+            Comment = CreateTicketCommentDto.InternalNote("Test comment")
         };
 
         // Act
@@ -571,9 +526,8 @@ public class CreateTicketRequestDtoTests
         // Assert
         Assert.NotNull(dto.Ticket);
         Assert.NotNull(dto.Ticket.Comment);
-        Assert.Equal(1L, dto.Ticket.Comment.Id);
         Assert.Equal("Test comment", dto.Ticket.Comment.Body);
-        Assert.True(dto.Ticket.Comment.Public);
+        Assert.False(dto.Ticket.Comment.Public);
     }
 
     [Fact]

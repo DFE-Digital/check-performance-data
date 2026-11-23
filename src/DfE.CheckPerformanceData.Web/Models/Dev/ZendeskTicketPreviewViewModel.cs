@@ -22,7 +22,6 @@ public sealed class ZendeskTicketPreviewViewModel
     public string Body { get; init; } = string.Empty;
     public IReadOnlyList<ZendeskCustomFieldView> CustomFields { get; init; } = Array.Empty<ZendeskCustomFieldView>();
     public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
-    public IReadOnlyList<string> Attachments { get; init; } = Array.Empty<string>();
     public string RawJson { get; init; } = string.Empty;
 
     private static readonly JsonSerializerOptions Options = new()
@@ -49,11 +48,6 @@ public sealed class ZendeskTicketPreviewViewModel
                 f.Value?.ToString() ?? string.Empty))
             .ToList();
 
-        var attachments = (parsed?.Comment?.Attachments ?? new List<AttachmentDto>())
-            .Select(a => a.FileName)
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .ToList();
-
         return new ZendeskTicketPreviewViewModel
         {
             ReferenceNumber = ticket.ReferenceNumber,
@@ -64,10 +58,9 @@ public sealed class ZendeskTicketPreviewViewModel
             TicketId = ticket.TicketId,
             CreatedAtUtc = ticket.CreatedAtUtc,
             Requester = parsed?.RequesterId is { } rid ? $"Requester #{rid}" : "Unknown requester",
-            Body = parsed?.Comment?.Body ?? parsed?.Description ?? string.Empty,
+            Body = parsed?.Comment?.Body ?? string.Empty,
             CustomFields = customFields,
             Tags = Array.Empty<string>(),
-            Attachments = attachments,
             RawJson = ticket.RawJson,
         };
     }

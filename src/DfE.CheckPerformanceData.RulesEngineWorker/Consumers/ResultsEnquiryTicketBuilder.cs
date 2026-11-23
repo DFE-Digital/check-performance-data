@@ -37,7 +37,7 @@ internal sealed class ResultsEnquiryTicketBuilder(
             Ticket = new CreateTicketDto
             {
                 Subject = $"{message.RequestTypeCode} ({message.ReferenceNumber})",
-                Description = BuildDescription(message),
+                Comment = CreateTicketCommentDto.InternalNote(BuildDescription(message)),
                 Status = "new",
                 Type = "question",
                 Priority = "low",

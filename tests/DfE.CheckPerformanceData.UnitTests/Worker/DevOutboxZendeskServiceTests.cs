@@ -25,7 +25,7 @@ public sealed class DevOutboxZendeskServiceTests
         Ticket = new CreateTicketDto
         {
             Subject = "CPMD Auto-Approved: INC-ACC (REF-ABC123)",
-            Description = "Request REF-ABC123 details",
+            Comment = CreateTicketCommentDto.InternalNote("Request REF-ABC123 details"),
             Status = "open",
             Priority = "normal",
             Type = "task",

@@ -52,7 +52,15 @@ public sealed class ResultsEnquiryTicketBuilderTests
         Assert.Equal("question", ticket.Type);
         Assert.Equal("low", ticket.Priority);
         Assert.Contains(Reference, ticket.Subject);
-        Assert.Contains("Challenged result", ticket.Description);
+        Assert.Contains("Challenged result", ticket.Comment!.Body);
+    }
+
+    // A public comment from the API agent gets the agent signature, which looks like an email
+    // to the school.
+    [Fact]
+    public void The_ticket_text_is_an_internal_note()
+    {
+        Assert.False(Build(Message(WhatToChange.IncorrectGrade)).Comment!.Public);
     }
 
     [Theory]

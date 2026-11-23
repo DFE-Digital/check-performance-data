@@ -103,11 +103,6 @@
     font-style: italic;
 }
 
-.zd-comment__attachments {
-    margin-top: 16px;
-}
-
-.zd-comment__attachments-heading,
 .zd-sidebar__heading {
     font-size: 13px;
     font-weight: 700;
@@ -117,7 +112,6 @@
     margin: 16px 0 4px;
 }
 
-.zd-attachment-list,
 .zd-tag-list {
     list-style: none;
     margin: 0;
@@ -125,15 +119,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-}
-
-.zd-attachment {
-    background: #e9ebed;
-    border: 1px solid #c2c8cc;
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 13px;
-    color: #2f3941;
 }
 
 .zd-tag {

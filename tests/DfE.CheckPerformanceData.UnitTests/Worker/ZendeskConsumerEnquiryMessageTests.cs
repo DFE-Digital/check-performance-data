@@ -58,9 +58,9 @@ public sealed class ZendeskConsumerEnquiryMessageTests
         Assert.Contains("Results enquiry - Incorrect grade", ticket.Subject);
 
         // The description carries the synthetic challenged-result answer block (FR-003).
-        Assert.Contains("Results enquiry - Incorrect grade", ticket.Description);
-        Assert.Contains("Challenged result", ticket.Description);
-        Assert.Contains("60180882", ticket.Description); // QAN from the seeded result
+        Assert.Contains("Results enquiry - Incorrect grade", ticket.Comment!.Body);
+        Assert.Contains("Challenged result", ticket.Comment!.Body);
+        Assert.Contains("60180882", ticket.Comment!.Body); // QAN from the seeded result
     }
 
     [Fact]

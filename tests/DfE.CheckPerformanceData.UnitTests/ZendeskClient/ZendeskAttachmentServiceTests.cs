@@ -154,6 +154,24 @@ public sealed class ZendeskAttachmentServiceTests : IDisposable
         Assert.Equal("tok1", capturedRequest.Ticket.Comment.Uploads![0]!);
     }
 
+    // A public comment from the API agent gets the agent signature, which looks like an email
+    // to the school. The evidence comment is an internal note.
+    [Fact]
+    public async Task AddAttachmentAsync_AddsTheCommentAsAnInternalNote()
+    {
+        _api.UploadFile(Arg.Any<string>(), Arg.Any<Stream>()).Returns(new UploadResponse { Upload = new() { Token = "tok1" } });
+
+        UpdateTicketRequest? capturedRequest = null;
+        _api.AddCommentWithAttachment(42L, Arg.Do<UpdateTicketRequest>(r => capturedRequest = r))
+            .Returns(ValidResponse());
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("fake content"));
+        await CreateSut().AddAttachmentAsync(42, "test.pdf", stream);
+
+        Assert.NotNull(capturedRequest);
+        Assert.False(capturedRequest.Ticket!.Comment!.Public);
+    }
+
     [Fact]
     public async Task AddAttachmentAsync_CallsMap_ToDto_WithCorrectResponse()
     {

@@ -91,7 +91,7 @@ All custom events carry **no PII as plain fields**; a hidden field is noted belo
 
 | Event (`event_type`) | Key fields | Emitted from | Hidden field |
 |---|---|---|---|
-| `change_type_selected` | `what_to_change`, `checking_window_type` | `WhatToChangeController.Confirm` (valid POST) | — |
+| `change_type_selected` | `what_to_change`, `checking_window_type` | `ChangeTypeSelectionService.StartJourneyAsync`: a valid POST on What to change, or the automatic selection when the window type offers one change type | — |
 | `draft_saved` | `status`, `what_to_change`, `checking_window_type`, `reference_number` | `JourneyController.SaveDraft` | `reference_number` |
 | `draft_resumed` | `reference_number`, `what_to_change`, `checking_window_type` | `AmendmentRequestsController.Edit` | `reference_number` |
 | `request_submitted` | `what_to_change`, `checking_window_type`, `reference_number` | `JourneyController.SummaryConfirm` (success) | `reference_number` |

@@ -488,8 +488,8 @@ Current profiles:
 
 | Key | Window | Data files | Headings |
 | --- | --- | --- | --- |
-| `ks4` | KS4 | `8604070_pupils.json` | "Check your pupil data" / "What pupil data would you like to change?" |
-| `post16` | 16 to 19 | `8604070_pupils.json`, `8604070_results.json` | "Check your student data" / "What student data would you like to change?" |
+| `ks4` | KS4 | `8604070_pupils.json` | "Check your pupil data" / "What pupil data would you like to amend?" |
+| `post16` | 16 to 19 | `8604070_pupils.json`, `8604070_results.json` | "Check your student data" / "What student data would you like to amend?" |
 
 The profiles hold no release or exercise GUIDs. Seeding creates new GUIDs each time, so `setup()` resolves the file paths at run time. See `lib/release-lookup.ts` under [Shared libraries](#shared-libraries).
 

@@ -31,7 +31,7 @@ rule, so a posted Add for a window with no flow file is refused.
 
 ### Starting clean: the pupil-search-less reset
 
-`Confirm` clears the whole per-request identity — reference number, selected pupil, matched pupil,
+`IChangeTypeSelectionService.StartJourneyAsync` clears the whole per-request identity — reference number, selected pupil, matched pupil,
 selected result, answers, history — whenever the chosen flow has **no `PageType.PupilSearch` page**.
 
 This is not an Add special case, it is the invariant Add was the first flow to need. Every other

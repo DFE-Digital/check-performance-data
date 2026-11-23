@@ -6,7 +6,7 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 
 /// <summary>
 /// Decides which pupil-data change types a window type offers, and starts the journey for the
-/// change type that the user (or the service) selects on "What pupil data would you like to change?".
+/// change type that the user (or the service) selects on "What pupil data would you like to amend?".
 /// </summary>
 public interface IChangeTypeSelectionService
 {

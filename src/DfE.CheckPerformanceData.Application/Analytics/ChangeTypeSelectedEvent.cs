@@ -1,7 +1,7 @@
 namespace DfE.CheckPerformanceData.Application.Analytics;
 
 /// <summary>
-/// A change type was selected on "What pupil data would you like to change?", by the user or, when
+/// A change type was selected on "What pupil data would you like to amend?", by the user or, when
 /// the window type offers only one, by the service. The journey starts. No reference number exists yet.
 /// </summary>
 public sealed record ChangeTypeSelectedEvent : AnalyticsEvent

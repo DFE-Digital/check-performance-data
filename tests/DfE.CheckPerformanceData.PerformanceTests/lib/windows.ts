@@ -25,7 +25,7 @@ export const WINDOW_PROFILES: Record<WindowKey, WindowProfile> = {
             "Check your pupil data",
 
         whatToChangeHeading:
-            "What pupil data would you like to change?",
+            "What pupil data would you like to amend?",
     },
 
     post16: {
@@ -44,7 +44,7 @@ export const WINDOW_PROFILES: Record<WindowKey, WindowProfile> = {
             "Check your student data",
 
         whatToChangeHeading:
-            "What student data would you like to change?",
+            "What student data would you like to amend?",
     },
 };
 

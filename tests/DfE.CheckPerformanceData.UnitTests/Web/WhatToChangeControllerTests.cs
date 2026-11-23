@@ -101,6 +101,18 @@ public sealed class WhatToChangeControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task Confirm_WhenNoSelection_AddsTheErrorMessageOfTheQuestion()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+
+        await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null });
+
+        var error = Assert.Single(_sut.ModelState[nameof(WhatToChangeViewModel.SelectedWhatToChange)]!.Errors);
+        Assert.Equal("Select what pupil data you would like to amend", error.ErrorMessage);
+    }
+
     // ── AB#297310: CheckingWindowType feeds the Add-radio gate ───────────────
 
     [Fact]

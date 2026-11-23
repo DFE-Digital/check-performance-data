@@ -70,7 +70,7 @@ public sealed class WhatToChangeController(
         {
             var noun = LearnerNoun.For(window.CheckingWindowType);
             var choice = await changeTypes.GetChoiceAsync(window.CheckingWindowType);
-            ModelState.AddModelError(nameof(WhatToChangeViewModel.SelectedWhatToChange), $"Select what {noun.Singular} data you would like to change");
+            ModelState.AddModelError(nameof(WhatToChangeViewModel.SelectedWhatToChange), $"Select what {noun.Singular} data you would like to amend");
             await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection], ErrorFields = [nameof(WhatToChangeViewModel.SelectedWhatToChange)] });
             return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null, LearnerNoun = noun, AvailableChanges = choice.Available });
         }

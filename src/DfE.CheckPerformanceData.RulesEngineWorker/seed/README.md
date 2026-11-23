@@ -83,6 +83,13 @@ In any other window year the dates move one year per year of window: that is the
 the conversion. `Ks4RemovalRulesTests` and `Ks2RemovalRulesTests` pin each converted branch
 against its original fixed date for the window it was written for.
 
+The window year is the calendar year of the window's PupilData exercise start date. The
+tables above assume a real window's PupilData exercise starts in the same calendar year the
+branches were written for (KS4 June 2026, KS2 2027). If a real window's PupilData exercise
+starts in a different year, every boundary moves with it — no error is raised. Before a real
+window opens, check the per-window rules page (`/admin/windows/{id}/rules`) against the
+expected boundaries above.
+
 The year in a branch ID such as `EAL-ACC-NEWADM-2022-ALL` is historical: it is the year the
 date named when the branch was first written with a fixed date, not a year the branch reads
 at runtime. Branch IDs appear in the decision trace and in Zendesk tickets, so they are not

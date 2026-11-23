@@ -8,9 +8,11 @@ namespace DfE.CheckPerformanceData.E2ETests.WindowAdmin;
 /// <summary>
 /// #800: the per-window rules page end to end. The seeded KS4 June window opens today, so its
 /// PupilData exercise start date — the anchor the page resolves window-relative rule dates
-/// against — is the run date. A seeded cutoff such as "1 September, 3 years before the window
-/// year" must therefore render as 1 September of (run year - 3), never a fixed calendar date,
-/// and branches whose checkingWindowType condition cannot match this window are hidden.
+/// against — is the run date. A seeded cutoff such as "1 September, 4 years before the window
+/// year" must render as 1 September of (anchor year - 4), never a fixed calendar date, and
+/// branches whose checkingWindowType condition cannot match this window are hidden. Expected
+/// dates are derived from the anchor the page itself reports, so the test never compares
+/// against the runner's clock.
 /// </summary>
 [Trait("Category", "FullRegression")]
 [Collection("E2E")]
@@ -44,15 +46,16 @@ public sealed class WindowRulesPageTests(PlaywrightFixture fixture) : SeedingPag
 
         await Expect(Page.Locator("h1.govuk-heading-xl")).ToHaveTextAsync("Key Stage 4 June rules");
 
-        // The seeded window opens today, so the anchor row shows the run date.
-        Assert.Equal(
-            DateTime.Today.ToString("dd MMMM yyyy", CultureInfo.InvariantCulture),
-            await HeaderRowValueAsync("Pupil data start date"));
+        // The anchor row shows the seeded window's PupilData start date. Parse it from the
+        // page rather than assume the run date, so a run that straddles midnight or a runner
+        // in a different timezone from the server cannot flake the assertion.
+        var anchor = DateOnly.ParseExact(
+            await HeaderRowValueAsync("Pupil data start date"), "dd MMMM yyyy", CultureInfo.InvariantCulture);
 
-        // A seeded window-relative cutoff resolves against the run year, and the row keeps the
-        // form name so an admin can see it is not a fixed calendar date. The new-admission
-        // cutoff is 1 September four years before the window year.
-        var expectedCutoff = new DateOnly(DateTime.Today.Year - 4, 9, 1)
+        // A seeded window-relative cutoff resolves against the window's anchor year, and the
+        // row keeps the form name so an admin can see it is not a fixed calendar date. The
+        // new-admission cutoff is 1 September four years before the window year.
+        var expectedCutoff = new DateOnly(anchor.Year - 4, 9, 1)
             .ToString("d MMMM yyyy", CultureInfo.InvariantCulture);
         var branch = BranchRow("EAL-ACC-NEWADM-2022-ALL");
         await Expect(branch).ToHaveCountAsync(1);
@@ -66,8 +69,9 @@ public sealed class WindowRulesPageTests(PlaywrightFixture fixture) : SeedingPag
     {
         await Page.GotoAsync(RulesUrl);
 
-        // The same outcomes carry KS2 branches with the same ids' siblings; only the branches
-        // that can match KS4June are listed for this window.
+        // The EAL and AFE outcomes carry branches for other window types alongside the KS4
+        // June ones (EAL-ACC-KS2-*, AFE-KS2); only the branches that can match KS4June are
+        // listed for this window.
         await Expect(BranchRow("EAL-ACC-NEWADM-2022-ALL")).ToHaveCountAsync(1);
         await Expect(BranchRow("EAL-ACC-KS2-ALL")).ToHaveCountAsync(0);
         await Expect(BranchRow("AFE-KS2")).ToHaveCountAsync(0);

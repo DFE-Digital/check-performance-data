@@ -157,6 +157,17 @@ public sealed class RuleSetValidator
                 {
                     errors.Add($"Outcome '{outcomeKey}' branch '{branchId}' has empty 'in' list for field '{inP.Field}'.");
                 }
+                // A window-relative date resolves to a single date from the window, so it can
+                // only drive an on-or-before / on-or-after style comparison. The engine's 'in'
+                // leaf resolves each list value, but the admin editor renders 'in' values as
+                // editable text, so a relative token stored in a list would be corrupted by the
+                // next save. Refuse it at install (Date-typed fields only: on any other field
+                // CoerceLiteral already rejects the token).
+                if (FieldCatalogue.TryGetType(inP.Field, out var inType) && inType == FieldType.Date &&
+                    inP.Values.Any(v => v is FieldValue.RelativeDate))
+                {
+                    errors.Add($"Outcome '{outcomeKey}' branch '{branchId}' has a window-relative date in the 'in' list for '{inP.Field}'; a relative date resolves to one date, so use an on-or-before or on-or-after comparison instead.");
+                }
                 return new Predicate.FieldIn(inP.Field,
                     inP.Values.Select(v => CoerceLiteral(inP.Field, v, outcomeKey, branchId, errors)).ToList());
 

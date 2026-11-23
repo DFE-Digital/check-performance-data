@@ -366,6 +366,30 @@ public sealed class RuleSetValidatorTests
     }
 
     [Fact]
+    public void Rejects_RelativeDate_InsideInList_OnDateField()
+    {
+        // The engine resolves a relative date in an 'in' list, but the admin editor renders
+        // 'in' values as editable text, so a stored token would be corrupted by the next
+        // save. Refuse it at install; a comparison operator is the supported shape.
+        var rules = MakeRuleSet(new[]
+        {
+            Outcome("EAL",
+                Branch("B1", DecisionStatus.AutoApproved,
+                    new Predicate.FieldIn("schoolAdmissionDate", new FieldValue[]
+                    {
+                        new FieldValue.RelativeDate(new RelativeDateSpec.FirstSeptemberMinusYears(4)),
+                    })),
+                Branch("B2", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
+        });
+
+        var result = _sut.Validate(rules);
+
+        Assert.False(result.IsValid);
+        Assert.Null(result.ResolvedRules);
+        Assert.Contains(result.Errors, e => e.Contains("Outcome 'EAL'") && e.Contains("branch 'B1'") && e.Contains("'in' list"));
+    }
+
+    [Fact]
     public void Rejection_KeepsThePreviousGoodSetServing_NoResolvedRulesCarried()
     {
         // A refusal carries no resolved set, so the provider keeps the

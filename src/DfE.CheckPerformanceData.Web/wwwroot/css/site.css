@@ -2077,7 +2077,9 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
 /* Rich-text widget images: media library images, and older inline data: images. The
    sanitiser strips inline `style` attributes, so image sizing has to come
    from a class instead. Applied automatically to every <img> inside a rich-text widget
-   so authors don't need to remember to add the class themselves. */
+   so authors don't need to remember to add the class themselves. A library image also gets an
+   aspect-ratio style when the page renders, so height:auto keeps the width and height the editor
+   set, even in another shape than the file. */
 .govuk-body img {
   max-width: 100%;
   height: auto;

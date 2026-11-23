@@ -76,7 +76,7 @@ public sealed partial class MediaLibraryTestPagesE2ETests(PlaywrightFixture fixt
         await Page.GotoAsync($"{Fixture.BaseUrl}{RichTextPath}");
 
         var images = Page.Locator("main img[data-media-id]");
-        await Expect(images).ToHaveCountAsync(6);
+        await Expect(images).ToHaveCountAsync(7);
         foreach (var src in await images.EvaluateAllAsync<string[]>("els => els.map(e => e.getAttribute('src'))"))
         {
             var response = await Page.APIRequest.GetAsync($"{Fixture.BaseUrl}{src}");
@@ -85,6 +85,23 @@ public sealed partial class MediaLibraryTestPagesE2ETests(PlaywrightFixture fixt
         var decorative = Page.Locator("main img[role='presentation']");
         await Expect(decorative).ToHaveAttributeAsync("alt", "");
         await Expect(decorative).ToHaveAttributeAsync("src", new Regex("sig="));
+    }
+
+    // The sample PNG is twice as wide as it is high. The editor stretched it into a 320 by 320 box,
+    // and the page keeps that box after the file loads.
+    [Fact]
+    public async Task TheRichTextTestPage_ShowsTheStretchedImageInTheBoxTheEditorSet()
+    {
+        await Page.GotoAsync($"{Fixture.BaseUrl}{RichTextPath}");
+
+        var img = Page.Locator("main img[alt='Coloured blocks, stretched into a square']");
+        await img.ScrollIntoViewIfNeededAsync();
+        await img.EvaluateAsync("i => i.complete && i.naturalWidth > 0 ? null : new Promise(r => i.addEventListener('load', r, { once: true }))");
+        Assert.True(await img.EvaluateAsync<bool>("i => i.naturalWidth === 2 * i.naturalHeight"), "The file is twice as wide as it is high.");
+        // The size inside the image's border.
+        var size = await img.EvaluateAsync<double[]>("i => [i.clientWidth, i.clientHeight]");
+        Assert.InRange(size[0], 319, 321);
+        Assert.InRange(size[1], 319, 321);
     }
 
     // The Image test page's images are the reserved samples, so a new stack shows them.

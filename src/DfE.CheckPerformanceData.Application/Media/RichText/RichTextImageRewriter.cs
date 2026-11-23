@@ -9,8 +9,9 @@ namespace DfE.CheckPerformanceData.Application.Media.RichText;
 /// <summary>
 /// Points the library images in rich text at the version that a page shows, when the page renders.
 /// Rich text stores <c>&lt;img data-media-id="{id}" src="/media/{id}/..."&gt;</c> with the unsigned
-/// original. Each one gets a signed responsive src, srcset and sizes, lazy loading and the size of
-/// the version shown. An SVG or an animation gets its original, because it is never resized.
+/// original. Each one gets a signed responsive src, srcset and sizes, lazy loading and a size: the
+/// width and height the editor set, else the size of the version shown. An SVG or an animation gets
+/// its original, because it is never resized.
 ///
 /// The input is HTML that the sanitiser has already cleaned, and the output is written straight to
 /// the page, so this runs after the sanitiser and never before a save or a search index. An image
@@ -112,17 +113,25 @@ public static class RichTextImageRewriter
         if (!img.HasAttribute("alt")) img.SetAttribute("alt", asset.DefaultAltText ?? "");
         if (width is { } w) img.SetAttribute("width", w.ToString(CultureInfo.InvariantCulture));
         if (height is { } h) img.SetAttribute("height", h.ToString(CultureInfo.InvariantCulture));
+        // The page shrinks an image to its column with max-width and height:auto. Without a stated
+        // shape the file's own shape then wins over the attributes, so a box the editor stretched
+        // would show in the file's shape. The style is built here from two numbers, never copied.
+        img.RemoveAttribute("style");
+        if (width is { } sw && height is { } sh)
+            img.SetAttribute("style", string.Create(CultureInfo.InvariantCulture, $"aspect-ratio: {sw} / {sh}"));
         img.SetAttribute("loading", "lazy");
         img.SetAttribute("decoding", "async");
     }
 
-    // The size to write. The editor's width (or height) stays, and the other side follows the shape
-    // of the version shown, so a replacement of another shape is not stretched. With neither, the
-    // version's own size. With no known shape, what is stored.
+    // The size to write. A width and a height that the editor set both stay, also in another shape
+    // than the file: the editor can unlock the ratio and stretch an image on purpose. With one side
+    // only, the other side follows the shape of the version shown. With neither, the version's own
+    // size. With no known shape, what is stored.
     private static (int? Width, int? Height) Size(IElement img, MediaAssetVersionDto version)
     {
         var storedWidth = Number(img, "width");
         var storedHeight = Number(img, "height");
+        if (storedWidth is not null && storedHeight is not null) return (storedWidth, storedHeight);
         if (version.Width is not > 0 || version.Height is not > 0) return (storedWidth, storedHeight);
 
         var (vw, vh) = (version.Width.Value, version.Height.Value);

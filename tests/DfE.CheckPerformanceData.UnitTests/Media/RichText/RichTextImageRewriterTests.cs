@@ -87,14 +87,59 @@ public sealed class RichTextImageRewriterTests
     }
 
     [Fact]
-    public void AReplacementOfAnotherShape_KeepsTheWidthTheEditorSet_AndTakesItsOwnHeight()
+    public void AWidthAndHeightTheEditorSet_AreKept_EvenInAnotherShapeThanTheFile()
     {
-        // Stored at 500 x 250 (2:1); the current version is square.
+        // Stored at 500 x 250 (2:1); the version shown is square. The editor's box wins.
         var img = Img(RichTextImageRewriter.Rewrite(Stored, Found(Media(version: 3, width: 800, height: 800)), _urls, false));
 
         Assert.Equal("500", img.GetAttribute("width"));
-        Assert.Equal("500", img.GetAttribute("height"));
+        Assert.Equal("250", img.GetAttribute("height"));
         Assert.StartsWith($"/media/{Id:D}/3/", img.GetAttribute("src"));
+    }
+
+    [Fact]
+    public void ASizedImage_KeepsItsShape_WhenTheColumnIsNarrower()
+    {
+        // The page shrinks a wide image to its column (max-width with height:auto). The box keeps
+        // the editor's shape only when the shape is stated, because the file's own shape wins over
+        // the width and height attributes once it loads.
+        var img = Img(RichTextImageRewriter.Rewrite(Stored, Found(Media(width: 800, height: 800)), _urls, false));
+
+        Assert.Equal("aspect-ratio: 500 / 250", img.GetAttribute("style"));
+    }
+
+    [Theory]
+    [InlineData("width=\"500\"", "500", "500")]
+    [InlineData("height=\"250\"", "250", "250")]
+    public void OneSideTheEditorSet_IsKept_AndTheOtherFollowsTheFile(string stored, string width, string height)
+    {
+        var img = Img(RichTextImageRewriter.Rewrite(
+            $"<img data-media-id=\"{Id}\" src=\"/media/{Id}/1/a.png\" alt=\"x\" {stored}>",
+            Found(Media(width: 800, height: 800)), _urls, false));
+
+        Assert.Equal(width, img.GetAttribute("width"));
+        Assert.Equal(height, img.GetAttribute("height"));
+        Assert.Equal($"aspect-ratio: {width} / {height}", img.GetAttribute("style"));
+    }
+
+    [Fact]
+    public void AStoredStyle_IsReplaced_NotTrusted()
+    {
+        var img = Img(RichTextImageRewriter.Rewrite(
+            $"<img data-media-id=\"{Id}\" src=\"/media/{Id}/1/a.png\" alt=\"x\" width=\"500\" height=\"250\" style=\"background:url(x)\">",
+            Found(Media()), _urls, false));
+
+        Assert.Equal("aspect-ratio: 500 / 250", img.GetAttribute("style"));
+    }
+
+    [Fact]
+    public void AnImageOfUnknownSize_GetsNoStyle()
+    {
+        var img = Img(RichTextImageRewriter.Rewrite(
+            $"<img data-media-id=\"{Id}\" src=\"/media/{Id}/1/a.svg\" alt=\"x\" style=\"color:red\">",
+            Found(Media(contentType: "image/svg+xml", width: null, height: null)), _urls, false));
+
+        Assert.False(img.HasAttribute("style"));
     }
 
     [Fact]

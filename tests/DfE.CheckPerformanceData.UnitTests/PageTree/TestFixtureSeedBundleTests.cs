@@ -462,4 +462,13 @@ public class TestFixtureSeedBundleTests
 
         Assert.Contains("alt=\\\"\\\" width=\\\"1280\\\" height=\\\"640\\\" role=\\\"presentation\\\"", page.Versions.Single().Content);
     }
+
+    // A wide sample image that the editor stretched into a square box. The page shows the square.
+    [Fact]
+    public void TheMediaRichTextTestPage_HasAnImageInAnotherShapeThanItsFile()
+    {
+        var page = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-rich-text-test-page");
+
+        Assert.Contains("blocks.png\\\" alt=\\\"Coloured blocks, stretched into a square\\\" width=\\\"320\\\" height=\\\"320\\\"", page.Versions.Single().Content);
+    }
 }

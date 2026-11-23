@@ -69,6 +69,25 @@ See [domain-model.md](domain-model.md) for when the rows are written.
   A version that another version replaced (`SupersededById` is set) is never current.
 - An image that any page version or block uses cannot be deleted.
 
+## Image size in rich text
+
+The image dialog in the rich text editor stores a `width` and a `height` on the `<img>`. When the
+page renders, `RichTextImageRewriter` writes the size like this:
+
+- A width and a height that the editor set both stay. This is true also when their shape is not
+  the shape of the file. The editor can unlock "Constrain proportions" and stretch an image on
+  purpose.
+- When only one side is set, the other side follows the shape of the version shown.
+- When no side is set, the image gets the size of the version shown.
+- The image also gets a `style="aspect-ratio: W / H"` with the same two numbers. The page CSS
+  sets `max-width: 100%` and `height: auto`, so an image shrinks in a narrow column. Without the
+  aspect ratio, the shape of the file would then win over the editor's box. The rewriter makes
+  this style from the two numbers. It removes a stored style, and the sanitiser removes style
+  attributes before this step.
+
+So a replacement file of another shape shows in the box that the editor set. To show the new
+shape, the editor sets the size again in the image dialog.
+
 ## Serving and signed renditions
 
 The public URL is `/media/{id}/{version}/{slug}.{ext}`. It is anonymous, and it answers GET and

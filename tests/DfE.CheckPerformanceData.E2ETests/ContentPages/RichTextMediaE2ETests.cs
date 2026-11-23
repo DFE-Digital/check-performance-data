@@ -276,6 +276,59 @@ public sealed class RichTextMediaE2ETests(PlaywrightFixture fixture) : SeedingPa
         await Expect(EditorBody.Locator("img")).ToHaveCountAsync(0);
     }
 
+    // The editor unlocks the ratio and gives a square image a wide box. The page shows that box,
+    // also when the column is narrower than the box.
+    [Fact]
+    public async Task ASizeTheEditorSetsWithTheRatioUnlocked_IsTheSizeThePageShows()
+    {
+        await SignInAsAdminAsync();
+        var mediaId = await UploadUniquePngAsync(600, 600);
+        var (pageId, url) = await NewRichTextPageAsync();
+        await OpenEditorAsync(pageId);
+
+        await OpenImageDialogAsync();
+        await ImageDialog.Locator(".tox-browse-url").ClickAsync();
+        await ChooseInPickerAsync(mediaId, _term);
+        await ImageDialog.GetByLabel("Alternative description").FillAsync("A square image made wide");
+        var constrain = ImageDialog.GetByRole(AriaRole.Button, new() { Name = "Constrain proportions" });
+        await Expect(constrain).ToHaveAttributeAsync("aria-pressed", "true");
+        await constrain.ClickAsync();
+        await Expect(constrain).ToHaveAttributeAsync("aria-pressed", "false");
+        await ImageDialog.GetByLabel("Width").FillAsync("400");
+        await ImageDialog.GetByLabel("Height").FillAsync("200");
+        await ImageDialog.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await Expect(EditorBody.Locator($"img[src^='/media/{mediaId:D}/']")).ToHaveAttributeAsync("height", "200");
+
+        await SaveAndPublishAsync(pageId);
+        var saved = await SavedHtmlAsync(pageId);
+        Assert.Contains("width=\"400\"", saved);
+        Assert.Contains("height=\"200\"", saved);
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        var img = Page.Locator($"main .govuk-body img[data-media-id='{mediaId:D}']");
+        await Expect(img).ToHaveAttributeAsync("width", "400");
+        await Expect(img).ToHaveAttributeAsync("height", "200");
+        var box = await LoadedBoxAsync(img);
+        Assert.InRange(box.Width, 399, 401);
+        Assert.InRange(box.Height, 199, 201);
+
+        // A column narrower than the box shrinks the image, and the shape stays.
+        await Page.SetViewportSizeAsync(320, 800);
+        box = await LoadedBoxAsync(img);
+        Assert.True(box.Width < 400, $"The image is {box.Width} wide in a narrow column.");
+        Assert.InRange(box.Width / box.Height, 1.95, 2.05);
+    }
+
+    // The size of the image inside its border, once the file has loaded. Before then the box
+    // follows only the attributes.
+    private static async Task<(double Width, double Height)> LoadedBoxAsync(ILocator img)
+    {
+        await img.ScrollIntoViewIfNeededAsync();
+        await img.EvaluateAsync("i => i.complete && i.naturalWidth > 0 ? null : new Promise(r => i.addEventListener('load', r, { once: true }))");
+        var size = await img.EvaluateAsync<double[]>("i => [i.clientWidth, i.clientHeight]");
+        return (size[0], size[1]);
+    }
+
     [Fact]
     public async Task ReplacingALibraryImage_ChangesTheLiveRichTextPage()
     {
@@ -289,13 +342,13 @@ public sealed class RichTextMediaE2ETests(PlaywrightFixture fixture) : SeedingPa
         var img = Page.Locator($"main .govuk-body img[data-media-id='{mediaId:D}']");
         await Expect(img).ToHaveAttributeAsync("src", new Regex($"^/media/{mediaId:D}/1/"));
 
-        // The new version is square, so the page keeps the width the editor set and follows its shape.
+        // The new version is square. The page keeps the width and height that the editor set.
         await MediaSeedHelpers.ReplaceAsync(Fixture.SeedClient, mediaId, $"{_term}-replacement.png", MediaFixtures.UniquePng(600, 600));
 
         await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
         await Expect(img).ToHaveAttributeAsync("src", new Regex($"^/media/{mediaId:D}/2/"));
         await Expect(img).ToHaveAttributeAsync("width", "400");
-        await Expect(img).ToHaveAttributeAsync("height", "400");
+        await Expect(img).ToHaveAttributeAsync("height", "200");
         await AssertSignedCopiesLoadAsync(img);
     }
 

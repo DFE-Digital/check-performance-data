@@ -11,7 +11,7 @@ A change request is initiated when a school user decides they want to amend a pu
 ```
 Check Your Pupil Data
         ↓
-What Would You Like to Change?
+What Would You Like to Amend?
         ↓
 Question Flow  (starts with one or more PupilSearch pages, then config-driven questions)
         ↓
@@ -41,7 +41,7 @@ From here, the user clicks a "Request change" or equivalent link, which takes th
 
 ---
 
-## Stage 2 — What Would You Like to Change?
+## Stage 2 — What Would You Like to Amend?
 
 **URL:** `GET /WhatToChange/{windowId}`  
 **Back link target:** `GET /WhatToChange/{windowId}/back`  

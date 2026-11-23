@@ -423,7 +423,7 @@ Routing fields (the views filter on these tag values):
 | --- | --- |
 | Situation (CYPMD) | `missing_qualification_1`, `incorrect_grade` or `query_result`, from `Enquiry.Type` |
 | Key stage | `16-18` |
-| Graded exam (CYPMD) | Always `no_graded` |
+| Graded exam (CYPMD) | A KS4 Autumn enquiry: `yes_graded` when the QAN is on the graded exam list, else `no_graded`. Every other enquiry: `no_graded`. |
 | T Level Exams (CYPMD) | `yes_tlevel_cypmd` when the QAN is on the T Level list, else `no_tlevel_cypmd` |
 | Withdrawal qualification (CYPMD) | `yes_withdraw_cypmd` for an Incorrect grade or Result does not belong enquiry whose additional information contains a form of "withdraw" (#908). Else `no_withdraw_cypmd`. See [Withdrawal qualification](#withdrawal-qualification). |
 | Type of Organisation | Always `training_provider` |
@@ -469,6 +469,21 @@ The ticket does not set the separate Withdrawal (CYPMD) checkbox.
 **The T Level list** is `Application/ResultsEnquiry/Data/t-level-qans.csv`, an embedded resource
 that `TLevelQualifications` reads. It holds the 21 T Levels that DCI gave for 2026. When DCI
 updates the list, update the CSV file.
+
+**The graded exam list** is `Application/ResultsEnquiry/Data/graded-exam-qans.csv`, an embedded
+resource that `GradedExamQualifications` reads. It holds the 33 KS4 graded exams in the "Results
+Enquiry Form Spec 2026" workbook. When DCI updates the list, update the CSV file.
+
+`GradedExamQualifications.ForEnquiry` gives the graded exam answer for an enquiry (#899). For a KS4
+Autumn window, the answer is yes when the QAN is on the list, else no. Every other window type
+has no answer. Two places call it:
+
+- `ResultsEnquiryTicketBuilder` sends `yes_graded` for a yes. It sends `no_graded` for a no, and
+  when there is no answer.
+- The check-answers summary of a KS4 Autumn enquiry shows the row "Graded Exam" with "Yes" or "No".
+  The row comes after "Qualification name and subject". A summary with no answer has no such row.
+
+No KS4 Autumn enquiry flow file exists yet (#903), so no page shows the row today.
 
 How a school sees its own enquiries is designed: AB#298325 added an Issues tab
 beside Requests on the Amendment request summary page (`AmendmentRequestsService.GetAmendmentRequestsAsync`,

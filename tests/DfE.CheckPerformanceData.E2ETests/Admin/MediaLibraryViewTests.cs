@@ -123,4 +123,58 @@ public sealed class MediaLibraryViewTests(PlaywrightFixture fixture) : SeedingPa
         await Expect(img).ToHaveAttributeAsync("src", new System.Text.RegularExpressions.Regex("sig="));
         await Expect(items.First.Locator("[data-media-facts]")).ToContainTextAsync("PNG");
     }
+
+    // The browser remembers the view. With no view in the address, the library goes to the
+    // remembered one. A view in the address always wins, and is remembered in its place.
+    [Fact]
+    public async Task TheChosenView_IsRememberedInThisBrowser_AndAViewInTheAddressWins()
+    {
+        await SignInAsAdminAsync();
+        await UploadImagesAsync(1);
+        var plain = $"{Fixture.BaseUrl}/admin/media?search={_term}";
+
+        await Page.GotoAsync(plain);
+        await Expect(ViewSelect).ToHaveValueAsync("grid");
+        await ViewSelect.SelectOptionAsync("details");
+        await Page.WaitForURLAsync(url => url.Contains("view=details"));
+
+        await Page.GotoAsync(plain);
+        await Page.WaitForURLAsync(url => url.Contains("view=details"));
+        Assert.Contains($"search={_term}", Page.Url);
+        await Expect(ViewSelect).ToHaveValueAsync("details");
+        await Expect(Page.Locator("[data-media-library-table]")).ToBeVisibleAsync();
+
+        // A link with a view in it wins, and the next plain visit uses that view.
+        await Page.GotoAsync($"{plain}&view=large");
+        await Expect(ViewSelect).ToHaveValueAsync("large");
+        await Page.GotoAsync(plain);
+        await Page.WaitForURLAsync(url => url.Contains("view=large"));
+        await Expect(Page.Locator("[data-media-library-large]")).ToBeVisibleAsync();
+
+        // Back to the grid: the plain address then stays plain.
+        await ViewSelect.SelectOptionAsync("grid");
+        await Page.WaitForURLAsync(url => url.Contains("view=grid"));
+        await Page.GotoAsync(plain);
+        await Expect(ViewSelect).ToHaveValueAsync("grid");
+        Assert.DoesNotContain("view=", Page.Url);
+    }
+
+    // A browser that refuses storage still shows each view, and the grid by default.
+    [Fact]
+    public async Task WithNoStorage_TheViewsStillWork()
+    {
+        await Context.AddInitScriptAsync(
+            "Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new Error('Storage is blocked'); } });");
+        var errors = new List<string>();
+        Page.PageError += (_, error) => errors.Add(error);
+        await SignInAsAdminAsync();
+        await UploadImagesAsync(1);
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media?search={_term}&view=details");
+        await Expect(Page.Locator("[data-media-library-table]")).ToBeVisibleAsync();
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media?search={_term}");
+        await Expect(ViewSelect).ToHaveValueAsync("grid");
+        Assert.DoesNotContain("view=", Page.Url);
+        Assert.Empty(errors);
+    }
 }

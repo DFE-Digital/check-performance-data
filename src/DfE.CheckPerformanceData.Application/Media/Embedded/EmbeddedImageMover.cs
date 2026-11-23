@@ -212,7 +212,7 @@ public sealed class EmbeddedImageMover(
                     reused++;
                 }
 
-                library[image.Src] = new LibraryImageSrc(asset.Id, urls.Original(asset, asset.Latest));
+                library[image.Src] = new LibraryImageSrc(asset.Id, urls.Original(asset, asset.Latest), asset.Latest.Width, asset.Latest.Height);
             }
 
             if (!await save(library, library.Values.Select(l => l.Id).Distinct().ToList()))

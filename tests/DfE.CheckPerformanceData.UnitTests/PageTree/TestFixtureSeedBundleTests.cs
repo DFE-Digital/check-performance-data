@@ -483,6 +483,20 @@ public class TestFixtureSeedBundleTests
         Assert.Contains("blocks.png\\\" alt=\\\"Coloured blocks, stretched into a square\\\" width=\\\"320\\\" height=\\\"320\\\"", page.Versions.Single().Content);
     }
 
+    // Two boxes with a marker: one follows the shape of its file, one keeps a shape the editor set.
+    // The guide says how to see the difference with a replacement of another shape.
+    [Fact]
+    public void TheMediaRichTextTestPage_HasABoxThatFollowsTheFile_AndOneThatIsFixed()
+    {
+        var page = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-rich-text-test-page").Versions.Single().Content;
+        var guide = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-library-test-page").Versions.Single().Content;
+
+        Assert.Contains("alt=\\\"Coloured blocks, following the shape of the file\\\" width=\\\"320\\\" height=\\\"160\\\" data-media-box=\\\"follow\\\"", page);
+        Assert.Contains("alt=\\\"Coloured blocks, kept in a square box\\\" width=\\\"200\\\" height=\\\"200\\\" data-media-box=\\\"fixed\\\"", page);
+        Assert.Contains("Replace the sample PNG with a square file", guide);
+        Assert.Contains("The library remembers the view in this browser", guide);
+    }
+
     // The guide has steps for folders: the nav tree, include subfolders, create, move and the picker.
     [Fact]
     public void TheMediaLibraryGuide_HasStepsForFolders()

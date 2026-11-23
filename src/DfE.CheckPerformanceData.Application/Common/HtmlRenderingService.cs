@@ -47,6 +47,9 @@ public sealed partial class HtmlRenderingService : IHtmlRenderingService
         // A rich-text image from the media library names its image, so a replaced image shows on
         // every page that uses it.
         s.AllowedAttributes.Add("data-media-id");
+        // It also says whether the editor set its width and height in another shape on purpose, so a
+        // replacement of another shape is shown in the right box.
+        s.AllowedAttributes.Add("data-media-box");
         // Older rich text embeds images as data: URIs, which must keep showing. The scheme is
         // allowed for an image on <img> only: a data: URI on a link, a frame or a form
         // would enable phishing or script, so the filter below drops it everywhere else.

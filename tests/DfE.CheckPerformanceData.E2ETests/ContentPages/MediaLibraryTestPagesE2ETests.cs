@@ -92,7 +92,7 @@ public sealed partial class MediaLibraryTestPagesE2ETests(PlaywrightFixture fixt
         await Page.GotoAsync($"{Fixture.BaseUrl}{RichTextPath}");
 
         var images = Page.Locator("main img[data-media-id]");
-        await Expect(images).ToHaveCountAsync(7);
+        await Expect(images).ToHaveCountAsync(9);
         foreach (var src in await images.EvaluateAllAsync<string[]>("els => els.map(e => e.getAttribute('src'))"))
         {
             var response = await Page.APIRequest.GetAsync($"{Fixture.BaseUrl}{src}");
@@ -118,6 +118,23 @@ public sealed partial class MediaLibraryTestPagesE2ETests(PlaywrightFixture fixt
         var size = await img.EvaluateAsync<double[]>("i => [i.clientWidth, i.clientHeight]");
         Assert.InRange(size[0], 319, 321);
         Assert.InRange(size[1], 319, 321);
+    }
+
+    // Two marked boxes on the same wide file: "follow" takes the file's shape at its width, and
+    // "fixed" keeps the square that the editor set.
+    [Theory]
+    [InlineData("Coloured blocks, following the shape of the file", 320, 160)]
+    [InlineData("Coloured blocks, kept in a square box", 200, 200)]
+    public async Task TheRichTextTestPage_ShowsEachMarkedBoxInItsShape(string alt, int width, int height)
+    {
+        await Page.GotoAsync($"{Fixture.BaseUrl}{RichTextPath}");
+
+        var img = Page.Locator($"main img[alt='{alt}']");
+        await img.ScrollIntoViewIfNeededAsync();
+        await img.EvaluateAsync("i => i.complete && i.naturalWidth > 0 ? null : new Promise(r => i.addEventListener('load', r, { once: true }))");
+        var size = await img.EvaluateAsync<double[]>("i => [i.clientWidth, i.clientHeight]");
+        Assert.InRange(size[0], width - 1, width + 1);
+        Assert.InRange(size[1], height - 1, height + 1);
     }
 
     // The Image test page crops the sample PNG in more than one way. Its image page lists each way

@@ -112,7 +112,7 @@ public static class MediaVariantGrouper
 
     private static MediaVariantShape RichTextShape(MediaImageShapeUse use, MediaAssetVersionDto version)
     {
-        var (width, height) = RichTextImageRewriter.Box(use.BoxWidth, use.BoxHeight, version);
+        var (width, height) = RichTextImageRewriter.Box(use.BoxWidth, use.BoxHeight, use.BoxMarker, version);
         if (width is null && height is null) return MediaVariantShape.Original;
         if (width == version.Width && height == version.Height) return MediaVariantShape.Original;
         return new MediaVariantShape(null, width, height);

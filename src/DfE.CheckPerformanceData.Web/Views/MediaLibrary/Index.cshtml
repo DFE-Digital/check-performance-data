@@ -35,6 +35,17 @@
 }
 
 @section Breadcrumbs {
+    @* Remembers the viewer's view in this browser, and goes to it when the address names none.
+       It runs here, before <main>, without defer, so the switch happens before the list shows.
+       Only a GET of the list may switch: a page that answers a form post keeps its results. *@
+    @if (Microsoft.AspNetCore.Http.HttpMethods.IsGet(Context.Request.Method))
+    {
+        <script src="~/js/media-library-view.js" asp-append-version="true" data-media-library-view-apply></script>
+    }
+    else
+    {
+        <script src="~/js/media-library-view.js" asp-append-version="true"></script>
+    }
     @* The folder path. Rendered before <main> by the admin layout, as the GOV.UK pattern asks. *@
     <nav class="govuk-breadcrumbs" aria-label="Breadcrumb" data-media-breadcrumbs>
         <ol class="govuk-breadcrumbs__list">

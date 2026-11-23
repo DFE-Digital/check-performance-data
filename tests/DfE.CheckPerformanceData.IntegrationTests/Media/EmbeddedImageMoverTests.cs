@@ -411,6 +411,23 @@ public sealed class EmbeddedImageMoverTests(PostgresFixture postgres, AzuriteFix
         Assert.Equal(body.Replace($"src=\"{Red}\"", $"src=\"/media/{red.Id}/1/chart.png\" data-media-id=\"{red.Id}\""), versions[1].Content);
     }
 
+    // The moved image is the embedded picture, so a box of its shape follows a later file, and a
+    // box of another shape stays as the editor set it.
+    [Fact]
+    public async Task AMovedImage_GetsABoxMarker_FromItsOwnShape()
+    {
+        var wiki = await PageAsync("wiki-box", "wiki");
+        var body = $"<img src=\"{Blue}\" alt=\"Kept shape\" width=\"60\" height=\"40\"><img src=\"{Red}\" alt=\"Stretched\" width=\"80\" height=\"40\">";
+        await SaveDraftAsync(wiki, body);
+
+        await MoveAsync();
+
+        var moved = (await VersionsAsync(wiki))[1].Content;
+        Assert.Matches("alt=\"Kept shape\" width=\"60\" height=\"40\"", moved);
+        Assert.Matches("data-media-box=\"follow\" alt=\"Kept shape\"", moved);
+        Assert.Matches("data-media-box=\"fixed\" alt=\"Stretched\"", moved);
+    }
+
     [Fact]
     public async Task ASecondRun_FindsNothingToDo()
     {

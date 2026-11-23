@@ -329,6 +329,100 @@ public sealed class RichTextMediaE2ETests(PlaywrightFixture fixture) : SeedingPa
         return (size[0], size[1]);
     }
 
+    // Inserts a library image with the image dialog, at the width given. With the ratio locked,
+    // the dialog works out the height from the file; unlocked, the height given is used.
+    private async Task InsertFromLibraryAsync(Guid mediaId, string alt, int width, int? unlockedHeight = null)
+    {
+        await OpenImageDialogAsync();
+        await ImageDialog.Locator(".tox-browse-url").ClickAsync();
+        await ChooseInPickerAsync(mediaId, _term);
+        await ImageDialog.GetByLabel("Alternative description").FillAsync(alt);
+        if (unlockedHeight is not null)
+        {
+            var constrain = ImageDialog.GetByRole(AriaRole.Button, new() { Name = "Constrain proportions" });
+            await constrain.ClickAsync();
+            await Expect(constrain).ToHaveAttributeAsync("aria-pressed", "false");
+        }
+        await ImageDialog.GetByLabel("Width").FillAsync(width.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        await ImageDialog.GetByLabel("Width").PressAsync("Tab");
+        if (unlockedHeight is { } height)
+            await ImageDialog.GetByLabel("Height").FillAsync(height.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        await ImageDialog.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await WaitForEditorImageAsync(mediaId);
+    }
+
+    // The editor marks the box from the size of the file it shows, so the file must have loaded.
+    private async Task WaitForEditorImageAsync(Guid mediaId)
+    {
+        var img = EditorBody.Locator($"img[src^='/media/{mediaId:D}/']");
+        await Expect(img).ToBeVisibleAsync();
+        await img.EvaluateAsync("i => i.complete && i.naturalWidth > 0 ? null : new Promise(r => i.addEventListener('load', r, { once: true }))");
+    }
+
+    // The image dialog saves a width and a height. An image that keeps the shape of its file is
+    // marked to follow the file, so a replacement of another shape keeps the width and takes the
+    // new shape, also after the page is saved again without a change.
+    [Fact]
+    public async Task AnImageInTheShapeOfItsFile_TakesTheShapeOfAReplacement()
+    {
+        await SignInAsAdminAsync();
+        var mediaId = await UploadUniquePngAsync(800, 400);
+        var (pageId, url) = await NewRichTextPageAsync();
+        await OpenEditorAsync(pageId);
+        await InsertFromLibraryAsync(mediaId, "A wide image", 400);
+        await Expect(EditorBody.Locator($"img[src^='/media/{mediaId:D}/']")).ToHaveAttributeAsync("height", "200");
+
+        await SaveAndPublishAsync(pageId);
+        var saved = await SavedHtmlAsync(pageId);
+        Assert.Contains("data-media-box=\"follow\"", saved);
+
+        await MediaSeedHelpers.ReplaceAsync(Fixture.SeedClient, mediaId, $"{_term}-square.png", MediaFixtures.UniquePng(600, 600));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        var img = Page.Locator($"main .govuk-body img[data-media-id='{mediaId:D}']");
+        await Expect(img).ToHaveAttributeAsync("src", new Regex($"^/media/{mediaId:D}/2/"));
+        await Expect(img).ToHaveAttributeAsync("width", "400");
+        await Expect(img).ToHaveAttributeAsync("height", "400");
+        var box = await LoadedBoxAsync(img);
+        Assert.InRange(box.Width, 399, 401);
+        Assert.InRange(box.Height, 399, 401);
+
+        // The editor still shows the file it chose. Saving again without a change keeps the marker.
+        await OpenEditorAsync(pageId);
+        await WaitForEditorImageAsync(mediaId);
+        await SaveAndPublishAsync(pageId);
+        Assert.Contains("data-media-box=\"follow\"", await SavedHtmlAsync(pageId));
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await Expect(img).ToHaveAttributeAsync("height", "400");
+    }
+
+    // An image the editor stretched on purpose is marked fixed, and keeps the editor's box when
+    // the file is replaced with one of another shape.
+    [Fact]
+    public async Task AnImageTheEditorStretched_KeepsItsBox_AfterAReplacement()
+    {
+        await SignInAsAdminAsync();
+        var mediaId = await UploadUniquePngAsync(600, 600);
+        var (pageId, url) = await NewRichTextPageAsync();
+        await OpenEditorAsync(pageId);
+        await InsertFromLibraryAsync(mediaId, "A square image made wide", 400, unlockedHeight: 200);
+        await Expect(EditorBody.Locator($"img[src^='/media/{mediaId:D}/']")).ToHaveAttributeAsync("height", "200");
+
+        await SaveAndPublishAsync(pageId);
+        Assert.Contains("data-media-box=\"fixed\"", await SavedHtmlAsync(pageId));
+
+        await MediaSeedHelpers.ReplaceAsync(Fixture.SeedClient, mediaId, $"{_term}-tall.png", MediaFixtures.UniquePng(300, 600));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        var img = Page.Locator($"main .govuk-body img[data-media-id='{mediaId:D}']");
+        await Expect(img).ToHaveAttributeAsync("src", new Regex($"^/media/{mediaId:D}/2/"));
+        await Expect(img).ToHaveAttributeAsync("width", "400");
+        await Expect(img).ToHaveAttributeAsync("height", "200");
+        var box = await LoadedBoxAsync(img);
+        Assert.InRange(box.Width, 399, 401);
+        Assert.InRange(box.Height, 199, 201);
+    }
+
     [Fact]
     public async Task ReplacingALibraryImage_ChangesTheLiveRichTextPage()
     {
@@ -342,7 +436,8 @@ public sealed class RichTextMediaE2ETests(PlaywrightFixture fixture) : SeedingPa
         var img = Page.Locator($"main .govuk-body img[data-media-id='{mediaId:D}']");
         await Expect(img).ToHaveAttributeAsync("src", new Regex($"^/media/{mediaId:D}/1/"));
 
-        // The new version is square. The page keeps the width and height that the editor set.
+        // The new version is square. The stored text has no box marker, so the page keeps the
+        // width and height that the editor set.
         await MediaSeedHelpers.ReplaceAsync(Fixture.SeedClient, mediaId, $"{_term}-replacement.png", MediaFixtures.UniquePng(600, 600));
 
         await Page.GotoAsync($"{Fixture.BaseUrl}{url}");

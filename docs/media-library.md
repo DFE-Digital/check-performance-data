@@ -77,22 +77,44 @@ See [domain-model.md](domain-model.md) for when the rows are written.
 
 ## Image size in rich text
 
-The image dialog in the rich text editor stores a `width` and a `height` on the `<img>`. When the
-page renders, `RichTextImageRewriter` writes the size like this:
+The image dialog in the rich text editor always stores a `width` and a `height` on the `<img>`.
+The two numbers alone cannot show if the editor chose the shape on purpose. So each library
+image with both sides also gets a box marker, `data-media-box` (`RichTextImageBox`):
 
-- A width and a height that the editor set both stay. This is true also when their shape is not
-  the shape of the file. The editor can unlock "Constrain proportions" and stretch an image on
-  purpose.
+| Marker | Written when | The page shows |
+| --- | --- | --- |
+| `follow` | The box has the shape of the file that the editor shows | The editor's width. The height follows the shape of the version shown. |
+| `fixed` | The box has another shape: the editor unlocked "Constrain proportions" and changed it | The editor's width and height |
+| none | Text saved before the marker existed, or an image that had not loaded | The editor's width and height |
+
+- The editor script (`rich-text-media.js`) writes the marker on each save. It compares the box
+  with the size of the loaded file in the editor, within one pixel either way, because the
+  dialog rounds the side that it works out. The editor shows the version in the stored `src`,
+  so the compare uses the file that the editor sized the image on. An image that has not
+  loaded keeps the marker it had.
+- Saving again without a change gives the same marker. A `follow` image stays `follow` after a
+  replacement, because the editor still compares with the file that it shows.
+- Moving embedded `data:` images into the library writes the marker from the new library image
+  (`EmbeddedImageContent`). Content staging copies the text, so the marker goes with it.
+- The sanitiser keeps `data-media-box`. The rewriter reads only `follow` and `fixed`; any other
+  value counts as no marker.
+- Text with no marker keeps its box. The library is new, so only test content has no marker.
+  Such an image gets a marker the next time the page is saved in the editor.
+
+When the page renders, `RichTextImageRewriter` writes the size like this:
+
+- A width and a height: see the table above.
 - When only one side is set, the other side follows the shape of the version shown.
 - When no side is set, the image gets the size of the version shown.
 - The image also gets a `style="aspect-ratio: W / H"` with the same two numbers. The page CSS
   sets `max-width: 100%` and `height: auto`, so an image shrinks in a narrow column. Without the
-  aspect ratio, the shape of the file would then win over the editor's box. The rewriter makes
-  this style from the two numbers. It removes a stored style, and the sanitiser removes style
+  aspect ratio, the shape of the file would then win over the box. The rewriter makes this
+  style from the two numbers. It removes a stored style, and the sanitiser removes style
   attributes before this step.
 
-So a replacement file of another shape shows in the box that the editor set. To show the new
-shape, the editor sets the size again in the image dialog.
+So a replacement file of another shape keeps the width of a `follow` image and shows in its
+own shape. A `fixed` image keeps the box that the editor set. "Crops and sizes" on the image
+page groups rich-text uses by the same box.
 
 ## Serving and signed renditions
 
@@ -197,9 +219,19 @@ the current file, with the time (UTC). "Uses" is the number of pages and content
 the image, the same as "Where the image is used" on the image page
 (`IMediaAssetRepository.CountUsesAsync`, one query for each page of the list).
 
-The view is in the query string only. Page links, the search and filters form and "Clear search
-and filters" keep it. A value that is not one of the three shows the grid. The service keeps no
-view for each user.
+The view is in the query string. Page links, the search and filters form and "Clear search
+and filters" keep it. A value that is not one of the three shows the grid.
+
+The browser also remembers each viewer's view (`media-library-view.js`, local storage key
+`media-library-view`):
+
+- A view in the address always wins, and the browser remembers it.
+- With no view in the address, the page goes to the remembered view with `location.replace`.
+  The script runs before `<main>` without `defer`, so the switch happens before the list shows.
+- Only a GET of the list switches. A page that answers a form post (an upload or a new folder)
+  keeps its results.
+- Each read and write of the storage is in a `try`/`catch`. With no storage, or no script, the
+  page shows the view in the address, else the grid. The server keeps no view for each user.
 
 An image that current content shows in more than one way has the link "Used in N ways" under it
 in the grid, and a "Crops and sizes" row in the Details and Large views. The link opens the
@@ -491,7 +523,9 @@ Test pages:
 - `/development-testing/widgets/image-test-page`: the Image widget at each width, crop and focal
   point.
 - `/development-testing/media-rich-text-test-page`: rich text with library images, a figure, a
-  weak alt text, a decorative image and a wide image that the editor stretched into a square box.
+  weak alt text, a decorative image, a wide image that the editor stretched into a square box
+  (with no box marker), and two marked boxes: one that follows the shape of its file and one
+  that is fixed.
 - `/development-testing/embedded-image-test-page`: a `data:` image for the embedded-image move.
   The next start, or "Seed sample CMS pages", puts it back after a move.
 - Content block `development-testing-image`: a block with a library image.

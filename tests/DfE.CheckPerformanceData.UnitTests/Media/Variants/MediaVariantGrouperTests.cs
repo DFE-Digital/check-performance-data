@@ -106,6 +106,18 @@ public sealed class MediaVariantGrouperTests
         Assert.Equal((400, 200), (variants[2].Shape.BoxWidth, variants[2].Shape.BoxHeight));
     }
 
+    // A box marked to follow the file shows the shape of the current file, as the page does.
+    [Fact]
+    public void ARichTextBoxMarkedFollow_TakesTheShapeOfTheFile()
+    {
+        var html = $"<img data-media-id=\"{A}\" width=\"320\" height=\"320\" data-media-box=\"follow\">" +
+                   $"<img data-media-id=\"{A}\" width=\"320\" height=\"320\" data-media-box=\"fixed\">";
+
+        var variants = MediaVariantGrouper.Group(Png(), [Page(PageOne, "One", EmbeddedVersionState.Live, Tree(RichText(html)))], []);
+
+        Assert.Equal([(320, 160), (320, 320)], variants.Select(v => (v.Shape.BoxWidth, v.Shape.BoxHeight)).ToList());
+    }
+
     [Fact]
     public void LiveAndDraftVersionsWithTheSameUse_AreOneRowWithBothStates()
     {

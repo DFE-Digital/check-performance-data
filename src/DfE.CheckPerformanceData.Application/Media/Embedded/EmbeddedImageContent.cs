@@ -1,9 +1,11 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using DfE.CheckPerformanceData.Application.ContentPages;
+using DfE.CheckPerformanceData.Application.Media.RichText;
 
 namespace DfE.CheckPerformanceData.Application.Media.Embedded;
 
@@ -14,7 +16,8 @@ namespace DfE.CheckPerformanceData.Application.Media.Embedded;
 /// as rich text.
 ///
 /// Only the tags change. Each embedded <c>&lt;img&gt;</c> gets the library src and a
-/// <c>data-media-id</c>, as the rich-text editor saves a library image. Every other attribute, and
+/// <c>data-media-id</c>, as the rich-text editor saves a library image. An image with a width and a
+/// height also gets a <c>data-media-box</c> marker (see <c>RichTextImageBox</c>). Every other attribute, and
 /// every character outside those tags, stays exactly as stored. So a body that mixes markdown and
 /// HTML is not reformatted, and the page looks the same after the move.
 /// </summary>
@@ -165,10 +168,12 @@ public static partial class EmbeddedImageContent
         return result.ToString();
     }
 
-    // The tag with its src pointed at the library image and a data-media-id after it. Any old
-    // data-media-id is dropped. Edits run from the end, so earlier positions stay right.
+    // The tag with its src pointed at the library image and a data-media-id after it. A tag with a
+    // width and a height also gets a box marker, from the shape of the library image. Any old
+    // data-media-id or marker is dropped. Edits run from the end, so earlier positions stay right.
     private static string RewriteTag(string tag, IReadOnlyList<TagAttribute> attributes, TagAttribute src, LibraryImageSrc image)
     {
+        var marker = BoxMarker(attributes, image) is { } box ? $" {RichTextImageBox.Attribute}=\"{box}\"" : "";
         var builder = new StringBuilder(tag);
         foreach (var attribute in attributes.OrderByDescending(a => a.Index))
         {
@@ -176,15 +181,28 @@ public static partial class EmbeddedImageContent
             {
                 builder.Remove(attribute.Index, attribute.Length);
                 builder.Insert(attribute.Index,
-                    $"{attribute.Space}src=\"{WebUtility.HtmlEncode(image.Src)}\" {MediaIdAttribute}=\"{image.Id}\"");
+                    $"{attribute.Space}src=\"{WebUtility.HtmlEncode(image.Src)}\" {MediaIdAttribute}=\"{image.Id}\"{marker}");
             }
-            else if (attribute.Name.Equals(MediaIdAttribute, StringComparison.OrdinalIgnoreCase))
+            else if (attribute.Name.Equals(MediaIdAttribute, StringComparison.OrdinalIgnoreCase)
+                     || attribute.Name.Equals(RichTextImageBox.Attribute, StringComparison.OrdinalIgnoreCase))
             {
                 builder.Remove(attribute.Index, attribute.Length);
             }
         }
         return builder.ToString();
     }
+
+    // The embedded image and the library image are the same picture, so the box is compared with
+    // the library image's size. Null when the tag lacks a side or the size is not known.
+    private static string? BoxMarker(IReadOnlyList<TagAttribute> attributes, LibraryImageSrc image) =>
+        image is { Width: > 0, Height: > 0 }
+        && PixelValue(attributes, "width") is { } width && PixelValue(attributes, "height") is { } height
+            ? RichTextImageBox.For(width, height, image.Width.Value, image.Height.Value)
+            : null;
+
+    private static int? PixelValue(IReadOnlyList<TagAttribute> attributes, string name) =>
+        int.TryParse(attributes.FirstOrDefault(a => a.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Value,
+            NumberStyles.None, CultureInfo.InvariantCulture, out var n) && n > 0 ? n : null;
 
     private sealed record TagAttribute(string Name, string? Value, string Space, int Index, int Length);
 

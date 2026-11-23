@@ -57,7 +57,9 @@ public sealed class ContentStagingMediaTests(PostgresFixture postgres, AzuriteFi
         ["props"] = new JsonObject { ["mediaId"] = id.ToString(), ["alt"] = "A picture" }
     }).ToJsonString();
 
-    private static string LibraryImg(Guid id) => $"<p><img data-media-id=\"{id}\" src=\"/media/{id}/q.png\" alt=\"q\"></p>";
+    // The box marker says the editor stretched the image on purpose, so a later file keeps the box.
+    private static string LibraryImg(Guid id) =>
+        $"<p><img data-media-id=\"{id}\" src=\"/media/{id}/q.png\" alt=\"q\" width=\"6\" height=\"3\" data-media-box=\"fixed\"></p>";
 
     private static MediaProcessingGate Gate => new(Options.Create(new MediaProcessingOptions()));
 
@@ -191,6 +193,17 @@ public sealed class ContentStagingMediaTests(PostgresFixture postgres, AzuriteFi
 
         Assert.True(await ctx.MediaUsages.AnyAsync(u => u.AssetId == chart && u.ContentBlockId != null));
         Assert.True(await ctx.MediaUsages.AnyAsync(u => u.AssetId == chart && u.PageNodeVersionId != null));
+
+
+        // The rich text keeps each image's box marker.
+        var wikiBodies = await (from v in ctx.PageNodeVersions
+                                join p in ctx.PageNodes on v.PageNodeId equals p.Id
+                                where p.Segment == "notes"
+                                select v.Content).ToListAsync();
+        Assert.NotEmpty(wikiBodies);
+        Assert.All(wikiBodies, body => Assert.Contains("data-media-box=\"fixed\"", body));
+        var block = await ctx.ContentBlocks.SingleAsync(b => b.Key == "chart-block");
+        Assert.Contains("data-media-box=\"fixed\"", block.Value);
     }
 
     [Fact]

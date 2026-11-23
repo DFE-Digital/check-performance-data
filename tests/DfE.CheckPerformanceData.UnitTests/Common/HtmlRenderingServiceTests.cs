@@ -234,6 +234,15 @@ public sealed class HtmlRenderingServiceTests
     }
 
     [Fact]
+    public void RenderHtml_KeepsTheBoxMarkerOfALibraryImage()
+    {
+        var result = _sut.RenderHtml(
+            "<p><img data-media-id=\"8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11\" src=\"/media/8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11/1/photo.png\" alt=\"A photo\" width=\"200\" height=\"200\" data-media-box=\"fixed\"></p>");
+
+        Assert.Contains("data-media-box=\"fixed\"", result);
+    }
+
+    [Fact]
     public void RenderHtml_KeepsAnExistingDataImage()
     {
         var result = _sut.RenderHtml($"<p><img src=\"{PngDataUri}\" alt=\"Dot\"></p>");

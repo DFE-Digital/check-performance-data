@@ -152,7 +152,8 @@ public static class MediaImageUseReader
             found.Add(new Found(
                 new MediaImageUse(id, MediaUsageLocations.RichText, path, img.GetAttribute("alt"), IsDecorative(img), FigureCaption(img)),
                 new MediaImageShapeUse(id, MediaUsageLocations.RichText, path, null, null, null,
-                    RichTextImageRewriter.SizeAttribute(img, "width"), RichTextImageRewriter.SizeAttribute(img, "height"))));
+                    RichTextImageRewriter.SizeAttribute(img, "width"), RichTextImageRewriter.SizeAttribute(img, "height"),
+                    RichTextImageBox.Read(img))));
         }
     }
 

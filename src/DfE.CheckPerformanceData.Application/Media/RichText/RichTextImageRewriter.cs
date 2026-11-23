@@ -10,8 +10,8 @@ namespace DfE.CheckPerformanceData.Application.Media.RichText;
 /// Points the library images in rich text at the version that a page shows, when the page renders.
 /// Rich text stores <c>&lt;img data-media-id="{id}" src="/media/{id}/..."&gt;</c> with the unsigned
 /// original. Each one gets a signed responsive src, srcset and sizes, lazy loading and a size: the
-/// width and height the editor set, else the size of the version shown. An SVG or an animation gets
-/// its original, because it is never resized.
+/// width and height the editor set (see <see cref="Box"/>), else the size of the version shown. An
+/// SVG or an animation gets its original, because it is never resized.
 ///
 /// The input is HTML that the sanitiser has already cleaned, and the output is written straight to
 /// the page, so this runs after the sanitiser and never before a save or a search index. An image
@@ -123,28 +123,29 @@ public static class RichTextImageRewriter
         img.SetAttribute("decoding", "async");
     }
 
-    // The size to write. A width and a height that the editor set both stay, also in another shape
-    // than the file: the editor can unlock the ratio and stretch an image on purpose. With one side
-    // only, the other side follows the shape of the version shown. With neither, the version's own
-    // size. With no known shape, what is stored.
+    // The size to write, from the width, the height and the box marker that the editor saved.
     private static (int? Width, int? Height) Size(IElement img, MediaAssetVersionDto version)
     {
         var storedWidth = Number(img, "width");
         var storedHeight = Number(img, "height");
         if (storedWidth is null && storedHeight is null && (img.HasAttribute("width") || img.HasAttribute("height")))
             return (null, null);
-        return Box(storedWidth, storedHeight, version);
+        return Box(storedWidth, storedHeight, RichTextImageBox.Read(img), version);
     }
 
     /// <summary>
     /// The box that a page gives a rich-text image, from the width and height that the editor set
-    /// (each null when not set) and the version shown. Both sides stay; one side gives the other
-    /// from the shape of the version; neither gives the size of the version.
+    /// (each null when not set), its <see cref="RichTextImageBox"/> marker and the version shown.
+    /// Both sides stay, unless the marker says the box follows the file: then the height follows
+    /// the shape of the version, so a replacement of another shape is not stretched. One side gives
+    /// the other from the shape of the version. Neither gives the size of the version.
     /// </summary>
-    public static (int? Width, int? Height) Box(int? storedWidth, int? storedHeight, MediaAssetVersionDto version)
+    public static (int? Width, int? Height) Box(int? storedWidth, int? storedHeight, string? boxMarker,
+        MediaAssetVersionDto version)
     {
-        if (storedWidth is not null && storedHeight is not null) return (storedWidth, storedHeight);
         if (version.Width is not > 0 || version.Height is not > 0) return (storedWidth, storedHeight);
+        if (storedWidth is not null && storedHeight is not null && boxMarker != RichTextImageBox.Follow)
+            return (storedWidth, storedHeight);
 
         var (vw, vh) = (version.Width.Value, version.Height.Value);
         if (storedWidth is { } w) return (w, (int)Math.Round(w * (double)vh / vw, MidpointRounding.AwayFromZero));

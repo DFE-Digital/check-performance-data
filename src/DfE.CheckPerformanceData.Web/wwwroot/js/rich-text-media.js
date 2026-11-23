@@ -17,6 +17,10 @@
 //   then points them at the library file. An upload error shows the server's message.
 // - Each library image is saved as <img data-media-id="{id}" src="/media/{id}/...">. The id
 //   comes from the src, so it is always right after the editor changes the source.
+// - A library image with a width and a height also gets data-media-box: "follow" when the box
+//   has the shape of the file the editor shows, else "fixed" (the editor changed the shape on
+//   purpose). A page shows a replacement of another shape in the box's width with the new shape
+//   for "follow", and in the editor's exact box for "fixed".
 // - A data: image that the page already had stays as it is. The editor does not upload it.
 // - The image dialog can mark an image decorative (an empty alt and role="presentation").
 // - A library image with no alt text, and not marked decorative, shows a warning.
@@ -27,6 +31,9 @@
     var MEDIA_SRC = /^(?:https?:\/\/[^\/]+)?\/media\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\//i;
     var NO_ALT = 'This image has no alt text. Select the image, then use Insert/edit image to describe it, or mark it as decorative.';
     var UPLOAD_FAILED = 'The image could not be uploaded. Try again.';
+    var BOX_MARKER = 'data-media-box';
+    // The image dialog rounds the side it works out, so the shape is compared within a pixel.
+    var BOX_TOLERANCE = 1.5;
 
     function picker() { return window.MediaPicker && window.MediaPicker.isAvailable() ? window.MediaPicker : null; }
 
@@ -93,13 +100,57 @@
         return img.getAttribute('alt') !== null && (role === 'presentation' || role === 'none');
     }
 
+    // A whole number above 0, or null.
+    function pixels(value) {
+        return /^[0-9]+$/.test(value || '') && Number(value) > 0 ? Number(value) : null;
+    }
+
+    // True when a width x height box has the shape of a file of that size: within a pixel of the
+    // side that the other side gives, because the image dialog rounds the side it works out. The
+    // server uses the same rule (RichTextImageBox).
+    function hasShapeOf(width, height, fileWidth, fileHeight) {
+        return Math.abs(height - width * fileHeight / fileWidth) <= BOX_TOLERANCE
+            || Math.abs(width - height * fileWidth / fileHeight) <= BOX_TOLERANCE;
+    }
+
+    // The size of each loaded library image in the editor, by its src.
+    function loadedSizes(editor) {
+        var sizes = {};
+        var body = editor.getBody();
+        if (!body) { return sizes; }
+        body.querySelectorAll('img').forEach(function (img) {
+            if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+                sizes[img.getAttribute('src')] = { width: img.naturalWidth, height: img.naturalHeight };
+            }
+        });
+        return sizes;
+    }
+
+    // The image dialog always saves a width and a height, so the box marker says whether the
+    // editor gave the image its own shape ("fixed") or kept the shape of the file it shows
+    // ("follow"). The page then shows a replacement of another shape in the right box. When the
+    // image has not loaded, its size is not known, and the marker stays as it was.
+    function markBox(node, sizes) {
+        var width = pixels(node.attr('width'));
+        var height = pixels(node.attr('height'));
+        if (width === null || height === null) { node.attr(BOX_MARKER, null); return; }
+        var file = sizes[node.attr('src')];
+        if (!file) { return; }
+        node.attr(BOX_MARKER, hasShapeOf(width, height, file.width, file.height) ? 'follow' : 'fixed');
+    }
+
     function setup(editor) {
-        // Write the library id from the src on every save, and drop a stale id.
+        // Write the library id from the src on every save, and drop a stale id. Write the box
+        // marker of each library image too.
         editor.on('PreInit', function () {
             editor.serializer.addNodeFilter('img', function (nodes) {
+                var sizes = null;
                 nodes.forEach(function (node) {
                     var match = MEDIA_SRC.exec(node.attr('src') || '');
                     node.attr('data-media-id', match ? match[1].toLowerCase() : null);
+                    if (!match) { node.attr(BOX_MARKER, null); return; }
+                    sizes = sizes || loadedSizes(editor);
+                    markBox(node, sizes);
                 });
             });
         });

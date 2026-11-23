@@ -98,6 +98,56 @@ public sealed class RichTextImageRewriterTests
     }
 
     [Fact]
+    public void ABoxMarkedFollow_KeepsItsWidth_AndTakesTheShapeOfTheVersionShown()
+    {
+        // Saved at 500 x 250 on a 2:1 file. The file was then replaced with a square one.
+        var img = Img(RichTextImageRewriter.Rewrite(
+            $"<img data-media-id=\"{Id}\" src=\"/media/{Id}/1/a.png\" alt=\"x\" width=\"500\" height=\"250\" data-media-box=\"follow\">",
+            Found(Media(version: 2, width: 800, height: 800)), _urls, false));
+
+        Assert.Equal("500", img.GetAttribute("width"));
+        Assert.Equal("500", img.GetAttribute("height"));
+        Assert.Equal("aspect-ratio: 500 / 500", img.GetAttribute("style"));
+    }
+
+    [Theory]
+    [InlineData(" data-media-box=\"fixed\"")]
+    [InlineData(" data-media-box=\"stretch\"")] // an unknown value is no marker
+    [InlineData("")] // text saved before the marker existed keeps the box it had
+    public void ABoxMarkedFixed_OrNotMarked_KeepsTheEditorsBox(string marker)
+    {
+        var img = Img(RichTextImageRewriter.Rewrite(
+            $"<img data-media-id=\"{Id}\" src=\"/media/{Id}/1/a.png\" alt=\"x\" width=\"500\" height=\"250\"{marker}>",
+            Found(Media(version: 2, width: 800, height: 800)), _urls, false));
+
+        Assert.Equal("500", img.GetAttribute("width"));
+        Assert.Equal("250", img.GetAttribute("height"));
+        Assert.Equal("aspect-ratio: 500 / 250", img.GetAttribute("style"));
+    }
+
+    [Fact]
+    public void ABoxMarkedFollow_OnAFileOfUnknownSize_KeepsTheEditorsBox()
+    {
+        var img = Img(RichTextImageRewriter.Rewrite(
+            $"<img data-media-id=\"{Id}\" src=\"/media/{Id}/1/a.svg\" alt=\"x\" width=\"500\" height=\"250\" data-media-box=\"follow\">",
+            Found(Media(contentType: "image/svg+xml", width: null, height: null)), _urls, false));
+
+        Assert.Equal("500", img.GetAttribute("width"));
+        Assert.Equal("250", img.GetAttribute("height"));
+    }
+
+    [Theory]
+    [InlineData("follow", 400, 400)]
+    [InlineData("fixed", 400, 200)]
+    [InlineData(null, 400, 200)]
+    public void Box_UsesTheMarker_ForAWidthAndAHeight(string? marker, int width, int height)
+    {
+        var version = Media(width: 600, height: 600).Version;
+
+        Assert.Equal((width, height), RichTextImageRewriter.Box(400, 200, marker, version));
+    }
+
+    [Fact]
     public void ASizedImage_KeepsItsShape_WhenTheColumnIsNarrower()
     {
         // The page shrinks a wide image to its column (max-width with height:auto). The box keeps

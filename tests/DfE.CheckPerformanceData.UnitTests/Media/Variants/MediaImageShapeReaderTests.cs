@@ -63,6 +63,18 @@ public sealed class MediaImageShapeReaderTests
     }
 
     [Fact]
+    public void ARichTextImage_GivesItsBoxMarker()
+    {
+        var html = $"<img data-media-id=\"{A}\" width=\"400\" height=\"200\" data-media-box=\"follow\">" +
+                   $"<img data-media-id=\"{A}\" width=\"400\" height=\"400\" data-media-box=\"fixed\">" +
+                   $"<img data-media-id=\"{A}\" width=\"400\" height=\"400\">";
+
+        var uses = MediaImageUseReader.ReadRichTextShapes(html);
+
+        Assert.Equal(["follow", "fixed", null], uses.Select(u => u.BoxMarker).ToList());
+    }
+
+    [Fact]
     public void AContentBlockValue_IsReadAsRichText()
     {
         var use = MediaImageUseReader.ReadRichTextShapes($"<img src=\"/media/{A}/1/a.png\" width=\"320\" height=\"320\">").Single();

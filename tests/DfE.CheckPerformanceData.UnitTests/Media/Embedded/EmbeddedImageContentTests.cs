@@ -71,6 +71,23 @@ public sealed class EmbeddedImageContentTests
             result);
     }
 
+    // The moved image is the same picture as the embedded one, so a box of its shape follows a
+    // later file, and a box of another shape was set on purpose and stays.
+    [Theory]
+    [InlineData("width=\"320\" height=\"160\"", " data-media-box=\"follow\"")]
+    [InlineData("width=\"320\" height=\"320\"", " data-media-box=\"fixed\"")]
+    [InlineData("width=\"320\"", "")]
+    [InlineData("", "")]
+    public void Replace_MarksTheBox_FromTheShapeOfTheLibraryImage(string size, string marker)
+    {
+        var html = $"<img src=\"{Png}\" data-media-box=\"stale\" {size}>";
+        var library = new Dictionary<string, LibraryImageSrc> { [Png] = new(PngId, $"/media/{PngId}/1/chart.png", 640, 320) };
+
+        var result = EmbeddedImageContent.Replace(html, library);
+
+        Assert.Equal($"<img src=\"/media/{PngId}/1/chart.png\" data-media-id=\"{PngId}\"{marker} {size}>", result);
+    }
+
     [Fact]
     public void Replace_LeavesEveryCharacterOutsideTheImageTags_AsStored()
     {

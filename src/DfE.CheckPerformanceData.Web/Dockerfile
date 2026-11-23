@@ -32,7 +32,7 @@ EXPOSE 8080
 USER $APP_UID
 
 # Build
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:bef136a371963aaa46ec97882845ef6f54dec15728bb4b128b1c2a400ffbc9b4 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:2b1e13a22e46b55117f9cdb4b38e73172de08a30370166c8227d06cdaff82473 AS build
 ENV NUGET_CERT_REVOCATION_MODE=offline
 WORKDIR /src
 

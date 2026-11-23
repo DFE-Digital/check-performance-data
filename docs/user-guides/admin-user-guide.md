@@ -516,6 +516,8 @@ To add a branch to an outcome:
     If you change the field, select **Update field** so the operators match it. Select **Remove condition** to take a test out. Select **Add group** to nest a group of conditions.
 4. Select **Save branch**.
 
+Some date values are **window-relative**. They resolve from the start date of the window's pupil data exercise the request belongs to, instead of naming a calendar date. For example, *the second Monday of May of the window year*. When you open a branch whose condition has a window-relative date, its value is a read-only field that shows the form's name. You cannot type or change it on this page. If you need to change it, ask the development team to upload a new rules version.
+
 To change a branch, select its edit icon. To reorder branches, use the up and down icons. To remove a branch, select its remove icon. The service then asks *Remove branch?* Select **Remove branch** to confirm. It records a new version, and you can roll it back.
 
 #### Deleting an outcome
@@ -832,6 +834,8 @@ If you have not saved any answers, **Cancel** on the title page opens the Admini
 ### The window summary page
 
 Select **Edit** on a window in *Manage windows* to open its summary. This is where you manage the window from day to day.
+
+Select **Rules for this window** to open the window's rules page. It is read-only. It lists each decision rule for the window and the concrete date each window-relative date resolves to. A window with no rules shows *no rules configured*. You change the rules in *Rules Engine configuration*.
 
 ![The summary page for the Key Stage 2 window, showing the window details and a card for each checking exercise with its tags, dates, data files and buttons](admin/images/window-summary.png)
 *The summary page for a window with 2 checking exercises.*

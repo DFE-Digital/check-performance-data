@@ -42,7 +42,9 @@ KS2 has no Merge, Include or Add journey. The requirements say so.
 4. **No school-type differences on KS2.** Every school type gets the same options.
    `Remove_KS2.json` has no `visibleWhen`.
 5. **KS2 has no add-back pupils** (no 403 code). The KS2 rules have no add-back branch.
-6. **Dates are for 2027.** Every rule date and every hint uses the 2027 exercise.
+6. **Dates are for 2027.** Every journey hint uses the 2027 exercise. Every rule
+   date is window-relative: the rules engine resolves it from the window's
+   PupilData exercise start date (see below).
 7. **"Tests", never "exams"**, on every KS2 page.
 8. **Only included pupils can be removed.** `select-pupil` uses `pupilFilter: "Included"`. The
    KS2 schema stamps `INCLUDED` for P_INCL 201 only.
@@ -63,17 +65,17 @@ shared `evidence` page.
 
 | # | Category | Option value | Evidence | Rule |
 |---|---|---|---|---|
-| 1 | Admitted following permanent exclusion | `permanent-exclusion` | Evidence | `AFE-KS2`: reject if excluded before 1 Sept 2025 |
-| 2 | Admitted from abroad with English not first language | `english-not-first-language` | Evidence | `EAL-ACC-KS2-*`: accept on or after 1 Sept 2024; `EAL-REJ-KS2-NOEVIDENCE`: reject before it with no evidence (see EAL below) |
+| 1 | Admitted following permanent exclusion | `permanent-exclusion` | Evidence | `AFE-KS2`: reject if excluded before 1 Sept of two years before the window year |
+| 2 | Admitted from abroad with English not first language | `english-not-first-language` | Evidence | `EAL-ACC-KS2-*`: accept on or after 1 Sept of three years before the window year; `EAL-REJ-KS2-NOEVIDENCE`: reject before it with no evidence (see EAL below) |
 | 3 | Child missing education | `child-missing-education` | Evidence | `PMIE-OTHER-REJ`: reject unless Ground H or I |
 | 4 | Pupil has died | `pupil-died` | None | `DEC-1`: accept |
-| 5 | Elective home education | `elective-home-education` | Evidence | `EHE-KS2`: reject if removed on or after 10 May 2027 |
-| 6 | Permanently excluded from current school | `permanently-excluded` | Evidence | `PEX-KS2`: reject if excluded on or after 10 May 2027 |
+| 5 | Elective home education | `elective-home-education` | Evidence | `EHE-KS2`: reject if removed on or after the second Monday of May of the window year |
+| 6 | Permanently excluded from current school | `permanently-excluded` | Evidence | `PEX-KS2`: reject if excluded on or after the second Monday of May of the window year |
 | 7 | Terminal or critical illness | `life-limiting-illness` | Evidence | `TCI-KS2-REJ`: reject if tests sat as a Year 6 pupil; terminal illness goes to Scrutiny |
-| 8 | Permanently left England | `permanently-left-england` | Evidence | `PLE-KS2`: reject if removed on or after 10 May 2027 |
+| 8 | Permanently left England | `permanently-left-england` | Evidence | `PLE-KS2`: reject if removed on or after the second Monday of May of the window year |
 | 9 | Social care involvement including police | `social-care-involvement` | Evidence | `SCI-KS2-REJ` if tests sat |
 | 10 | End-of-key-stage assessments deferred by a year | `assessments-deferred` | `evidence-with-comments` | None: Scrutiny only (`ASD-DEF`) |
-| 11 | Pupil added to school roll after start of summer term | `added-after-summer-term` | `evidence-with-comments` | `PAS-REJ`: reject if added to roll before 1 April 2027 |
+| 11 | Pupil added to school roll after start of summer term | `added-after-summer-term` | `evidence-with-comments` | `PAS-REJ`: reject if added to roll before 1 April of the window year |
 
 `evidence-with-comments` asks for a file and "Additional comments", both mandatory.
 
@@ -87,9 +89,10 @@ group change, completed KS4 elsewhere, Other (add-back).
 
 ### EAL
 
-The boundary for a "new admission" in 2027 is 1 Sept 2024. On or after it, the request is
-auto-accepted (`EAL-ACC-KS2-ALL`, `EAL-ACC-KS2-ARRIVAL`). Before it, the request is
-auto-rejected when the school gives no evidence (`EAL-REJ-KS2-NOEVIDENCE`). "No evidence" means
+The boundary for a "new admission" is 1 Sept of three years before the window
+year. On or after it, the request is auto-accepted (`EAL-ACC-KS2-ALL`,
+`EAL-ACC-KS2-ARRIVAL`). Before it, the request is auto-rejected when the school
+gives no evidence (`EAL-REJ-KS2-NOEVIDENCE`). "No evidence" means
 no uploaded file and no supporting text. With evidence, the request goes to Scrutiny (`EAL-DEF`).
 
 The source document also rejects "arrival before 1 Sept, one of criteria a–d not met, no
@@ -103,17 +106,21 @@ now limited to `KS4June`. The two reject rules stay shared.
 `AFE-PRE2023` had no window-type condition either. It is now limited to `KS4June`, and
 `AFE-KS2` is the KS2 rule.
 
-## The rule dates only work in 2027
+## The rule dates follow the window
 
-The KS2 rule dates are written into `rules.json` for the 2027 exercise. Before then:
+The KS2 rule dates are window-relative. The rules engine resolves each one from
+the window's PupilData exercise start date, so one `rules.json` works for every
+window year:
 
-- `PAS-REJ` rejects every request, because the date added to roll must be in the past and so is
-  before 1 April 2027.
-- `EHE-KS2`, `PEX-KS2` and `PLE-KS2` never reject, because no past date is on or after
-  10 May 2027.
+- `PAS-REJ` rejects a pupil added to the roll before 1 April of the window year.
+- `EHE-KS2`, `PEX-KS2` and `PLE-KS2` reject a removal on or after the second
+  Monday of May of the window year.
+- The EAL rules split at 1 Sept of three years before the window year.
+- `AFE-KS2` rejects an exclusion before 1 Sept of two years before the window year.
 
-So in dev and QA these outcomes do not show what schools will see. Test them with a rule
-context that has a 2027 date, not by a browser walk.
+A 2027 window gets the 2027 dates. A 2028 window gets the 2028 dates. No one
+moves the dates in `rules.json` between years. To test these branches, create a
+window with the start date you want and use a browser walk against it.
 
 ## Assumptions
 

@@ -22,6 +22,14 @@ public class RequestDocument
     /// Null when not supplied: the worker then leaves the two fields out.
     /// </summary>
     public DateTime? CheckingWindowStartDate { get; init; }
+
+    /// <summary>
+    /// The start date of the window's PupilData exercise. The rules engine resolves
+    /// window-relative rule dates from its year, not from the window's start date, so a
+    /// data-share exercise added earlier in the year cannot move the dates the rules use (#800).
+    /// Null when the window has no PupilData exercise: relative dates then cannot resolve.
+    /// </summary>
+    public DateTime? PupilDataExerciseStartDate { get; init; }
     public required string CheckingWindowType { get; init; }
     /// <summary>
     /// Stable machine code for the requested change: the <c>WhatToChange</c> enum

@@ -158,8 +158,23 @@ public static class PredicateForm
         FieldValue.Bool b => b.Value ? "true" : "false",
         FieldValue.Num n => n.Value.ToString(CultureInfo.InvariantCulture),
         FieldValue.Date d => d.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+        FieldValue.RelativeDate rd => RelativeDateToken(rd.Spec),
         FieldValue.Uncertain u => Scalar(u.Inner),
         _ => string.Empty
+    };
+
+    /// <summary>
+    /// The canonical token a window-relative date form posts through the flat form (#800):
+    /// "window:secondMondayOfMay", "window:firstSeptemberMinusYears:3" and
+    /// "window:dayMonthOfWindowYear:4-1". Rebuilds back to the same spec, so the round-trip
+    /// is lossless.
+    /// </summary>
+    public static string RelativeDateToken(RelativeDateSpec spec) => spec switch
+    {
+        RelativeDateSpec.SecondMondayOfMay => "window:secondMondayOfMay",
+        RelativeDateSpec.FirstSeptemberMinusYears y => $"window:firstSeptemberMinusYears:{y.Years}",
+        RelativeDateSpec.DayMonthOfWindowYear d => $"window:dayMonthOfWindowYear:{d.Month}-{d.Day}",
+        _ => throw new ArgumentOutOfRangeException(nameof(spec), spec, "Unknown window-relative date form.")
     };
 
     // Lenient: parse to the field's catalogue type; fall back to Str so RuleSetValidator
@@ -176,9 +191,54 @@ public static class PredicateForm
                     return new FieldValue.Num(d);
                 case FieldType.Date when DateOnly.TryParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt):
                     return new FieldValue.Date(dt);
+                case FieldType.Date when TryParseRelativeDateToken(raw, out var relSpec):
+                    return new FieldValue.RelativeDate(relSpec);
                 case FieldType.String: return new FieldValue.Str(raw);
             }
         }
         return new FieldValue.Str(raw);
+    }
+
+    private const string FirstSeptemberPrefix = "window:firstSeptemberMinusYears:";
+    private const string DayMonthPrefix = "window:dayMonthOfWindowYear:";
+
+    /// <summary>
+    /// True when a form value is a window-relative date token, for example
+    /// "window:secondMondayOfMay" (#800).
+    /// </summary>
+    public static bool IsRelativeDateToken(string? value) =>
+        value is not null && value.StartsWith("window:", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Rebuilds the <see cref="RelativeDateSpec"/> a value posts as its canonical token
+    /// (#800). Returns false for a malformed token; the caller then falls back to Str so
+    /// RuleSetValidator reports a friendly error on save.
+    /// </summary>
+    public static bool TryParseRelativeDateToken(string raw, out RelativeDateSpec spec)
+    {
+        spec = null!;
+        if (raw == "window:secondMondayOfMay")
+        {
+            spec = new RelativeDateSpec.SecondMondayOfMay();
+            return true;
+        }
+        if (raw.StartsWith(FirstSeptemberPrefix, StringComparison.Ordinal) &&
+            int.TryParse(raw[FirstSeptemberPrefix.Length..], NumberStyles.None, CultureInfo.InvariantCulture, out var years))
+        {
+            spec = new RelativeDateSpec.FirstSeptemberMinusYears(years);
+            return true;
+        }
+        if (raw.StartsWith(DayMonthPrefix, StringComparison.Ordinal))
+        {
+            var parts = raw[DayMonthPrefix.Length..].Split('-', 2);
+            if (parts.Length == 2 &&
+                int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var month) &&
+                int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var day))
+            {
+                spec = new RelativeDateSpec.DayMonthOfWindowYear(month, day);
+                return true;
+            }
+        }
+        return false;
     }
 }

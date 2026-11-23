@@ -34,12 +34,51 @@ public sealed class LeafEditorOptionsTests
     [Fact]
     public void ValueEditor_Reflects_Operator_And_Type()
     {
-        Assert.Equal(ValueEditorKind.None, LeafEditorOptions.ValueEditor("checkingWindowType", "known"));
-        Assert.Equal(ValueEditorKind.List, LeafEditorOptions.ValueEditor("checkingWindowType", "in"));
-        Assert.Equal(ValueEditorKind.Language, LeafEditorOptions.ValueEditor("checkingWindowType", "lang"));
-        Assert.Equal(ValueEditorKind.BoolSelect, LeafEditorOptions.ValueEditor("isAddBack", "eq"));
-        Assert.Equal(ValueEditorKind.Number, LeafEditorOptions.ValueEditor("pupilAge", "gte"));
-        Assert.Equal(ValueEditorKind.Date, LeafEditorOptions.ValueEditor("schoolAdmissionDate", "lt"));
-        Assert.Equal(ValueEditorKind.Text, LeafEditorOptions.ValueEditor("checkingWindowType", "eq"));
+        Assert.Equal(ValueEditorKind.None, LeafEditorOptions.ValueEditor("checkingWindowType", "known", null));
+        Assert.Equal(ValueEditorKind.List, LeafEditorOptions.ValueEditor("checkingWindowType", "in", null));
+        Assert.Equal(ValueEditorKind.Language, LeafEditorOptions.ValueEditor("checkingWindowType", "lang", null));
+        Assert.Equal(ValueEditorKind.BoolSelect, LeafEditorOptions.ValueEditor("isAddBack", "eq", null));
+        Assert.Equal(ValueEditorKind.Number, LeafEditorOptions.ValueEditor("pupilAge", "gte", null));
+        Assert.Equal(ValueEditorKind.Date, LeafEditorOptions.ValueEditor("schoolAdmissionDate", "lt", null));
+        Assert.Equal(ValueEditorKind.Text, LeafEditorOptions.ValueEditor("checkingWindowType", "eq", null));
+    }
+
+    // #800: a date field holding a window-relative date token gets the read-only
+    // relative-date editor; a fixed ISO date keeps the date input.
+
+    [Fact]
+    public void ValueEditor_Picks_The_Relative_Date_Editor_For_A_Window_Token()
+    {
+        Assert.Equal(ValueEditorKind.RelativeDate,
+            LeafEditorOptions.ValueEditor("dateOfRemoval", "eq", "window:secondMondayOfMay"));
+        Assert.Equal(ValueEditorKind.RelativeDate,
+            LeafEditorOptions.ValueEditor("schoolAdmissionDate", "lte", "window:firstSeptemberMinusYears:3"));
+        Assert.Equal(ValueEditorKind.RelativeDate,
+            LeafEditorOptions.ValueEditor("dateAddedToRoll", "gte", "window:dayMonthOfWindowYear:4-1"));
+    }
+
+    [Fact]
+    public void ValueEditor_Keeps_A_Fixed_Date_On_The_Date_Editor()
+    {
+        Assert.Equal(ValueEditorKind.Date,
+            LeafEditorOptions.ValueEditor("schoolAdmissionDate", "lt", "2025-09-01"));
+    }
+
+    [Fact]
+    public void ValueEditor_Ignores_A_Window_Token_On_A_Non_Date_Field()
+    {
+        Assert.Equal(ValueEditorKind.Text,
+            LeafEditorOptions.ValueEditor("checkingWindowType", "eq", "window:secondMondayOfMay"));
+    }
+
+    [Theory]
+    [InlineData("window:secondMondayOfMay", true)]
+    [InlineData("window:dayMonthOfWindowYear:4-1", true)]
+    [InlineData("2025-09-01", false)]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    public void IsRelativeDateToken_Recognises_Only_Window_Tokens(string? value, bool expected)
+    {
+        Assert.Equal(expected, PredicateForm.IsRelativeDateToken(value));
     }
 }

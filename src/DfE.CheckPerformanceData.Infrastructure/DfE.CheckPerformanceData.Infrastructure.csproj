@@ -38,12 +38,12 @@
       <PackageReference Include="Newtonsoft.Json.Schema" />
       <PackageReference Include="Polly" />
       <PackageReference Include="Refit" />
-      <PackageReference Include="Refit.HttpClientFactory" />
       <PackageReference Include="Refit.Newtonsoft.Json" />
-      <!-- Refit 16 generates request builders at compile time. IZendeskApi.GetTicketsForView takes a
-           Dictionary query that cannot be flattened then (RF006), so it needs the runtime builder;
-           without this package resolving the client throws NotSupportedException at startup. -->
-      <PackageReference Include="Refit.Reflection" />
+      <!-- Refit generates request builders at compile time. IZendeskApi.GetTicketsForView takes a
+           Dictionary query that it cannot flatten then (RF006), so the method needs the runtime
+           builder. This package gives AddRefitClient, which uses that builder. It also brings in
+           Refit.HttpClientFactory and Refit.Reflection. -->
+      <PackageReference Include="Refit.HttpClientFactory.Reflection" />
       <PackageReference Include="Riok.Mapperly" />
       <PackageReference Include="SkiaSharp" />
       <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />

@@ -107,7 +107,8 @@ import {
  *
  * PROFILE selects how journeys are run (see lib/workload.ts).
  * regression runs each journey once in this order. single
- * runs the id given in JOURNEY. load draws from a weighted
+ * runs the id given in JOURNEY. sequential and concurrent
+ * repeat a weighted schedule. load draws from a weighted
  * mix (JOURNEY_WEIGHTS). Journeys are only run by id.
  */
 export const journeyRegistry: JourneyConfig[] = [

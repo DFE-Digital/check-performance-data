@@ -96,6 +96,13 @@
       <action href="@Model.CheckingWindowTypeLink" visually-hidden-text="Window Type">Change</action>
     </row-actions>
   </row>
+  @* #800: the rule dates this window resolves to, on their own page. *@
+  <row>
+    <key>Rules</key>
+    <value>
+      <a class="govuk-link" href="@Model.RulesLink">Rules for this window</a>
+    </value>
+  </row>
   <row>
     <key>Turnaround commitment</key>
     <value>@(string.IsNullOrWhiteSpace(Model.TurnaroundCommitment) ? "Not set" : Model.TurnaroundCommitment)</value>

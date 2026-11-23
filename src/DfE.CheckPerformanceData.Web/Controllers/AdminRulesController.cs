@@ -37,7 +37,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     [HttpGet("admin/rules")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        var (ruleSet, _) = await TryGetRulesAsync(ct);
+        var (ruleSet, _) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         var (lookups, _) = await TryGetLookupsAsync(ct);
 
         var rulesLatest = ruleSet is null ? null : await LatestVersionAsync(RulesConfigType.Rules, ct);
@@ -124,14 +124,14 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     [HttpGet("admin/rules/outcomes")]
     public async Task<IActionResult> Outcomes(CancellationToken ct)
     {
-        var (ruleSet, _) = await TryGetRulesAsync(ct);
+        var (ruleSet, _) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         return View(OutcomesView, RulesAdminViewModelFactory.Outcomes(ruleSet));
     }
 
     [HttpGet("admin/rules/outcomes/{key}")]
     public async Task<IActionResult> Outcome(string key, CancellationToken ct)
     {
-        var (ruleSet, _) = await TryGetRulesAsync(ct);
+        var (ruleSet, _) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         var model = RulesAdminViewModelFactory.Outcome(ruleSet, key);
         return model is null ? NotFound() : View(OutcomeView, model);
     }
@@ -144,7 +144,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddOutcome(AddOutcomeForm form, CancellationToken ct)
     {
-        var (current, etag) = await TryGetRulesAsync(ct);
+        var (current, etag) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         if (current is null)
         {
             return View(OutcomeAddView, AddOutcomeViewModel.For(form, ["The rules could not be loaded. Reload and try again."]));
@@ -190,7 +190,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             return NotFound();
         }
 
-        var (ruleSet, _) = await TryGetRulesAsync(ct);
+        var (ruleSet, _) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         var outcome = ruleSet?.Outcomes.FirstOrDefault(o => o.Key == key);
         if (outcome is null)
         {
@@ -212,7 +212,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             return NotFound();
         }
 
-        var (current, etag) = await TryGetRulesAsync(ct);
+        var (current, etag) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         var outcome = current?.Outcomes.FirstOrDefault(o => o.Key == key);
         if (current is null || outcome is null)
         {
@@ -281,7 +281,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     [HttpGet("admin/rules/outcomes/{key}/branches/{id}/edit")]
     public async Task<IActionResult> EditBranch(string key, string id, CancellationToken ct)
     {
-        var (ruleSet, etag) = await TryGetRulesAsync(ct);
+        var (ruleSet, etag) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         var outcome = ruleSet?.Outcomes.FirstOrDefault(o => o.Key == key);
         var branch = outcome?.Rules.FirstOrDefault(b => b.Id == id);
         if (outcome is null || branch is null || branch.When is Predicate.Otherwise)
@@ -305,7 +305,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     [HttpGet("admin/rules/outcomes/{key}/branches/add")]
     public async Task<IActionResult> AddBranch(string key, CancellationToken ct)
     {
-        var (ruleSet, etag) = await TryGetRulesAsync(ct);
+        var (ruleSet, etag) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         var outcome = ruleSet?.Outcomes.FirstOrDefault(o => o.Key == key);
         if (outcome is null)
         {
@@ -361,7 +361,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             return Failure(BranchEditViewModel.For(form, structural));
         }
 
-        var (current, currentETag) = await TryGetRulesAsync(ct);
+        var (current, currentETag) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         if (current is null)
         {
             return Failure(BranchEditViewModel.For(form, ["The rules could not be loaded. Reload and try again."]));
@@ -404,7 +404,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             // The save changed the blob's ETag; hand the new one back so the page can keep editing
             // and re-save without a spurious concurrency conflict. One extra read; the optimistic
             // check makes the tiny TOCTOU window benign.
-            var (_, newETag) = await TryGetRulesAsync(ct);
+            var (_, newETag) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
             return Json(new { ok = true, message = "Saved", newETag });
         }
 
@@ -416,7 +416,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     [HttpGet("admin/rules/outcomes/{key}/branches/{id}/remove")]
     public async Task<IActionResult> ConfirmRemoveBranch(string key, string id, CancellationToken ct)
     {
-        var (ruleSet, _) = await TryGetRulesAsync(ct);
+        var (ruleSet, _) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         var branch = ruleSet?.Outcomes.FirstOrDefault(o => o.Key == key)?.Rules.FirstOrDefault(b => b.Id == id);
         if (branch is null || branch.When is Predicate.Otherwise)
         {
@@ -432,7 +432,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveBranch(string key, string id, CancellationToken ct)
     {
-        var (current, etag) = await TryGetRulesAsync(ct);
+        var (current, etag) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         if (current is null) return NotFound();
 
         RuleSet spliced;
@@ -491,7 +491,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         }
 
         var etag = configType == RulesConfigType.Rules
-            ? (await TryGetRulesAsync(ct)).ETag
+            ? (await RulesConfigLookup.TryGetRulesAsync(rules, ct)).ETag
             : (await TryGetLookupsAsync(ct)).ETag;
 
         try
@@ -513,7 +513,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> MoveBranch(string key, string id, string direction, CancellationToken ct)
     {
-        var (current, etag) = await TryGetRulesAsync(ct);
+        var (current, etag) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
         if (current is null) return NotFound();
 
         var spliced = RuleSetSplicer.MoveBranch(current, key, id, up: direction == "up");
@@ -675,18 +675,6 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
 
     // --- helpers (shared by later GET actions) ---
 
-    private async Task<(RuleSet? Rules, string? ETag)> TryGetRulesAsync(CancellationToken ct)
-    {
-        try
-        {
-            return await rules.GetRulesAsync(ct);
-        }
-        catch (RulesConfigNotFoundException)
-        {
-            return (null, null);
-        }
-    }
-
     private async Task<(Lookups? Lookups, string? ETag)> TryGetLookupsAsync(CancellationToken ct)
     {
         try
@@ -712,7 +700,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     {
         if (type == RulesConfigType.Rules)
         {
-            var (ruleSet, etag) = await TryGetRulesAsync(ct);
+            var (ruleSet, etag) = await RulesConfigLookup.TryGetRulesAsync(rules, ct);
             return (etag, ruleSet is { Outcomes.Count: > 0 });
         }
 

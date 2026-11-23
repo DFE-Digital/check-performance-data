@@ -5,15 +5,15 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="AngleSharp" Version="1.10.1" />
+    <PackageVersion Include="AngleSharp" Version="1.10.4" />
     <PackageVersion Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" Version="1.5.5" />
     <PackageVersion Include="Azure.Storage.Blobs" Version="12.30.1" />
     <PackageVersion Include="Azure.Storage.Common" Version="12.29.0" />
     <PackageVersion Include="Community.Microsoft.Extensions.Caching.PostgreSql" Version="6.0.2" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
-    <PackageVersion Include="DfeAnalytics.AspNetCore" Version="0.6.4" />
-    <PackageVersion Include="DfeAnalytics.Core" Version="0.6.4" />
-    <PackageVersion Include="DfeAnalytics.EFCore" Version="0.6.4" />
+    <PackageVersion Include="DfeAnalytics.AspNetCore" Version="0.7.0" />
+    <PackageVersion Include="DfeAnalytics.Core" Version="0.7.0" />
+    <PackageVersion Include="DfeAnalytics.EFCore" Version="0.7.0" />
     <PackageVersion Include="GovUk.Frontend.AspNetCore" Version="5.1.0" />
     <PackageVersion Include="GovukNotify" Version="8.2.0" />
     <PackageVersion Include="HtmlSanitizer" Version="11.0.26" />
@@ -44,10 +44,9 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="PdfPig" Version="0.1.16" />
     <PackageVersion Include="Polly" Version="8.9.1" />
-    <PackageVersion Include="Refit" Version="16.4.0" />
-    <PackageVersion Include="Refit.HttpClientFactory" Version="16.4.0" />
-    <PackageVersion Include="Refit.Newtonsoft.Json" Version="16.4.0" />
-    <PackageVersion Include="Refit.Reflection" Version="16.4.0" />
+    <PackageVersion Include="Refit" Version="17.0.0" />
+    <PackageVersion Include="Refit.HttpClientFactory.Reflection" Version="17.0.0" />
+    <PackageVersion Include="Refit.Newtonsoft.Json" Version="17.0.0" />
     <PackageVersion Include="Riok.Mapperly" Version="4.3.1" />
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />

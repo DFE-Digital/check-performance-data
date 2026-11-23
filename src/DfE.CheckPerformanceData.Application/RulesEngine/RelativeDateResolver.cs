@@ -1,0 +1,53 @@
+namespace DfE.CheckPerformanceData.Application.RulesEngine;
+
+/// <summary>
+/// Turns a window-relative date form into a concrete date from the window's
+/// PupilData exercise start date (#800). A pure function: the current date
+/// and time are never used, so the same PupilData start date always gives the
+/// same date.
+/// </summary>
+public static class RelativeDateResolver
+{
+    /// <summary>
+    /// Resolves <paramref name="spec"/> against <paramref name="pupilDataStartDate"/>.
+    /// Returns false when the PupilData start date is null, the form has no date
+    /// in the window's year (for example 29 February in a non-leap year), or the
+    /// offset lands before year 1 (for example a 3-year offset from a year-1 start).
+    /// </summary>
+    public static bool TryResolve(RelativeDateSpec spec, DateOnly? pupilDataStartDate, out DateOnly date)
+    {
+        date = default;
+        if (spec is null || pupilDataStartDate is null) return false;
+
+        var year = pupilDataStartDate.Value.Year;
+        switch (spec)
+        {
+            case RelativeDateSpec.DayMonthOfWindowYear d:
+            {
+                if (d.Month is < 1 or > 12) return false;
+                var maxDay = DateTime.DaysInMonth(year, d.Month);
+                if (d.Day < 1 || d.Day > maxDay) return false;
+                date = new DateOnly(year, d.Month, d.Day);
+                return true;
+            }
+
+            case RelativeDateSpec.FirstSeptemberMinusYears y:
+                // DateOnly has no year 0: a start date whose year is not far enough
+                // ahead of the offset has no date (for example year 1 with a 3-year spec).
+                if (year - y.Years < 1) return false;
+                date = new DateOnly(year - y.Years, 9, 1);
+                return true;
+
+            case RelativeDateSpec.SecondMondayOfMay:
+            {
+                var first = new DateOnly(year, 5, 1);
+                var daysToFirstMonday = (8 - (int)first.DayOfWeek) % 7;
+                date = first.AddDays(daysToFirstMonday + 7);
+                return true;
+            }
+
+            default:
+                return false;
+        }
+    }
+}

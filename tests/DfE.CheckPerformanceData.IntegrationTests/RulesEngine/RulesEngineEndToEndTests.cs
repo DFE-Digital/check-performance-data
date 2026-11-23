@@ -321,8 +321,10 @@ public sealed class RulesEngineEndToEndTests
             Answers: [],
             DecisionStatus.AutoApproved, "DEC-1");
 
+        // #800: EHE-KS4 rejects a removal on or after 16 Jan of the window year. The
+        // fixture window starts in 2026, so the post-cutoff date must be in 2026.
         yield return new("ElectiveHomeEducation-Ks4PostCutoff", "Remove - elective-home-education", "KS4June",
-            Answers: [("date-removed-from-roll", "2025-02-01")],
+            Answers: [("date-removed-from-roll", "2026-03-01")],
             DecisionStatus.AutoRejected, "EHE-KS4");
 
         yield return new("MovedSchoolDualRegistration-Default", "Remove - dual-registered-moved", "KS4June",
@@ -344,8 +346,10 @@ public sealed class RulesEngineEndToEndTests
             Answers: [("not-on-roll-reason", "other")],
             DecisionStatus.Scrutiny, "NOR-DEF");
 
+        // #800: PEX-KS4 rejects an exclusion after 16 Jan of the window year. The
+        // fixture window starts in 2026, so the post-cutoff date must be in 2026.
         yield return new("PermanentlyExcludedFromCurrentSchool-Ks4PostCutoff", "Remove - permanently-excluded", "KS4June",
-            Answers: [("date-permanently-excluded", "2025-02-01")],
+            Answers: [("date-permanently-excluded", "2026-03-01")],
             DecisionStatus.AutoRejected, "PEX-KS4");
 
         yield return new("PermanentlyLeftEngland-Ks4PostCutoff", "Remove - permanently-left-england", "KS4June",
@@ -536,6 +540,8 @@ public sealed class RulesEngineEndToEndTests
                     {
                       "ChangeRequestId": "11111111-2222-3333-4444-555555555555",
                       "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                      "CheckingWindowStartDate": "2026-01-01T00:00:00Z",
+                      "PupilDataExerciseStartDate": "2026-01-01T00:00:00Z",
                       "CheckingWindowType": "{{CheckingWindowType}}",
                       "RequestTypeCode": "{{RequestTypeCode}}",
                       "School": { "Urn": "123456", "Name": "Test School" },

@@ -209,6 +209,23 @@ public sealed class RulesConfigSeederTests : IDisposable
             Arg.Any<RulesConfigType>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task StartAsync_UpgradesRules_WhenBundledSeedDatedAfterStoredAdminSave()
+    {
+        // An admin save stamps yyyy.MM.dd-HHmmss, which outranks a seed dated the same day.
+        // A seed whose date is later therefore still reaches an environment whose blob an
+        // admin (or an E2E admin test) stamped the day before. This is the remedy when a
+        // same-day admin save blocks a same-day seed change.
+        WriteSeedFile(RulesBlobName, RulesJsonWithVersion("2026.06.12-01"));
+        SetStored(RulesConfigType.Rules, RulesJsonWithVersion("2026.06.11-134502"), etag: "etag-2");
+        SetStored(RulesConfigType.Lookups, LookupsContent);
+
+        await NewSeeder().StartAsync(CancellationToken.None);
+
+        await _store.Received(1).WriteAsync(
+            RulesConfigType.Rules, RulesJsonWithVersion("2026.06.12-01"), "etag-2", Arg.Any<CancellationToken>());
+    }
+
     // --- invalid-stored override: version precedence yields to catalogue validity ---
 
     [Fact]

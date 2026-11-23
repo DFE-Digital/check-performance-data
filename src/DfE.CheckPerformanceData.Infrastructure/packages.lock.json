@@ -21,9 +21,9 @@
       },
       "DfeAnalytics.Core": {
         "type": "Direct",
-        "requested": "[0.6.4, )",
-        "resolved": "0.6.4",
-        "contentHash": "LfmZAaetqxonAFkZSeY0M3udvzyc35QGEgDTm5ohXocTQZNOks/iqBs7tOQ7LOEw4B6cXp6aE1MGzbdsWOKIyQ==",
+        "requested": "[0.7.0, )",
+        "resolved": "0.7.0",
+        "contentHash": "rO3RUfKcGRoE/KDfey6MsvOX8vERqxGPANuFtvJOidP+Ypwz+TVgQNFdkRgpofR290uci/KNNfHWc94BwFa6/A==",
         "dependencies": {
           "Google.Apis.Auth": "1.71.0",
           "Google.Cloud.BigQuery.V2": "[3.0.0, 4.0.0)",
@@ -212,43 +212,35 @@
       },
       "Refit": {
         "type": "Direct",
-        "requested": "[16.4.0, )",
-        "resolved": "16.4.0",
-        "contentHash": "6GWfcHeVBioiNQHodPXOUw+2ahEY1GqtTqzLbu7yU4l2q5AkblYCMlpO/ypSJX6fkMlBDZ8qf0UYc7fsMeCgWg==",
+        "requested": "[17.0.0, )",
+        "resolved": "17.0.0",
+        "contentHash": "16tmpvaihkeR/YGCDwEyhRzzsXQ11AsDNRsnl+oCjij6ZamSzDcJsUFi/4bqge9LAWI6krK6J7FLSEou6o4Xsw==",
         "dependencies": {
-          "ReactiveUI.Primitives": "9.0.0"
+          "ReactiveUI.Primitives": "10.0.0"
         }
       },
-      "Refit.HttpClientFactory": {
+      "Refit.HttpClientFactory.Reflection": {
         "type": "Direct",
-        "requested": "[16.4.0, )",
-        "resolved": "16.4.0",
-        "contentHash": "nt42wtkvf27XYpu3rBrHrW+Awd2p9UVqU1vDFBfgVbwb9R2z1hvihbs9LP63EnDXZhuFsMyn79r6V+5pG2vTWQ==",
+        "requested": "[17.0.0, )",
+        "resolved": "17.0.0",
+        "contentHash": "O9dU3ZpLYL6n/+umWnC2WGAc0M9ypN4FC8Gw8ZlheQxJd37E3plsFFOvWqWiAcKU+qBvJ0+wiNvhYFTmLjWHbA==",
         "dependencies": {
-          "Microsoft.Extensions.Http": "10.0.13",
-          "ReactiveUI.Primitives": "9.0.0",
-          "Refit": "16.4.0"
+          "Microsoft.Extensions.Http": "10.0.15",
+          "ReactiveUI.Primitives": "10.0.0",
+          "Refit": "17.0.0",
+          "Refit.HttpClientFactory": "17.0.0",
+          "Refit.Reflection": "17.0.0"
         }
       },
       "Refit.Newtonsoft.Json": {
         "type": "Direct",
-        "requested": "[16.4.0, )",
-        "resolved": "16.4.0",
-        "contentHash": "A2JrnAMG1gudlahVxEX3I1Wud7I97UjNTVghrfNf5xH0U24rAB4hl0Obnc2h9p0m3E3YFgRRpSIG5S/bBouWTQ==",
+        "requested": "[17.0.0, )",
+        "resolved": "17.0.0",
+        "contentHash": "yhTVPPtE2pDmG0NXVjWj4oNmSUWWHUyjK1nIWHJHF2c9iuFUaO2cKm3rTH9AoeTUlKmC90uc2o1hxSTUmtn1pA==",
         "dependencies": {
           "Newtonsoft.Json": "13.0.4",
-          "ReactiveUI.Primitives": "9.0.0",
-          "Refit": "16.4.0"
-        }
-      },
-      "Refit.Reflection": {
-        "type": "Direct",
-        "requested": "[16.4.0, )",
-        "resolved": "16.4.0",
-        "contentHash": "Ra0FCocC0lxMhCiM0Tf8XCmVAnaBJjhF0N9YtTDT3hDVK1ITmMt8xvD9IFzkFXyhCALrK8kWR9bz+KvfVfBTcA==",
-        "dependencies": {
-          "ReactiveUI.Primitives": "9.0.0",
-          "Refit": "16.4.0"
+          "ReactiveUI.Primitives": "10.0.0",
+          "Refit": "17.0.0"
         }
       },
       "Riok.Mapperly": {
@@ -661,24 +653,43 @@
       },
       "ReactiveUI.Disposables": {
         "type": "Transitive",
-        "resolved": "9.0.0",
-        "contentHash": "gt5vQ9e7yP/qsv1DbTR9AdwViJwqoHseTwyI/7muKetJMDg60QUv7RZShMj3RIjF48LNiHKABtxPq+Or+42bbA=="
+        "resolved": "10.0.0",
+        "contentHash": "Pxl07TtCvI+KLdOXhNA0q1OJs3os9mnXEIEeZL9VWMiVnVQ4jUXb8/YAtvuZfWqmnI90ri8JMVT8pzY0sENODw=="
       },
       "ReactiveUI.Primitives": {
         "type": "Transitive",
-        "resolved": "9.0.0",
-        "contentHash": "WmfXpHHBun50DJwTHVDLcFyQIHN/WtaoYJ34GrByFW/CsWgOH0UyjC8h9nul551oRkIvbqBGy3xZiijNdchGRw==",
+        "resolved": "10.0.0",
+        "contentHash": "8q/xWmbL6dTbNyc0BlqhKbt0XM0ekat8n4E2VF7IHPCVHnUUn6HbIC3FENS2b/+q4T7frq1OfIwTzD9Rg6WPSQ==",
         "dependencies": {
-          "ReactiveUI.Disposables": "9.0.0",
-          "ReactiveUI.Primitives.Core": "9.0.0"
+          "ReactiveUI.Disposables": "10.0.0",
+          "ReactiveUI.Primitives.Core": "10.0.0"
         }
       },
       "ReactiveUI.Primitives.Core": {
         "type": "Transitive",
-        "resolved": "9.0.0",
-        "contentHash": "alULlmIxJycMKxfZeadn5tjjRAP+9+qDX9ryOT9Tg5lQzn0SKQAnmhqMa+9l68ogexrEuK/fUc543KR+kGJCJg==",
+        "resolved": "10.0.0",
+        "contentHash": "hx+N2FuqokmTDFdO6+jHnX9tt3BI+aNRWiQcxv8ADn4m4ls8KUuZRF0hLJGbHF0Vzz+QltcKc7URsKbgLL1mpA==",
         "dependencies": {
-          "ReactiveUI.Disposables": "9.0.0"
+          "ReactiveUI.Disposables": "10.0.0"
+        }
+      },
+      "Refit.HttpClientFactory": {
+        "type": "Transitive",
+        "resolved": "17.0.0",
+        "contentHash": "inADcvLCDFVTkWPwMzHfAhnTYmMcodt9ni87RtJ2D5PTmsa0ctAH1nx+BzDTSvpA3ZwjlvOiLjOEPpQflyaHRw==",
+        "dependencies": {
+          "Microsoft.Extensions.Http": "10.0.15",
+          "ReactiveUI.Primitives": "10.0.0",
+          "Refit": "17.0.0"
+        }
+      },
+      "Refit.Reflection": {
+        "type": "Transitive",
+        "resolved": "17.0.0",
+        "contentHash": "ubDY4rRLXVw+FcFdIHzDnIyDEyl39LEmXF+UGrhrwaxxe6QR5rh2sevxIJszQK99GJvxYP1n5dDQhxyvldAYNA==",
+        "dependencies": {
+          "ReactiveUI.Primitives": "10.0.0",
+          "Refit": "17.0.0"
         }
       },
       "SkiaSharp.NativeAssets.macOS": {
@@ -738,7 +749,7 @@
       "dfe.checkperformancedata.application": {
         "type": "Project",
         "dependencies": {
-          "AngleSharp": "[1.10.1, )",
+          "AngleSharp": "[1.10.4, )",
           "DfE.CheckPerformanceData.Domain": "[1.0.0, )",
           "HtmlSanitizer": "[11.0.26, )",
           "Markdig": "[1.6.0, )",
@@ -755,7 +766,8 @@
         "dependencies": {
           "DfE.CheckPerformanceData.Application": "[1.0.0, )",
           "DfE.CheckPerformanceData.Domain": "[1.0.0, )",
-          "DfeAnalytics.EFCore": "[0.6.4, )",
+          "DfeAnalytics.Core": "[0.7.0, )",
+          "DfeAnalytics.EFCore": "[0.7.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.15, )",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.15, )",
           "Microsoft.Extensions.Configuration.Abstractions": "[10.0.15, )",
@@ -767,9 +779,9 @@
       },
       "AngleSharp": {
         "type": "CentralTransitive",
-        "requested": "[1.10.1, )",
-        "resolved": "1.10.1",
-        "contentHash": "yWQuJAaxcvKmhzl77SYfiIbSMloqsHWrzJaqgY5QOoIfEFk0HQZbQQv3gKyIuQBxMwmglcqzXfykGZ4JrkWK5Q=="
+        "requested": "[1.10.4, )",
+        "resolved": "1.10.4",
+        "contentHash": "pv8cLA19oRc8UwczC1ogMeq5mTBWn8V1N12CVMfrAjykf8imNDHt82yzompriVN/Z7ededDP0Fg5ZWAtG5DB+Q=="
       },
       "Azure.Storage.Common": {
         "type": "CentralTransitive",
@@ -783,15 +795,13 @@
       },
       "DfeAnalytics.EFCore": {
         "type": "CentralTransitive",
-        "requested": "[0.6.4, )",
-        "resolved": "0.6.4",
-        "contentHash": "t4Rw5dqWcNNsKm6hTxoTdomrfDskb2SEt70Wo7dhnKixJqkmlmcjSpoueKZcES5fogTpg87cNKLLXLkh51Cqsg==",
+        "requested": "[0.7.0, )",
+        "resolved": "0.7.0",
+        "contentHash": "fiFdkXBCsG0AieeYmPigWg3Qf0Wdwy7bt4VWkfX+ew1h6qmB+wETH1FNjWBFRnEC12gnMj1ldU0dmOT0+yP9MA==",
         "dependencies": {
-          "DfeAnalytics.Core": "0.6.4",
-          "Microsoft.EntityFrameworkCore": "10.0.0",
-          "Microsoft.Extensions.Hosting.Abstractions": "10.0.0",
-          "Microsoft.Extensions.Http": "10.0.9",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.0",
+          "DfeAnalytics.Core": "0.7.0",
+          "Microsoft.EntityFrameworkCore.Relational": "8.0.0",
+          "Microsoft.Extensions.Http": "8.0.0",
           "System.CommandLine": "2.0.0"
         }
       },

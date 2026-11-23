@@ -157,6 +157,17 @@ public sealed class RuleSetValidator
                 {
                     errors.Add($"Outcome '{outcomeKey}' branch '{branchId}' has empty 'in' list for field '{inP.Field}'.");
                 }
+                // A window-relative date resolves to a single date from the window, so it can
+                // only drive an on-or-before / on-or-after style comparison. The engine's 'in'
+                // leaf resolves each list value, but the admin editor renders 'in' values as
+                // editable text, so a relative token stored in a list would be corrupted by the
+                // next save. Refuse it at install (Date-typed fields only: on any other field
+                // CoerceLiteral already rejects the token).
+                if (FieldCatalogue.TryGetType(inP.Field, out var inType) && inType == FieldType.Date &&
+                    inP.Values.Any(v => v is FieldValue.RelativeDate))
+                {
+                    errors.Add($"Outcome '{outcomeKey}' branch '{branchId}' has a window-relative date in the 'in' list for '{inP.Field}'; a relative date resolves to one date, so use an on-or-before or on-or-after comparison instead.");
+                }
                 return new Predicate.FieldIn(inP.Field,
                     inP.Values.Select(v => CoerceLiteral(inP.Field, v, outcomeKey, branchId, errors)).ToList());
 
@@ -227,6 +238,22 @@ public sealed class RuleSetValidator
             return value;
         }
 
+        // A window-relative date literal (#800) belongs to a Date field only.
+        // On any other field it could never compare, so refuse it at install
+        // rather than install a rule that silently matches nothing; on a Date
+        // field its parameters are checked on their own so an error names the
+        // form.
+        if (value is FieldValue.RelativeDate rd)
+        {
+            if (type != FieldType.Date)
+            {
+                errors.Add($"Outcome '{outcomeKey}' branch '{branchId}' window-relative date on '{field}' requires a Date field (catalogue declares {type}).");
+                return value;
+            }
+            CheckRelativeDateSpec(rd.Spec, field, outcomeKey, branchId, errors);
+            return rd;
+        }
+
         return (type, value) switch
         {
             (FieldType.String, FieldValue.Str s) => s,
@@ -256,6 +283,37 @@ public sealed class RuleSetValidator
 
             _ => value
         };
+    }
+
+    /// <summary>
+    /// Checks a window-relative date literal's parameters (#800): month 1-12 and a
+    /// day that exists in a leap year, so 29 February is legal at install and simply
+    /// does not resolve in a non-leap window year; years 0-99. Each error names the
+    /// outcome and the branch. A refusal keeps the previous good set serving.
+    /// </summary>
+    private static void CheckRelativeDateSpec(RelativeDateSpec spec, string field, string outcomeKey, string branchId, List<string> errors)
+    {
+        switch (spec)
+        {
+            case RelativeDateSpec.DayMonthOfWindowYear d:
+                if (d.Month is < 1 or > 12)
+                {
+                    errors.Add($"Outcome '{outcomeKey}' branch '{branchId}' dayMonthOfWindowYear on '{field}' has month {d.Month}; expected 1-12.");
+                }
+                // 2024 is a leap year: a day that is valid in a leap year is valid in
+                // at least one window year.
+                else if (d.Day < 1 || d.Day > DateTime.DaysInMonth(2024, d.Month))
+                {
+                    errors.Add($"Outcome '{outcomeKey}' branch '{branchId}' dayMonthOfWindowYear on '{field}' has day {d.Day} for month {d.Month}; not a valid date in a leap year.");
+                }
+                break;
+            case RelativeDateSpec.FirstSeptemberMinusYears y:
+                if (y.Years is < 0 or > 99)
+                {
+                    errors.Add($"Outcome '{outcomeKey}' branch '{branchId}' firstSeptemberMinusYears on '{field}' has years {y.Years}; expected 0-99.");
+                }
+                break;
+        }
     }
 
     private static T Fail<T>(string message, List<string> errors, Func<T> fallback) where T : FieldValue

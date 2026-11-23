@@ -422,6 +422,8 @@ public sealed class RequestService(
             },
             CheckingWindowId = context.WindowId,
             CheckingWindowStartDate = context.CheckingWindow.StartDate,
+            PupilDataExerciseStartDate = context.CheckingWindow.Exercises
+                .FirstOrDefault(e => e.ExerciseType == CheckingExerciseType.PupilData)?.StartDate,
             CheckingWindowType = context.CheckingWindow.CheckingWindowType.ToString(),
             RequestTypeCode = context.WhatToChange,
             School = new SchoolDetails

@@ -148,6 +148,14 @@ public sealed class PredicateJsonConverter : JsonConverter<Predicate>
             JsonValueKind.False  => new FieldValue.Bool(false),
             JsonValueKind.Number => new FieldValue.Num(el.GetDecimal()),
             JsonValueKind.Null   => FieldValue.Unknown.Instance,
+            // A window-relative date object (#800). Read the spec straight from the
+            // element the caller already parsed, so it is not parsed a second time;
+            // the FieldValue converter rejects any object that is not a well-formed one.
+            JsonValueKind.Object
+                => FieldValueJsonConverter.ReadRelativeDateSpec(el) is { } spec
+                    ? new FieldValue.RelativeDate(spec)
+                    : throw new JsonException(
+                        "Unsupported object literal; expected a window-relative date with a 'windowRelative' token of dayMonthOfWindowYear, firstSeptemberMinusYears, or secondMondayOfMay."),
             _ => throw new JsonException($"Unsupported literal value kind {el.ValueKind}.")
         };
     }

@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Admin.Rules;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Admin.Rules;
@@ -160,5 +161,159 @@ public sealed class RulesAdminViewModelFactoryTests
         Assert.Equal(2, vm.Versions.Count);
         Assert.Equal(2, vm.Versions[0].VersionNumber); // newest first
         Assert.Equal(1, vm.Versions[1].VersionNumber);
+    }
+
+    // #800: the window rules page view model.
+
+    [Fact]
+    public void WindowRules_carries_window_metadata_and_versions()
+    {
+        var windowId = Guid.NewGuid();
+        var startDate = new DateOnly(2026, 9, 1);
+
+        var vm = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", windowId, startDate, CheckingWindowType.KS4June, SampleRules());
+
+        Assert.Equal("Main 2027 rules", vm.Title);
+        Assert.Equal("Main 2027", vm.WindowTitle);
+        Assert.Equal(windowId, vm.WindowId);
+        Assert.Equal(startDate, vm.StartDate);
+        Assert.Equal(CheckingWindowType.KS4June, vm.WindowType);
+        Assert.Equal("v3", vm.RulesVersion);
+        Assert.True(vm.HasRules);
+    }
+
+    [Fact]
+    public void WindowRules_hides_branches_for_other_window_types()
+    {
+        // A KS4June window: a branch gated on checkingWindowType == KS2 never applies, so it
+        // is hidden. A branch with no window-type gate, and one gated on the window's own
+        // type, both stay.
+        var rules = new RuleSet("v1", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero),
+            new[]
+            {
+                Outcome("Inclusion", "Inclusion",
+                    new RuleBranch("INC-KS2", DecisionStatus.AutoApproved,
+                        new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2"))),
+                    new RuleBranch("INC-KS4", DecisionStatus.AutoApproved,
+                        new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))),
+                    Otherwise("INC-DEF"))
+            });
+
+        var vm = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", Guid.NewGuid(), new DateOnly(2026, 9, 1),
+            CheckingWindowType.KS4June, rules);
+
+        var ids = vm.Outcomes.Single().Branches.Select(b => b.Id).ToHashSet();
+        Assert.DoesNotContain("INC-KS2", ids);
+        Assert.Contains("INC-KS4", ids);
+        Assert.Contains("INC-DEF", ids);
+    }
+
+    [Fact]
+    public void WindowRules_keeps_neq_branches_even_when_they_exclude_the_window_type()
+    {
+        // A neq test cannot prove a branch never applies, so it is never hidden. On a
+        // Post16 window the branch "checkingWindowType neq Post16" does not apply, but the
+        // page still shows it (fail safe). An eq branch for another type is hidden, and a
+        // neq branch that does apply is shown.
+        var rules = new RuleSet("v1", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero),
+            new[]
+            {
+                Outcome("Nor", "Nor",
+                    new RuleBranch("NOR-NONPOST16", DecisionStatus.AutoApproved,
+                        new Predicate.FieldNeq("checkingWindowType", new FieldValue.Str("Post16"))),
+                    new RuleBranch("NOR-NEQKS2", DecisionStatus.AutoApproved,
+                        new Predicate.FieldNeq("checkingWindowType", new FieldValue.Str("KS2"))),
+                    new RuleBranch("NOR-KS2", DecisionStatus.AutoApproved,
+                        new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2"))),
+                    Otherwise("NOR-DEF"))
+            });
+
+        var vm = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", Guid.NewGuid(), new DateOnly(2026, 9, 1),
+            CheckingWindowType.Post16, rules);
+
+        var ids = vm.Outcomes.Single().Branches.Select(b => b.Id).ToHashSet();
+        Assert.Contains("NOR-NONPOST16", ids);  // neq of this type: does not apply, but shown
+        Assert.Contains("NOR-NEQKS2", ids);     // neq of another type: applies, shown
+        Assert.DoesNotContain("NOR-KS2", ids);  // eq of another type: never applies, hidden
+        Assert.Contains("NOR-DEF", ids);
+    }
+
+    [Fact]
+    public void WindowRules_keeps_comparison_branches_even_when_the_value_differs()
+    {
+        // A comparison (lt/gt) on the window type is not an equality test, so it cannot
+        // prove that a branch does not apply. The branch stays visible.
+        var rules = new RuleSet("v1", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero),
+            new[]
+            {
+                Outcome("Nor", "Nor",
+                    new RuleBranch("NOR-GE", DecisionStatus.AutoApproved,
+                        new Predicate.FieldCompare("checkingWindowType", CompareOp.Gte, new FieldValue.Str("KS2"))),
+                    Otherwise("NOR-DEF"))
+            });
+
+        var vm = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", Guid.NewGuid(), new DateOnly(2026, 9, 1),
+            CheckingWindowType.Post16, rules);
+
+        var ids = vm.Outcomes.Single().Branches.Select(b => b.Id).ToHashSet();
+        Assert.Contains("NOR-GE", ids);
+        Assert.Contains("NOR-DEF", ids);
+    }
+
+    [Fact]
+    public void WindowRules_describes_each_branch_with_the_window_relative_date()
+    {
+        var rules = new RuleSet("v1", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero),
+            new[]
+            {
+                Outcome("Inclusion", "Inclusion",
+                    new RuleBranch("INC-1", DecisionStatus.AutoApproved,
+                        new Predicate.FieldEq("dateOfRemoval",
+                            new FieldValue.RelativeDate(new RelativeDateSpec.SecondMondayOfMay()))))
+            });
+
+        var vm = RulesAdminViewModelFactory.WindowRules("Main 2027", Guid.NewGuid(),
+            new DateOnly(2026, 9, 1), CheckingWindowType.KS2, rules);
+
+        // The second Monday of May 2026 is 11 May 2026; the anchor is the PupilData
+        // exercise start-date year, not the year the page is viewed in.
+        var branch = vm.Outcomes.Single().Branches.Single();
+        Assert.Contains("11 May 2026", branch.Condition.Text);
+        Assert.Contains("window-relative: second Monday of May", branch.Condition.Text);
+    }
+
+    [Fact]
+    public void WindowRules_leaves_the_start_date_null_when_the_window_has_no_pupil_data()
+    {
+        // A window without a PupilData exercise has no anchor: the view model carries a null
+        // start date and the view renders it as "not set", never a guess.
+        var vm = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", Guid.NewGuid(), null, CheckingWindowType.KS4June, null);
+
+        Assert.Null(vm.StartDate);
+        Assert.False(vm.HasRules);
+    }
+
+    [Fact]
+    public void WindowRules_reports_no_rules_when_null_or_empty()
+    {
+        var windowId = Guid.NewGuid();
+        var startDate = new DateOnly(2026, 9, 1);
+
+        var missing = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", windowId, startDate, CheckingWindowType.KS4June, null);
+        Assert.False(missing.HasRules);
+        Assert.Null(missing.RulesVersion);
+        Assert.Empty(missing.Outcomes);
+
+        var empty = RulesAdminViewModelFactory.WindowRules("Main 2027", windowId, startDate,
+            CheckingWindowType.KS4June,
+            new RuleSet("v0", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero), Array.Empty<OutcomeRules>()));
+        Assert.False(empty.HasRules);
+        Assert.Empty(empty.Outcomes);
     }
 }

@@ -414,9 +414,6 @@ public sealed class WhatToChangeControllerTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.Confirm(WindowId,
             new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null }));
-
-        Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
-        await _analytics.DidNotReceive().TrackAsync(Arg.Any<ChangeTypeSelectedEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

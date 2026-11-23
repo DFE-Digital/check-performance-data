@@ -67,34 +67,41 @@ This first page is usually a `PupilSearch` page (the Add journey's is not) — s
 ### What the start of a journey does, and why
 
 - **The exercise check.** Each change type belongs to pupil data checking. `Index` and `Confirm`
-  check that this exercise is open for the signed-in school. A saved URL still reaches them
-  after the exercise closes. A school's extension can end later than the exercise (#318,
-  AB#307773). `Back` does not check, because it only redirects.
+  check that this exercise is open for the signed-in school (#318). A saved URL still reaches
+  them after the exercise closes. A school's extension can end later than the exercise
+  (AB#307773). `Back` does not check, and it writes nothing. It redirects to What to change,
+  which checks, or to Check your pupil data, which starts no journey.
 - **Offered change types only.** `StartJourneyAsync` refuses a change type that the window type
   does not offer. It refuses before it reads the flow or changes the state. A posted form can
   carry a value that the page does not show (`docs/ks2-journeys.md`, decision 1).
-- **The previous request.** A flow that starts with a `PupilSearch` page refreshes the request
-  each time the user selects a pupil. It sets a new reference number and selected pupil, and
-  clears the matched pupil and the selected result. A flow with no `PupilSearch` page (Add) has
-  nothing that does this, so `ClearPreviousRequest` does it. Without it, the new request uses
-  the reference number of a submitted request and overwrites its row. The matched pupil of an
-  abandoned Merge journey also shows on the Add summary (AB#297310). The check looks at the
-  pages of the flow, not at the change type. The next flow with no pupil search gets the same
-  protection.
+- **The previous request.** Check your pupil data clears the whole request state. But a user
+  can start a journey without that page: from What to change after Back, or from a link on
+  another page. A flow that has a `PupilSearch` page refreshes the request each time the user
+  selects a pupil. It sets a new reference number and selected pupil, and clears the matched
+  pupil and the selected result. A flow with no `PupilSearch` page (Add) has nothing that does
+  this, so `ClearPreviousRequest` does it. Without it, the new request uses the reference
+  number of a submitted request and overwrites its row. The matched pupil of an abandoned Merge
+  journey also shows on the Add summary (AB#297310). The check looks at the pages of the flow,
+  not at the change type. The next flow with no pupil search gets the same protection.
 - **An unknown flow.** When the change type has no flow config, the previous request stays. A
-  missing flow is not a flow with no pupil search. If the service cleared the state here, a
-  forged value could destroy a journey in progress.
+  missing flow is not a flow with no pupil search. This case does not occur today, because a
+  change type is offered only when its flow file exists.
 - **The cleared fields.** `SelectedResultQualification` goes with `SelectedResult` (AB#301903).
   `SelectedQualification` belongs to the missing-qualification enquiry (AB#297848). The
-  amendment journeys do not read it, but nothing of the previous request must stay. Only the
-  EAL pages set `OriginCountryCode` and `OriginCountryLanguages`, and nothing else clears them.
-- **A new field.** When you add a per-request field to `RequestState`, clear it in
-  `ClearPreviousRequest`.
+  amendment journeys do not read it, but it is cleared with the other fields.
+  `OriginCountryLanguageCapture` changes `OriginCountryCode` and `OriginCountryLanguages` only
+  on a page that has the country question. On a flow with no pupil search and no such page,
+  the country data of an abandoned journey stays. So `ClearPreviousRequest` clears it.
+- **The fields that are not cleared.** `ClearPreviousRequest` does not clear `DuplicateCheck`,
+  `IncludeSearchLabel` and `IncludeMatchedPupils`. `JourneyController` sets and clears them in
+  the Add and Include journeys.
+- **A new field.** When you add a field to `RequestState`, decide if `ClearPreviousRequest`
+  must clear it.
 - **Edit modes.** A journey that starts here is not an edit of a request. The controller ends
   the bulk edit mode and the single edit mode.
-- **The GET writes.** For a window type with one change type, each `GET /WhatToChange/{windowId}`
-  updates the session, ends the edit modes and sends `change_type_selected`. `Back` writes
-  nothing.
+- **The GET writes.** A window type with one change type has no page to show. Each
+  `GET /WhatToChange/{windowId}` then updates the session, ends the edit modes and sends
+  `change_type_selected`. `Back` writes nothing.
 
 **Session after this stage:**
 | Field | Value |

@@ -45,7 +45,7 @@ public sealed class ChangeTypeSelectionService(
         return new JourneyStart(true, config?.FirstPageId);
     }
 
-    // Clear every per-request field of RequestState here. See docs/request-journey.md, Stage 2.
+    // A new RequestState field needs a decision here. See docs/request-journey.md, Stage 2.
     private static void ClearPreviousRequest(RequestState journey)
     {
         journey.ReferenceNumber = null;

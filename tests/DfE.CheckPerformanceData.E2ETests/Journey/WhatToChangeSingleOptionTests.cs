@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Retrying;
-using Microsoft.Playwright;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 

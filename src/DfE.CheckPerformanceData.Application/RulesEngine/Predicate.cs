@@ -53,7 +53,7 @@ public abstract record Predicate
 /// <summary>
 /// Closed union of the three window-relative date forms a rule's date literal may
 /// take (#800). A date literal may be one of these instead of a fixed ISO date;
-/// the engine resolves it against the request's checking-window start date at
+/// the engine resolves it against the window's PupilData exercise start date at
 /// evaluation. Serialized as <c>{"windowRelative":"&lt;token&gt;", ...}</c>.
 /// </summary>
 public abstract record RelativeDateSpec

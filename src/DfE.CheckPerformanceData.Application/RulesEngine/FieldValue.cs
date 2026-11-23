@@ -19,8 +19,8 @@ public abstract record FieldValue
 
     /// <summary>
     /// A window-relative date literal in a rule (#800): a <see cref="RelativeDateSpec"/>
-    /// resolved against the request's checking-window start date at evaluation. A field
-    /// value in a context is never one of these; only rule literals are.
+    /// resolved against the window's PupilData exercise start date at evaluation. A
+    /// field value in a context is never one of these; only rule literals are.
     /// </summary>
     public sealed record RelativeDate(RelativeDateSpec Spec) : FieldValue;
 

@@ -9,33 +9,33 @@ namespace DfE.CheckPerformanceData.Web.Admin.Rules;
 /// </summary>
 public static class PredicateDescriber
 {
-    public static PredicateNode Describe(Predicate predicate) => Describe(predicate, windowStartDate: null);
+    public static PredicateNode Describe(Predicate predicate) => Describe(predicate, pupilDataStartDate: null);
 
     /// <summary>
-    /// Describes with the window's start date, so a window-relative date literal resolves to
+    /// Describes with the window's PupilData exercise start date, so a window-relative date literal resolves to
     /// the concrete date for that window (#800). Without it, a relative literal shows its
     /// form name and no date — the describer never guesses.
     /// </summary>
-    public static PredicateNode Describe(Predicate predicate, DateOnly? windowStartDate) => predicate switch
+    public static PredicateNode Describe(Predicate predicate, DateOnly? pupilDataStartDate) => predicate switch
     {
         Predicate.AllOf all => new PredicateNode(
             "All of the following are true:",
-            all.Items.Select(p => Describe(p, windowStartDate)).ToList()),
+            all.Items.Select(p => Describe(p, pupilDataStartDate)).ToList()),
 
         Predicate.AnyOf any => new PredicateNode(
             "Any of the following are true:",
-            any.Items.Select(p => Describe(p, windowStartDate)).ToList()),
+            any.Items.Select(p => Describe(p, pupilDataStartDate)).ToList()),
 
         Predicate.Not not => new PredicateNode(
             "Not true:",
-            new[] { Describe(not.Inner, windowStartDate) }),
+            new[] { Describe(not.Inner, pupilDataStartDate) }),
 
-        Predicate.FieldEq eq => PredicateNode.Leaf($"{eq.Field} is {Value(eq.Value, windowStartDate)}"),
-        Predicate.FieldNeq neq => PredicateNode.Leaf($"{neq.Field} is not {Value(neq.Value, windowStartDate)}"),
+        Predicate.FieldEq eq => PredicateNode.Leaf($"{eq.Field} is {Value(eq.Value, pupilDataStartDate)}"),
+        Predicate.FieldNeq neq => PredicateNode.Leaf($"{neq.Field} is not {Value(neq.Value, pupilDataStartDate)}"),
         Predicate.FieldIn fin => PredicateNode.Leaf(
-            $"{fin.Field} is one of: {string.Join(", ", fin.Values.Select(v => Value(v, windowStartDate)))}"),
+            $"{fin.Field} is one of: {string.Join(", ", fin.Values.Select(v => Value(v, pupilDataStartDate)))}"),
         Predicate.FieldCompare cmp => PredicateNode.Leaf(
-            $"{cmp.Field} {Op(cmp.Op)} {Value(cmp.Value, windowStartDate)}"),
+            $"{cmp.Field} {Op(cmp.Op)} {Value(cmp.Value, pupilDataStartDate)}"),
         Predicate.IsKnownAndCertain known => PredicateNode.Leaf(
             $"{known.Field} is known and certain"),
         Predicate.OfficialLanguageIs lang => PredicateNode.Leaf(
@@ -66,14 +66,14 @@ public static class PredicateDescriber
         _ => op.ToString()
     };
 
-    private static string Value(FieldValue value, DateOnly? windowStartDate) => value switch
+    private static string Value(FieldValue value, DateOnly? pupilDataStartDate) => value switch
     {
         FieldValue.Str s => $"\"{s.Value}\"",
         FieldValue.Bool b => b.Value ? "true" : "false",
         FieldValue.Num n => n.Value.ToString(CultureInfo.InvariantCulture),
         FieldValue.Date d => d.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-        FieldValue.RelativeDate rd => RelativeDateText(rd.Spec, windowStartDate),
-        FieldValue.Uncertain u => $"{Value(u.Inner, windowStartDate)} (uncertain)",
+        FieldValue.RelativeDate rd => RelativeDateText(rd.Spec, pupilDataStartDate),
+        FieldValue.Uncertain u => $"{Value(u.Inner, pupilDataStartDate)} (uncertain)",
         FieldValue.Unknown => "unknown",
         _ => "unknown"
     };
@@ -83,10 +83,10 @@ public static class PredicateDescriber
     /// (for example "10 May 2027 (window-relative: second Monday of May)"). A relative
     /// literal that cannot resolve shows the form name with no date.
     /// </summary>
-    private static string RelativeDateText(RelativeDateSpec spec, DateOnly? windowStartDate)
+    private static string RelativeDateText(RelativeDateSpec spec, DateOnly? pupilDataStartDate)
     {
         var name = FormName(spec);
-        if (RelativeDateResolver.TryResolve(spec, windowStartDate, out var date))
+        if (RelativeDateResolver.TryResolve(spec, pupilDataStartDate, out var date))
         {
             return $"{date.ToString("d MMMM yyyy", CultureInfo.InvariantCulture)} (window-relative: {name})";
         }

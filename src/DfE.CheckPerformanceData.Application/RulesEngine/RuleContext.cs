@@ -19,7 +19,7 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// <see cref="Predicate"/>s must exist in <see cref="FieldCatalogue"/>. Missing
 /// answers project to <see cref="FieldValue.Unknown"/>.
 /// </param>
-/// <param name="WindowStartDate">
+/// <param name="PupilDataStartDate">
 /// The window's PupilData exercise start date (#800), the anchor for
 /// window-relative date literals. Anchoring on it (not the window's start
 /// date) keeps the year fixed when an earlier data-share exercise moves the
@@ -31,7 +31,7 @@ public sealed record RuleContext(
     string OutcomeKey,
     string CheckingWindowType,
     IReadOnlyDictionary<string, FieldValue> Fields,
-    DateOnly? WindowStartDate = null)
+    DateOnly? PupilDataStartDate = null)
 {
     public FieldValue GetField(string name) =>
         Fields.TryGetValue(name, out var v) ? v : FieldValue.Unknown.Instance;

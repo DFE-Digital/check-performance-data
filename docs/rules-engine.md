@@ -200,7 +200,7 @@ A date literal is either an ISO date string or a window-relative object. "Window
 | `{ "windowRelative": "firstSeptemberMinusYears", "years": 3 }` | 1 September of the window year, minus `years` |
 | `{ "windowRelative": "dayMonthOfWindowYear", "month": 4, "day": 1 }` | that month and day of the window year |
 
-The engine holds the window start date on the rule context, so it resolves a relative date without a clock. A request whose window has no PupilData exercise, or whose window start date is before year 1 plus the offset, cannot resolve the form: the comparison is `Unknown`, the branch cannot match, and the request falls to `otherwise` → Scrutiny.
+The engine holds the PupilData exercise start date on the rule context, so it resolves a relative date without a clock. A request whose window has no PupilData exercise, or whose PupilData start date is before year 1 plus the offset, cannot resolve the form: the comparison is `Unknown`, the branch cannot match, and the request falls to `otherwise` → Scrutiny.
 
 ### When a condition is `Unknown`
 
@@ -219,7 +219,7 @@ The mapper (`RuleContextMapper`) turns a submitted `RequestDocument` into the ty
 | **Vocabulary translation** | Journey answer values mapped to canonical values; a "believed" answer becomes `Uncertain`; anything unlisted becomes `Unknown`. | `first-language: believed-english` → `Uncertain("ENG")` |
 | **Window-resolved** | One question resolves to different fields depending on the checking window. | the SAT-exams question → `hasSatExamsAsYear11` (KS4) or `hasSatExamsAsYear6` (KS2) |
 
-Two fields come straight from the message **envelope** rather than an answer: `checkingWindowType` (normalised — see below) and `requestType` (the raw reason code). The envelope's PupilData exercise start date lands on the context as `WindowStartDate`; the engine resolves window-relative rule dates from it. Other fields are calculated from the pupil record on the message, with a deliberate fail-safe guard: `pupilAge` (only when `Age > 0`), `inclusionFlag` and `isAddBack` (only when the inclusion code `Pincl > 0`). A missing or zero value is left `Unknown` rather than read as `0`.
+Two fields come straight from the message **envelope** rather than an answer: `checkingWindowType` (normalised — see below) and `requestType` (the raw reason code). The envelope's PupilData exercise start date lands on the context as `PupilDataStartDate`; the engine resolves window-relative rule dates from it. Other fields are calculated from the pupil record on the message, with a deliberate fail-safe guard: `pupilAge` (only when `Age > 0`), `inclusionFlag` and `isAddBack` (only when the inclusion code `Pincl > 0`). A missing or zero value is left `Unknown` rather than read as `0`.
 
 `hasSupportingEvidence` is calculated from the answer types, not from question ids. It is `true` when a `FileUpload` answer has a file or a `TextArea` answer has text. It is `false` when neither has content. It is `Unknown` when the request has no `FileUpload` answer, because no evidence page was on the path. `EAL-REJ-KS2-NOEVIDENCE` reads it (#813).
 

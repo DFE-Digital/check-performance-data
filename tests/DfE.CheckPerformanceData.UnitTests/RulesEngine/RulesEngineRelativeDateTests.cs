@@ -5,10 +5,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
 
 /// <summary>
 /// #800: engine evaluation of window-relative date literals. Each leaf resolves
-/// the literal from the context's window start date, never the clock. A
-/// literal that cannot resolve renders a trace line and returns Unknown, so
-/// the branch does not match and the request falls to otherwise (Scrutiny).
-/// Fixed date literals are unchanged.
+/// the literal from the context's PupilData exercise start date, never the
+/// clock. A literal that cannot resolve renders a trace line and returns
+/// Unknown, so the branch does not match and the request falls to otherwise
+/// (Scrutiny). Fixed date literals are unchanged.
 /// </summary>
 public sealed class RulesEngineRelativeDateTests
 {
@@ -116,7 +116,7 @@ public sealed class RulesEngineRelativeDateTests
     // --- fail closed: unresolvable -> Unknown -> otherwise (Scrutiny) ---
 
     [Fact]
-    public void FieldCompare_RelativeLiteral_NoWindowStartDate_FallsToOtherwise()
+    public void FieldCompare_RelativeLiteral_NoPupilDataStartDate_FallsToOtherwise()
     {
         var rules = OneOutcome("X",
             Branch("R1", DecisionStatus.AutoRejected,
@@ -214,7 +214,7 @@ public sealed class RulesEngineRelativeDateTests
             && line.Contains("window-relative: secondMondayOfMay", StringComparison.Ordinal));
     }
 
-    // A window start date whose year is not far enough ahead of the offset has no date.
+    // A PupilData start date whose year is not far enough ahead of the offset has no date.
     // Year 1 with a 3-year offset lands in year -2, which DateOnly cannot hold, so the
     // resolver returns false instead of throwing (the worker must not crash on it).
     [Fact]
@@ -236,7 +236,7 @@ public sealed class RulesEngineRelativeDateTests
     // --- fixed date literals are unchanged ---
 
     [Fact]
-    public void FieldCompare_FixedDateLiteral_StillWorks_WithoutAWindowStartDate()
+    public void FieldCompare_FixedDateLiteral_StillWorks_WithoutAPupilDataStartDate()
     {
         var rules = OneOutcome("X",
             Branch("R1", DecisionStatus.AutoRejected,
@@ -262,7 +262,7 @@ public sealed class RulesEngineRelativeDateTests
     private static RuleBranch Branch(string id, DecisionStatus status, Predicate when) =>
         new(id, status, when);
 
-    private static RuleContext Ctx(string outcomeKey, string checkingWindowType, DateOnly? windowStartDate, params (string, FieldValue)[] extraFields)
+    private static RuleContext Ctx(string outcomeKey, string checkingWindowType, DateOnly? pupilDataStartDate, params (string, FieldValue)[] extraFields)
     {
         var fields = new Dictionary<string, FieldValue>
         {
@@ -270,6 +270,6 @@ public sealed class RulesEngineRelativeDateTests
             ["requestType"]        = new FieldValue.Str(outcomeKey),
         };
         foreach (var (k, v) in extraFields) fields[k] = v;
-        return new RuleContext(outcomeKey, checkingWindowType, fields, windowStartDate);
+        return new RuleContext(outcomeKey, checkingWindowType, fields, pupilDataStartDate);
     }
 }

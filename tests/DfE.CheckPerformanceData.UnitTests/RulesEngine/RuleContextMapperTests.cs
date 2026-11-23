@@ -558,10 +558,10 @@ public sealed class RuleContextMapperTests
         Assert.Equal(new FieldValue.Str("Remove - pupil-died"), ctx.GetField("requestType"));
     }
 
-    // --- WindowStartDate (#800) ---
+    // --- PupilDataStartDate (#800) ---
 
     [Fact]
-    public void Map_CopiesPupilDataExerciseStartDate_OntoWindowStartDate()
+    public void Map_CopiesPupilDataExerciseStartDate_OntoPupilDataStartDate()
     {
         // #800: the anchor is the PupilData exercise's start date, not the window's.
         // Only the date part carries over; the time of day does not.
@@ -570,17 +570,17 @@ public sealed class RuleContextMapperTests
 
         var ctx = _sut.Map(msg);
 
-        Assert.Equal(new DateOnly(2027, 9, 3), ctx.WindowStartDate);
+        Assert.Equal(new DateOnly(2027, 9, 3), ctx.PupilDataStartDate);
     }
 
     [Fact]
-    public void Map_WindowStartDate_IsNull_WhenMessageHasNoPupilDataExerciseStartDate()
+    public void Map_PupilDataStartDate_IsNull_WhenMessageHasNoPupilDataExerciseStartDate()
     {
         var msg = NewMessage("Remove - pupil-died");
 
         var ctx = _sut.Map(msg);
 
-        Assert.Null(ctx.WindowStartDate);
+        Assert.Null(ctx.PupilDataStartDate);
     }
 
     [Fact]

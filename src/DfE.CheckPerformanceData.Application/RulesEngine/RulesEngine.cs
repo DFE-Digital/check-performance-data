@@ -106,54 +106,54 @@ public sealed class RulesEngine : IRulesEngine
     private static TriResult LeafEq(string field, FieldValue value, RuleContext ctx, List<string> trace)
     {
         var actual = ctx.GetField(field);
-        var windowStartDate = ctx.WindowStartDate;
-        var literal = ResolveLiteral(value, windowStartDate);
+        var pupilDataStartDate = ctx.PupilDataStartDate;
+        var literal = ResolveLiteral(value, pupilDataStartDate);
         if (literal is null)
         {
-            Append(trace, $"{field} == {Render(value, windowStartDate)} → unknown (relative date unresolvable)");
+            Append(trace, $"{field} == {Render(value, pupilDataStartDate)} → unknown (relative date unresolvable)");
             return TriResult.Unknown;
         }
         if (!actual.IsKnownAndCertain)
         {
-            Append(trace, $"{field} == {Render(literal, windowStartDate)} → unknown (got {Render(actual, windowStartDate)})");
+            Append(trace, $"{field} == {Render(literal, pupilDataStartDate)} → unknown (got {Render(actual, pupilDataStartDate)})");
             return TriResult.Unknown;
         }
         var result = Equal(actual, literal);
-        Append(trace, $"{field} == {RenderLiteral(value, literal, windowStartDate)} → {Lower(result)} (got {Render(actual, windowStartDate)})");
+        Append(trace, $"{field} == {RenderLiteral(value, literal, pupilDataStartDate)} → {Lower(result)} (got {Render(actual, pupilDataStartDate)})");
         return result ? TriResult.True : TriResult.False;
     }
 
     private static TriResult LeafNeq(string field, FieldValue value, RuleContext ctx, List<string> trace)
     {
         var actual = ctx.GetField(field);
-        var windowStartDate = ctx.WindowStartDate;
-        var literal = ResolveLiteral(value, windowStartDate);
+        var pupilDataStartDate = ctx.PupilDataStartDate;
+        var literal = ResolveLiteral(value, pupilDataStartDate);
         if (literal is null)
         {
-            Append(trace, $"{field} != {Render(value, windowStartDate)} → unknown (relative date unresolvable)");
+            Append(trace, $"{field} != {Render(value, pupilDataStartDate)} → unknown (relative date unresolvable)");
             return TriResult.Unknown;
         }
         if (!actual.IsKnownAndCertain)
         {
-            Append(trace, $"{field} != {Render(literal, windowStartDate)} → unknown (got {Render(actual, windowStartDate)})");
+            Append(trace, $"{field} != {Render(literal, pupilDataStartDate)} → unknown (got {Render(actual, pupilDataStartDate)})");
             return TriResult.Unknown;
         }
         var result = !Equal(actual, literal);
-        Append(trace, $"{field} != {RenderLiteral(value, literal, windowStartDate)} → {Lower(result)} (got {Render(actual, windowStartDate)})");
+        Append(trace, $"{field} != {RenderLiteral(value, literal, pupilDataStartDate)} → {Lower(result)} (got {Render(actual, pupilDataStartDate)})");
         return result ? TriResult.True : TriResult.False;
     }
 
     private static TriResult LeafIn(string field, IReadOnlyList<FieldValue> values, RuleContext ctx, List<string> trace)
     {
         var actual = ctx.GetField(field);
-        var windowStartDate = ctx.WindowStartDate;
+        var pupilDataStartDate = ctx.PupilDataStartDate;
         var resolved = new List<FieldValue>(values.Count);
         foreach (var v in values)
         {
-            var r = ResolveLiteral(v, windowStartDate);
+            var r = ResolveLiteral(v, pupilDataStartDate);
             if (r is null)
             {
-                var pending = string.Join(",", values.Select(x => Render(x, windowStartDate)));
+                var pending = string.Join(",", values.Select(x => Render(x, pupilDataStartDate)));
                 Append(trace, $"{field} in [{pending}] → unknown (relative date unresolvable)");
                 return TriResult.Unknown;
             }
@@ -161,14 +161,14 @@ public sealed class RulesEngine : IRulesEngine
         }
         var literals = string.Join(
             ",",
-            resolved.Zip(values).Select(p => RenderLiteral(p.Second, p.First, windowStartDate)));
+            resolved.Zip(values).Select(p => RenderLiteral(p.Second, p.First, pupilDataStartDate)));
         if (!actual.IsKnownAndCertain)
         {
-            Append(trace, $"{field} in [{literals}] → unknown (got {Render(actual, windowStartDate)})");
+            Append(trace, $"{field} in [{literals}] → unknown (got {Render(actual, pupilDataStartDate)})");
             return TriResult.Unknown;
         }
         var hit = resolved.Any(v => Equal(actual, v));
-        Append(trace, $"{field} in [{literals}] → {Lower(hit)} (got {Render(actual, windowStartDate)})");
+        Append(trace, $"{field} in [{literals}] → {Lower(hit)} (got {Render(actual, pupilDataStartDate)})");
         return hit ? TriResult.True : TriResult.False;
     }
 
@@ -176,16 +176,16 @@ public sealed class RulesEngine : IRulesEngine
     {
         var actual = ctx.GetField(field);
         var opSym = SymbolOf(op);
-        var windowStartDate = ctx.WindowStartDate;
-        var literal = ResolveLiteral(value, windowStartDate);
+        var pupilDataStartDate = ctx.PupilDataStartDate;
+        var literal = ResolveLiteral(value, pupilDataStartDate);
         if (literal is null)
         {
-            Append(trace, $"{field} {opSym} {Render(value, windowStartDate)} → unknown (relative date unresolvable)");
+            Append(trace, $"{field} {opSym} {Render(value, pupilDataStartDate)} → unknown (relative date unresolvable)");
             return TriResult.Unknown;
         }
         if (!actual.IsKnownAndCertain)
         {
-            Append(trace, $"{field} {opSym} {Render(literal, windowStartDate)} → unknown (got {Render(actual, windowStartDate)})");
+            Append(trace, $"{field} {opSym} {Render(literal, pupilDataStartDate)} → unknown (got {Render(actual, pupilDataStartDate)})");
             return TriResult.Unknown;
         }
 
@@ -199,7 +199,7 @@ public sealed class RulesEngine : IRulesEngine
                 cmp = ad.Value.CompareTo(bd.Value);
                 break;
             default:
-                Append(trace, $"{field} {opSym} {Render(literal, windowStartDate)} → unknown (type mismatch: got {Render(actual, windowStartDate)})");
+                Append(trace, $"{field} {opSym} {Render(literal, pupilDataStartDate)} → unknown (type mismatch: got {Render(actual, pupilDataStartDate)})");
                 return TriResult.Unknown;
         }
 
@@ -211,7 +211,7 @@ public sealed class RulesEngine : IRulesEngine
             CompareOp.Gte => cmp >= 0,
             _ => false,
         };
-        Append(trace, $"{field} {opSym} {RenderLiteral(value, literal, windowStartDate)} → {Lower(pass)} (got {Render(actual, windowStartDate)})");
+        Append(trace, $"{field} {opSym} {RenderLiteral(value, literal, pupilDataStartDate)} → {Lower(pass)} (got {Render(actual, pupilDataStartDate)})");
         return pass ? TriResult.True : TriResult.False;
     }
 
@@ -219,7 +219,7 @@ public sealed class RulesEngine : IRulesEngine
     {
         var actual = ctx.GetField(field);
         var known = actual.IsKnownAndCertain;
-        Append(trace, $"isKnownAndCertain({field}) → {Lower(known)} (got {Render(actual, ctx.WindowStartDate)})");
+        Append(trace, $"isKnownAndCertain({field}) → {Lower(known)} (got {Render(actual, ctx.PupilDataStartDate)})");
         return known ? TriResult.True : TriResult.False;
     }
 
@@ -228,7 +228,7 @@ public sealed class RulesEngine : IRulesEngine
         var actual = ctx.GetField(lang.CountryField);
         if (actual is not FieldValue.Str s || !actual.IsKnownAndCertain)
         {
-            Append(trace, $"officialLanguageIs('{lang.Language}', {lang.CountryField}) → unknown (got {Render(actual, ctx.WindowStartDate)})");
+            Append(trace, $"officialLanguageIs('{lang.Language}', {lang.CountryField}) → unknown (got {Render(actual, ctx.PupilDataStartDate)})");
             return TriResult.Unknown;
         }
         var result = lookups.CountryHasOfficialLanguage(s.Value, lang.Language);
@@ -254,14 +254,14 @@ public sealed class RulesEngine : IRulesEngine
     /// from the window, not a fixed date (#800). Any other literal renders
     /// plain.
     /// </summary>
-    private static string RenderLiteral(FieldValue original, FieldValue? resolved, DateOnly? windowStartDate)
+    private static string RenderLiteral(FieldValue original, FieldValue? resolved, DateOnly? pupilDataStartDate)
     {
         // A resolved relative literal is always a concrete date here; a null would mean the
         // form did not resolve, and those leaves trace through the unresolvable path instead.
         if (resolved is not { } value) return "unknown";
         if (original is FieldValue.RelativeDate rd)
-            return $"{Render(value, windowStartDate)} (window-relative: {rd.Spec.WindowRelative})";
-        return Render(value, windowStartDate);
+            return $"{Render(value, pupilDataStartDate)} (window-relative: {rd.Spec.WindowRelative})";
+        return Render(value, pupilDataStartDate);
     }
 
     /// <summary>
@@ -270,7 +270,7 @@ public sealed class RulesEngine : IRulesEngine
     /// literal never reaches this method (the leaf renders it through
     /// <see cref="RenderLiteral"/> with the form name) (#800).
     /// </summary>
-    private static string Render(FieldValue v, DateOnly? windowStartDate) => v switch
+    private static string Render(FieldValue v, DateOnly? pupilDataStartDate) => v switch
     {
         FieldValue.Str s        => $"\"{s.Value}\"",
         FieldValue.Bool b       => b.Value ? "true" : "false",
@@ -278,23 +278,23 @@ public sealed class RulesEngine : IRulesEngine
         FieldValue.Date d       => d.Value.ToString("yyyy-MM-dd"),
         FieldValue.Unknown      => "unknown",
         FieldValue.RelativeDate rd
-            when RelativeDateResolver.TryResolve(rd.Spec, windowStartDate, out var date)
+            when RelativeDateResolver.TryResolve(rd.Spec, pupilDataStartDate, out var date)
             => $"{date:yyyy-MM-dd} (window-relative: {rd.Spec.WindowRelative})",
         FieldValue.RelativeDate rd => $"window-relative: {rd.Spec.WindowRelative}",
-        FieldValue.Uncertain u  => $"uncertain({Render(u.Inner, windowStartDate)})",
+        FieldValue.Uncertain u  => $"uncertain({Render(u.Inner, pupilDataStartDate)})",
         _ => "?",
     };
 
     /// <summary>
     /// Resolves a rule literal before a leaf compares it (#800). A relative
-    /// date resolves against the checking window start date; null means the
-    /// form has no date in this window and the leaf must not decide. Any
-    /// other literal passes through unchanged.
+    /// date resolves against the window's PupilData exercise start date;
+    /// null means the form has no date in this window and the leaf must not
+    /// decide. Any other literal passes through unchanged.
     /// </summary>
-    private static FieldValue? ResolveLiteral(FieldValue value, DateOnly? windowStartDate) => value switch
+    private static FieldValue? ResolveLiteral(FieldValue value, DateOnly? pupilDataStartDate) => value switch
     {
         FieldValue.RelativeDate rd
-            when RelativeDateResolver.TryResolve(rd.Spec, windowStartDate, out var date)
+            when RelativeDateResolver.TryResolve(rd.Spec, pupilDataStartDate, out var date)
             => new FieldValue.Date(date),
         // A relative date with no date in this window resolves to no value, so
         // the leaf returns Unknown and the branch cannot match (fail closed).

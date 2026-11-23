@@ -67,7 +67,7 @@ public static class RulesAdminViewModelFactory
             Key = outcome.Key,
             Label = outcome.Label,
             Branches = outcome.Rules
-                .Select(b => MapBranch(b, windowStartDate: null))
+                .Select(b => MapBranch(b, pupilDataStartDate: null))
                 .ToList()
         };
     }
@@ -80,13 +80,13 @@ public static class RulesAdminViewModelFactory
     /// A missing or empty rules set yields the "no rules configured" state.
     /// </summary>
     public static WindowRulesViewModel WindowRules(
-        string windowTitle, Guid windowId, DateOnly? windowStartDate,
+        string windowTitle, Guid windowId, DateOnly? pupilDataStartDate,
         CheckingWindowType windowType, RuleSet? rules) => new()
     {
         Title = $"{windowTitle} rules",
         WindowTitle = windowTitle,
         WindowId = windowId,
-        StartDate = windowStartDate,
+        StartDate = pupilDataStartDate,
         WindowType = windowType,
         RulesVersion = rules?.Version,
         HasRules = rules is not null && rules.Outcomes.Count > 0,
@@ -96,15 +96,15 @@ public static class RulesAdminViewModelFactory
                 .Select(o => new WindowOutcomeRules(o.Label,
                     o.Rules
                         .Where(b => AppliesToWindowType(b.When, windowType))
-                        .Select(b => MapBranch(b, windowStartDate))
+                        .Select(b => MapBranch(b, pupilDataStartDate))
                         .ToList()))
                 .ToList()
     };
 
     /// <summary>Maps one branch to its view model, describing the condition with the
     /// window-aware describer when an anchor date is available.</summary>
-    private static BranchViewModel MapBranch(RuleBranch branch, DateOnly? windowStartDate) =>
-        new(branch.Id, branch.Status, PredicateDescriber.Describe(branch.When, windowStartDate),
+    private static BranchViewModel MapBranch(RuleBranch branch, DateOnly? pupilDataStartDate) =>
+        new(branch.Id, branch.Status, PredicateDescriber.Describe(branch.When, pupilDataStartDate),
             branch.When is Predicate.Otherwise);
 
     /// <summary>

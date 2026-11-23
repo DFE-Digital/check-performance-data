@@ -69,14 +69,25 @@ public static class PredicateFormValidator
     /// <summary>
     /// A window-relative date token (for example <c>window:secondMondayOfMay</c>) is only
     /// meaningful on a Date field. Saved against any other field it becomes a plain string
-    /// no request can match, so the rule would silently never fire (#800).
+    /// no request can match, so the rule would silently never fire (#800). On a Date field
+    /// a token that does not match a supported form would silently save as a plain string
+    /// too, so the validator rejects it with a message naming the supported forms.
     /// </summary>
     private static void AddRelativeDateTokenError(List<string> errors, string? field, string? value)
     {
         if (!PredicateForm.IsRelativeDateToken(value)) return;
-        if (field is not null
+        var isDateField = field is not null
             && FieldCatalogue.TryGetType(field, out var type)
-            && type != FieldType.Date)
+            && type == FieldType.Date;
+        if (isDateField)
+        {
+            if (!PredicateForm.TryParseRelativeDateToken(value, out _))
+            {
+                errors.Add($"'{value}' is not a supported window-relative date. Use window:secondMondayOfMay, " +
+                           "window:firstSeptemberMinusYears:<years> or window:dayMonthOfWindowYear:<month>-<day>.");
+            }
+        }
+        else
         {
             errors.Add($"'{field}' is not a date field; a window-relative date cannot match it. Use a fixed value.");
         }

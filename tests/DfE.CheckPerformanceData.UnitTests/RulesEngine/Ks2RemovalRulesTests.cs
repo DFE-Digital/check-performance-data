@@ -85,6 +85,32 @@ public sealed class Ks2RemovalRulesTests
         Assert.Equal("TCI-TERM-SCR", decision.MatchedRuleId);
     }
 
+    // --- window-year dependence: the same branch takes a different cutoff in a different window ---
+
+    [Fact]
+    public void PupilAddedAfterSummerTerm_CutoffMovesWithTheWindowYear()
+    {
+        // PAS-REJ rejects an addition before 1 April of the window year. A 2028 window
+        // therefore rejects a pupil added on 31 March 2028, while the same answer in the
+        // 2027 window this seed was written for falls to Scrutiny.
+        Dictionary<string, FieldValue> Fields() => new()
+        {
+            ["checkingWindowType"] = new FieldValue.Str("KS2"),
+            ["requestType"] = new FieldValue.Str("Remove - added-after-summer-term"),
+            ["dateAddedToRoll"] = new FieldValue.Date(new(2028, 3, 31)),
+        };
+
+        var moved = Evaluate("PupilAddedAfterSummerTerm", new DateOnly(2028, 1, 1), Fields());
+
+        Assert.Equal(DecisionStatus.AutoRejected, moved.Status);
+        Assert.Equal("PAS-REJ", moved.MatchedRuleId);
+
+        var writtenFor = Evaluate("PupilAddedAfterSummerTerm", new DateOnly(2027, 1, 1), Fields());
+
+        Assert.Equal(DecisionStatus.Scrutiny, writtenFor.Status);
+        Assert.Equal("PAS-DEF", writtenFor.MatchedRuleId);
+    }
+
     // --- helpers ---
 
     private static Decision EvaluateEal(DateOnly schoolAdmission, DateOnly firstAdmission, bool? evidence)
@@ -115,7 +141,10 @@ public sealed class Ks2RemovalRulesTests
     };
 
     private static Decision Evaluate(string outcomeKey, Dictionary<string, FieldValue> fields) =>
-        new RulesEngineImpl().Evaluate(LoadSeedRules(), new RuleContext(outcomeKey, "KS2", fields, WindowStart), Lookups.Empty);
+        Evaluate(outcomeKey, WindowStart, fields);
+
+    private static Decision Evaluate(string outcomeKey, DateOnly windowStart, Dictionary<string, FieldValue> fields) =>
+        new RulesEngineImpl().Evaluate(LoadSeedRules(), new RuleContext(outcomeKey, "KS2", fields, windowStart), Lookups.Empty);
 
     private static RuleSet LoadSeedRules()
     {

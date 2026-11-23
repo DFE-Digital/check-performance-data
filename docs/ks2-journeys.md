@@ -43,8 +43,8 @@ KS2 has no Merge, Include or Add journey. The requirements say so.
    `Remove_KS2.json` has no `visibleWhen`.
 5. **KS2 has no add-back pupils** (no 403 code). The KS2 rules have no add-back branch.
 6. **Dates are for 2027.** Every journey hint uses the 2027 exercise. Every rule
-   date is window-relative: the rules engine resolves it from the checking
-   window's start date (see below).
+   date is window-relative: the rules engine resolves it from the window's
+   PupilData exercise start date (see below).
 7. **"Tests", never "exams"**, on every KS2 page.
 8. **Only included pupils can be removed.** `select-pupil` uses `pupilFilter: "Included"`. The
    KS2 schema stamps `INCLUDED` for P_INCL 201 only.
@@ -101,8 +101,8 @@ now limited to `KS4June`. The two reject rules stay shared.
 ## The rule dates follow the window
 
 The KS2 rule dates are window-relative. The rules engine resolves each one from
-the checking window's start date, so one `rules.json` works for every window
-year:
+the window's PupilData exercise start date, so one `rules.json` works for every
+window year:
 
 - `PAS-REJ` rejects a pupil added to the roll before 1 April of the window year.
 - `EHE-KS2`, `PEX-KS2` and `PLE-KS2` reject a removal on or after the second

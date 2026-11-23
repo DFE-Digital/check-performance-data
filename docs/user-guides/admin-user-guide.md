@@ -516,7 +516,7 @@ To add a branch to an outcome:
     If you change the field, select **Update field** so the operators match it. Select **Remove condition** to take a test out. Select **Add group** to nest a group of conditions.
 4. Select **Save branch**.
 
-Some date values are **window-relative**. They resolve from the start date of the checking window the request belongs to, instead of naming a calendar date. For example, *the second Monday of May of the window year*. When you open a branch whose condition has a window-relative date, its value is a read-only field that shows the form's name. You cannot type or change it on this page. If you need to change it, ask the development team to upload a new rules version.
+Some date values are **window-relative**. They resolve from the start date of the window's pupil data exercise the request belongs to, instead of naming a calendar date. For example, *the second Monday of May of the window year*. When you open a branch whose condition has a window-relative date, its value is a read-only field that shows the form's name. You cannot type or change it on this page. If you need to change it, ask the development team to upload a new rules version.
 
 To change a branch, select its edit icon. To reorder branches, use the up and down icons. To remove a branch, select its remove icon. The service then asks *Remove branch?* Select **Remove branch** to confirm. It records a new version, and you can roll it back.
 

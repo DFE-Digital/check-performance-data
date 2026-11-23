@@ -49,7 +49,7 @@ The eventual goal is to fold this seed upload into the CI deploy pipeline (`.git
 
 ### Window-relative dates
 
-A date literal may be a window-relative object instead of a fixed date. An absolute date stays an ISO `yyyy-MM-dd` string. The window year is the calendar year of the checking window start date. The engine resolves the date from the window the request belongs to. It never uses the current date.
+A date literal may be a window-relative object instead of a fixed date. An absolute date stays an ISO `yyyy-MM-dd` string. The window year is the calendar year of the window's PupilData exercise start date. The engine resolves the date from the window the request belongs to. It never uses the current date.
 
 | Token | Parameters | Resolves to |
 |---|---|---|
@@ -64,6 +64,26 @@ JSON shape:
 { "field": "schoolAdmissionDate", "gte": { "windowRelative": "firstSeptemberMinusYears", "years": 3 } }
 { "field": "dateOfRemoval", "gte": { "windowRelative": "secondMondayOfMay" } }
 ```
+
+#### Which window year the shipped dates match
+
+The shipped `rules.json` was converted from the fixed dates of two different windows:
+
+- The **KS4** branches (window type `KS4June`) reproduce the fixed dates of the **2025** window:
+  `EAL-ACC-NEWADM-2022-*` resolve to 1 September 2022, `EAL-ACC-ADDBACK-2021-*` to
+  1 September 2021, and `EHE-KS4` / `PEX-KS4` to 16 January 2025.
+- The **KS2** branches reproduce the fixed dates of the **2027** window: the EAL split at
+  1 September 2024, `AFE-KS2` at 1 September 2025, the May rules at 10 May 2027, and
+  `PAS-REJ` at 1 April 2027.
+
+In any other window year the dates move one year per year of window: that is the point of
+the conversion. `Ks4RemovalRulesTests` and `Ks2RemovalRulesTests` pin each converted branch
+against its original fixed date for the window it was written for.
+
+The year in a branch ID such as `EAL-ACC-NEWADM-2022-ALL` is historical: it is the year the
+date named when the branch was first written with a fixed date, not a year the branch reads
+at runtime. Branch IDs appear in the decision trace and in Zendesk tickets, so they are not
+renamed when a date becomes window-relative.
 
 If a date cannot resolve for a window, the rule matches nothing and the request goes to manual handling. This happens when 29 February falls in a non-leap window year.
 

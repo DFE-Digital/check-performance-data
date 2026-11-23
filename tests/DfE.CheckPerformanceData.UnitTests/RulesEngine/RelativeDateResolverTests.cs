@@ -4,8 +4,8 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
 
 /// <summary>
 /// #800: the resolver turns a window-relative date form into a concrete date
-/// from the window start date. It is a pure function: the clock is never
-/// consulted, so the same window start date always gives the same date.
+/// from the PupilData exercise start date. It is a pure function: the clock is never
+/// consulted, so the same PupilData start date always gives the same date.
 /// Synthetic 2025/2026/2027 windows pin the year math so a regression is
 /// caught.
 /// </summary>
@@ -102,13 +102,13 @@ public sealed class RelativeDateResolverTests
         Assert.Equal(new DateOnly(windowYear, 5, expectedDay), date);
     }
 
-    // --- no window start date ---
+    // --- no PupilData start date ---
 
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
-    public void NullWindowStartDate_IsUnresolvableForEveryForm(int form)
+    public void NullPupilDataStartDate_IsUnresolvableForEveryForm(int form)
     {
         RelativeDateSpec spec = form switch
         {

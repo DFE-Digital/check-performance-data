@@ -56,6 +56,17 @@ public sealed class WindowRulesViewSourceTests
     }
 
     [Fact]
+    public void A_missing_start_date_or_rules_version_shows_not_set()
+    {
+        // Both header rows can be empty: a window without a PupilData exercise has no anchor,
+        // and a deployment with no rules blob has no version. Each falls back to "not set"
+        // rather than rendering an empty value or throwing.
+        var view = View();
+        var header = Between(view, "govuk-summary-list", "</govuk-summary-list>");
+        Assert.Equal(2, header.Split("\"not set\"", StringSplitOptions.None).Length - 1);
+    }
+
+    [Fact]
     public void Each_outcome_gets_one_summary_card_per_branch()
     {
         // One GOV.UK summary card per outcome; each branch inside the card lists its

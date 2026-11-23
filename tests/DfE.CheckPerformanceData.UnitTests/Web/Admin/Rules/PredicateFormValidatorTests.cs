@@ -115,4 +115,44 @@ public sealed class PredicateFormValidatorTests
         };
         Assert.Empty(PredicateFormValidator.Validate(nodes));
     }
+
+    // A token that starts like a window-relative date but matches no supported form must
+    // fail validation with a message naming the forms, not silently save as a plain string.
+
+    [Theory]
+    [InlineData("window:secondMondayOfJanuary")]
+    [InlineData("window:firstSeptemberMinusYears:")]
+    [InlineData("window:firstSeptemberMinusYears:three")]
+    [InlineData("window:dayMonthOfWindowYear:9")]
+    [InlineData("window:dayMonthOfWindowYear:9-31-2027")]
+    [InlineData("window:")]
+    public void MalformedRelativeDateToken_On_DateField_Is_Rejected_WithSupportedForms(string value)
+    {
+        var nodes = new List<PredicateNodeForm>
+        {
+            new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "dateOfRemoval", Operator = "eq", Value = value },
+        };
+        var errors = PredicateFormValidator.Validate(nodes);
+        Assert.Contains(errors, e => e.Contains("not a supported window-relative date")
+            && e.Contains("window:secondMondayOfMay")
+            && e.Contains("window:firstSeptemberMinusYears:<years>")
+            && e.Contains("window:dayMonthOfWindowYear:<month>-<day>"));
+    }
+
+    [Fact]
+    public void MalformedRelativeDateToken_In_Values_On_DateField_Is_Rejected()
+    {
+        var nodes = new List<PredicateNodeForm>
+        {
+            new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldIn, Field = "dateOfRemoval", Operator = "in",
+                Values = ["window:secondMondayOfMay", "window:dayMonthOfWindowYear:9-x"] },
+        };
+        // One valid token, one malformed: exactly one error, for the malformed value.
+        var errors = PredicateFormValidator.Validate(nodes);
+        Assert.Single(errors);
+        Assert.Contains("window:dayMonthOfWindowYear:9-x", errors[0]);
+        Assert.Contains("not a supported window-relative date", errors[0]);
+    }
 }

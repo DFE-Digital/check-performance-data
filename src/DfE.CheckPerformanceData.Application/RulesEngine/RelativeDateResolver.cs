@@ -1,24 +1,25 @@
 namespace DfE.CheckPerformanceData.Application.RulesEngine;
 
 /// <summary>
-/// Turns a window-relative date form into a concrete date from the checking
-/// window's start date (#800). A pure function: the current date and time are
-/// never used, so the same window start date always gives the same date.
+/// Turns a window-relative date form into a concrete date from the window's
+/// PupilData exercise start date (#800). A pure function: the current date
+/// and time are never used, so the same PupilData start date always gives the
+/// same date.
 /// </summary>
 public static class RelativeDateResolver
 {
     /// <summary>
-    /// Resolves <paramref name="spec"/> against <paramref name="windowStartDate"/>.
-    /// Returns false when the window start date is null, the form has no date in
-    /// the window's year (for example 29 February in a non-leap year), or the
+    /// Resolves <paramref name="spec"/> against <paramref name="pupilDataStartDate"/>.
+    /// Returns false when the PupilData start date is null, the form has no date
+    /// in the window's year (for example 29 February in a non-leap year), or the
     /// offset lands before year 1 (for example a 3-year offset from a year-1 start).
     /// </summary>
-    public static bool TryResolve(RelativeDateSpec spec, DateOnly? windowStartDate, out DateOnly date)
+    public static bool TryResolve(RelativeDateSpec spec, DateOnly? pupilDataStartDate, out DateOnly date)
     {
         date = default;
-        if (spec is null || windowStartDate is null) return false;
+        if (spec is null || pupilDataStartDate is null) return false;
 
-        var year = windowStartDate.Value.Year;
+        var year = pupilDataStartDate.Value.Year;
         switch (spec)
         {
             case RelativeDateSpec.DayMonthOfWindowYear d:

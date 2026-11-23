@@ -287,6 +287,18 @@ public sealed class RulesAdminViewModelFactoryTests
     }
 
     [Fact]
+    public void WindowRules_leaves_the_start_date_null_when_the_window_has_no_pupil_data()
+    {
+        // A window without a PupilData exercise has no anchor: the view model carries a null
+        // start date and the view renders it as "not set", never a guess.
+        var vm = RulesAdminViewModelFactory.WindowRules(
+            "Main 2027", Guid.NewGuid(), null, CheckingWindowType.KS4June, null);
+
+        Assert.Null(vm.StartDate);
+        Assert.False(vm.HasRules);
+    }
+
+    [Fact]
     public void WindowRules_reports_no_rules_when_null_or_empty()
     {
         var windowId = Guid.NewGuid();

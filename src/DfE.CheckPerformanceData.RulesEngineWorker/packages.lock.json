@@ -396,7 +396,7 @@
       "dfe.checkperformancedata.application": {
         "type": "Project",
         "dependencies": {
-          "AngleSharp": "[1.10.1, )",
+          "AngleSharp": "[1.10.3, )",
           "DfE.CheckPerformanceData.Domain": "[1.0.0, )",
           "HtmlSanitizer": "[11.0.26, )",
           "Markdig": "[1.6.0, )",
@@ -414,7 +414,7 @@
           "DfE.CheckPerformanceData.Application": "[1.0.0, )",
           "DfE.CheckPerformanceData.Domain": "[1.0.0, )",
           "DfE.CheckPerformanceData.Persistence": "[1.0.0, )",
-          "DfeAnalytics.Core": "[0.6.4, )",
+          "DfeAnalytics.Core": "[0.7.0, )",
           "GovukNotify": "[8.2.0, )",
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.15, )",
           "Microsoft.EntityFrameworkCore": "[10.0.15, )",
@@ -433,7 +433,8 @@
         "dependencies": {
           "DfE.CheckPerformanceData.Application": "[1.0.0, )",
           "DfE.CheckPerformanceData.Domain": "[1.0.0, )",
-          "DfeAnalytics.EFCore": "[0.6.4, )",
+          "DfeAnalytics.Core": "[0.7.0, )",
+          "DfeAnalytics.EFCore": "[0.7.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.15, )",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.15, )",
           "Newtonsoft.Json": "[13.0.4, )",
@@ -443,9 +444,9 @@
       },
       "AngleSharp": {
         "type": "CentralTransitive",
-        "requested": "[1.10.1, )",
-        "resolved": "1.10.1",
-        "contentHash": "yWQuJAaxcvKmhzl77SYfiIbSMloqsHWrzJaqgY5QOoIfEFk0HQZbQQv3gKyIuQBxMwmglcqzXfykGZ4JrkWK5Q=="
+        "requested": "[1.10.3, )",
+        "resolved": "1.10.3",
+        "contentHash": "HF2owdhRhy84PJ7dk6e7Olc8D3S8RhU+BSXgCpTcafODrHzUUqUquCUWrM81/PeKHKlFA86LCdZBAQCQRK2y7w=="
       },
       "CsvHelper": {
         "type": "CentralTransitive",
@@ -455,9 +456,9 @@
       },
       "DfeAnalytics.Core": {
         "type": "CentralTransitive",
-        "requested": "[0.6.4, )",
-        "resolved": "0.6.4",
-        "contentHash": "LfmZAaetqxonAFkZSeY0M3udvzyc35QGEgDTm5ohXocTQZNOks/iqBs7tOQ7LOEw4B6cXp6aE1MGzbdsWOKIyQ==",
+        "requested": "[0.7.0, )",
+        "resolved": "0.7.0",
+        "contentHash": "rO3RUfKcGRoE/KDfey6MsvOX8vERqxGPANuFtvJOidP+Ypwz+TVgQNFdkRgpofR290uci/KNNfHWc94BwFa6/A==",
         "dependencies": {
           "Google.Apis.Auth": "1.71.0",
           "Google.Cloud.BigQuery.V2": "[3.0.0, 4.0.0)"
@@ -465,13 +466,12 @@
       },
       "DfeAnalytics.EFCore": {
         "type": "CentralTransitive",
-        "requested": "[0.6.4, )",
-        "resolved": "0.6.4",
-        "contentHash": "t4Rw5dqWcNNsKm6hTxoTdomrfDskb2SEt70Wo7dhnKixJqkmlmcjSpoueKZcES5fogTpg87cNKLLXLkh51Cqsg==",
+        "requested": "[0.7.0, )",
+        "resolved": "0.7.0",
+        "contentHash": "fiFdkXBCsG0AieeYmPigWg3Qf0Wdwy7bt4VWkfX+ew1h6qmB+wETH1FNjWBFRnEC12gnMj1ldU0dmOT0+yP9MA==",
         "dependencies": {
-          "DfeAnalytics.Core": "0.6.4",
-          "Microsoft.EntityFrameworkCore": "10.0.0",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.0",
+          "DfeAnalytics.Core": "0.7.0",
+          "Microsoft.EntityFrameworkCore.Relational": "8.0.0",
           "System.CommandLine": "2.0.0"
         }
       },

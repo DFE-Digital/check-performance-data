@@ -206,23 +206,24 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task A_second_enquiry_for_the_same_pupil_and_result_also_persists()
+    public async Task A_second_enquiry_for_the_same_pupil_and_result_is_refused()
     {
-        // "The spec allows multiple enquiries per pupil/result; the docs never restrict."
         await TruncateAsync();
         var windowId = await SeedPost16WindowAsync();
         var (service, _, _) = BuildService();
 
         await service.SubmitResultsEnquiryAsync(windowId, Journey(windowId, "CYPMD_16to19_RE_EEEEEE5"));
-        await service.SubmitResultsEnquiryAsync(windowId, Journey(windowId, "CYPMD_16to19_RE_FFFFFF6"));
+        var refused = await Assert.ThrowsAsync<DuplicateEnquiryException>(
+            () => service.SubmitResultsEnquiryAsync(windowId, Journey(windowId, "CYPMD_16to19_RE_FFFFFF6")));
 
+        Assert.Equal("CYPMD_16to19_RE_EEEEEE5", refused.ExistingReferenceNumber);
         await using var ctx = _fixture.CreateContext();
         var rows = await ctx.ChangeRequests
             .Where(r => r.RequestType == RequestType.ResultsEnquiry)
             .ToListAsync();
-        Assert.Equal(2, rows.Count);
-        Assert.Equal(2, rows.Select(r => r.ReferenceNumber).Distinct().Count());
-        Assert.All(rows, r => Assert.Equal(PupilId, r.PupilId));
+        var row = Assert.Single(rows);
+        Assert.Equal("CYPMD_16to19_RE_EEEEEE5", row.ReferenceNumber);
+        Assert.Equal(PupilId, row.PupilId);
     }
 
     [Fact]

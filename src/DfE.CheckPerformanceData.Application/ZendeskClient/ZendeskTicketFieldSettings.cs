@@ -40,6 +40,26 @@ public sealed class ZendeskTicketFieldSettings
     public long? PupilYearGroupCypmdId { get; set; }
     public long? AdditionalCommentsCypmdId { get; set; }
 
+    // Results enquiry ticket fields (#859). Only the enquiry ticket builder sends these.
+    public long? CustomerNameCypmdId { get; set; }
+    public long? EmailAddressCypmdId { get; set; }
+    public long? SchoolNameCypmdId { get; set; }
+    public long? DfeNumberCypmdId { get; set; }
+    public long? SituationCypmdId { get; set; }
+    public long? GradedExamCypmdId { get; set; }
+    public long? TLevelExamsCypmdId { get; set; }
+    public long? WithdrawalQualificationCypmdId { get; set; }
+    public long? WholeCohortAffectedCypmdId { get; set; }
+    public long? NumberOfQualificationsCypmdId { get; set; }
+    public long? AoNameCypmdId { get; set; }
+    public long? QanCypmdId { get; set; }
+    public long? QualificationNameCypmdId { get; set; }
+    public long? SyllabusCodeCypmdId { get; set; }
+    public long? AwardDateCypmdId { get; set; }
+    public long? NcnCypmdId { get; set; }
+    public long? CurrentGradeCypmdId { get; set; }
+    public long? RevisedGradeCypmdId { get; set; }
+
     /// <summary>
     /// When <c>true</c>, AutoRejected decisions populate the "Decision Reason - Rejected"
     /// tagger field (AutoApproved always populates the "Decision Reason - Approved" field
@@ -91,6 +111,24 @@ public sealed class ZendeskTicketFieldSettings
             ZendeskTicketFieldConstants.LdsMatchedPupilId2Name => LdsMatchedPupilId2Id,
             ZendeskTicketFieldConstants.PupilYearGroupCypmdName => PupilYearGroupCypmdId,
             ZendeskTicketFieldConstants.AdditionalCommentsCypmdName => AdditionalCommentsCypmdId,
+            ZendeskTicketFieldConstants.CustomerNameCypmdName => CustomerNameCypmdId,
+            ZendeskTicketFieldConstants.EmailAddressCypmdName => EmailAddressCypmdId,
+            ZendeskTicketFieldConstants.SchoolNameCypmdName => SchoolNameCypmdId,
+            ZendeskTicketFieldConstants.DfeNumberCypmdName => DfeNumberCypmdId,
+            ZendeskTicketFieldConstants.SituationCypmdName => SituationCypmdId,
+            ZendeskTicketFieldConstants.GradedExamCypmdName => GradedExamCypmdId,
+            ZendeskTicketFieldConstants.TLevelExamsCypmdName => TLevelExamsCypmdId,
+            ZendeskTicketFieldConstants.WithdrawalQualificationCypmdName => WithdrawalQualificationCypmdId,
+            ZendeskTicketFieldConstants.WholeCohortAffectedCypmdName => WholeCohortAffectedCypmdId,
+            ZendeskTicketFieldConstants.NumberOfQualificationsCypmdName => NumberOfQualificationsCypmdId,
+            ZendeskTicketFieldConstants.AoNameCypmdName => AoNameCypmdId,
+            ZendeskTicketFieldConstants.QanCypmdName => QanCypmdId,
+            ZendeskTicketFieldConstants.QualificationNameCypmdName => QualificationNameCypmdId,
+            ZendeskTicketFieldConstants.SyllabusCodeCypmdName => SyllabusCodeCypmdId,
+            ZendeskTicketFieldConstants.AwardDateCypmdName => AwardDateCypmdId,
+            ZendeskTicketFieldConstants.NcnCypmdName => NcnCypmdId,
+            ZendeskTicketFieldConstants.CurrentGradeCypmdName => CurrentGradeCypmdId,
+            ZendeskTicketFieldConstants.RevisedGradeCypmdName => RevisedGradeCypmdId,
             _ => null
         };
     }
@@ -127,7 +165,25 @@ public sealed class ZendeskTicketFieldSettings
             (ZendeskTicketFieldConstants.CorrectionReason21Name, CorrectionReason21Id),
             (ZendeskTicketFieldConstants.LdsMatchedPupilId2Name, LdsMatchedPupilId2Id),
             (ZendeskTicketFieldConstants.PupilYearGroupCypmdName, PupilYearGroupCypmdId),
-            (ZendeskTicketFieldConstants.AdditionalCommentsCypmdName, AdditionalCommentsCypmdId)
+            (ZendeskTicketFieldConstants.AdditionalCommentsCypmdName, AdditionalCommentsCypmdId),
+            (ZendeskTicketFieldConstants.CustomerNameCypmdName, CustomerNameCypmdId),
+            (ZendeskTicketFieldConstants.EmailAddressCypmdName, EmailAddressCypmdId),
+            (ZendeskTicketFieldConstants.SchoolNameCypmdName, SchoolNameCypmdId),
+            (ZendeskTicketFieldConstants.DfeNumberCypmdName, DfeNumberCypmdId),
+            (ZendeskTicketFieldConstants.SituationCypmdName, SituationCypmdId),
+            (ZendeskTicketFieldConstants.GradedExamCypmdName, GradedExamCypmdId),
+            (ZendeskTicketFieldConstants.TLevelExamsCypmdName, TLevelExamsCypmdId),
+            (ZendeskTicketFieldConstants.WithdrawalQualificationCypmdName, WithdrawalQualificationCypmdId),
+            (ZendeskTicketFieldConstants.WholeCohortAffectedCypmdName, WholeCohortAffectedCypmdId),
+            (ZendeskTicketFieldConstants.NumberOfQualificationsCypmdName, NumberOfQualificationsCypmdId),
+            (ZendeskTicketFieldConstants.AoNameCypmdName, AoNameCypmdId),
+            (ZendeskTicketFieldConstants.QanCypmdName, QanCypmdId),
+            (ZendeskTicketFieldConstants.QualificationNameCypmdName, QualificationNameCypmdId),
+            (ZendeskTicketFieldConstants.SyllabusCodeCypmdName, SyllabusCodeCypmdId),
+            (ZendeskTicketFieldConstants.AwardDateCypmdName, AwardDateCypmdId),
+            (ZendeskTicketFieldConstants.NcnCypmdName, NcnCypmdId),
+            (ZendeskTicketFieldConstants.CurrentGradeCypmdName, CurrentGradeCypmdId),
+            (ZendeskTicketFieldConstants.RevisedGradeCypmdName, RevisedGradeCypmdId)
         };
     }
 }

@@ -14,7 +14,8 @@ public interface IExerciseDisplayService
     /// <summary>Read a school's rows from a flat array or a grouped envelope.</summary>
     IReadOnlyList<Dictionary<string, string>> ReadRows(JsonElement root);
 
-    /// <summary>Split the rows across the definitions they belong to.</summary>
+    /// <summary>Split the rows across the definitions they belong to. Returns the datasets in the
+    /// schemas' <c>x-display.selectorOrder</c>, ties in the order given.</summary>
     IReadOnlyList<ExerciseDataset> Define(IReadOnlyList<Dictionary<string, string>> rows,
         IReadOnlyList<ExerciseDataset> definitions);
 

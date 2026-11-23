@@ -91,6 +91,32 @@ public sealed class AccessibilityAuditViewTests
 		Assert.DoesNotContain("sign-in-nav-item", view);
 	}
 
+	// ── #854 Service navigation shows the current section ─────────────────────────────
+
+	[Fact]
+	public void ServiceNavItem_MarksOnlyTheActiveItem_WithAriaCurrentAndTheFallback()
+	{
+		// GOV.UK Frontend service navigation: the active item has the --active modifier,
+		// aria-current ("page" on the link's own page, "true" elsewhere in the section) and a
+		// <strong> fallback. An item that is not active has none of these.
+		var view = ReadView("Views", "Shared", "_ServiceNavItem.cshtml");
+
+		var elseBranch = view.IndexOf("\nelse", StringComparison.Ordinal);
+		Assert.True(elseBranch > 0, "_ServiceNavItem must have an active branch and an inactive branch.");
+		var active = view[..elseBranch];
+		var inactive = view[elseBranch..];
+
+		Assert.Contains("@if (Model.Active)", active);
+		Assert.Contains("govuk-service-navigation__item govuk-service-navigation__item--active", active);
+		Assert.Contains("aria-current=\"@(Model.CurrentPage ? \"page\" : \"true\")\"", active);
+		Assert.Contains("<strong class=\"govuk-service-navigation__active-fallback\">@Model.Text</strong>", active);
+
+		Assert.Contains("<li class=\"govuk-service-navigation__item\">", inactive);
+		Assert.DoesNotContain("aria-current", inactive);
+		Assert.DoesNotContain("--active", inactive);
+		Assert.DoesNotContain("active-fallback", inactive);
+	}
+
 	[Fact]
 	public void DfeHeader_LogoHasAltText()
 	{

@@ -38,6 +38,26 @@ public static class ZendeskTicketFieldConstants
     public const string PupilYearGroupCypmdName = "Pupil year group (CYPMD)";
     public const string AdditionalCommentsCypmdName = "Additional comments (CYPMD)";
 
+    // Results enquiry ticket fields (#859).
+    public const string CustomerNameCypmdName = "Customer Name (CYPMD)";
+    public const string EmailAddressCypmdName = "Email address (CYPMD)";
+    public const string SchoolNameCypmdName = "School/college name (CYPMD)";
+    public const string DfeNumberCypmdName = "DfE Number (num) (CYPMD)";
+    public const string SituationCypmdName = "Situation (CYPMD)";
+    public const string GradedExamCypmdName = "Graded exam (CYPMD)";
+    public const string TLevelExamsCypmdName = "T Level Exams (CYPMD)";
+    public const string WithdrawalQualificationCypmdName = "Withdrawal qualification (CYPMD)";
+    public const string WholeCohortAffectedCypmdName = "Whole cohort affected? (CYPMD)";
+    public const string NumberOfQualificationsCypmdName = "Number of missing/incorrect qualifications (CYPMD)";
+    public const string AoNameCypmdName = "AO name (CYPMD)";
+    public const string QanCypmdName = "QAN (CYPMD)";
+    public const string QualificationNameCypmdName = "Qualification name and subject (CYPMD)";
+    public const string SyllabusCodeCypmdName = "Syllabus code (CYPMD)";
+    public const string AwardDateCypmdName = "Award date (CYPMD)";
+    public const string NcnCypmdName = "National Centre Number (NCN) (CYPMD)";
+    public const string CurrentGradeCypmdName = "Current grade (CYPMD)";
+    public const string RevisedGradeCypmdName = "Revised/missing grade (CYPMD)";
+
 
     /// <summary>
     /// Gets all field names as a list.
@@ -71,7 +91,25 @@ public static class ZendeskTicketFieldConstants
             CorrectionReason21Name,
             LdsMatchedPupilId2Name,
             PupilYearGroupCypmdName,
-            AdditionalCommentsCypmdName
+            AdditionalCommentsCypmdName,
+            CustomerNameCypmdName,
+            EmailAddressCypmdName,
+            SchoolNameCypmdName,
+            DfeNumberCypmdName,
+            SituationCypmdName,
+            GradedExamCypmdName,
+            TLevelExamsCypmdName,
+            WithdrawalQualificationCypmdName,
+            WholeCohortAffectedCypmdName,
+            NumberOfQualificationsCypmdName,
+            AoNameCypmdName,
+            QanCypmdName,
+            QualificationNameCypmdName,
+            SyllabusCodeCypmdName,
+            AwardDateCypmdName,
+            NcnCypmdName,
+            CurrentGradeCypmdName,
+            RevisedGradeCypmdName
         };
     }
 }

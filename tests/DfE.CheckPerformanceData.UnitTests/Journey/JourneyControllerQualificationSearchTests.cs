@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http;
@@ -96,6 +97,9 @@ public sealed class JourneyControllerQualificationSearchTests
             .Returns((JourneyNavigation?)null);
         _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
             .Returns(QualificationReferenceLookup.Parse(Sample));
+        _requestService.FindDuplicateResultsEnquiryAsync(
+                Arg.Any<Guid>(), Arg.Any<RequestState>(), Arg.Any<EnquirySubject>(), Arg.Any<CancellationToken>())
+            .Returns((string?)null);
 
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
@@ -495,6 +499,61 @@ public sealed class JourneyControllerQualificationSearchTests
 
         Assert.Equal("CYPMD_16to19_RE_ABCDEF1", _session.GetRequestState(WindowId).ReferenceNumber);
         _journeyService.DidNotReceive().GenerateReference(Arg.Any<CheckingWindowType?>());
+    }
+
+    private const string ExistingReference = "CYPMD_16to19_RE_AAAAAA1";
+
+    private static readonly EnquirySubject Maths = EnquirySubject.ForQualification(
+        QualificationReferenceLookup.Parse(Sample).Find("60146084")!);
+
+    private void SchoolAlreadyEnquiredAboutMaths() =>
+        _requestService.FindDuplicateResultsEnquiryAsync(
+                WindowId, Arg.Any<RequestState>(), Maths, Arg.Any<CancellationToken>())
+            .Returns(ExistingReference);
+
+    [Fact]
+    public async Task Post_refuses_a_qualification_the_school_already_has_an_enquiry_for()
+    {
+        ReadyJourney();
+        SchoolAlreadyEnquiredAboutMaths();
+
+        var view = Assert.IsType<ViewResult>(
+            await _sut.QualificationSearchPost(WindowId, "select-qualification", "AQA", "60146084"));
+
+        Assert.Equal("QualificationSearch", view.ViewName);
+        Assert.Equal(
+            DuplicateEnquiryMessage.For(Maths, ExistingReference),
+            _sut.ModelState["selectedQan"]!.Errors[0].ErrorMessage);
+        Assert.Null(_session.GetRequestState(WindowId).SelectedQualification);
+        var model = Assert.IsType<QualificationSearchViewModel>(view.Model);
+        Assert.Equal("AQA", model.SelectedAo);
+        Assert.Equal("60146084", model.SelectedQan);
+    }
+
+    [Fact]
+    public async Task A_refused_duplicate_qualification_reports_a_coded_validation_error()
+    {
+        ReadyJourney();
+        SchoolAlreadyEnquiredAboutMaths();
+
+        await _sut.QualificationSearchPost(WindowId, "select-qualification", "AQA", "60146084");
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e =>
+                e.ErrorCodes!.Single() == ValidationErrorCoding.DuplicateEnquiry
+                && e.ErrorFields!.Single() == "selectedQan"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Post_does_not_ask_about_a_pair_that_fails_closed()
+    {
+        ReadyJourney();
+
+        await _sut.QualificationSearchPost(WindowId, "select-qualification", "AQA", "6016041X");
+
+        await _requestService.DidNotReceiveWithAnyArgs()
+            .FindDuplicateResultsEnquiryAsync(default, default!, default!, default);
     }
 
     private sealed class FakeSession : ISession

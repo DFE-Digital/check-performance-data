@@ -162,7 +162,11 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
 
         var decision = DeriveDecision(message, changeRequest);
-        var ticket = BuildTicket(message, decision);
+        // A results enquiry has its own ticket (#859): its own form, group and fields, and no
+        // decision. A pupil amendment uses BuildTicket.
+        var ticket = message.Enquiry is null
+            ? BuildTicket(message, decision)
+            : new ResultsEnquiryTicketBuilder(_ticketFieldService, _checkingExerciseSettings, _logger).Build(message);
 
         CreateTicketResponseDto response;
         try

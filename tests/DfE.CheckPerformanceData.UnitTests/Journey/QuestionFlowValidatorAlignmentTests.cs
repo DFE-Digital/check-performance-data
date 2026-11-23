@@ -43,6 +43,54 @@ public sealed class QuestionFlowValidatorAlignmentTests
     }
 
     /// <summary>
+    /// #863: code finds an answer by its role, so a role must name one question in a flow.
+    /// Two questions with the same role would make the answer that code reads depend on the path.
+    /// </summary>
+    [Fact]
+    public void A_role_occurs_at_most_once_in_a_flow()
+    {
+        var offenders = AllFlowQuestions()
+            .Where(q => q.Question.Role is not null)
+            .GroupBy(q => (q.File, q.Question.Role))
+            .Where(g => g.Count() > 1)
+            .Select(g => $"{g.Key.File}: role {g.Key.Role} on {string.Join(", ", g.Select(q => q.Question.Id))}");
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
+    /// #863: submission copies the chosen option's meaning onto the answer for a Radio only. A
+    /// meaning on another question type would be lost.
+    /// </summary>
+    [Fact]
+    public void A_meaning_is_on_a_radio_option_only()
+    {
+        var offenders = AllFlowQuestions()
+            .Where(q => q.Question.Type != QuestionType.Radio
+                && (q.Question.Options ?? []).Any(o => o.Meaning is not null))
+            .Select(q => $"{q.File}: {q.Question.Id}");
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
+    /// #863: the Zendesk ticket maps the whole-cohort answer by meaning. A cohort scope question
+    /// must be a Radio that gives each option a meaning, or the ticket field stays empty.
+    /// </summary>
+    [Fact]
+    public void A_cohort_scope_question_gives_each_option_a_meaning()
+    {
+        var offenders = AllFlowQuestions()
+            .Where(q => q.Question.Role == QuestionRole.EnquiryCohortScope
+                && (q.Question.Type != QuestionType.Radio
+                    || (q.Question.Options ?? []).Count == 0
+                    || q.Question.Options!.Any(o => o.Meaning is null)))
+            .Select(q => $"{q.File}: {q.Question.Id}");
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
     /// #591: a contentKey Checkbox gives the evidence page one guidance block for each ticked
     /// option. Two in one flow would multiply their lists into a block per pair, which nobody
     /// writes. Allowing it needs a rule for how the lists combine first.
@@ -265,8 +313,8 @@ var services = new ServiceCollection();
             ("permanently-excluded", "permanently-excluded-dfe-number",
                 "What is the DfE number of the school {pupilName} went to?", null, true),
             ("dual-registered-moved", "dual-registered-moved-dfe-number",
-                "What is the DfE number of the school {pupilName}'s exam results should be transferred to?",
-                "Enter the DfE number of the school {pupilName}'s exam results should be transferred to", false),
+                "What is the DfE number of the school where accountability for {pupilName} should be transferred to?",
+                "Enter the DfE number of the school where accountability for {pupilName} should be transferred to", false),
             ("completed-ks4-elsewhere", "completed-ks4-elsewhere-dfe-number",
                 "What is the DfE number of the school or college where {pupilName} completed KS4?",
                 "Enter the DfE number of the school or college where {pupilName} completed KS4", false),

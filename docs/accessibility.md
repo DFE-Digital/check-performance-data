@@ -123,6 +123,28 @@ Both halves are pinned in `QuestionFlowValidatorAlignmentTests` — `SingleQuest
 
 **The header shows the DfE logo** ([DfE Header (Rebrand)](https://design.education.gov.uk/design-system/govuk-rebrand/dfe-header-rebrand)). `_DfeHeader.cshtml` is hand-written GOV.UK Header markup with an `<img>` of `department-for-education_white.png` in place of the GOV.UK logotype. The `<govuk-header>` tag helper cannot show a different logo. The image is the only content of the home link, so its alt text is "Department for Education". On focus, `site.css` shows the black logo on the yellow focus background. `_Layout` and `_AdminLayout` pass the sign in and sign out links to `_DfeHeader` as its model. The partial shows them on the right of the band, in a `<nav aria-label="Account">`. The label makes this landmark different from the service navigation's "Menu" landmark. `_ShareLayout` passes `model="null"`, so it shows no sign-in links. The attribute is required: a partial with no model attribute inherits the page's model, and the type check fails (#765).
 
+## Service navigation shows the current section
+
+**The school service navigation marks the section that the user is in** (#854). `_Layout.cshtml`
+renders Home, Pupils (Students for 16-19) and Amendment requests through
+`Views/Shared/_ServiceNavItem.cshtml`. The active item has these parts:
+
+- the `govuk-service-navigation__item--active` class on the `<li>`
+- `aria-current="page"` when the link goes to the current page, else `aria-current="true"`
+- a `<strong class="govuk-service-navigation__active-fallback">` around the link text
+
+The section comes from the `[ServiceNavSection]` attribute on the controller or the action.
+`ServiceNavigation.ActiveSection` reads it from the endpoint. A page with no attribute shows no
+active item. Examples are content pages, Privacy, Cookies and error pages.
+
+Journey pages use `ServiceNavSection.Journey`. This makes Pupils active. When the session is in
+single-edit or bulk-edit mode for the window, Amendment requests is active. The school came from
+Edit on Amendment requests.
+
+**Give a new school-facing controller a `[ServiceNavSection]` attribute.**
+`ServiceNavigationTests` checks the attribute on each school-facing controller.
+`AccessibilityAuditViewTests` checks the item markup.
+
 ## Skip link and breadcrumbs
 
 **Breadcrumbs render before `<main>`, never inside it.** A breadcrumb is a repeated navigation block, so landing on it is exactly what "Skip to main content" exists to avoid (audit #377). `Views/Page/Content.cshtml` puts its breadcrumb in an `@section Breadcrumbs`, which `_Layout.cshtml` renders inside the `Header` section — after the banner landmark closes, before `@RenderBody()`. The section supplies its own `govuk-width-container`, because the layout renders it outside the template's.

@@ -3,6 +3,7 @@
 @using DfE.CheckPerformanceData.Web.Common
 @using DfE.CheckPerformanceData.Web.Controllers
 @using DfE.CheckPerformanceData.Web.Middleware
+@using DfE.CheckPerformanceData.Web.Navigation
 @using DfE.CheckPerformanceData.Web.Session
 @using Microsoft.AspNetCore.Html
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
@@ -136,23 +137,27 @@
                             // nav link points at the selected window, so it takes that window's
                             // noun rather than the word "Pupils" (LearnerNoun).
                             var navLearnerNoun = Context.Session.GetSelectedWindowLearnerNoun();
+                            // #854: the section that the user is in. Each school-facing controller
+                            // names its section with [ServiceNavSection]. Other pages have none.
+                            var activeNavSection = ServiceNavigation.ActiveSection(Context);
+                            ServiceNavItemModel NavItem(string? href, string text, ServiceNavSection section) =>
+                                new(href, text, activeNavSection == section, ServiceNavigation.IsCurrentPage(Context.Request, href));
+                            var homeItem = NavItem(Url.Action("Index", "LandingPage"), "Home", ServiceNavSection.Home);
+                            var pupilsItem = NavItem(Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId }),
+                                navLearnerNoun.PluralCapitalised, ServiceNavSection.Pupils);
+                            var amendmentRequestsItem = NavItem(Url.Action("Index", "AmendmentRequests", new { windowId = selectedWindowId }),
+                                "Amendment requests", ServiceNavSection.AmendmentRequests);
                         }
                         @* Home goes to the signed-in user's landing page. #627: Pupils, then
                            Amendment requests, then Guidance. *@
                         @if (User.Identity is { IsAuthenticated: true })
                         {
-                            <li class="govuk-service-navigation__item">
-                                <a class="govuk-service-navigation__link" href="@Url.Action("Index", "LandingPage")">Home</a>
-                            </li>
+                            <partial name="_ServiceNavItem" model="homeItem" />
                         }
                         @if (User.Identity is { IsAuthenticated: true } && selectedWindowId is not null)
                         {
-                            <li class="govuk-service-navigation__item">
-                                <a class="govuk-service-navigation__link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">@navLearnerNoun.PluralCapitalised</a>
-                            </li>
-                            <li class="govuk-service-navigation__item">
-                                <a class="govuk-service-navigation__link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = selectedWindowId })">Amendment requests</a>
-                            </li>
+                            <partial name="_ServiceNavItem" model="pupilsItem" />
+                            <partial name="_ServiceNavItem" model="amendmentRequestsItem" />
                         }
                         <li class="govuk-service-navigation__item">
                             @* AB#306103: the guidance opens beside the service, not in place of it.

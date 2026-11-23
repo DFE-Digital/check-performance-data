@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
+[ServiceNavSection(ServiceNavSection.Pupils)]
 [Route("/ConfirmCorrect/{windowId}")]
 public sealed class ConfirmCorrectController(
     ICheckYourPupilDataService service,

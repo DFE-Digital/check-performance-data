@@ -19,6 +19,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 // the card and the closed banner are about pupil data checking and results enquiry separately,
 // and the outer window dates cannot tell them apart. AB#307773: every answer is for the signed-in
 // school, whose extension may run past the exercise's own end.
+[ServiceNavSection(ServiceNavSection.Home)]
 public sealed class LandingPageController(
     ILogger<LandingPageController> logger,
     ILandingPageService landingPageService,

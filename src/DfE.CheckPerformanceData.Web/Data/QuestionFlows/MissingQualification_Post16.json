@@ -7,6 +7,7 @@
         {
           "id": "q-cohort-scope",
           "type": "Radio",
+          "role": "Enquiry.CohortScope",
           "title": "Does the missing qualification affect the whole cohort?",
           "hint": "Select one option",
           "validationFailure": "Select if the missing qualification affects the whole cohort",
@@ -14,12 +15,14 @@
           "options": [
             {
               "value": "yes",
+              "meaning": "Yes",
               "label": "Yes",
               "subLabel": "Provide an example of one student",
               "nextPageId": "cohort-count"
             },
             {
               "value": "no",
+              "meaning": "No",
               "label": "No",
               "subLabel": "Complete a separate enquiry for each student affected",
               "nextPageId": "select-student-single"
@@ -35,6 +38,7 @@
         {
           "id": "q-cohort-count",
           "type": "FreeText",
+          "role": "Enquiry.CohortCount",
           "title": "How many students are missing this qualification?",
           "hint": "Enter the number of students who are missing this qualification",
           "validator": "WholeNumber",
@@ -81,6 +85,7 @@
         {
           "id": "q-syllabus-code",
           "type": "SyllabusSelect",
+          "role": "Enquiry.SyllabusCode",
           "title": "Select syllabus code",
           "hint": "Also known as specification code, entry code or cash-in code",
           "selectPlaceholder": "Select",
@@ -91,6 +96,7 @@
         {
           "id": "q-award-date",
           "type": "Date",
+          "role": "Enquiry.AwardDate",
           "title": "Provide award date",
           "hint": "For example, 20 8 2026. If you don't know the exact day enter 01.",
           "validationFailure": "Provide the award date",
@@ -104,6 +110,7 @@
         {
           "id": "q-missing-grade",
           "type": "GradeSelect",
+          "role": "Enquiry.Grade",
           "title": "Select the missing grade {pupilName} achieved",
           "selectPlaceholder": "Select",
           "validationFailure": "Select the missing grade this student achieved",
@@ -112,6 +119,7 @@
         {
           "id": "q-ncn",
           "type": "FreeText",
+          "role": "Enquiry.Ncn",
           "title": "Provide National Centre Number (NCN) where exam was taken",
           "optional": true,
           "validator": "Ncn",
@@ -126,6 +134,7 @@
         {
           "id": "q-additional-info",
           "type": "TextArea",
+          "role": "Enquiry.AdditionalComments",
           "title": "Additional information",
           "hint": "You can provide us with any additional information to support your query if you need to.",
           "optional": true,

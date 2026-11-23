@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.Queue;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -198,6 +199,7 @@ public sealed class RequestService(
             RequestTypeDescription = requestTypeDescription,
             AmendmentType = journey.SelectedWhatToChange.Value,
             OrganisationLaestab = OrganisationLaestabOrNull,
+            EnquirySubject = EnquirySubject.ForJourney(journey),
             // Queued for its ticket in this same write (#536): an enquiry never passes the Rules
             // Engine, and the worker claims only TicketQueued rows. Scrutiny is the decision
             // ZendeskConsumer.DeriveDecision always gave an enquiry.
@@ -219,6 +221,14 @@ public sealed class RequestService(
 
         return journey.ReferenceNumber;
     }
+
+    /// <inheritdoc cref="IRequestService.FindDuplicateResultsEnquiryAsync(Guid, RequestState, EnquirySubject, CancellationToken)" />
+    public async Task<string?> FindDuplicateResultsEnquiryAsync(
+        Guid windowId, RequestState journey, EnquirySubject subject, CancellationToken ct = default) =>
+        journey.SelectedPupil is { } student
+            ? await requestRepository.FindSubmittedResultsEnquiryReferenceAsync(
+                windowId, OrganisationUrnLong, student.Id, subject, journey.ReferenceNumber, ct)
+            : null;
 
     public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
     {
@@ -380,7 +390,8 @@ public sealed class RequestService(
             OrganisationLaestab = OrganisationLaestabOrNull
         };
 
-    private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config, Guid changeRequestId)
+    private RequestDocument BuildRequestDocument(
+        JourneySubmissionContext context, QuestionFlowConfig config, Guid changeRequestId, EnquiryDetails? enquiry = null)
     {
         var pupil = context.Pupil;
         var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
@@ -406,7 +417,8 @@ public sealed class RequestService(
             SubmittedBy = new UserDetails
             {
                 UserId = currentUserService.UserId,
-                DisplayName = currentUserService.DisplayName
+                DisplayName = currentUserService.DisplayName,
+                Email = currentUserService.Email
             },
             CheckingWindowId = context.WindowId,
             CheckingWindowStartDate = context.CheckingWindow.StartDate,
@@ -450,14 +462,16 @@ public sealed class RequestService(
                 MatchRef = mp.MatchRef,
                 EntryDate = mp.EntryDate
             } : null,
-            Answers = answers
+            Answers = answers,
+            Enquiry = enquiry
         };
     }
 
     // The enquiry variant of BuildRequestDocument: the same pupil/school/answers mapping, but
-    // RequestTypeCode carries the readable description (not an engine key) and a synthetic
-    // challenged-subject block is appended because QAN / syllabus / session / grade live on the
-    // journey (SelectedResult / SelectedQualification), not in QuestionAnswers (FR-003).
+    // RequestTypeCode carries the readable description (not an engine key). The qualification and
+    // result live on the journey (SelectedResult / SelectedQualification), not in QuestionAnswers
+    // (FR-003). So the document gets them twice: as a challenged-subject answer for the ticket
+    // description, and as separate values in Enquiry for the ticket fields (#861).
     private RequestDocument BuildEnquiryDocument(
         Guid windowId, RequestState journey, QuestionFlowConfig config, Guid changeRequestId, string requestTypeDescription)
     {
@@ -473,27 +487,90 @@ public sealed class RequestService(
             History = journey.QuestionHistory
         };
 
-        var document = BuildRequestDocument(context, config, changeRequestId);
-        document.Answers.Add(BuildChallengedSubjectAnswer(journey));
+        var enquiry = BuildEnquiryDetails(journey, config);
+        var document = BuildRequestDocument(context, config, changeRequestId, enquiry);
+        document.Answers.Add(BuildChallengedSubjectAnswer(journey, enquiry));
         return document;
     }
 
-    private static AnswerRecord BuildChallengedSubjectAnswer(RequestState journey)
+    private EnquiryDetails BuildEnquiryDetails(RequestState journey, QuestionFlowConfig config)
     {
         if (journey.SelectedWhatToChange == WhatToChange.MissingQualification)
         {
             var qualification = journey.SelectedQualification!;
+            return new EnquiryDetails
+            {
+                Type = WhatToChange.MissingQualification,
+                Qan = qualification.Qan,
+                QualificationName = qualification.QualificationTitle,
+                AwardingOrganisation = qualification.AwardingOrganisation,
+                SyllabusCode = SelectedSyllabusCode(journey, config, qualification)
+            };
+        }
+
+        var result = journey.SelectedResult!;
+        var reference = journey.SelectedResultQualification;
+        if (reference is null)
+        {
+            // The results files and the qualification reference come from different teams, so a
+            // result can have no reference entry. The ticket is still created, without an AO name.
+            logger.LogWarning(
+                "Results enquiry {RefNumber}: the result's QAN is not in the qualification reference. The ticket has no AO name.",
+                journey.ReferenceNumber);
+        }
+
+        return new EnquiryDetails
+        {
+            Type = journey.SelectedWhatToChange!.Value,
+            Qan = result.Qan,
+            // The journey pages show the reference title. The results file name is abbreviated, so
+            // it is used only when the QAN is not in the reference.
+            QualificationName = reference?.QualificationTitle is { Length: > 0 } title
+                ? title
+                : result.QualificationName,
+            // The results files carry no AO, so it comes from the reference only.
+            AwardingOrganisation = reference?.AwardingOrganisation ?? string.Empty,
+            SyllabusCode = result.SyllabusCode,
+            CurrentGrade = result.Grade
+        };
+    }
+
+    /// <summary>
+    /// The syllabus code that the school selected, found by question role so the code names no
+    /// flow id. Empty when the question was hidden (issue #577: the qualification has no syllabus
+    /// codes), and empty when the answer is not one of the qualification's codes (fail closed).
+    /// </summary>
+    private static string SelectedSyllabusCode(
+        RequestState journey, QuestionFlowConfig config, QualificationReference qualification)
+    {
+        var answer = journey.QuestionHistory
+            .Select(pageId => config.Pages.FirstOrDefault(p => p.Id == pageId))
+            .OfType<JourneyPage>()
+            .SelectMany(p => p.Questions)
+            .Where(q => q.Role == QuestionRole.EnquirySyllabusCode)
+            .Select(q => journey.QuestionAnswers.TryGetValue(q.Id, out var a) ? a.TextValue : null)
+            .FirstOrDefault(v => !string.IsNullOrEmpty(v));
+
+        return answer is not null && qualification.SyllabusCodes.Any(c => c.Code == answer)
+            ? answer
+            : string.Empty;
+    }
+
+    private static AnswerRecord BuildChallengedSubjectAnswer(RequestState journey, EnquiryDetails enquiry)
+    {
+        if (journey.SelectedWhatToChange == WhatToChange.MissingQualification)
+        {
             // Issue #577: the syllabus-code dropdown is hidden when the qualification exposes no
-            // syllabus codes, so the segment is omitted rather than indexing an empty list.
-            var syllabusSegment = qualification.SyllabusCodes.Count > 0
-                ? $", syllabus {qualification.SyllabusCodes[0].Code}"
+            // syllabus codes, so the segment is left out.
+            var syllabusSegment = enquiry.SyllabusCode.Length > 0
+                ? $", syllabus {enquiry.SyllabusCode}"
                 : string.Empty;
             return new AnswerRecord
             {
                 QuestionId = "challenged-qualification",
                 QuestionTitle = "Challenged qualification",
                 Type = "ResultsEnquiry",
-                Value = $"{qualification.QualificationTitle} ({qualification.AwardingOrganisation}) — QAN {qualification.Qan}{syllabusSegment}"
+                Value = $"{enquiry.QualificationName} ({enquiry.AwardingOrganisation}) — QAN {enquiry.Qan}{syllabusSegment}"
             };
         }
 
@@ -518,6 +595,7 @@ public sealed class RequestService(
                 QuestionId = question.Id,
                 QuestionTitle = title,
                 Type = "FileUpload",
+                Role = question.Role,
                 Files = answer?.FileValues?.Select(f => new FileRecord
                 {
                     OriginalFileName = f.OriginalFileName,
@@ -557,6 +635,10 @@ public sealed class RequestService(
             QuestionId = question.Id,
             QuestionTitle = title,
             Type = question.Type.ToString(),
+            Role = question.Role,
+            Meaning = question.Type == QuestionType.Radio && answer?.TextValue is { } chosen
+                ? question.Options?.FirstOrDefault(o => o.Value == chosen)?.Meaning
+                : null,
             Value = value,
             RawValue = rawValue
         };

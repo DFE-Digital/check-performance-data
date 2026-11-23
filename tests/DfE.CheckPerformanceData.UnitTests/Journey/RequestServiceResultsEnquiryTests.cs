@@ -10,8 +10,9 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -36,6 +37,7 @@ public sealed class RequestServiceResultsEnquiryTests
     private readonly IQueueService _queue = Substitute.For<IQueueService>();
     private readonly IRequestNotificationService _notifications = Substitute.For<IRequestNotificationService>();
     private readonly ICheckYourPupilDataService _pupilData = Substitute.For<ICheckYourPupilDataService>();
+    private readonly ILogger<RequestService> _logger = Substitute.For<ILogger<RequestService>>();
     private readonly RequestService _sut;
 
     public RequestServiceResultsEnquiryTests()
@@ -53,7 +55,7 @@ public sealed class RequestServiceResultsEnquiryTests
 
         _sut = new RequestService(
             _flowService, _stateBlob, Substitute.For<IRequestBlobClient>(), _repository, _currentUser,
-            NullLogger<RequestService>.Instance, _queue, _notifications, _pupilData,
+            _logger, _queue, _notifications, _pupilData,
             new CheckingExerciseService(TimeProvider.System));
     }
 
@@ -270,10 +272,8 @@ public sealed class RequestServiceResultsEnquiryTests
     }
 
     [Fact]
-    public async Task Submitting_does_not_run_the_duplicate_check()
+    public async Task Submitting_does_not_run_the_amendment_conflict_check()
     {
-        // The spec allows several enquiries for the same pupil and result — a school may be reporting
-        // more than one thing about the same qualification.
         await _sut.SubmitResultsEnquiryAsync(WindowId, Journey());
 
         await _repository.DidNotReceiveWithAnyArgs()
@@ -281,16 +281,49 @@ public sealed class RequestServiceResultsEnquiryTests
     }
 
     [Fact]
-    public async Task Two_enquiries_for_the_same_result_both_persist()
+    public async Task The_row_carries_the_subject_of_the_enquiry()
     {
-        var first = Journey();
-        var second = Journey();
-        second.ReferenceNumber = "CYPMD_16to19_RE_BBBBBB2";
+        await _sut.SubmitResultsEnquiryAsync(WindowId, Journey());
 
-        await _sut.SubmitResultsEnquiryAsync(WindowId, first);
-        await _sut.SubmitResultsEnquiryAsync(WindowId, second);
+        await _repository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+            d.EnquirySubject == EnquirySubject.ForResult(Result())));
+    }
 
-        await _repository.Received(2).UpsertAsync(Arg.Any<ChangeRequestData>());
+    [Fact]
+    public async Task A_duplicate_enquiry_is_not_saved_or_queued()
+    {
+        _repository.UpsertAsync(Arg.Any<ChangeRequestData>())
+            .ThrowsAsync(new DuplicateEnquiryException("CYPMD_16to19_RE_AAAAAA1"));
+
+        var refused = await Assert.ThrowsAsync<DuplicateEnquiryException>(
+            () => _sut.SubmitResultsEnquiryAsync(WindowId, Journey()));
+
+        Assert.Equal("CYPMD_16to19_RE_AAAAAA1", refused.ExistingReferenceNumber);
+        await _stateBlob.DidNotReceiveWithAnyArgs().SaveAsync(default, default!, default!);
+        Assert.Empty(_queue.ReceivedCalls());
+    }
+
+    [Fact]
+    public async Task The_duplicate_lookup_is_for_the_signed_in_school_the_journeys_student_and_not_the_journeys_own_reference()
+    {
+        var journey = Journey();
+        var subject = EnquirySubject.ForResult(Result());
+        _repository.FindSubmittedResultsEnquiryReferenceAsync(
+                WindowId, 142313, journey.SelectedPupil!.Id, subject, journey.ReferenceNumber, Arg.Any<CancellationToken>())
+            .Returns("CYPMD_16to19_RE_AAAAAA1");
+
+        Assert.Equal("CYPMD_16to19_RE_AAAAAA1", await _sut.FindDuplicateResultsEnquiryAsync(WindowId, journey, subject));
+    }
+
+    [Fact]
+    public async Task The_duplicate_lookup_finds_nothing_for_a_journey_with_no_student()
+    {
+        var journey = Journey();
+        journey.SelectedPupil = null;
+
+        Assert.Null(await _sut.FindDuplicateResultsEnquiryAsync(WindowId, journey, EnquirySubject.ForResult(Result())));
+        await _repository.DidNotReceiveWithAnyArgs()
+            .FindSubmittedResultsEnquiryReferenceAsync(default, default, default, default!, default, default);
     }
 
     // ── AB#297848: the missing-qualification sibling enquiry ─────────────────
@@ -316,7 +349,11 @@ public sealed class RequestServiceResultsEnquiryTests
         {
             Qan = "60146084", QualificationTitle = "AQA Level 1/Level 2 GCSE (9-1) in Mathematics",
             AwardingOrganisation = "AQA", Grades = ["1", "2", "3"],
-            SyllabusCodes = [new SyllabusCode { Code = "8300H", Title = "Mathematics Higher Tier" }]
+            SyllabusCodes =
+            [
+                new SyllabusCode { Code = "8300F", Title = "Mathematics Foundation Tier" },
+                new SyllabusCode { Code = "8300H", Title = "Mathematics Higher Tier" }
+            ]
         },
         QuestionAnswers = new Dictionary<string, QuestionAnswer>
         {
@@ -325,6 +362,119 @@ public sealed class RequestServiceResultsEnquiryTests
         },
         QuestionHistory = ["select-qualification", "qualification-details", "additional-info"]
     };
+
+    /// <summary>
+    /// The page that holds the syllabus question. The service finds the answer by question type,
+    /// so the page and question ids here are test data only.
+    /// </summary>
+    private void UseMissingQualificationFlow() =>
+        _flowService.GetConfigAsync(WhatToChange.MissingQualification, Arg.Any<CheckingWindowType>())
+            .Returns(new QuestionFlowConfig
+            {
+                FirstPageId = "select-qualification",
+                Pages =
+                [
+                    new JourneyPage
+                    {
+                        Id = "qualification-details",
+                        Questions =
+                        [
+                            new Question { Id = "q-syllabus-code", Type = QuestionType.SyllabusSelect, Title = "Select syllabus code", Role = QuestionRole.EnquirySyllabusCode },
+                            new Question { Id = "q-missing-grade", Type = QuestionType.GradeSelect, Title = "Select grade" }
+                        ]
+                    }
+                ]
+            });
+
+    // ── #863: roles and meanings on the answers ──────────────────────────────
+
+    [Theory]
+    [InlineData(true, OptionMeaning.Yes)]
+    [InlineData(false, OptionMeaning.No)]
+    public async Task Each_answer_carries_its_question_role_and_the_chosen_option_meaning(
+        bool cohortWide, OptionMeaning expected)
+    {
+        _flowService.GetConfigAsync(WhatToChange.IncorrectGrade, Arg.Any<CheckingWindowType>())
+            .Returns(new QuestionFlowConfig
+            {
+                FirstPageId = "cohort-scope",
+                Pages =
+                [
+                    new JourneyPage
+                    {
+                        Id = "cohort-scope",
+                        Questions =
+                        [
+                            new Question
+                            {
+                                Id = "q-cohort-scope", Type = QuestionType.Radio, Title = "Whole cohort?",
+                                Role = QuestionRole.EnquiryCohortScope,
+                                Options =
+                                [
+                                    new QuestionOption { Value = "yes", Label = "Yes", Meaning = OptionMeaning.Yes },
+                                    new QuestionOption { Value = "no", Label = "No", Meaning = OptionMeaning.No }
+                                ]
+                            }
+                        ]
+                    },
+                    new JourneyPage
+                    {
+                        Id = "grade-details",
+                        Questions =
+                        [
+                            new Question { Id = "q-revised-grade", Type = QuestionType.GradeSelect, Title = "Grade", Role = QuestionRole.EnquiryGrade }
+                        ]
+                    },
+                    new JourneyPage
+                    {
+                        Id = "additional-info",
+                        Questions = [new Question { Id = "q-additional-info", Type = QuestionType.TextArea, Title = "Anything else?" }]
+                    }
+                ]
+            });
+
+        var answers = (await SubmitAndCapture(Journey(cohortWide))).Answers;
+
+        var scope = Assert.Single(answers, a => a.Role == QuestionRole.EnquiryCohortScope);
+        Assert.Equal(expected, scope.Meaning);
+        var grade = Assert.Single(answers, a => a.Role == QuestionRole.EnquiryGrade);
+        Assert.Equal("U", grade.RawValue);
+        Assert.Null(grade.Meaning);
+        // A question with no role gives an answer with no role.
+        Assert.Null(Assert.Single(answers, a => a.QuestionId == "q-additional-info").Role);
+    }
+
+    [Fact]
+    public void A_role_and_a_meaning_are_written_to_the_queue_message_by_name()
+    {
+        // The worker reads the message. A name stays the same when the enum order changes.
+        var json = System.Text.Json.JsonSerializer.Serialize(new AnswerRecord
+        {
+            QuestionId = "q", QuestionTitle = "t", Type = "Radio",
+            Role = QuestionRole.EnquiryCohortScope, Meaning = OptionMeaning.Yes
+        });
+
+        Assert.Contains("\"Role\":\"Enquiry.CohortScope\"", json);
+        Assert.Contains("\"Meaning\":\"Yes\"", json);
+        var back = System.Text.Json.JsonSerializer.Deserialize<AnswerRecord>(json)!;
+        Assert.Equal(QuestionRole.EnquiryCohortScope, back.Role);
+    }
+
+    /// <summary>Submits the journey and returns the one message put on the Zendesk queue.</summary>
+    private async Task<RequestDocument> SubmitAndCapture(RequestState journey)
+    {
+        RequestDocument? enqueued = null;
+        _queue.EnqueueAsync<RequestDocument>(
+                QueueOptions.ZendeskQueue,
+                Arg.Do<RequestDocument>(d => enqueued = d),
+                Arg.Any<CancellationToken>())
+            .Returns(Guid.NewGuid());
+
+        await _sut.SubmitResultsEnquiryAsync(WindowId, journey);
+
+        Assert.NotNull(enqueued);
+        return enqueued;
+    }
 
     /// <summary>Issue #577: a QAN with no syllabus codes, whose syllabus question is therefore hidden.</summary>
     private static RequestState MissingQualificationJourneyWithoutSyllabusCodes()
@@ -354,8 +504,18 @@ public sealed class RequestServiceResultsEnquiryTests
     }
 
     [Fact]
+    public async Task A_missing_qualification_row_has_a_subject_with_no_session()
+    {
+        await _sut.SubmitResultsEnquiryAsync(WindowId, MissingQualificationJourney());
+
+        await _repository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+            d.EnquirySubject!.Session == null && d.EnquirySubject.Qan == "60146084"));
+    }
+
+    [Fact]
     public async Task A_missing_qualification_enquiry_dispatches_one_message()
     {
+        UseMissingQualificationFlow();
         RequestDocument? enqueued = null;
         _queue.EnqueueAsync<RequestDocument>(
                 QueueOptions.ZendeskQueue,
@@ -506,6 +666,137 @@ public sealed class RequestServiceResultsEnquiryTests
         var challenged = Assert.Single(enqueued.Answers, a => a.QuestionId == "challenged-result");
         Assert.Contains("60180882", challenged.Value);
         Assert.Contains("1AD0", challenged.Value);
+    }
+
+    // ── #861: the structured enquiry part ───────────────────────────────────
+
+    [Fact]
+    public async Task An_incorrect_grade_message_carries_the_result_as_separate_values()
+    {
+        var journey = Journey();
+        journey.SelectedResultQualification = new QualificationReference
+        {
+            Qan = "60180882", QualificationTitle = "Pearson Edexcel GCSE (9-1) in Art and Design", AwardingOrganisation = "Pearson"
+        };
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal(WhatToChange.IncorrectGrade, enquiry.Type);
+        Assert.Equal("60180882", enquiry.Qan);
+        Assert.Equal("Pearson Edexcel GCSE (9-1) in Art and Design", enquiry.QualificationName);
+        Assert.Equal("1AD0", enquiry.SyllabusCode);
+        Assert.Equal("9", enquiry.CurrentGrade);
+        Assert.Equal("Pearson", enquiry.AwardingOrganisation);
+        Assert.Empty(Warnings());
+    }
+
+    [Fact]
+    public async Task A_result_whose_qan_is_not_in_the_reference_sends_the_results_file_name()
+    {
+        // The results files and the qualification reference come from different teams, so a
+        // result can have no reference entry.
+        var journey = Journey();
+        journey.SelectedResultQualification = null;
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal("GCSE (9-1) Art&Des : Fine Art", enquiry.QualificationName);
+        Assert.Equal("60180882", enquiry.Qan);
+        Assert.Equal(string.Empty, enquiry.AwardingOrganisation);
+        // The ticket is still queued, and the warning names the reference number.
+        await _queue.Received(1).EnqueueAsync<RequestDocument>(
+            QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>());
+        var warning = Assert.Single(Warnings());
+        Assert.Contains("CYPMD_16to19_RE_4F9C2A1", warning);
+    }
+
+    [Fact]
+    public async Task A_result_does_not_belong_message_carries_the_result_as_separate_values()
+    {
+        var journey = ResultDoesNotBelongJourney();
+        journey.SelectedResultQualification = new QualificationReference
+        {
+            Qan = "60180882", QualificationTitle = "Pearson Edexcel GCSE (9-1) in Art and Design", AwardingOrganisation = "Pearson"
+        };
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal(WhatToChange.ResultDoesNotBelong, enquiry.Type);
+        Assert.Equal("60180882", enquiry.Qan);
+        Assert.Equal("Pearson Edexcel GCSE (9-1) in Art and Design", enquiry.QualificationName);
+        Assert.Equal("Pearson", enquiry.AwardingOrganisation);
+        Assert.Equal("1AD0", enquiry.SyllabusCode);
+        Assert.Equal("9", enquiry.CurrentGrade);
+    }
+
+    [Fact]
+    public async Task A_result_does_not_belong_message_for_a_qan_not_in_the_reference_has_no_ao_name()
+    {
+        var journey = ResultDoesNotBelongJourney();
+        journey.SelectedResultQualification = null;
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal(string.Empty, enquiry.AwardingOrganisation);
+        var warning = Assert.Single(Warnings());
+        Assert.Contains("CYPMD_16to19_RE_9D8E7F6", warning);
+    }
+
+    // The rendered text of each warning that the service logged.
+    private List<string> Warnings() => _logger.ReceivedCalls()
+        .Where(c => c.GetMethodInfo().Name == nameof(ILogger.Log)
+            && c.GetArguments()[0] is LogLevel.Warning)
+        .Select(c => c.GetArguments()[2]?.ToString() ?? string.Empty)
+        .ToList();
+
+    [Fact]
+    public async Task A_missing_qualification_message_carries_the_qualification_and_the_selected_syllabus_code()
+    {
+        UseMissingQualificationFlow();
+
+        var document = await SubmitAndCapture(MissingQualificationJourney());
+
+        var enquiry = document.Enquiry;
+        Assert.NotNull(enquiry);
+        Assert.Equal(WhatToChange.MissingQualification, enquiry.Type);
+        // #859: the ticket sends the school user's email address.
+        Assert.Equal("ada@school.test", document.SubmittedBy.Email);
+        Assert.Equal("60146084", enquiry.Qan);
+        Assert.Equal("AQA Level 1/Level 2 GCSE (9-1) in Mathematics", enquiry.QualificationName);
+        Assert.Equal("AQA", enquiry.AwardingOrganisation);
+        // The school's answer, not the qualification's first syllabus code.
+        Assert.Equal("8300H", enquiry.SyllabusCode);
+        Assert.Equal(string.Empty, enquiry.CurrentGrade);
+        var challenged = Assert.Single(document.Answers, a => a.QuestionId == "challenged-qualification");
+        Assert.Contains("syllabus 8300H", challenged.Value);
+    }
+
+    [Fact]
+    public async Task A_missing_qualification_without_syllabus_codes_sends_no_syllabus_code()
+    {
+        UseMissingQualificationFlow();
+
+        var enquiry = (await SubmitAndCapture(MissingQualificationJourneyWithoutSyllabusCodes())).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal(string.Empty, enquiry.SyllabusCode);
+    }
+
+    [Fact]
+    public async Task A_syllabus_answer_that_is_not_one_of_the_qualifications_codes_is_not_sent()
+    {
+        UseMissingQualificationFlow();
+        var journey = MissingQualificationJourney();
+        journey.QuestionAnswers["q-syllabus-code"] = new() { TextValue = "9999X" };
+
+        var enquiry = (await SubmitAndCapture(journey)).Enquiry;
+
+        Assert.NotNull(enquiry);
+        Assert.Equal(string.Empty, enquiry.SyllabusCode);
     }
 
     // ── Guard rails ──────────────────────────────────────────────────────────

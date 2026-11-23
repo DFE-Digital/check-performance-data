@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -52,6 +53,16 @@ public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewCon
             .Select(r => r.ReferenceNumber)
             .FirstOrDefaultAsync();
 
+    /// <inheritdoc cref="IRequestRepository.FindSubmittedResultsEnquiryReferenceAsync(Guid, long, Guid, EnquirySubject, string?, CancellationToken)" />
+    public async Task<string?> FindSubmittedResultsEnquiryReferenceAsync(
+        Guid windowId, long organisationUrn, Guid pupilId, EnquirySubject subject,
+        string? excludedReferenceNumber, CancellationToken ct = default) =>
+        await SubmittedEnquiriesFor(db, windowId, organisationUrn, pupilId, subject)
+            .Where(r => r.ReferenceNumber != excludedReferenceNumber)
+            .OrderByDescending(r => r.Submitted)
+            .Select(r => r.ReferenceNumber)
+            .FirstOrDefaultAsync(ct);
+
     public async Task<IReadOnlyList<Guid>> GetSubmittedPupilIdsAsync(Guid windowId, long organisationUrn) 
         => await db.ChangeRequests
             .Where(r => r.WindowId == windowId
@@ -78,6 +89,8 @@ public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewCon
         // the same pupil cannot both succeed.
         if (data.Status == RequestStatus.Submitted)
         {
+            var enquiryQan = data.EnquirySubject?.Qan;
+            var enquirySession = data.EnquirySubject?.Session;
             var strategy = db.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
             {
@@ -102,13 +115,10 @@ public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewCon
                     .Select(r => r.Id)
                     .FirstOrDefaultAsync();
 
-                // AB#296648: the duplicate rule guards against two competing AMENDMENTS to the same
-                // pupil's record — only one can be right, so the second is a conflict to resolve. A
-                // results enquiry is not an amendment: it changes no pupil data, and the spec
-                // explicitly allows several for the same pupil and result. So an enquiry neither
-                // raises a conflict nor counts as one. Without both exclusions, reporting a wrong
-                // grade for a pupil would block every later amendment for them (and vice versa), with
-                // an error message naming an unrelated request.
+                // AB#296648: the amendment rule guards against two competing AMENDMENTS to the same
+                // pupil's record. A results enquiry is not an amendment: it changes no pupil data, so
+                // it neither raises an amendment conflict nor counts as one. Duplicate enquiries have
+                // their own rule below.
                 var conflict = data.RequestType == RequestType.ResultsEnquiry
                     ? null
                     : await ConflictQuery(db, data, existingId).FirstOrDefaultAsync();
@@ -124,6 +134,17 @@ public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewCon
                             ? ConflictType.SelfSubmitted
                             : ConflictType.OtherSubmitted,
                         conflictingReasonType, conflictingCategory, conflict.SubmittedByName ?? string.Empty, reasonsMatch);
+                }
+
+                if (data is { RequestType: RequestType.ResultsEnquiry, EnquirySubject: { } subject, PupilId: { } pupilId })
+                {
+                    var duplicateReference = await SubmittedEnquiriesFor(db, data.WindowId, data.OrganisationUrn, pupilId, subject)
+                        .Where(r => r.Id != existingId)
+                        .OrderByDescending(r => r.Submitted)
+                        .Select(r => r.ReferenceNumber)
+                        .FirstOrDefaultAsync();
+                    if (duplicateReference is not null)
+                        throw new DuplicateEnquiryException(duplicateReference);
                 }
 
                 Guid id;
@@ -150,7 +171,9 @@ public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewCon
                             .SetProperty(r => r.CheckingExerciseId, data.CheckingExerciseId)
                             .SetProperty(r => r.CheckingExerciseReleaseId, data.CheckingExerciseReleaseId)
                             .SetProperty(r => r.ProcessingStatus, data.ProcessingStatus)
-                            .SetProperty(r => r.Outcome, data.Outcome));
+                            .SetProperty(r => r.Outcome, data.Outcome)
+                            .SetProperty(r => r.EnquiryQan, enquiryQan)
+                            .SetProperty(r => r.EnquirySession, enquirySession));
                 }
                 else
                 {
@@ -177,7 +200,9 @@ public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewCon
                         AmendmentType = data.AmendmentType,
                         OrganisationLaestab = data.OrganisationLaestab,
                         ProcessingStatus = data.ProcessingStatus,
-                        Outcome = data.Outcome
+                        Outcome = data.Outcome,
+                        EnquiryQan = enquiryQan,
+                        EnquirySession = enquirySession
                     });
                     await db.SaveChangesAsync();
                 }
@@ -362,12 +387,26 @@ public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewCon
             })
             .FirstOrDefaultAsync();
 
+    private static IQueryable<ChangeRequest> SubmittedEnquiriesFor(
+        IPortalDbContext db, Guid windowId, long organisationUrn, Guid pupilId, EnquirySubject subject)
+    {
+        var qan = subject.Qan;
+        var session = subject.Session;
+        return db.ChangeRequests.Where(r => r.WindowId == windowId
+            && r.OrganisationUrn == organisationUrn
+            && r.PupilId == pupilId
+            && r.RequestType == RequestType.ResultsEnquiry
+            && r.Status == RequestStatus.Submitted
+            && r.EnquiryQan == qan
+            && r.EnquirySession == session);
+    }
+
     /// <summary>
     /// Rows that would conflict with <paramref name="data"/>: another submitted-uncommitted amendment
     /// for the same pupil, at the same school, in the same window.
     ///
-    /// Results enquiries are excluded (AB#296648) — they change no pupil data, so they neither
-    /// compete with an amendment nor with each other.
+    /// Results enquiries are excluded (AB#296648): they change no pupil data, so they do not compete
+    /// with an amendment. Duplicate enquiries have their own rule (<see cref="SubmittedEnquiriesFor"/>).
     /// </summary>
     private static IQueryable<ChangeRequest> ConflictQuery(IPortalDbContext db, ChangeRequestData data, Guid existingId)
     {

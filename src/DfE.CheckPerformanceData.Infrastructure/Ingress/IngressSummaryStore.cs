@@ -28,7 +28,7 @@ public sealed class IngressSummaryStore(
         if (!blobClients.TryGetValue("app", out var blobServiceClient))
         {
             logger.LogError("Ingress summary storage is unavailable ({ErrorCode}) for exercise {ExerciseId}",
-                "summary_clear_failed", exerciseId);
+                IngressSummaryLogCode.SummaryClearFailed, exerciseId);
             return false;
         }
 
@@ -50,7 +50,7 @@ public sealed class IngressSummaryStore(
         catch
         {
             logger.LogError("Ingress summary archival failed ({ErrorCode}) for exercise {ExerciseId}",
-                "summary_clear_failed", exerciseId);
+                IngressSummaryLogCode.SummaryClearFailed, exerciseId);
             return false;
         }
     }
@@ -61,7 +61,7 @@ public sealed class IngressSummaryStore(
         if (!blobClients.TryGetValue("app", out var blobServiceClient))
         {
             logger.LogError("Ingress summary storage is unavailable ({ErrorCode}) for exercise {ExerciseId}",
-                "summary_write_failed", exerciseId);
+                IngressSummaryLogCode.SummaryWriteFailed, exerciseId);
             return false;
         }
 
@@ -76,7 +76,7 @@ public sealed class IngressSummaryStore(
         catch
         {
             logger.LogError("Ingress summary write failed ({ErrorCode}) for exercise {ExerciseId}",
-                "summary_write_failed", exerciseId);
+                IngressSummaryLogCode.SummaryWriteFailed, exerciseId);
             return false;
         }
     }

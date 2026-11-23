@@ -46,7 +46,7 @@ public sealed class GuidanceLinksViewSourceTests
     {
         // folder, file, expected anchor count, expected visible link text
         { "Shared", "_Layout.cshtml", 2, "Guidance (opens in new tab)" },
-        { "Home", "Index.cshtml", 1, "How to check your performance data (opens in new tab)" },
+        { "Home", "Index.cshtml", 1, "How to check your performance measures data (opens in new tab)" },
     };
 
     [Theory]

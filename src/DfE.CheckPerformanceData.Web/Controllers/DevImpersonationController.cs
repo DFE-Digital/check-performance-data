@@ -1,5 +1,7 @@
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Authentication;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
@@ -52,6 +54,21 @@ public sealed class DevImpersonationController(IConfiguration configuration, IHo
     {
         if (!IsAllowed) return NotFound();
         SetCookie(DevImpersonationConstants.AdminValue);
+        return RedirectToReferrer();
+    }
+
+    // Signs in as the admin through the real cookie scheme and its server-side ticket store, the
+    // way a DfE Sign-in session does. The establishment context guard is live only for such a
+    // session, so tests use this to check that forms carry the context. The dev cookie is not
+    // set, and any old one is removed, so the request takes the real cookie path.
+    [HttpGet("dev/impersonate/admin-session")]
+    [HttpPost("dev/impersonate/admin-session")]
+    public async Task<IActionResult> AdminSession()
+    {
+        if (!IsAllowed) return NotFound();
+        var ticket = DevImpersonationTicketBuilder.TryBuild(DevImpersonationConstants.AdminValue)!;
+        Response.Cookies.Delete(DevImpersonationConstants.CookieName);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, ticket.Principal);
         return RedirectToReferrer();
     }
 

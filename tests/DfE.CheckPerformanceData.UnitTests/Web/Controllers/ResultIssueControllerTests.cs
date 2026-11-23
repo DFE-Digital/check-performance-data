@@ -152,10 +152,12 @@ public sealed class ResultIssueControllerTests
     {
         await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = null });
 
-        await _analytics.Received(1).TrackSafeAsync(Arg.Is<ValidationErrorEvent>(e =>
-            e.ErrorCount == 1 &&
-            e.ErrorCodes.Contains("no_selection") &&
-            e.ErrorFields.Contains(nameof(ResultIssueViewModel.IssueType))));
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e =>
+                e.ErrorCount == 1 &&
+                e.ErrorCodes.Contains("no_selection") &&
+                e.ErrorFields.Contains(nameof(ResultIssueViewModel.IssueType))),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -286,10 +288,12 @@ public sealed class ResultIssueControllerTests
 
         await _sut.Confirm(WindowId, ValidPost());
 
-        await _analytics.Received(1).TrackSafeAsync(Arg.Is<ResultsEnquiryStartedEvent>(e =>
-            e.EnquiryType == "incorrect-grade" &&
-            e.CheckingWindowType == "Post16" &&
-            e.LateResultsGuidanceShown == expectedGuidanceShown));
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ResultsEnquiryStartedEvent>(e =>
+                e.EnquiryType == "incorrect-grade" &&
+                e.CheckingWindowType == "Post16" &&
+                e.LateResultsGuidanceShown == expectedGuidanceShown),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -298,7 +302,8 @@ public sealed class ResultIssueControllerTests
         // Nothing was started, so counting it would inflate the funnel's top.
         await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = null });
 
-        await _analytics.DidNotReceive().TrackSafeAsync(Arg.Any<ResultsEnquiryStartedEvent>());
+        await _analytics.DidNotReceive()
+            .TrackAsync(Arg.Any<ResultsEnquiryStartedEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -306,7 +311,7 @@ public sealed class ResultIssueControllerTests
     {
         // TrackSafeAsync is meant to swallow, but the journey must not depend on that.
         SecondLateResultsAvailable(true);
-        _analytics.TrackSafeAsync(Arg.Any<ResultsEnquiryStartedEvent>())
+        _analytics.TrackAsync(Arg.Any<ResultsEnquiryStartedEvent>(), Arg.Any<CancellationToken>())
             .Returns(_ => throw new InvalidOperationException("BigQuery is down"));
 
         var result = await _sut.Confirm(WindowId, ValidPost());
@@ -663,7 +668,7 @@ public sealed class ResultIssueControllerTests
 
         Assert.IsType<RedirectToActionResult>(result);
         Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
-        await _analytics.DidNotReceiveWithAnyArgs().TrackSafeAsync(Arg.Any<ResultsEnquiryStartedEvent>());
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<AnalyticsEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

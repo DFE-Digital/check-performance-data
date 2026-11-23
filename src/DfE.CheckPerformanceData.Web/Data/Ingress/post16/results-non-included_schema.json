@@ -2,16 +2,46 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "results-non-included_schema.json",
   "title": "Results non-included",
-  "description": "One row of the 16-18 non-included results data file, as the data specification defines it (fields 1-32, headed by field reference). It differs from the included file in its lengths (AB_Code 30, Short_Qual_Desc 50, MAPPING 30) and the CAPPED_PTS heading. QAN, QUAL_NAME, SYLLABUS and SESSION are filled by x-ingress.source as in results-included_schema.json. The slot stamps SOURCE.",
+  "description": "One row of the 16-18 non-included results data file, as the data specification defines it (fields 1-32, headed by field reference). It differs from the included file in its lengths (AB_Code 30, Short_Qual_Desc 50, MAPPING 30) and the CAPPED_PTS heading. QAN, QUAL_NAME, SYLLABUS and SESSION are filled by x-ingress.source as in results-included_schema.json. The slot stamps SOURCE. Ingress writes R_INCL_DESCRIPTION, R_INCL_EM_DESCRIPTION and QUAL_KS4_DESCRIPTION from x-ingress.codeDescriptions. The data specification does not list them.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
     "collection": "results-non-included",
     "pageTab": "results",
-    "institutionKey": "LAESTAB"
+    "institutionKey": "LAESTAB",
+    "codeDescriptions": [
+      {
+        "field": "R_INCL",
+        "descriptionField": "R_INCL_DESCRIPTION",
+        "descriptions": {
+          "51": "Level 3 or level 2 result included in performance measures and student entries",
+          "52": "Level 3 point score counted but size of qualification discounted",
+          "53": "Level 3 point score discounted but size of qualification counted",
+          "54": "Both point score and size of qualification discounted by a better result",
+          "55": "Qualification does not count in the performance tables or is not approved by the Secretary of State for this age group",
+          "56": "Student only has a result(s) in an approved qualification with a size less than 0.5 (excluding extended project) and is not included in performance measures"
+        }
+      },
+      {
+        "field": "R_INCL_EM",
+        "descriptionField": "R_INCL_EM_DESCRIPTION",
+        "descriptions": {
+          "57": "Result excluded from English and/or maths measures",
+          "58": "Result included in English and/or maths measures"
+        }
+      },
+      {
+        "field": "QUAL_KS4",
+        "descriptionField": "QUAL_KS4_DESCRIPTION",
+        "descriptions": {
+          "59": "Qualification was taken during KS4",
+          "60": "Qualification was not taken during KS4"
+        }
+      }
+    ]
   },
   "x-download": {
-    "fileName": "KS5_not_incl_pup_res25.csv",
+    "fileName": "KS5_not_incl_pup_res26.csv",
     "label": "Results non-included"
   },
   "x-display": {
@@ -485,6 +515,23 @@
         "visible": false
       }
     },
+    "R_INCL_DESCRIPTION": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The meaning of the R_INCL code in this row. The data specification gives no field reference. Ingress fills it from x-ingress.codeDescriptions when the supplier sends none.",
+      "x-csv": {
+        "columns": {
+          "default": "Z"
+        },
+        "heading": "Exam inclusion status - attainment measures description"
+      },
+      "x-display": {
+        "label": "Exam inclusion status - attainment measures description",
+        "visible": false
+      }
+    },
     "R_INCL_EM": {
       "type": [
         "integer",
@@ -493,12 +540,29 @@
       "description": "57= Result excluded from English and/or maths measures 58= Result included in English and/or maths measures",
       "x-csv": {
         "columns": {
-          "default": "Z"
+          "default": "AA"
         },
         "heading": "English and maths included"
       },
       "x-display": {
         "label": "English and maths included",
+        "visible": false
+      }
+    },
+    "R_INCL_EM_DESCRIPTION": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The meaning of the R_INCL_EM code in this row. The data specification gives no field reference. Ingress fills it from x-ingress.codeDescriptions when the supplier sends none.",
+      "x-csv": {
+        "columns": {
+          "default": "AB"
+        },
+        "heading": "English and maths included description"
+      },
+      "x-display": {
+        "label": "English and maths included description",
         "visible": false
       }
     },
@@ -510,12 +574,29 @@
       "description": "59= Qualification was taken during KS4 60= Qualification was not taken during KS4",
       "x-csv": {
         "columns": {
-          "default": "AA"
+          "default": "AC"
         },
         "heading": "Qualifications taken during KS4"
       },
       "x-display": {
         "label": "Qualifications taken during KS4",
+        "visible": false
+      }
+    },
+    "QUAL_KS4_DESCRIPTION": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The meaning of the QUAL_KS4 code in this row. The data specification gives no field reference. Ingress fills it from x-ingress.codeDescriptions when the supplier sends none.",
+      "x-csv": {
+        "columns": {
+          "default": "AD"
+        },
+        "heading": "Qualifications taken during KS4 description"
+      },
+      "x-display": {
+        "label": "Qualifications taken during KS4 description",
         "visible": false
       }
     },
@@ -527,7 +608,7 @@
       "description": "School or college UK Provider Registration Number",
       "x-csv": {
         "columns": {
-          "default": "AB"
+          "default": "AE"
         },
         "heading": "UKPRN"
       },
@@ -544,7 +625,7 @@
       "description": "School or college Unique Reference Number",
       "x-csv": {
         "columns": {
-          "default": "AC"
+          "default": "AF"
         },
         "heading": "URN"
       },
@@ -561,7 +642,7 @@
       "description": "DfE number for institution",
       "x-csv": {
         "columns": {
-          "default": "AD"
+          "default": "AG"
         },
         "heading": "DfE number"
       },

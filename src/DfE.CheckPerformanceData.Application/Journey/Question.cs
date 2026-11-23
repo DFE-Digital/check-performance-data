@@ -21,6 +21,13 @@ public sealed class Question
     public string? ValidationFailure { get; init; }
 
     /// <summary>
+    /// What the question means, for code that reads the answer (for example the Zendesk ticket).
+    /// Null for a question that no code reads. Submission copies it onto the
+    /// <c>AnswerRecord</c>. See docs/journey-config-first.md, pattern 4.
+    /// </summary>
+    public QuestionRole? Role { get; init; }
+
+    /// <summary>
     /// The placeholder option text for a select-based question (GradeSelect / SyllabusSelect).
     /// Null keeps each partial's historical default ("Select revised grade" for the grade picker),
     /// so the shipped incorrect-grade markup is unchanged. AB#297848 sets "Select" to match Figma.

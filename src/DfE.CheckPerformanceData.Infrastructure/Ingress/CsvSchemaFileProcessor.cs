@@ -39,14 +39,14 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         if (datasets.Count == 0)
         {
-            summaryCapture?.SetFailure("configuration", "no_datasets");
+            summaryCapture?.SetFailure(IngressFailureStage.Configuration, IngressFailureCode.NoDatasets);
             yield return Failed("No ingress datasets are configured for this window.");
             yield break;
         }
 
         if (!blobClients.TryGetValue("app", out var sourceBlobClient))
         {
-            summaryCapture?.SetFailure("configuration", "storage_not_configured");
+            summaryCapture?.SetFailure(IngressFailureStage.Configuration, IngressFailureCode.StorageNotConfigured);
             logger.LogWarning("Ingress storage client is not configured");
             yield return Failed("App storage is not configured.");
             yield break;
@@ -123,13 +123,13 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             }
             catch (FileNotFoundException ex)
             {
-                summaryCapture?.SetFailure("input_read", readingSchema ? "schema_not_found" : "input_not_found");
+                summaryCapture?.SetFailure(IngressFailureStage.InputRead, readingSchema ? IngressFailureCode.SchemaNotFound : IngressFailureCode.InputNotFound);
                 logger.LogWarning(ex, "Failed to load ingress input for checking window {CheckingWindowId}", checkingWindowId);
                 loadError = ex.Message;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                summaryCapture?.SetFailure("input_read", readingSchema ? "schema_read_failed" : "input_read_failed");
+                summaryCapture?.SetFailure(IngressFailureStage.InputRead, readingSchema ? IngressFailureCode.SchemaReadFailed : IngressFailureCode.InputReadFailed);
                 logger.LogWarning(ex, "Failed to load files for checking window {CheckingWindowId}", checkingWindowId);
                 loadError = ex.Message;
             }
@@ -142,7 +142,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             if (checksumError is not null)
             {
-                summaryCapture?.SetFailure("checksum", "checksum_mismatch");
+                summaryCapture?.SetFailure(IngressFailureStage.Checksum, IngressFailureCode.ChecksumMismatch);
                 yield return Failed(checksumError);
                 yield break;
             }
@@ -156,7 +156,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             }
             catch (Exception)
             {
-                summaryCapture?.SetFailure("schema", "schema_invalid");
+                summaryCapture?.SetFailure(IngressFailureStage.Schema, IngressFailureCode.SchemaInvalid);
             }
 
             if (parsedSchema is null)
@@ -188,8 +188,26 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             InclusionRule? inclusion = InclusionRule.From(schema);
             if (inclusion?.ErrorFor(schema) is { } inclusionError)
             {
-                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                summaryCapture?.SetFailure(IngressFailureStage.Schema, IngressFailureCode.IdentifierMappingInvalid);
                 yield return Failed($"Schema '{dataset.SchemaFile}': {inclusionError}");
+                yield break;
+            }
+
+            // A rule that gives descriptions only stamps nothing, so the slot must stamp INCLUDED.
+            // Without that, every row would fail validation with a type error that names no cause.
+            if (inclusion is { DecidesInclusion: false } && dataset.Included is null
+                && schema.Properties.ContainsKey("INCLUDED"))
+            {
+                summaryCapture?.SetFailure(IngressFailureStage.Schema, IngressFailureCode.IdentifierMappingInvalid);
+                yield return Failed($"Schema '{dataset.SchemaFile}': {IngressSchemaKeys.InclusionPath} gives descriptions only, so the data file's slot must say whether its file is included.");
+                yield break;
+            }
+
+            CodeDescriptions codeDescriptions = CodeDescriptions.From(schema, inclusion?.Description);
+            if (codeDescriptions.ErrorFor(schema) is { } codeDescriptionError)
+            {
+                summaryCapture?.SetFailure(IngressFailureStage.Schema, IngressFailureCode.IdentifierMappingInvalid);
+                yield return Failed($"Schema '{dataset.SchemaFile}': {codeDescriptionError}");
                 yield break;
             }
 
@@ -198,7 +216,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             IncludableRule? includable = IncludableRule.From(schema);
             if (includable?.ErrorFor(schema) is { } includableError)
             {
-                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                summaryCapture?.SetFailure(IngressFailureStage.Schema, IngressFailureCode.IdentifierMappingInvalid);
                 yield return Failed($"Schema '{dataset.SchemaFile}': {includableError}");
                 yield break;
             }
@@ -207,7 +225,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             // ingest cleanly and then offer nobody for inclusion, so the pair is required together.
             if (schema.Properties.ContainsKey("INCLUDED") && !schema.Properties.ContainsKey("INCLUDABLE"))
             {
-                summaryCapture?.SetFailure("schema", "includable_not_declared");
+                summaryCapture?.SetFailure(IngressFailureStage.Schema, IngressFailureCode.IncludableNotDeclared);
                 yield return Failed($"Schema '{dataset.SchemaFile}': it declares INCLUDED but not INCLUDABLE, so it would offer nobody for inclusion.");
                 yield break;
             }
@@ -232,13 +250,13 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             }
             catch (CsvHelperException)
             {
-                parseFailureCode = "malformed_row";
+                parseFailureCode = IngressFailureCode.MalformedRow;
                 parseFailureMessage = $"Ingress file '{dataset.InputCsvFile}' contains malformed CSV data.";
             }
 
             if (parseFailureCode is not null)
             {
-                summaryCapture?.SetFailure("parsing", parseFailureCode);
+                summaryCapture?.SetFailure(IngressFailureStage.Parsing, parseFailureCode);
                 yield return Failed(parseFailureMessage!);
                 yield break;
             }
@@ -258,7 +276,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             var institutionColumn = records.Count == 0 ? null : FindHeader(records[0].Keys, institutionKey);
             if (records.Count > 0 && institutionColumn is null)
             {
-                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                summaryCapture?.SetFailure(IngressFailureStage.Schema, IngressFailureCode.IdentifierMappingInvalid);
                 yield return Failed(
                     $"Ingress file '{dataset.InputCsvFile}' has no {institutionKey} column, so its records " +
                     "cannot be grouped by school.");
@@ -318,11 +336,12 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                     // 16-19 non-included file has no P_INCL column); otherwise the schema's rule
                     // reads the record's own code. Stamped BEFORE validation because
                     // AllowAdditionalProperties is false, so the schema must declare INCLUDED.
+                    // A rule that gives descriptions only (16-19) stamps nothing here.
                     if (dataset.Included is bool included && schema.Properties.ContainsKey("INCLUDED"))
                     {
                         record["INCLUDED"] = included;
                     }
-                    else if (inclusion is not null)
+                    else if (inclusion is { DecidesInclusion: true })
                     {
                         record["INCLUDED"] = inclusion.IsIncluded(record);
                     }
@@ -349,15 +368,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                         record["SOURCE"] = sourceFile;
                     }
 
-                    // The supplier file may not carry the inclusion description that the school's
-                    // CSV shows. Its words come from the schema's rule; a description the supplier
-                    // did send is kept.
-                    if (inclusion is { DescriptionField: { } descriptionField }
-                        && string.IsNullOrWhiteSpace(record[descriptionField]?.ToString())
-                        && inclusion.DescriptionOf(record) is { Length: > 0 } description)
-                    {
-                        record[descriptionField] = description;
-                    }
+                    codeDescriptions.Describe(record);
 
                 }
 
@@ -442,7 +453,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         if (recordsRead == 0)
         {
-                summaryCapture?.SetFailure("validation", "record_validation_failed");
+            summaryCapture?.SetFailure(IngressFailureStage.Validation, IngressFailureCode.RecordValidationFailed);
             yield return new ValidationProgress("Counting", "No records found", 0, 0, 0, 0, true, true);
             yield break;
         }
@@ -452,7 +463,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         // nothing to storage, so its errors come back on the stream only.
         if (totalErrors > 0)
         {
-                summaryCapture?.SetFailure("validation", "record_validation_failed");
+            summaryCapture?.SetFailure(IngressFailureStage.Validation, IngressFailureCode.RecordValidationFailed);
             // Even on failure we still persist the summary (record counts per school) so there is
             // always a record of the run. A validate-only run writes nothing to storage.
             if (!validateOnly)
@@ -564,7 +575,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         if (writeError is not null)
         {
-                summaryCapture?.SetFailure("data_write", "data_write_failed");
+            summaryCapture?.SetFailure(IngressFailureStage.DataWrite, IngressFailureCode.DataWriteFailed);
             await CleanUpAsync(container, writtenBlobNames, cancellationToken);
             yield return new ValidationProgress(
                 "Failed",
@@ -740,18 +751,18 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         IngressSummaryCapture? summaryCapture, int slotIndex, string institutionKey, string urnKey)
     {
         if (!csv.Read())
-            throw new MalformedIngressCsvException("malformed_header", "Ingress CSV has no header row.");
+            throw new MalformedIngressCsvException(IngressFailureCode.MalformedHeader, "Ingress CSV has no header row.");
 
         csv.ReadHeader();
         var headers = csv.HeaderRecord;
         if (headers is null || headers.Length == 0)
-            throw new MalformedIngressCsvException("malformed_header", "Ingress CSV has no header row.");
+            throw new MalformedIngressCsvException(IngressFailureCode.MalformedHeader, "Ingress CSV has no header row.");
 
         var normalizedHeaders = headers.ToArray();
         normalizedHeaders[0] = normalizedHeaders[0].TrimStart('\uFEFF');
         if (normalizedHeaders.Any(string.IsNullOrWhiteSpace) ||
             normalizedHeaders.Distinct(StringComparer.OrdinalIgnoreCase).Count() != normalizedHeaders.Length)
-            throw new MalformedIngressCsvException("malformed_header", "Ingress CSV has a blank or duplicate header.");
+            throw new MalformedIngressCsvException(IngressFailureCode.MalformedHeader, "Ingress CSV has a blank or duplicate header.");
 
         var institutionColumn = FindHeader(normalizedHeaders, institutionKey);
         var urnColumn = FindHeader(normalizedHeaders, urnKey);
@@ -761,11 +772,11 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         while (csv.Read())
         {
             if (csv.Parser.Count != normalizedHeaders.Length)
-                throw new MalformedIngressCsvException("malformed_row", "Ingress CSV has a row with the wrong number of columns.");
+                throw new MalformedIngressCsvException(IngressFailureCode.MalformedRow, "Ingress CSV has a row with the wrong number of columns.");
 
             var values = Enumerable.Range(0, csv.Parser.Count).Select(index => csv.GetField(index)).ToArray();
             if (values.Length == 0 || values.All(string.IsNullOrWhiteSpace))
-                throw new MalformedIngressCsvException("malformed_row", "Ingress CSV contains a blank row.");
+                throw new MalformedIngressCsvException(IngressFailureCode.MalformedRow, "Ingress CSV contains a blank row.");
 
             var record = new Dictionary<string, object>(StringComparer.Ordinal);
             for (var column = 0; column < normalizedHeaders.Length; column++)
@@ -797,52 +808,55 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
     }
 
     private static string InstitutionKey(JSchema schema) =>
-        schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) &&
-        ingress["institutionKey"] is JValue { Type: JTokenType.String } key &&
+        schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) &&
+        ingress[IngressSchemaKeys.InstitutionKey] is JValue { Type: JTokenType.String } key &&
         !string.IsNullOrWhiteSpace(key.Value<string>())
             ? key.Value<string>()!
             : "LAESTAB";
 
     private static string UrnKey(JSchema schema) =>
-        schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) &&
-        ingress["urnKey"] is JValue { Type: JTokenType.String } key &&
+        schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) &&
+        ingress[IngressSchemaKeys.UrnKey] is JValue { Type: JTokenType.String } key &&
         !string.IsNullOrWhiteSpace(key.Value<string>())
             ? key.Value<string>()!
             : "URN";
 
     /// <summary>
-    /// Which pupils a file includes, by their own code: <c>"x-ingress": { "inclusion": { "field":
+    /// What a pupil file's own inclusion code means: <c>"x-ingress": { "inclusion": { "field":
     /// "P_INCL", "included": ["201"], "descriptionField": "P_INCL_DESC", "descriptions": { "201":
-    /// "..." } } }</c> at the schema's root. Codes are compared as trimmed text.
+    /// "..." } } }</c> at the schema's root. Codes are compared as trimmed text. A rule with no
+    /// <c>included</c> gives descriptions only: the file a record came from decides inclusion
+    /// (16-19, #841).
     /// </summary>
-    private sealed record InclusionRule(string Field, IReadOnlySet<string> Included, string? DescriptionField,
-        IReadOnlyDictionary<string, string> Descriptions)
+    private sealed record InclusionRule(string Field, IReadOnlySet<string>? Included, CodeDescriptionRule? Description)
     {
         public static InclusionRule? From(JSchema schema)
         {
-            if (!schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) ||
-                ingress["inclusion"] is not JObject rule)
+            if (!schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) ||
+                ingress[IngressSchemaKeys.Inclusion] is not JObject rule)
                 return null;
 
             return new InclusionRule(
-                rule["field"]?.Value<string>() ?? string.Empty,
-                (rule["included"] as JArray ?? []).Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal),
-                rule["descriptionField"]?.Value<string>(),
-                (rule["descriptions"] as JObject ?? [])
-                    .Properties().ToDictionary(p => p.Name.Trim(), p => p.Value.ToString(), StringComparer.Ordinal));
+                rule[IngressSchemaKeys.Field]?.Value<string>() ?? string.Empty,
+                rule[IngressSchemaKeys.Included] is JArray codes
+                    ? codes.Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal)
+                    : null,
+                rule[IngressSchemaKeys.DescriptionField] is null or { Type: JTokenType.Null } ? null : CodeDescriptionRule.Parse(rule));
         }
 
+        /// <summary>The rule names included codes, so it can stamp INCLUDED.</summary>
+        public bool DecidesInclusion => Included is not null;
+
         public string? ErrorFor(JSchema schema) =>
-            string.IsNullOrWhiteSpace(Field) ? "x-ingress.inclusion names no field."
-            : !schema.Properties.ContainsKey(Field) ? $"x-ingress.inclusion reads {Field}, which the schema does not declare."
-            : !schema.Properties.ContainsKey("INCLUDED") ? "x-ingress.inclusion needs the schema to declare INCLUDED, the stamp it writes."
-            : DescriptionField is not null && !schema.Properties.ContainsKey(DescriptionField)
-                ? $"x-ingress.inclusion writes {DescriptionField}, which the schema does not declare."
-            : null;
+            string.IsNullOrWhiteSpace(Field) ? $"{IngressSchemaKeys.InclusionPath} names no field."
+            : !schema.Properties.ContainsKey(Field) ? $"{IngressSchemaKeys.InclusionPath} reads {Field}, which the schema does not declare."
+            : !DecidesInclusion && Description is null ? $"{IngressSchemaKeys.InclusionPath} names no included codes and no {IngressSchemaKeys.DescriptionField}, so it does nothing."
+            : DecidesInclusion && !schema.Properties.ContainsKey("INCLUDED") ? $"{IngressSchemaKeys.InclusionPath} needs the schema to declare INCLUDED, the stamp it writes."
+            : Description is not null && !schema.Properties.ContainsKey(Description.DescriptionField)
+                ? $"{IngressSchemaKeys.InclusionPath} writes {Description.DescriptionField}, which the schema does not declare."
+            : Description?.DescriptionsErrorFor(IngressSchemaKeys.InclusionPath);
 
-        public bool IsIncluded(JObject record) => Included.Contains(Code(record));
-
-        public string? DescriptionOf(JObject record) => Descriptions.GetValueOrDefault(Code(record));
+        public bool IsIncluded(JObject record) => Included is not null && Included.Contains(Code(record));
 
         private string Code(JObject record) =>
             record[Field] is { Type: not JTokenType.Null } value ? value.ToString().Trim() : string.Empty;
@@ -859,22 +873,22 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
     {
         public static IncludableRule? From(JSchema schema)
         {
-            if (!schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) ||
-                ingress["includable"] is not JObject rule)
+            if (!schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) ||
+                ingress[IngressSchemaKeys.Includable] is not JObject rule)
                 return null;
 
             return new IncludableRule(
-                rule["field"]?.Value<string>() ?? string.Empty,
-                (rule["codes"] as JArray ?? []).Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal));
+                rule[IngressSchemaKeys.Field]?.Value<string>() ?? string.Empty,
+                (rule[IngressSchemaKeys.Codes] as JArray ?? []).Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal));
         }
 
         public string? ErrorFor(JSchema schema) =>
-            string.IsNullOrWhiteSpace(Field) ? "x-ingress.includable names no field."
-            : !schema.Properties.ContainsKey(Field) ? $"x-ingress.includable reads {Field}, which the schema does not declare."
-            : !schema.Properties.ContainsKey("INCLUDABLE") ? "x-ingress.includable needs the schema to declare INCLUDABLE, the stamp it writes."
+            string.IsNullOrWhiteSpace(Field) ? $"{IngressSchemaKeys.IncludablePath} names no field."
+            : !schema.Properties.ContainsKey(Field) ? $"{IngressSchemaKeys.IncludablePath} reads {Field}, which the schema does not declare."
+            : !schema.Properties.ContainsKey("INCLUDABLE") ? $"{IngressSchemaKeys.IncludablePath} needs the schema to declare INCLUDABLE, the stamp it writes."
             // A rule with no codes makes nobody includable, and a blank code would match every empty field.
-            : Codes.Count == 0 ? "x-ingress.includable names no codes."
-            : Codes.Contains(string.Empty) ? "x-ingress.includable names a blank code."
+            : Codes.Count == 0 ? $"{IngressSchemaKeys.IncludablePath} names no codes."
+            : Codes.Contains(string.Empty) ? $"{IngressSchemaKeys.IncludablePath} names a blank code."
             : null;
 
         public bool Matches(JObject record) =>
@@ -886,16 +900,16 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         List<SourceColumn> sources = [];
         foreach (KeyValuePair<string, JSchema> property in schema.Properties)
         {
-            if (!property.Value.ExtensionData.TryGetValue("x-ingress", out JToken? ingress)) continue;
+            if (!property.Value.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress)) continue;
 
-            string[] columns = ingress["source"] switch
+            string[] columns = ingress[IngressSchemaKeys.Source] switch
             {
                 JArray list => [.. list.Values<string>().OfType<string>()],
                 JValue { Type: JTokenType.String } single => [single.Value<string>()!],
                 _ => []
             };
             if (columns.Length > 0)
-                sources.Add(new SourceColumn(property.Key, columns, ingress["separator"]?.Value<string>() ?? string.Empty));
+                sources.Add(new SourceColumn(property.Key, columns, ingress[IngressSchemaKeys.Separator]?.Value<string>() ?? string.Empty));
         }
         return sources;
     }

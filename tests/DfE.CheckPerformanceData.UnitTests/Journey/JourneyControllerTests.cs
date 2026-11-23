@@ -874,8 +874,9 @@ public class JourneyControllerTests
 
         await _sut.SummaryConfirm(WindowId);
 
-        await _analytics.Received(1).TrackSafeAsync(Arg.Is<ResultsEnquirySubmittedEvent>(
-            e => e.EnquiryType == "missing-qualification"));
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ResultsEnquirySubmittedEvent>(e => e.EnquiryType == "missing-qualification"),
+            Arg.Any<CancellationToken>());
     }
 
     // ── PagePost — Autocomplete code capture ─────────────────────────────────
@@ -1419,7 +1420,7 @@ public class JourneyControllerTests
         var result = await _sut.AbortDuplicateCheck(WindowId);
 
         AssertRedirectToCheckYourData(result);
-        await _analytics.DidNotReceive().TrackSafeAsync(Arg.Any<DuplicateCheckDecisionEvent>(), Arg.Any<CancellationToken>());
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<DuplicateCheckDecisionEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1444,7 +1445,7 @@ public class JourneyControllerTests
 
         AssertRedirectToCheckYourData(result);
         Assert.Null(_session.GetRequestState(WindowId).DuplicateCheck);
-        await _analytics.Received(1).TrackSafeAsync(
+        await _analytics.Received(1).TrackAsync(
             Arg.Is<DuplicateCheckDecisionEvent>(e => e.Action == "abort" && e.Scenario == "SingleNonIncluded"),
             Arg.Any<CancellationToken>());
     }

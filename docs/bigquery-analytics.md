@@ -115,7 +115,9 @@ All custom events carry **no PII as plain fields**; a hidden field is noted belo
 
 Plus the library-provided **`web_request`** event, emitted automatically per request and enriched with the user and organisation.
 
-**Validation error codes** are a controlled taxonomy (never the raw, PII-bearing validation messages): `no_selection`, `same_pupil`, `at_least_one`, `file_required`, and per-question `required`, `bad_date`, `too_long`, `selection_invalid`, `invalid`. See `Web/Analytics/ValidationErrorCoding.cs`.
+**Validation error codes** are a controlled taxonomy (never the raw, PII-bearing validation messages): `no_selection`, `same_pupil`, `at_least_one`, `file_required`, `duplicate_enquiry`, and per-question `required`, `bad_date`, `too_long`, `selection_invalid`, `invalid`. See `Web/Analytics/ValidationErrorCoding.cs`.
+
+`request_submission_failed` sets `failure_reason` to `duplicate_request` for a competing amendment. It sets `duplicate_enquiry` for a duplicate results enquiry found at submit.
 
 ### The submission funnel
 
@@ -160,6 +162,7 @@ The built-in `web_request` event's query string is also redacted: `QueryRedactio
 1. Add a sealed record under `Application/Analytics/` deriving from `AnalyticsEvent`: give it an `EventType` (snake_case) and a `Fields` list, marking any identifier `Hidden: true`.
 2. Emit it from the relevant action with `analytics.TrackSafeAsync(new MyEvent { … })` (use `TrackAsync` only on non-user-facing paths like the worker, where you handle failures yourself).
 3. Cover it with an xUnit event-shape test under `tests/DfE.CheckPerformanceData.UnitTests/Analytics/` (assert the `event_type`, field names/values, and `Hidden` flags).
+4. In a test, make each check and each stub on `TrackAsync`: `await analytics.Received(1).TrackAsync(Arg.Is<MyEvent>(e => …), Arg.Any<CancellationToken>())`. Do not call `TrackSafeAsync` in a test. `TrackSafeAsync` catches the exception that a failed check throws, so the check cannot fail. `TrackSafeAsyncCallSourceTests` fails for a test that calls it.
 
 Nothing else changes — the adapter translates any `AnalyticsEvent` generically.
 

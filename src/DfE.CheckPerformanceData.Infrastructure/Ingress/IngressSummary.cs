@@ -11,7 +11,7 @@ public sealed class IngressSummaryDocument
     [JsonProperty("releaseId")] public string? ReleaseId { get; init; }
     [JsonProperty("startedAtUtc")] public DateTime StartedAtUtc { get; init; }
     [JsonProperty("completedAtUtc")] public DateTime CompletedAtUtc { get; init; }
-    [JsonProperty("outcome")] public string Outcome { get; init; } = "failed";
+    [JsonProperty("outcome")] public string Outcome { get; init; } = IngressOutcome.Failed;
     [JsonProperty("failure")] public IngressSummaryFailure? Failure { get; init; }
     [JsonProperty("readComplete")] public bool ReadComplete { get; init; }
     [JsonProperty("totals")] public IngressSummaryCounts Totals { get; init; } = new();
@@ -142,7 +142,7 @@ public sealed class IngressSummaryCapture
 
     public IngressSummaryDocument Build(string outcome, Guid? releaseId, DateTime completedAtUtc)
     {
-        var imported = outcome == "succeeded";
+        var imported = outcome == IngressOutcome.Succeeded;
         var files = _files.Select(capture =>
         {
             var file = capture.File;
@@ -186,7 +186,7 @@ public sealed class IngressSummaryCapture
             StartedAtUtc = StartedAtUtc,
             CompletedAtUtc = DateTime.SpecifyKind(completedAtUtc, DateTimeKind.Utc),
             Outcome = outcome,
-            Failure = outcome == "succeeded" || FailureStage is null || FailureCode is null
+            Failure = outcome == IngressOutcome.Succeeded || FailureStage is null || FailureCode is null
                 ? null
                 : new IngressSummaryFailure { Stage = FailureStage, Code = FailureCode },
             ReadComplete = ReadComplete,

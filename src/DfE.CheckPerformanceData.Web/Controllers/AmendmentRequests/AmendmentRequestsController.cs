@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
 
+[ServiceNavSection(ServiceNavSection.AmendmentRequests)]
 public sealed class AmendmentRequestsController(
     IAmendmentRequestsService service,
     IRequestService requestService,

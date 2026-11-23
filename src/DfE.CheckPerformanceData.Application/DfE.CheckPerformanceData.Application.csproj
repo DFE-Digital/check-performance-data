@@ -23,5 +23,6 @@
            importer by SamplePageNodeSeeder. Embedded so it travels with the assembly and
            needs no deployment-relative file path. -->
       <EmbeddedResource Include="PageTree/SeedContent/sample-content.json" />
+      <EmbeddedResource Include="ResultsEnquiry/Data/t-level-qans.csv" />
     </ItemGroup>
 </Project>

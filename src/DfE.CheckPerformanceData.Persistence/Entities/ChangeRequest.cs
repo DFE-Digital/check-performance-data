@@ -59,6 +59,18 @@ public class ChangeRequest
     /// </summary>
     public string? OrganisationLaestab { get; init; }
 
+    /// <summary>
+    /// The qualification a results enquiry is about (<c>EnquirySubject.Qan</c>). Null on every other
+    /// request and on an enquiry written before the column existed.
+    /// </summary>
+    public string? EnquiryQan { get; init; }
+
+    /// <summary>
+    /// The session of the result a results enquiry is about (<c>EnquirySubject.Session</c>). Null for
+    /// a missing qualification, which has no held result.
+    /// </summary>
+    public string? EnquirySession { get; init; }
+
     // Written by the rules engine consumer once it has decided on the request, and read
     // back by the Zendesk consumer; all stay null until the rules engine has run.
     public DecisionStatus? Outcome { get; set; }

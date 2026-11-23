@@ -12,6 +12,9 @@ using DfE.CheckPerformanceData.Infrastructure.Impersonation;
 using DfE.CheckPerformanceData.Web.Impersonation;
 using DfE.CheckPerformanceData.Web.Middleware;
 using DfE.CheckPerformanceData.Web.Services;
+using DfE.CheckPerformanceData.Web.TagHelpers;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Razor.TagHelpers;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -113,6 +116,25 @@ public sealed class ImpersonationSessionTests
             await File.WriteAllTextAsync(preview, html);
         await app.Services.GetRequiredService<IContentBlockService>().DidNotReceiveWithAnyArgs()
             .EnsureAsync(default!, default!, default!, default!);
+    }
+    [Fact]
+    public async Task A_confirm_modal_form_carries_the_establishment_context_so_its_post_is_accepted()
+    {
+        await using var app = await BuildAsync();
+        var browser = new Browser(app.GetTestClient());
+        await browser.SendAsync(HttpMethod.Get, "/login");
+        var html = await (await browser.SendAsync(HttpMethod.Get, "/confirm-modal")).Content.ReadAsStringAsync();
+
+        // Submit exactly the fields the modal's own form would send, as a browser does.
+        var fields = Regex.Matches(html, "<input [^>]*>").Select(m => m.Value)
+            .Where(tag => tag.Contains("type=\"hidden\""))
+            .ToDictionary(tag => Attribute(tag, "name"), tag => WebUtility.HtmlDecode(Attribute(tag, "value")));
+        Assert.Contains("EstablishmentContext", fields.Keys);
+        var response = await browser.SendAsync(HttpMethod.Post, "/write", new FormUrlEncodedContent(fields));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        static string Attribute(string tag, string name) => Regex.Match(tag, name + "=\"([^\"]*)\"").Groups[1].Value;
     }
     [Fact]
     public async Task Real_cookie_sessions_share_across_tabs_block_writes_and_reject_stale_forms_after_exit()
@@ -257,6 +279,16 @@ public sealed class ImpersonationSessionTests
             }
             return Results.Text(original.OrganisationUrn);
         }).WithMetadata(Action("ConfirmCorrect", "Submit"));
+        app.MapGet("/confirm-modal", async (HttpContext context, IAntiforgery antiforgery) =>
+        {
+            var modal = ActivatorUtilities.CreateInstance<GovukConfirmModalTagHelper>(context.RequestServices);
+            modal.Id = "confirm"; modal.Title = "Confirm"; modal.ConfirmLabel = "Confirm"; modal.FormAction = "/write";
+            var token = WebUtility.HtmlEncode(antiforgery.GetAndStoreTokens(context).RequestToken);
+            var output = new TagHelperOutput("govuk-confirm-modal", [], (_, _) => Task.FromResult<TagHelperContent>(
+                new DefaultTagHelperContent().SetHtmlContent($"<input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{token}\" />")));
+            await modal.ProcessAsync(new TagHelperContext([], new Dictionary<object, object>(), "confirm"), output);
+            return Results.Content(output.Content.GetContent(), "text/html");
+        }).WithMetadata(Action("ContentPage", "Edit"));
         app.MapGet("/mutating-get", () => Results.Ok()).WithMetadata(Action("Journey", "StartAddingPupil"));
         app.MapGet("/admin-page", () => Results.Ok()).WithMetadata(Action("Admin", "Index"));
         // Simulate the ordinary session record disappearing at its existing expiry.

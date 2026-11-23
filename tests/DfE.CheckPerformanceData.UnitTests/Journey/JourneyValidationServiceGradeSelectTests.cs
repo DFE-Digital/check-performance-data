@@ -206,4 +206,54 @@ public sealed class JourneyValidationServiceGradeSelectTests
         Assert.Null(
             _sut.ValidateAnswer(freeText, new QuestionAnswer { TextValue = "10" }, "How many students?", "Enter how many students"));
     }
+
+    private static ResultRecord HeldBy(string source, string grade) => new()
+    {
+        CypmdId = "500002", Qan = "60370683", Session = "S2024", Grade = grade, SourceFile = source
+    };
+
+    private string? ValidateWithOtherFiles(string chosen, GradeReference reference, string currentGrade, params ResultRecord[] others) =>
+        _sut.ValidateGradeSelect(
+            RevisedGrade, new QuestionAnswer { TextValue = chosen }, reference, currentGrade,
+            RevisedGrade.ValidationFailure, others);
+
+    [Fact]
+    public void A_grade_that_another_file_holds_is_refused_and_the_message_names_the_file_label()
+    {
+        var error = ValidateWithOtherFiles("D1", Btec, "M1", HeldBy(ResultsFileTags.Post16LateResults1, "D1"));
+
+        Assert.Equal(
+            string.Format(
+                JourneyValidationService.RevisedGradeAlreadyHeldMessage,
+                ResultsSources.LabelFor(ResultsFileTags.Post16LateResults1), "D1"),
+            error);
+        Assert.DoesNotContain(ResultsFileTags.Post16LateResults1, error);
+    }
+
+    [Fact]
+    public void A_grade_that_no_other_file_holds_is_accepted() =>
+        Assert.Null(ValidateWithOtherFiles("D2", Btec, "M1", HeldBy(ResultsFileTags.Post16LateResults1, "D1")));
+
+    [Fact]
+    public void The_first_file_that_holds_the_grade_is_the_one_named()
+    {
+        var error = ValidateWithOtherFiles("D1", Btec, "M1",
+            HeldBy(ResultsFileTags.Post16LateResults1, "P1"),
+            HeldBy(ResultsFileTags.Post16LateResults2, "D1"),
+            HeldBy(ResultsFileTags.Post16IncludedRevised, "D1"));
+
+        Assert.Contains(ResultsSources.LabelFor(ResultsFileTags.Post16LateResults2), error);
+    }
+
+    [Fact]
+    public void The_held_grade_comparison_is_ordinal() =>
+        Assert.Null(ValidateWithOtherFiles("24D", Ib, "25D", HeldBy(ResultsFileTags.Post16LateResults1, "24F")));
+
+    [Fact]
+    public void A_grade_the_qualification_does_not_offer_stays_unanswered_when_another_file_holds_it() =>
+        Assert.Equal(Required, ValidateWithOtherFiles("ZZ", Btec, "M1", HeldBy(ResultsFileTags.Post16LateResults1, "ZZ")));
+
+    [Fact]
+    public void The_current_grade_message_wins_over_the_held_grade_message() =>
+        Assert.Equal(MustDiffer, ValidateWithOtherFiles("M1", Btec, "M1", HeldBy(ResultsFileTags.Post16LateResults1, "M1")));
 }

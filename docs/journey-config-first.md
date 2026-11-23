@@ -151,6 +151,27 @@ Roles replace most of groups 1 and 4:
 - `JourneyController` clears the answers that are marked `clearWhen: ResultChanged`.
 - `JourneyViewModelBuilder` gets the summary values by role.
 
+**Roles in use now (#863).** `QuestionRole` has the roles that the 16-19 results enquiry ticket
+needs. The three 16-19 enquiry flows declare them. Submission copies the role onto each
+`AnswerRecord` in the queue message. The role is not copied onto the saved `QuestionAnswer` yet.
+
+| Role (JSON name) | Question in the 16-19 flows |
+|---|---|
+| `Enquiry.CohortScope` | Does the enquiry affect the whole cohort? (Missing qualification, Incorrect grade) |
+| `Enquiry.CohortCount` | How many qualifications (Missing qualification, Incorrect grade) |
+| `Enquiry.AwardDate` | Award date (Missing qualification) |
+| `Enquiry.Grade` | The missing grade or the revised grade |
+| `Enquiry.Ncn` | National Centre Number (Missing qualification) |
+| `Enquiry.SyllabusCode` | Syllabus code (Missing qualification) |
+| `Enquiry.AdditionalComments` | Additional comments (all three flows) |
+
+The whole-cohort options also use pattern 5: each option has the meaning `Yes` or `No`.
+Submission copies the chosen option's meaning onto the `AnswerRecord`. The ticket builder maps the
+meaning to the Zendesk value, not the option value.
+
+`QuestionFlowValidatorAlignmentTests` checks that a role occurs at most once in a flow, that a
+meaning is on a `Radio` option only, and that each whole-cohort option has a meaning.
+
 ### 5. Option meanings
 
 Zendesk and egress map option values such as `english-not-first-language` to codes. Give each

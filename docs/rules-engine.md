@@ -281,6 +281,10 @@ The Zendesk views select tickets by these values. The worker does not change the
 If `ScrutinyGroupId` is not set or is 0, Scrutiny tickets go to `GroupId`. Production sets both to 0
 until its Zendesk IDs are confirmed.
 
+A results enquiry does not use this table. `ResultsEnquiryTicketBuilder` makes its ticket: status
+`new`, group `GroupId`, and the Results Enquiry DCI form. See
+[results-enquiry.md](results-enquiry.md#the-enquiry-ticket-859).
+
 **Fields that the previous system sent (#781).** The worker sets these fields as the previous
 system did. Each field ID is a `ZendeskTicketFields__*Id` setting. An ID of 0 leaves the field out.
 

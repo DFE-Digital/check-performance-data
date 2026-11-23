@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
@@ -9,7 +10,19 @@ public interface IRequestRepository
     /// <summary>Returns the reference number of a submitted request for the given pupil, or null if none exists.</summary>
     Task<string?> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn);
     /// <returns>The Id of the inserted or updated <c>ChangeRequests</c> row.</returns>
+    /// <exception cref="DuplicateEnquiryException">A submitted results enquiry with a subject, when the
+    /// school already has another submitted enquiry for the same student and subject.</exception>
     Task<Guid> UpsertAsync(ChangeRequestData data);
+
+    /// <summary>
+    /// Returns the reference number of the newest submitted results enquiry for the student and
+    /// subject at the school in the window, or null when there is none. A withdrawn enquiry and a
+    /// row with no subject do not count.
+    /// </summary>
+    /// <param name="excludedReferenceNumber">The caller's own request, which is never a duplicate of itself.</param>
+    Task<string?> FindSubmittedResultsEnquiryReferenceAsync(
+        Guid windowId, long organisationUrn, Guid pupilId, EnquirySubject subject,
+        string? excludedReferenceNumber, CancellationToken ct = default);
     Task<IReadOnlyList<AmendmentRequestData>> GetAmendmentRequestsAsync(Guid windowId, long organisationUrn);
     Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedRequestsAsync(Guid windowId, long organisationUrn);
     Task<IReadOnlyList<SubmittedRequestData>> GetAllSubmittedRequestsAsync(long organisationUrn);

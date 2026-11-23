@@ -135,8 +135,12 @@ internal sealed class ResultsEnquiryTicketBuilder(
 
     private const string WithdrawalStem = "withdr";
 
+    // TryParse also accepts a number, a comma list and outer spaces. Only an exact name counts.
     private static CheckingWindowType? WindowType(RequestDocument message) =>
-        Enum.TryParse<CheckingWindowType>(message.CheckingWindowType, out var type) ? type : null;
+        Enum.TryParse<CheckingWindowType>(message.CheckingWindowType, out var type)
+        && type.ToString() == message.CheckingWindowType
+            ? type
+            : null;
 
     private static AnswerRecord? Answer(RequestDocument message, QuestionRole role) =>
         message.Answers.FirstOrDefault(a => a.Role == role);

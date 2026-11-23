@@ -196,6 +196,17 @@ public sealed class ResultsEnquiryTicketBuilderTests
         Assert.Equal("no_graded", Field(ticket, Names.GradedExamCypmdName));
     }
 
+    [Theory]
+    [InlineData("3")]
+    [InlineData(" KS4Autumn ")]
+    [InlineData("KS2, Post16")]
+    public void A_window_type_that_is_not_an_exact_name_sends_no_graded(string windowType)
+    {
+        var ticket = Build(Message(WhatToChange.IncorrectGrade, qan: GradedExamQan, windowType: windowType));
+
+        Assert.Equal("no_graded", Field(ticket, Names.GradedExamCypmdName));
+    }
+
     // ── Data fields ─────────────────────────────────────────────────────────
 
     [Fact]

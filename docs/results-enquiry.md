@@ -471,8 +471,8 @@ that `TLevelQualifications` reads. It holds the 21 T Levels that DCI gave for 20
 updates the list, update the CSV file.
 
 **The graded exam list** is `Application/ResultsEnquiry/Data/graded-exam-qans.csv`, an embedded
-resource that `GradedExamQualifications` reads. It holds the 33 KS4 graded exams in the "Results
-Enquiry Form Spec 2026" workbook. When DCI updates the list, update the CSV file.
+resource that `GradedExamQualifications` reads. It holds the 33 KS4 graded exams that #859 lists
+from the "Results Enquiry Form Spec 2026" workbook. When DCI updates the list, update the CSV file.
 
 `GradedExamQualifications.ForEnquiry` gives the graded exam answer for an enquiry (#899). For a KS4
 Autumn window, the answer is yes when the QAN is on the list, else no. Every other window type

@@ -28,11 +28,10 @@ public sealed class JourneyBackLinkViewSourceTests
     }
 
     [Fact]
-    public void An_amendment_first_page_still_goes_back_to_the_what_to_change_chooser()
+    public void An_amendment_first_page_goes_back_through_the_what_to_change_back_action()
     {
         var view = ViewSource();
 
-        // #874: the Back action decides, so the link cannot loop when What to change is skipped.
         Assert.Contains("asp-action=\"Back\" asp-controller=\"WhatToChange\"", view);
         Assert.DoesNotContain("asp-action=\"Index\" asp-controller=\"WhatToChange\"", view);
     }

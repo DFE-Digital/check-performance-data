@@ -44,7 +44,8 @@ From here, the user clicks a "Request change" or equivalent link, which takes th
 ## Stage 2 — What Would You Like to Change?
 
 **URL:** `GET /WhatToChange/{windowId}`  
-**Controller:** `WhatToChangeController.Index` / `Confirm`
+**Back link target:** `GET /WhatToChange/{windowId}/back`  
+**Controller:** `WhatToChangeController.Index` / `Confirm` / `Back`
 
 The user selects what they want to change (e.g. `Remove`). When the window type offers one change
 type, the GET selects it and the page is not shown (#874). In both cases
@@ -61,7 +62,7 @@ combination. The controller redirects to the config's first page:
 
 **Redirects to:** `GET /Journey/{windowId}/page/{config.FirstPageId}`
 
-This first page is always a `PupilSearch` page — see [PupilSearch pages](#pupilsearch-pages) below.
+This first page is usually a `PupilSearch` page (the Add journey's is not) — see [PupilSearch pages](#pupilsearch-pages) below.
 
 **Session after this stage:**
 | Field | Value |

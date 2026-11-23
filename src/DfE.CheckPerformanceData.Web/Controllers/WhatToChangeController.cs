@@ -20,9 +20,9 @@ public sealed class WhatToChangeController(
     ICurrentUserService currentUserService,
     IAnalyticsService analytics) : Controller
 {
-    // #318: every option belongs to pupil data checking. AB#307773: "closed" is for the signed-in school.
     private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
 
+    [HttpGet]
     [Route("/WhatToChange/{windowId}")]
     public async Task<IActionResult> Index(Guid windowId)
     {

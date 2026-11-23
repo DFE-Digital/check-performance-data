@@ -331,6 +331,34 @@ public sealed class WhatToChangeControllerTests
     }
 
     [Fact]
+    public async Task Confirm_ForAnOfferedChange_ClearsBothEditModes()
+    {
+        _flowService.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS4June).Returns(FlowWithPupilSearch);
+        _session.SetBulkEditMode(WindowId);
+        _session.SetSingleEditMode(WindowId);
+
+        await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Remove });
+
+        Assert.False(_session.IsBulkEditMode(WindowId));
+        Assert.False(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
+    public async Task Confirm_ForAChangeTheWindowDoesNotOffer_KeepsBothEditModes()
+    {
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
+        _session.SetBulkEditMode(WindowId);
+        _session.SetSingleEditMode(WindowId);
+
+        await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Merge });
+
+        Assert.True(_session.IsBulkEditMode(WindowId));
+        Assert.True(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
     public async Task Index_WithOneChangeTypeForAFlowWithoutAPupilSearch_StartsClean()
     {
         _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Add]);

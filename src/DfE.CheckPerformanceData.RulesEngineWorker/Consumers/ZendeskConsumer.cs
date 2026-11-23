@@ -322,7 +322,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             Ticket = new CreateTicketDto
             {
                 Subject = subject,
-                Description = BuildDescription(message, decision),
+                Comment = CreateTicketCommentDto.InternalNote(BuildDescription(message, decision)),
                 Status = status,
                 Priority = priority,
                 Type = type,

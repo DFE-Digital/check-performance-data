@@ -96,6 +96,17 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.Equal(5678, ticket.GroupId);
     }
 
+    // A public comment from the API agent gets the agent signature, which looks like an email
+    // to the school.
+    [Fact]
+    public void TicketText_IsAnInternalNote()
+    {
+        var msg = NewMessage("Deceased", Answer("Reason for removal", "Death certificate provided."));
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        Assert.False(NewConsumer().BuildTicket(msg, decision).Ticket.Comment!.Public);
+    }
+
     [Fact]
     public void Description_IncludesOutcomeRuleAndAnswers()
     {
@@ -105,10 +116,10 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         var ticket = consumer.BuildTicket(msg, decision).Ticket;
 
-        Assert.Contains("Outcome: Deceased", ticket.Description);
-        Assert.Contains("Decision: AutoApproved", ticket.Description);
-        Assert.Contains("Matched rule: DEC-1", ticket.Description);
-        Assert.Contains("Reason for removal: Death certificate provided.", ticket.Description);
+        Assert.Contains("Outcome: Deceased", ticket.Comment!.Body);
+        Assert.Contains("Decision: AutoApproved", ticket.Comment!.Body);
+        Assert.Contains("Matched rule: DEC-1", ticket.Comment!.Body);
+        Assert.Contains("Reason for removal: Death certificate provided.", ticket.Comment!.Body);
     }
 
     // The evaluation trace is admin-only: it is persisted on the change request and shown on
@@ -125,14 +136,14 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         var ticket = consumer.BuildTicket(msg, decision).Ticket;
 
-        Assert.DoesNotContain("Trace:", ticket.Description);
-        Assert.DoesNotContain("dateOfDeath", ticket.Description);
-        Assert.DoesNotContain("2026-03-14", ticket.Description);
-        Assert.DoesNotContain("second trace line", ticket.Description);
+        Assert.DoesNotContain("Trace:", ticket.Comment!.Body);
+        Assert.DoesNotContain("dateOfDeath", ticket.Comment!.Body);
+        Assert.DoesNotContain("2026-03-14", ticket.Comment!.Body);
+        Assert.DoesNotContain("second trace line", ticket.Comment!.Body);
 
         // The rest of the description is unaffected.
-        Assert.Contains("Matched rule: DEC-1", ticket.Description);
-        Assert.Contains("Reason for removal: Death certificate provided.", ticket.Description);
+        Assert.Contains("Matched rule: DEC-1", ticket.Comment!.Body);
+        Assert.Contains("Reason for removal: Death certificate provided.", ticket.Comment!.Body);
     }
 
     [Fact]
@@ -760,7 +771,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         var ticket = consumer.BuildTicket(msg, decision).Ticket;
 
-        Assert.Contains($"Matched rule: CKS4-DEF{Environment.NewLine}Pincl: 403", ticket.Description);
+        Assert.Contains($"Matched rule: CKS4-DEF{Environment.NewLine}Pincl: 403", ticket.Comment!.Body);
     }
 
     // Only an add-back pupil (P_INCL 403) gets the line. Other included codes do not.
@@ -779,7 +790,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", pincl: pinclCode), decision).Ticket;
 
-        Assert.DoesNotContain("Pincl:", ticket.Description);
+        Assert.DoesNotContain("Pincl:", ticket.Comment!.Body);
     }
 
     [Fact]
@@ -791,7 +802,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         foreach (var whatToChange in new[] { "Include", "Add - pupil-died", "Results enquiry - Incorrect grade" })
         {
             var ticket = consumer.BuildTicket(NewMessage(whatToChange, "KS4", pincl: 403), decision).Ticket;
-            Assert.DoesNotContain("Pincl:", ticket.Description);
+            Assert.DoesNotContain("Pincl:", ticket.Comment!.Body);
         }
     }
 
@@ -807,7 +818,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         foreach (var code in new[] { 501, 0 })
         {
             var ticket = consumer.BuildTicket(NewMessage("Remove - student-died", "Post16", pincl: code), decision).Ticket;
-            Assert.DoesNotContain("Pincl:", ticket.Description);
+            Assert.DoesNotContain("Pincl:", ticket.Comment!.Body);
         }
     }
 
@@ -822,7 +833,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         var ticket = consumer.BuildTicket(NewMessage("Remove - completed-ks4-elsewhere", "KS4June", pincl: 403), decision).Ticket;
 
-        Assert.Contains("Pincl: 403", ticket.Description);
+        Assert.Contains("Pincl: 403", ticket.Comment!.Body);
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => (string)f.Value! == "CompletedKs4Elsewhere");
     }
 
@@ -841,7 +852,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4June", pincl: 403), decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "add_back_removal");
-        Assert.Contains("Pincl: 403", ticket.Description);
+        Assert.Contains("Pincl: 403", ticket.Comment!.Body);
     }
 
     // An included pupil that is not an add-back gets the value for the school's removal reason.
@@ -877,7 +888,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(NewMessage(requestTypeCode, "KS4June", pincl: 403), decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "add_back_removal");
-        Assert.Contains("Pincl: 403", ticket.Description);
+        Assert.Contains("Pincl: 403", ticket.Comment!.Body);
     }
 
     [Theory]
@@ -894,7 +905,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(NewMessage("Remove - year-group-change", "KS4June", pincl: pinclCode), decision).Ticket;
 
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => (string)f.Value! == "add_back_removal");
-        Assert.DoesNotContain("Pincl:", ticket.Description);
+        Assert.DoesNotContain("Pincl:", ticket.Comment!.Body);
     }
 
     [Theory]
@@ -912,7 +923,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(NewMessage("Remove - student-died", "Post16", pincl: pinclCode), decision).Ticket;
 
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => (string)f.Value! == "add_back_removal");
-        Assert.DoesNotContain("Pincl:", ticket.Description);
+        Assert.DoesNotContain("Pincl:", ticket.Comment!.Body);
     }
 
     // --- Feature 457: "other" evidence variant (US2b / FR-004) ---

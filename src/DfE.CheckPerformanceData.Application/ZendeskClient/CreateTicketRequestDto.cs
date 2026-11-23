@@ -23,17 +23,16 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         [JsonPropertyName("type")]
         public string Type { get; set; } = string.Empty;
 
+        /// <summary>The first comment. The ticket builders send it as an internal note, so
+        /// Zendesk does not add the agent signature to it.</summary>
         [JsonPropertyName("comment")]
-        public TicketCommentDto? Comment { get; set; }
+        public CreateTicketCommentDto? Comment { get; set; }
 
         [JsonPropertyName("requester_id")]
         public long? RequesterId { get; set; }
 
         [JsonPropertyName("priority")]
         public string Priority { get; set; } = string.Empty;
-
-        [JsonPropertyName("description")]
-        public string Description { get; set; } = string.Empty;
 
         [JsonPropertyName("custom_fields")]
         public List<CustomFieldDto> CustomFields { get; set; } = new();
@@ -46,5 +45,22 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         [JsonPropertyName("ticket_form_id")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public long? TicketFormId { get; set; }
+    }
+
+    /// <summary>
+    /// The first comment of a new ticket. A public comment from an agent gets the agent
+    /// signature, which looks like an email to the school. So the ticket builders send
+    /// <c>Public = false</c> (an internal note).
+    /// </summary>
+    public sealed class CreateTicketCommentDto
+    {
+        [JsonPropertyName("body")]
+        public string Body { get; set; } = string.Empty;
+
+        [JsonPropertyName("public")]
+        public bool Public { get; set; }
+
+        /// <summary>An internal note with the given text.</summary>
+        public static CreateTicketCommentDto InternalNote(string body) => new() { Body = body, Public = false };
     }
 }

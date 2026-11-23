@@ -52,7 +52,15 @@ public sealed class ResultsEnquiryTicketBuilderTests
         Assert.Equal("question", ticket.Type);
         Assert.Equal("low", ticket.Priority);
         Assert.Contains(Reference, ticket.Subject);
-        Assert.Contains("Challenged result", ticket.Description);
+        Assert.Contains("Challenged result", ticket.Comment!.Body);
+    }
+
+    // A public comment from the API agent gets the agent signature, which looks like an email
+    // to the school.
+    [Fact]
+    public void The_ticket_text_is_an_internal_note()
+    {
+        Assert.False(Build(Message(WhatToChange.IncorrectGrade)).Comment!.Public);
     }
 
     [Theory]
@@ -99,6 +107,51 @@ public sealed class ResultsEnquiryTicketBuilderTests
     public void T_level_comes_from_the_t_level_list(string qan, string expected)
     {
         Assert.Equal(expected, Field(Build(Message(WhatToChange.IncorrectGrade, qan: qan)), Names.TLevelExamsCypmdName));
+    }
+
+    // ── Withdrawal qualification (#908) ─────────────────────────────────────
+
+    [Theory]
+    [InlineData(WhatToChange.IncorrectGrade, "The student will withdraw from the course.")]
+    [InlineData(WhatToChange.IncorrectGrade, "This qualification was withdrawn.")]
+    [InlineData(WhatToChange.IncorrectGrade, "Withdrawal confirmed by the AO.")]
+    [InlineData(WhatToChange.IncorrectGrade, "THE STUDENT WITHDREW IN MAY")]
+    [InlineData(WhatToChange.IncorrectGrade, "withdrawl form sent")]
+    [InlineData(WhatToChange.IncorrectGrade, "We are withdrawing the entry.")]
+    [InlineData(WhatToChange.IncorrectGrade, "This was not withdrawn.")]
+    [InlineData(WhatToChange.ResultDoesNotBelong, "Withdrawn before the exam.")]
+    [InlineData(WhatToChange.ResultDoesNotBelong, "The student withdraws.")]
+    public void A_form_of_withdraw_in_the_additional_information_sets_withdrawal_to_yes(WhatToChange type, string comments)
+    {
+        var ticket = Build(Message(type, answers: [Answer(QuestionRole.EnquiryAdditionalComments, comments)]));
+
+        Assert.Equal("yes_withdraw_cypmd", Field(ticket, Names.WithdrawalQualificationCypmdName));
+    }
+
+    [Fact]
+    public void A_missing_qualification_never_sets_withdrawal_to_yes()
+    {
+        var ticket = Build(Message(WhatToChange.MissingQualification,
+            answers: [Answer(QuestionRole.EnquiryAdditionalComments, "This qualification was withdrawn.")]));
+
+        Assert.Equal("no_withdraw_cypmd", Field(ticket, Names.WithdrawalQualificationCypmdName));
+    }
+
+    [Theory]
+    [InlineData(WhatToChange.IncorrectGrade)]
+    [InlineData(WhatToChange.ResultDoesNotBelong)]
+    public void No_additional_information_sets_withdrawal_to_no(WhatToChange type)
+    {
+        Assert.Equal("no_withdraw_cypmd", Field(Build(Message(type)), Names.WithdrawalQualificationCypmdName));
+    }
+
+    [Fact]
+    public void Additional_information_without_the_word_sets_withdrawal_to_no()
+    {
+        var ticket = Build(Message(WhatToChange.IncorrectGrade,
+            answers: [Answer(QuestionRole.EnquiryAdditionalComments, "The AO confirmed the grade.")]));
+
+        Assert.Equal("no_withdraw_cypmd", Field(ticket, Names.WithdrawalQualificationCypmdName));
     }
 
     [Fact]

@@ -37,7 +37,7 @@ internal sealed class ResultsEnquiryTicketBuilder(
             Ticket = new CreateTicketDto
             {
                 Subject = $"{message.RequestTypeCode} ({message.ReferenceNumber})",
-                Description = BuildDescription(message),
+                Comment = CreateTicketCommentDto.InternalNote(BuildDescription(message)),
                 Status = "new",
                 Type = "question",
                 Priority = "low",
@@ -60,7 +60,7 @@ internal sealed class ResultsEnquiryTicketBuilder(
         Add(dto, Names.GradedExamCypmdName, Options.ResultsEnquiry.NotGradedExam);
         Add(dto, Names.TLevelExamsCypmdName,
             TLevelQualifications.Contains(enquiry.Qan) ? Options.ResultsEnquiry.TLevel : Options.ResultsEnquiry.NotTLevel);
-        Add(dto, Names.WithdrawalQualificationCypmdName, Options.ResultsEnquiry.NotWithdrawn);
+        Add(dto, Names.WithdrawalQualificationCypmdName, Withdrawal(enquiry.Type, message));
         Add(dto, Names.TypeOfOrganisationName, Options.TypeOfOrganisation.TrainingProvider);
 
         // The school and the user who submitted the enquiry.
@@ -118,6 +118,18 @@ internal sealed class ResultsEnquiryTicketBuilder(
         WhatToChange.ResultDoesNotBelong => Options.ResultsEnquiry.Situation.ResultDoesNotBelong,
         _ => throw new InvalidOperationException($"{type} is not a results enquiry type.")
     };
+
+    // The Withdrawal qualification tag (#908). An Incorrect grade or Result does not belong
+    // enquiry is "yes" when the additional information contains a form of "withdraw". The stem
+    // "withdr" also matches "withdrew" and the misspelling "withdrawl". A false positive, such as
+    // "not withdrawn", is acceptable: an operator moves the ticket by hand.
+    private static string Withdrawal(WhatToChange type, RequestDocument message) =>
+        type is WhatToChange.IncorrectGrade or WhatToChange.ResultDoesNotBelong
+        && (RawValue(message, QuestionRole.EnquiryAdditionalComments)?.Contains(WithdrawalStem, StringComparison.OrdinalIgnoreCase) ?? false)
+            ? Options.ResultsEnquiry.Withdrawn
+            : Options.ResultsEnquiry.NotWithdrawn;
+
+    private const string WithdrawalStem = "withdr";
 
     private static AnswerRecord? Answer(RequestDocument message, QuestionRole role) =>
         message.Answers.FirstOrDefault(a => a.Role == role);

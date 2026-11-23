@@ -56,19 +56,6 @@
                         <p>@Model.Body</p>
                     }
                 </div>
-
-                @if (Model.Attachments.Count > 0)
-                {
-                    <div class="zd-comment__attachments">
-                        <h2 class="zd-comment__attachments-heading">Attachments</h2>
-                        <ul class="zd-attachment-list">
-                            @foreach (var attachment in Model.Attachments)
-                            {
-                                <li class="zd-attachment">@attachment</li>
-                            }
-                        </ul>
-                    </div>
-                }
             </div>
         </section>
 

@@ -154,6 +154,14 @@ public sealed class MediaFolderTests(PlaywrightFixture fixture) : SeedingPageTes
         Assert.Contains("subfolders=false", Page.Url);
         await Expect(Page.Locator("[data-media-library-table] [data-media-item]")).ToHaveCountAsync(1);
 
+        // Ticked again: the form sends true and the hidden false, and the first value wins.
+        await Page.GetByLabel("Include subfolders").CheckAsync();
+        await Page.Locator("[data-media-library-filters] button[type='submit']").ClickAsync();
+        await Page.WaitForURLAsync(url => !url.Contains("subfolders=false") || url.Contains("subfolders=true"));
+        await Expect(Page.GetByLabel("Include subfolders")).ToBeCheckedAsync();
+        await Expect(Page.Locator("[data-media-library-table] [data-media-item]")).ToHaveCountAsync(2);
+        await Expect(Page.Locator($"#admin-rail a[href='/admin/media?folder={parent:D}']")).ToHaveAttributeAsync("aria-current", "page");
+
         // At the top of the library, off means the images in no folder: these two are in folders.
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/media?search={_term}&subfolders=false");
         await Expect(Page.Locator("[data-media-library-empty]")).ToBeVisibleAsync();

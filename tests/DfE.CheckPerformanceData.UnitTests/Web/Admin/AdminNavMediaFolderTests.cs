@@ -56,6 +56,8 @@ public sealed class AdminNavMediaFolderTests
 
         Assert.Equal($"media-folder-{Schools:D}", AdminNavActive.ResolveActiveKey("/admin/media", $"?folder={Schools:D}&subfolders=false", entries));
         Assert.Equal(AdminNavKeys.Media, AdminNavActive.ResolveActiveKey("/admin/media", "", entries));
+        // The ticked "Include subfolders" box sends the key twice.
+        Assert.Equal($"media-folder-{Schools:D}", AdminNavActive.ResolveActiveKey("/admin/media", $"?folder={Schools:D}&subfolders=true&subfolders=false", entries));
         Assert.Equal(AdminNavKeys.Media, AdminNavActive.ResolveActiveKey($"/admin/media/{Guid.NewGuid()}", "", entries));
     }
 

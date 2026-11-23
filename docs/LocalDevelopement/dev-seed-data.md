@@ -19,5 +19,8 @@ start-up, and the "Seed sample CMS pages" button outside Production). The import
 in before the pages, so the Image test page and the other fixture pages record their uses. Each
 start imports the file again and finds the images it brought before, so it adds nothing. The
 samples are a PNG (`…0e0201`), an SVG (`…0e0202`), a JPEG photo (`…0e0203`) and an animated GIF
-(`…0e0204`). `TestFixtureSeedBundleTests` and `TestFixtureMediaImportTests` pin them. See
+(`…0e0204`). The PNG and the SVG are in the folder Samples / Graphics, the photo is in
+Samples / Photos, and the animation is at the top of the library. The import makes the three
+folders (`…0e0301` to `…0e0303`) once, and puts the samples back in them on each start.
+`TestFixtureSeedBundleTests` and `TestFixtureMediaImportTests` pin them. See
 `docs/media-library.md`.

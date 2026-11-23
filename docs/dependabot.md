@@ -37,6 +37,8 @@ Each run shows in **Actions** as **Dependabot Updates**, with its log.
   group does not take it.
 - `Microsoft.Playwright` and `Microsoft.Playwright.Xunit` come together in a pull request of their
   own (`playwright`). See [Playwright](#playwright).
+- The `Refit` packages come together in a pull request of their own (`refit`), for minor and major
+  updates. They share one version, and a mix of major versions does not build.
 - A new version is not proposed until it is 7 days old (`cooldown`), so a compromised or broken
   release has time to be found and withdrawn. This applies to version updates only. It does not
   apply to a new digest of the .NET `aspnet` and `sdk` images, which carries .NET and Ubuntu

@@ -23,6 +23,11 @@ updates:
       playwright:
         patterns:
           - "Microsoft.Playwright*"
+      # The Refit packages share one version. A pull request for only some of them leaves a mix
+      # of major versions, which does not build.
+      refit:
+        patterns:
+          - "Refit*"
       minor-and-patch:
         update-types:
           - minor

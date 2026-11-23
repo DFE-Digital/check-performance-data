@@ -38,6 +38,28 @@ The eventual goal is to fold this seed upload into the CI deploy pipeline (`.git
 1. Whose identity uploads the seed (workflow OIDC or a service principal).
 2. The exact storage-account name pattern emitted by `module.storage` (depends on `azure_resource_prefix` + `service_short` conventions in the AKS module).
 
+## Seed versioning and admin saves
+
+Each seed file has a root `version`. On startup, `RulesConfigSeeder` replaces a stored blob only when the bundled version is strictly newer. Versions compare structurally as (date, numeric suffix):
+
+- seeds use `yyyy.MM.dd-NN` (change date, two-digit sequence);
+- admin saves stamp `yyyy.MM.dd-HHmmss` (wall-clock time).
+
+An admin save stamped the **same day** as a seed change therefore outranks that seed: a
+change to `rules.json` does not reach an environment where an admin (or an E2E admin test)
+saved rules earlier the same day. It reaches on the next deploy carrying a seed dated later,
+or immediately when you force-upload it (the provider picks up the new blob within its
+refresh interval, no restart).
+
+This is exactly what happened to the KS4 EAL offset fix on 2026-11-23: the review app's E2E
+admin test stamped the blob `2026.11.23-145128` with the pre-fix content, which blocked the
+`2026.11.23-01` seed until the version was dated `2026.11.24-01`.
+
+When a seed change must reach an environment the same day, either:
+
+1. date the next seed change's version after the day of the blocking admin save, or
+2. force-upload the bundled seed with `./scripts/seed-rules-config.sh <storage-account-name> <resource-group>` (review app account: `s189t01cypdrvtfsa`).
+
 ## Editing the rules
 
 `rules.json` is processed by `RuleSetValidator` on every refresh. A broken file is logged and rejected; the worker keeps serving the previous good copy. The validator enforces:

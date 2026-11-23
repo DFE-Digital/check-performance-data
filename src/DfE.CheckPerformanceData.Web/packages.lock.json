@@ -23,11 +23,11 @@
       },
       "DfeAnalytics.AspNetCore": {
         "type": "Direct",
-        "requested": "[0.6.4, )",
-        "resolved": "0.6.4",
-        "contentHash": "UlWDCeofbwz7FccSjwOxcKvOTQwTJtrrcGtL/49PZDX7QXRfB5RrCzlS9LsIOX+trZ6G133Wv3YrruPvnqw+TA==",
+        "requested": "[0.7.0, )",
+        "resolved": "0.7.0",
+        "contentHash": "rH/S6tj1ahzUvZf+8l1wVrdEAYOFAuU8klAUutcDZvLXEnWgNLb/Q2eIemiwi4hc6tn/Q360Bas39XMnFRDXhw==",
         "dependencies": {
-          "DfeAnalytics.Core": "0.6.4"
+          "DfeAnalytics.Core": "0.7.0"
         }
       },
       "GovUk.Frontend.AspNetCore": {
@@ -689,7 +689,7 @@
       "dfe.checkperformancedata.application": {
         "type": "Project",
         "dependencies": {
-          "AngleSharp": "[1.10.1, )",
+          "AngleSharp": "[1.10.3, )",
           "DfE.CheckPerformanceData.Domain": "[1.0.0, )",
           "HtmlSanitizer": "[11.0.26, )",
           "Markdig": "[1.6.0, )",
@@ -737,9 +737,9 @@
       },
       "AngleSharp": {
         "type": "CentralTransitive",
-        "requested": "[1.10.1, )",
-        "resolved": "1.10.1",
-        "contentHash": "yWQuJAaxcvKmhzl77SYfiIbSMloqsHWrzJaqgY5QOoIfEFk0HQZbQQv3gKyIuQBxMwmglcqzXfykGZ4JrkWK5Q=="
+        "requested": "[1.10.3, )",
+        "resolved": "1.10.3",
+        "contentHash": "HF2owdhRhy84PJ7dk6e7Olc8D3S8RhU+BSXgCpTcafODrHzUUqUquCUWrM81/PeKHKlFA86LCdZBAQCQRK2y7w=="
       },
       "Azure.Storage.Blobs": {
         "type": "CentralTransitive",
@@ -771,8 +771,8 @@
       "DfeAnalytics.Core": {
         "type": "CentralTransitive",
         "requested": "[0.6.4, )",
-        "resolved": "0.6.4",
-        "contentHash": "LfmZAaetqxonAFkZSeY0M3udvzyc35QGEgDTm5ohXocTQZNOks/iqBs7tOQ7LOEw4B6cXp6aE1MGzbdsWOKIyQ==",
+        "resolved": "0.7.0",
+        "contentHash": "rO3RUfKcGRoE/KDfey6MsvOX8vERqxGPANuFtvJOidP+Ypwz+TVgQNFdkRgpofR290uci/KNNfHWc94BwFa6/A==",
         "dependencies": {
           "Google.Apis.Auth": "1.71.0",
           "Google.Cloud.BigQuery.V2": "[3.0.0, 4.0.0)"

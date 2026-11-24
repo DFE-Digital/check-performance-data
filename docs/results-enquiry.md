@@ -34,12 +34,13 @@ after merge orphans stored enquiries. `IncorrectGradeFlowTests` pins them.
 
 ### Getting in
 
-The check-your-student-data page's "What would you like to do?" radios gain a third option on each
-window with an open results enquiry exercise (16-19 and KS4 Autumn): **Report an issue with an exam
-result**, routed to `ResultIssueController`. The issue page
-now renders all three Figma options — *Incorrect grade*, *Missing qualification* and *Result does not
-belong to student* (*pupil* on a KS4 Autumn window) — each routed to its own flow. A posted value matching none of them (forged or
-otherwise unknown) is rejected as unanswered rather than starting a journey with no flow behind it.
+The Check your pupil data page's "What would you like to do?" radios gain a third option: **Report
+an issue with an exam result**, routed to `ResultIssueController`. Each window with an open results
+enquiry exercise has the option (16-19 and KS4 Autumn). The issue page renders all three Figma
+options — *Incorrect grade*, *Missing qualification* and *Result does not belong to student* (*pupil*
+on a KS4 Autumn window) — each routed to its own flow. On KS4 Autumn, Missing qualification has no
+flow yet (see [KS4 Autumn](#ks4-autumn)). A posted value matching none of them (forged or otherwise
+unknown) is rejected as unanswered rather than starting a journey with no flow behind it.
 
 After the pupil-data exercise closes (AB#298317) the same chooser is reached from the Yes/No question
 Check your pupil data asks in that state; the seeded window `7D3F0B21-…` is in that state locally.

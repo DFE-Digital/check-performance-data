@@ -26,8 +26,9 @@ public sealed partial class WholeNumberFormatValidator : IFormatValidator
     /// <summary>
     /// Must read identically to the question's <c>validationFailure</c> in the flow config: the
     /// engine reports the required-rule message for an empty answer and THIS message for a malformed
-    /// one, so different copy would make the same field appear to have two different rules. A flow
-    /// with other words sets the question's <c>formatFailure</c> to its <c>validationFailure</c>.
+    /// one, so different copy would make the same field appear to have two different rules. A
+    /// question's <c>formatFailure</c> replaces this message, which lets a flow with other words keep
+    /// the two messages the same.
     /// </summary>
     public string FailureMessage => "Enter how many students have an incorrect grade for this qualification";
 

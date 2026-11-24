@@ -9,7 +9,8 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.ResultsEnquiry;
 /// #712: the two grade question ids are owned by <see cref="EnquiryQuestionIds"/> and are read
 /// from the saved journey record by the Results Enquiries tab. These pin the constants to the
 /// shipped flow files: a rename of a constant must fail here before the tab can start showing
-/// empty grades.
+/// empty grades. The two theories check every incorrect grade and result does not belong flow file
+/// for the page id and the question ids that the code reads (#901).
 /// </summary>
 public sealed class EnquiryQuestionIdsFlowAlignmentTests
 {

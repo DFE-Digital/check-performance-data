@@ -246,6 +246,16 @@ public class SubmittedRequestControllerTests
 
         await _sut.Delete(WindowId, Reference);
 
+        Assert.Equal("The amendment request for Jane Smith has been deleted", _sut.TempData["DeletedMessage"]);
+    }
+
+    [Fact]
+    public async Task Delete_WhenHardDeletedConfirmation_KeepsSavedMessage()
+    {
+        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(true, "Jane Smith", RequestType.ConfirmCorrect));
+
+        await _sut.Delete(WindowId, Reference);
+
         Assert.Equal("Jane Smith has been removed from your saved request", _sut.TempData["DeletedMessage"]);
     }
 

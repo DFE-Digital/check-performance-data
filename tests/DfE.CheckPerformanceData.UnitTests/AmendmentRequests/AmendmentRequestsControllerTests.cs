@@ -143,7 +143,7 @@ public class AmendmentRequestsControllerTests
 
         var vm = Assert.IsType<AmendmentRequestsViewModel>(((ViewResult)result).Model);
         Assert.Equal(
-            "The deadline for pupil data checking requests passed at 12:34pm on Thursday 1 October 2026",
+            "The deadline for pupil amendment requests passed at 12:34pm on Thursday 1 October 2026",
             Assert.Single(vm.Deadlines).Sentence);
     }
 

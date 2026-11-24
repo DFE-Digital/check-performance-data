@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
-using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
@@ -52,7 +51,16 @@ public sealed class ExerciseDeadlineViewModel
     /// <summary>The window's word for a learner: the pupil-data label names one.</summary>
     public required LearnerNoun LearnerNoun { get; init; }
 
-    public string ExerciseLabel => ExerciseLabels.For(Exercise, LearnerNoun);
+    /// <summary>
+    /// What this deadline governs, in the amendment requests screen's own words: the window's
+    /// learner plus "amendment requests" on the pupil-data exercise, and "result enquiries" on the
+    /// results-enquiry exercise. Already plural, so the sentences that use it add no "requests".
+    /// </summary>
+    public string RequestsLabel => Exercise switch
+    {
+        CheckingExerciseType.ResultsEnquiry => "result enquiries",
+        _ => $"{LearnerNoun.Singular} amendment requests",
+    };
 
     // Checking-window dates are UK wall-clock values rather than UTC instants, so they are
     // formatted as they stand and never routed through LondonTime. DeadlineTime shows the minutes
@@ -62,8 +70,8 @@ public sealed class ExerciseDeadlineViewModel
 
     /// <summary>Past tense once the exercise has closed, matching the check-your-pupil-data page.</summary>
     public string Sentence => IsOpen
-        ? $"Submit your {ExerciseLabel.ToLowerInvariant()} requests by {DeadlineText}"
-        : $"The deadline for {ExerciseLabel.ToLowerInvariant()} requests passed at {DeadlineText}";
+        ? $"Submit your {RequestsLabel} by {DeadlineText}"
+        : $"The deadline for {RequestsLabel} passed at {DeadlineText}";
 }
 
 public sealed class SubmittedRequestRowViewModel

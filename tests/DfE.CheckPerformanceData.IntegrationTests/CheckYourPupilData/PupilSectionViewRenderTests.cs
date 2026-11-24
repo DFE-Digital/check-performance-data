@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
@@ -170,6 +171,7 @@ public sealed class PupilSectionViewRenderTests
                         DfE.CheckPerformanceData.Application.Analytics.ISearchSurfaceFilter,
                         DfE.CheckPerformanceData.Application.Analytics.AllSearchSurfaces>();
                     services.AddScoped<IContentBlockService>(_ => contentBlockService);
+                    services.AddEmptyMediaLibrary();
                 });
                 web.Configure(_ => { });
             })

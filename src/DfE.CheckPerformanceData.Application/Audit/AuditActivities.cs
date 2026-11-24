@@ -38,6 +38,24 @@ public static class AuditActivities
     public const string ExtensionRequestsSentAction = "ExtensionRequestsSent";
 
     /// <summary>
+    /// EntityType of the rows the media library writes when it moves images embedded in page
+    /// content into the library: one per page changed (EntityId is the page id) and one per run
+    /// (EntityId is the run id) with the totals.
+    /// </summary>
+    public const string EmbeddedImageMove = "EmbeddedImageMove";
+    public const string EmbeddedImagePageChangedAction = "PageChanged";
+    public const string EmbeddedImageContentBlockChangedAction = "ContentBlockChanged";
+    public const string EmbeddedImageRunAction = "Run";
+
+    /// <summary>
+    /// EntityType of the row "Delete unused images" writes for each run (EntityId is the run id),
+    /// with the images deleted and the ones skipped because content uses them now. Each deleted
+    /// image is also a MediaAsset Delete row from the generic capture.
+    /// </summary>
+    public const string MediaUnusedDelete = "MediaUnusedDelete";
+    public const string MediaUnusedDeleteRunAction = "Run";
+
+    /// <summary>
     /// Not translatable by EF: AuditLogRepository.FilteredAsync lists the four comparisons itself.
     /// </summary>
     public static bool IsExtensionAction(string action) =>
@@ -57,6 +75,9 @@ public static class AuditActivities
         ["PageNodeVersion"] = "Content page version",
         ["ContentBlock"] = "Content block",
         ["ContentBlockVersion"] = "Content block version",
+        [EmbeddedImageMove] = "Embedded images moved to the media library",
+        [MediaUnusedDelete] = "Unused images deleted from the media library",
+        ["MediaFolder"] = "Media library folder",
         ["HomeBanner"] = "Home page banner",
         ["HomeBannerVersion"] = "Home page banner version",
         ["ContentStagingSession"] = "Content staging session",

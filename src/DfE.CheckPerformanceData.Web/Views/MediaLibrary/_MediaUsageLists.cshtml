@@ -1,0 +1,47 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaUsageSummary
+@* Where an image is used, in three groups: pages whose live, scheduled or draft version shows it,
+   content blocks whose value shows it, and pages where only older versions (or a deleted page)
+   still hold it. Each link opens the page or the block in its editor. *@
+
+@if (Model.CurrentPages.Count > 0)
+{
+    <h3 class="govuk-heading-m">Used on these pages</h3>
+    <ul class="govuk-list govuk-list--bullet" data-media-usage-current>
+        @foreach (var usagePage in Model.CurrentPages)
+        {
+            <li><a class="govuk-link" href="/admin/pages/@usagePage.PageNodeId">@usagePage.Title<span class="govuk-visually-hidden"> (edit page)</span></a></li>
+        }
+    </ul>
+}
+
+@if (Model.Blocks.Count > 0)
+{
+    <h3 class="govuk-heading-m">Used in these content blocks</h3>
+    <ul class="govuk-list govuk-list--bullet" data-media-usage-blocks>
+        @foreach (var block in Model.Blocks)
+        {
+            var key = Uri.EscapeDataString(block.Key);
+            <li><a class="govuk-link" href="/admin/content-blocks?edit=@key#edit-@key">@block.Key<span class="govuk-visually-hidden"> (edit content block)</span></a></li>
+        }
+    </ul>
+}
+
+@if (Model.OlderPages.Count > 0)
+{
+    <h3 class="govuk-heading-m">Only in older versions of these pages</h3>
+    <ul class="govuk-list govuk-list--bullet" data-media-usage-older>
+        @foreach (var usagePage in Model.OlderPages)
+        {
+            <li>
+                @if (usagePage.IsDeleted)
+                {
+                    @usagePage.Title <strong class="govuk-tag govuk-tag--grey">Deleted page</strong>
+                }
+                else
+                {
+                    <a class="govuk-link" href="/admin/pages/@usagePage.PageNodeId">@usagePage.Title<span class="govuk-visually-hidden"> (edit page)</span></a>
+                }
+            </li>
+        }
+    </ul>
+}

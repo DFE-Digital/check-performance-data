@@ -128,7 +128,9 @@ public sealed class ContentStagingController(
             ExportedBy = currentUser.Email,
             PageNodes = bundle.PageNodes,
             ContentBlocks = bundle.ContentBlocks,
-            HomeBanners = bundle.HomeBanners
+            HomeBanners = bundle.HomeBanners,
+            MediaAssets = bundle.MediaAssets,
+            MediaFiles = bundle.MediaFiles
         };
 
         // Zipped on the wire: bundles are repetitive JSON, so this is roughly an order of
@@ -535,7 +537,11 @@ public sealed class ContentStagingController(
         $"Import complete. Pages: {r.PageNodesCreated} added, {r.PageNodesUpdated} updated, " +
         $"{r.PageNodesSkipped} skipped. Content blocks: {r.ContentBlocksCreated} added, " +
         $"{r.ContentBlocksUpdated} updated, {r.ContentBlocksSkipped} skipped." +
-        $" Home page banners: {r.HomeBannersCreated} added, {r.HomeBannersUpdated} updated, {r.HomeBannersSkipped} skipped.";
+        $" Home page banners: {r.HomeBannersCreated} added, {r.HomeBannersUpdated} updated, {r.HomeBannersSkipped} skipped." +
+        (r.MediaAssetsCreated + r.MediaAssetsUpdated + r.MediaAssetsReused == 0
+            ? ""
+            : $" Images: {r.MediaAssetsCreated} added, {r.MediaAssetsUpdated} updated, {r.MediaAssetsReused} already here.") +
+        (r.MediaFoldersCreated == 0 ? "" : $" Image folders: {r.MediaFoldersCreated} added.");
 
     // Records an AuditEntry for a content-staging import, so an incident responder can answer
     // "who imported what, when" without replaying the bundle.
@@ -576,6 +582,10 @@ public sealed class ContentStagingController(
             result.HomeBannersCreated,
             result.HomeBannersUpdated,
             result.HomeBannersSkipped,
+            result.MediaAssetsCreated,
+            result.MediaAssetsUpdated,
+            result.MediaAssetsReused,
+            result.MediaFoldersCreated,
             WarningCount = result.Warnings.Count,
             ErrorCount = result.Errors.Count,
             BundleJsonBytes = bundleJson.Length,

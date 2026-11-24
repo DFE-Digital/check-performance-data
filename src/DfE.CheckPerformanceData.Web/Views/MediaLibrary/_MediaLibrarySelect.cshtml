@@ -1,0 +1,10 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
+@model MediaLibraryItemViewModel
+@* One image's check box for "Move selected images". It sits outside the image link, and its
+   label names the image, so each box is told apart by a screen reader. *@
+<div class="govuk-checkboxes govuk-checkboxes--small app-media-select" data-module="govuk-checkboxes">
+    <div class="govuk-checkboxes__item">
+        <input class="govuk-checkboxes__input" id="select-@Model.Id" name="ids" type="checkbox" value="@Model.Id" data-media-select />
+        <label class="govuk-label govuk-checkboxes__label" for="select-@Model.Id">Select<span class="govuk-visually-hidden"> @Model.FileName</span></label>
+    </div>
+</div>

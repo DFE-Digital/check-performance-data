@@ -181,6 +181,27 @@ public static class CmsSeedHelpers
 
     // Publishes the working draft immediately (from=UtcNow, open-ended). Idempotent —
     // republishes the same draft if called twice.
+    // Saves a wiki page's body as a draft, as the wiki editor's Save page button does.
+    public static async Task SaveWikiContentAsync(TestHttpClient client, Guid pageId, string content)
+    {
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"/admin/pages/{pageId}/save")
+        {
+            Content = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("content", content),
+                new KeyValuePair<string, string>("__RequestVerificationToken", token),
+            }),
+        };
+        req.Headers.Add("Cookie", cookie);
+        req.RequestUri = new Uri(client.BaseAddress!, req.RequestUri!);
+
+        var response = await client.SendAsync(req);
+        if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.Redirect)
+            throw new InvalidOperationException($"POST /admin/pages/{pageId}/save returned {(int)response.StatusCode}.");
+    }
+
     public static async Task PublishDraftAsync(TestHttpClient client, Guid pageId)
     {
         var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");

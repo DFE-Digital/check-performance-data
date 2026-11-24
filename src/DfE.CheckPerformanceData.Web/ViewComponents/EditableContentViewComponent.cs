@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.ViewComponents;
 
+// The open editor offers the media library only to people with the media section, which
+// gates the picker and its upload.
 public sealed class EditableContentViewComponent(IContentBlockService contentBlockService,
-    DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : ViewComponent
+    DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null,
+    DfE.CheckPerformanceData.Application.Admin.IAdminAccessPolicy? accessPolicy = null) : ViewComponent
 {
     public async Task<IViewComponentResult> InvokeAsync(
         string key,
@@ -30,7 +33,9 @@ public sealed class EditableContentViewComponent(IContentBlockService contentBlo
             ValueHtml = block.ValueHtml ?? defaultHtml,
             IsEditing = isEditing,
             HasSavedContent = true,
-            ReturnUrl = $"{HttpContext.Request.Path}{HttpContext.Request.QueryString}"
+            ReturnUrl = $"{HttpContext.Request.Path}{HttpContext.Request.QueryString}",
+            CanUseMediaLibrary = isEditing && accessPolicy is not null
+                && await accessPolicy.CanAccessAsync(UserClaimsPrincipal, DfE.CheckPerformanceData.Web.Admin.Nav.AdminNavKeys.Media),
         };
 
         return View(model);

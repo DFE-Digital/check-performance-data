@@ -1,0 +1,113 @@
+@using DfE.CheckPerformanceData.Application.Admin
+@using DfE.CheckPerformanceData.Application.Media.Upload
+@using DfE.CheckPerformanceData.Web.Admin.Nav
+@inject IAdminAccessPolicy AccessPolicy
+@inject DfE.CheckPerformanceData.Application.Media.Folders.IMediaFolderService MediaFolders
+@*
+    The media picker: one modal dialog per editor page, opened by media-picker.js for the Image
+    widget and the rich text editor. It lists the library a page at a time, with a search, and
+    lets the editor upload an image into the library. It sits outside every widget form, so
+    Enter in its search box never saves a widget. Its own antiforgery token goes in the
+    X-XSRF-TOKEN header of each upload.
+*@
+@* The picker's endpoints need the media section. Without it the page gets no picker: the Image
+   widget keeps its typed image id field, and rich text takes no pasted images. *@
+@if (!await AccessPolicy.CanAccessAsync(User, AdminNavKeys.Media))
+{
+    return;
+}
+@{
+    var folderTree = await MediaFolders.GetTreeAsync();
+
+    @* One button for each folder, nested as the folders are. Only the chosen button is a Tab stop;
+       the arrow keys move between them (media-picker.js). *@
+    void RenderFolders(Guid? parentId)
+    {
+        var children = folderTree.ChildrenOf(parentId);
+        if (children.Count == 0) return;
+        <ul class="app-media-picker__tree-group" role="list">
+            @foreach (var folder in children)
+            {
+                <li>
+                    <button type="button" class="app-media-picker__folder" tabindex="-1" aria-pressed="false"
+                            data-media-picker-folder="@folder.Id">@folder.Name</button>
+                    @{ RenderFolders(folder.Id); }
+                </li>
+            }
+        </ul>
+    }
+}
+<dialog class="govuk-modal-dialogue__box app-media-picker" id="media-picker" aria-labelledby="media-picker-title"
+        data-media-picker
+        data-list-url="/admin/media/picker"
+        data-upload-url="/admin/media/picker/upload"
+        data-max-bytes="@MediaUploadLimits.MaxFileBytes">
+    <div class="govuk-modal-dialogue__header">
+        <button type="button" class="govuk-modal-dialogue__close" aria-label="Close" data-media-picker-close>&times;</button>
+    </div>
+    <div class="govuk-modal-dialogue__content">
+        <h2 class="govuk-heading-l" id="media-picker-title">Choose an image</h2>
+        @Html.AntiForgeryToken()
+
+        <form class="app-media-picker__search" role="search" data-media-picker-search>
+            <div class="govuk-form-group govuk-!-margin-bottom-4">
+                <label class="govuk-label" for="media-picker-search">Search the media library</label>
+                <div class="govuk-hint" id="media-picker-search-hint">Search by file name, alt text, caption, credit or tag.</div>
+                <div class="app-media-picker__search-row">
+                    <input class="govuk-input govuk-!-width-two-thirds" id="media-picker-search" name="q" type="search"
+                           aria-describedby="media-picker-search-hint" spellcheck="false" autocomplete="off" />
+                    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">Search</button>
+                </div>
+            </div>
+        </form>
+
+        @* The folder to look in, and to upload into. "Media library" is the top: with "Include
+           subfolders" ticked (the default) it lists every image. *@
+        <div class="app-media-picker__folders" data-media-picker-folders>
+            <h3 class="govuk-heading-s govuk-!-margin-bottom-2" id="media-picker-folders-title">Folder</h3>
+            <div class="app-media-picker__tree" role="group" aria-labelledby="media-picker-folders-title" data-media-picker-tree>
+                <ul class="app-media-picker__tree-group" role="list">
+                    <li>
+                        <button type="button" class="app-media-picker__folder" tabindex="0" aria-pressed="true"
+                                data-media-picker-folder="">Media library</button>
+                        @{ RenderFolders(null); }
+                    </li>
+                </ul>
+            </div>
+            <div class="govuk-checkboxes govuk-checkboxes--small govuk-!-margin-top-2" data-module="govuk-checkboxes">
+                <div class="govuk-checkboxes__item">
+                    <input class="govuk-checkboxes__input" id="media-picker-subfolders" type="checkbox" checked data-media-picker-subfolders />
+                    <label class="govuk-label govuk-checkboxes__label" for="media-picker-subfolders">Find images in this folder and its subfolders</label>
+                </div>
+            </div>
+        </div>
+
+        <p class="govuk-body" role="status" aria-live="polite" data-media-picker-status></p>
+
+        <form data-media-picker-choose>
+            <fieldset class="govuk-fieldset">
+                <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Images in the library</legend>
+                <div class="app-media-picker__grid" data-media-picker-grid></div>
+            </fieldset>
+            <nav class="app-media-picker__paging" aria-label="Pages of images" data-media-picker-paging hidden>
+                <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-media-picker-prev>Previous page</button>
+                <span class="govuk-body" data-media-picker-page></span>
+                <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-media-picker-next>Next page</button>
+            </nav>
+            <div class="govuk-button-group">
+                <button type="submit" class="govuk-button" data-module="govuk-button" data-media-picker-use disabled aria-disabled="true">Use this image</button>
+                <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-media-picker-cancel>Cancel</button>
+            </div>
+        </form>
+
+        <h3 class="govuk-heading-m">Upload a new image</h3>
+        <div class="govuk-form-group" data-media-picker-upload-group>
+            <label class="govuk-label" for="media-picker-file">Upload a file</label>
+            <div class="govuk-hint" id="media-picker-file-hint">PNG, JPEG, GIF, WebP or SVG, up to 20 MB. It is added to the folder chosen above.</div>
+            <p class="govuk-error-message" id="media-picker-file-error" data-media-picker-upload-error hidden></p>
+            <input class="govuk-file-upload" id="media-picker-file" name="file" type="file" aria-describedby="media-picker-file-hint"
+                   accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,.png,.jpg,.jpeg,.gif,.webp,.svg" />
+        </div>
+        <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-media-picker-upload>Upload</button>
+    </div>
+</dialog>

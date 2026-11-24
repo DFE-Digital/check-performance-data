@@ -18,7 +18,9 @@ public interface IPageNodeContentEditor
 
     Task DeleteAsync(Guid nodeId, IReadOnlyList<TreeStep> path, string? userId);
 
-    Task UpdateWidgetAsync(Guid nodeId, IReadOnlyList<TreeStep> path, JsonObject props, string? userId);
+    // Checks the props with the validator for the stored widget's type, if it has one. When the check
+    // finds errors, nothing is saved and the result holds them.
+    Task<WidgetPropsValidation> UpdateWidgetAsync(Guid nodeId, IReadOnlyList<TreeStep> path, JsonObject props, string? userId);
 
     Task MoveToAsync(Guid nodeId, IReadOnlyList<TreeStep> fromPath, IReadOnlyList<TreeStep> toPath, string? userId);
 

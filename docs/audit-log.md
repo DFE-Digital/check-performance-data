@@ -16,6 +16,39 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
 - **Deliberate rows** written by hand: `ContentBundle/Import`, `DlqMessage/…` (redrive, purge,
   full-payload view), `SearchSession/SearchSessionDelete`, `SearchAnalyticsSink/…`, rules-config
   actions, and the two egress rows below.
+- **Media library.** The generic capture records uploads, replaces, metadata edits and deletes as
+  `MediaAsset` and `MediaAssetVersion` `Insert`/`Update`/`Delete` rows. `MediaUsage` rows are
+  excluded: they come from page content and are written again on every page-version save, and the
+  page version's own row records the change. Moving embedded images
+  (`/admin/media/move-embedded`) writes hand-written `EmbeddedImageMove` rows (camelCase JSON in
+  `NewValues`). A page or block row is in the same save as its change:
+  - `PageChanged`: one for each page changed. `EntityId` is the page id. The payload carries
+    `pageNodeId`, `path`, `versions`, `imagesMoved` and `assetIds`. Each entry in `versions` is a
+    version that the move replaced: `state` (`Live`, `Scheduled` or `Draft`), `oldVersionId` and
+    `oldId` (the old version's number and row id), and `newVersionId` and `newId` (the new
+    version's number and row id). The generic capture also records each new `PageNodeVersion`
+    as an `Insert` row, and the old live version's `IsCurrent` change as an `Update` row.
+  - `ContentBlockChanged`: one for each content block changed. `EntityId` is the block id. The
+    payload carries `contentBlockId`, `key`, `version` (the new block version), `imagesMoved` and
+    `assetIds`.
+  - `Run`: one for each run, in its own save after the run ends or stops. `EntityId` is the run id. The payload
+    carries `runId`, `pagesChanged`, `imagesMoved`, `imagesCreated`, `duplicatesReused`,
+    `pagesFailed`, `failedPageIds`, `blocksChanged`, `blocksFailed` and `failedBlockIds`.
+
+  The images the move adds are also `MediaAsset` and `MediaAssetVersion` `Insert` rows.
+  "Delete unused images" (`/admin/media/delete-unused`) writes one hand-written
+  `MediaUnusedDelete`/`Run` row for each run, in its own save after the deletes. `EntityId` is the
+  run id. The payload (camelCase JSON) carries `runId`, `imagesDeleted`, `deletedAssetIds`,
+  `imagesInUse` and `inUseAssetIds` (images that content started to use, so they were not
+  deleted), and `imagesNotFound`. Each deleted image is also a `MediaAsset` and
+  `MediaAssetVersion` `Delete` row from the generic capture. A content
+  block's new version is a `ContentBlockVersion` `Insert` row. A content import's
+  `ContentBundle/Import` row adds `MediaAssetsCreated`, `MediaAssetsUpdated`,
+  `MediaAssetsReused` and `MediaFoldersCreated`.
+  Folders: the generic capture records each folder that is created, renamed, moved or deleted
+  as a `MediaFolder` `Insert`, `Update` or `Delete` row. The log shows them as "Media library
+  folder". "Move selected images" and a content import that moves an image write one
+  `MediaAsset` `Update` row for each image, with `FolderId` in `ChangedColumns`.
 - **Egress pulls.** The run row itself is not excluded from the generic capture, so every pull is
   also an `EgressRun`/`Insert` row (PascalCase payload with the window id and the starter's name).
   The log shows it as **Data egress · Run started**, naming the person who pulled, with no status;

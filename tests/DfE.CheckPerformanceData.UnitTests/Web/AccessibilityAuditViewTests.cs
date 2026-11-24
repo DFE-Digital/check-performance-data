@@ -741,6 +741,382 @@ public sealed class AccessibilityAuditViewTests
 				< view.IndexOf("Model.IsPreview", StringComparison.Ordinal));
 	}
 
+	// ── Media library index ─────────────────────────────────────────────────────────────
+
+	[Fact]
+	public void MediaLibraryIndex_LinksToBothReports()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("href=\"/admin/media/reports/alt-text\"", view);
+		Assert.Contains("href=\"/admin/media/reports/size\"", view);
+	}
+
+	[Fact]
+	public void AltTextReport_TitleMatchesTheH1_TablesHaveCaptionsAndHeaders_AndEachLinkNamesItsRow()
+	{
+		var view = ReadView("Views", "MediaLibrary", "AltTextReport.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Alt text report\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-xl\">Alt text report</h1>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Library images</caption>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Where images are used</caption>", view);
+		Assert.Contains("scope=\"col\"", view);
+		Assert.Contains("class=\"govuk-summary-card\"", view);
+		// Two pagination landmarks on one page need different names.
+		Assert.Contains("PaginationWindow.Build", view);
+		Assert.Contains("landmark-label=\"Library images\"", view);
+		Assert.Contains("landmark-label=\"Where images are used\"", view);
+		// Each fix link repeats, so a hidden suffix names its row.
+		Assert.Contains("<span class=\"govuk-visually-hidden\">", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
+	public void SizeReport_TitleMatchesTheH1_TheTableHasACaptionAndHeaders_AndTotalsAreSummaryCards()
+	{
+		var view = ReadView("Views", "MediaLibrary", "SizeReport.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Size report\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-xl\">Size report</h1>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Largest images</caption>", view);
+		Assert.Contains("scope=\"col\"", view);
+		Assert.Contains("class=\"govuk-summary-card\"", view);
+		Assert.Contains("class=\"govuk-summary-list\"", view);
+		Assert.Contains("<span class=\"govuk-visually-hidden\">", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
+	public void MediaCropsAndSizes_UseSummaryCards_PreviewsHaveAltText_AndRepeatedLinksNameTheirCard()
+	{
+		var view = ReadView("Views", "MediaLibrary", "_MediaVariants.cshtml");
+
+		Assert.Contains("class=\"govuk-summary-card app-media-variant\"", view);
+		Assert.Contains("class=\"govuk-summary-list\"", view);
+		Assert.Contains("alt=\"@variant.PreviewAlt\"", view);
+		// The same page can show the image in several ways, so each link names its card.
+		Assert.Contains("<span class=\"govuk-visually-hidden\"> (@(use.IsBlock ? \"edit content block\" : \"edit page\"), @variant.Title)</span>", view);
+		Assert.Contains("aria-labelledby=\"@MediaVariantViewModel.SectionId-heading\"", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+		Assert.Contains("_MediaVariants.cshtml", ReadView("Views", "MediaLibrary", "Detail.cshtml"));
+	}
+
+	[Fact]
+	public void MediaLibraryIndex_TitleMatchesTheH1_AndEveryControlHasALabel()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = Model.Heading;", view);
+		// In a folder, the h1 is the folder name, the same words as the title.
+		Assert.Contains("<h1 class=\"govuk-heading-xl\" data-media-folder-heading>@Model.Folder.Name</h1>", view);
+		Assert.Contains("<label class=\"govuk-label govuk-label--s\" for=\"new-folder-name\">", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"move-target\">", view);
+		Assert.Contains("for=\"subfolders\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-xl\">Media library</h1>", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"files\">", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"search\">", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"sort\">", view);
+		Assert.Contains("for=\"missingAlt\"", view);
+		Assert.Contains("for=\"unused\"", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
+	public void MediaLibraryIndex_HasAnErrorSummary_ALiveRegion_AndPaginationWindow()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		// The error summary links to the file control, and comes before the h1.
+		Assert.Contains("class=\"govuk-error-summary\"", view);
+		Assert.Contains("<a href=\"#files\">", view);
+		Assert.True(view.IndexOf("govuk-error-summary", StringComparison.Ordinal) < view.IndexOf("<h1", StringComparison.Ordinal));
+		// Upload progress and outcomes are announced.
+		Assert.Contains("role=\"status\" aria-live=\"polite\"", view);
+		Assert.Contains("PaginationWindow.Build", view);
+		// The file name is the link text, so the thumbnail is decorative.
+		Assert.Contains("alt=\"\"", view);
+	}
+
+	[Fact]
+	public void DeleteUnusedImages_TitleMatchesTheH1_ListsTheImagesInATable_AndPostsWithAToken()
+	{
+		var view = ReadView("Views", "MediaLibrary", "DeleteUnused.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Delete unused images\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Delete unused images</h1>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Images to delete (@count)</caption>", view);
+		Assert.Contains("scope=\"col\"", view);
+		Assert.Contains("class=\"govuk-warning-text\"", view);
+		Assert.Contains("@Html.AntiForgeryToken()", view);
+		Assert.Contains("class=\"govuk-button govuk-button--warning\"", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
+	public void MediaLibraryIndex_UsesTheFullWidthAdminLayout()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("ViewData[\"AdminWide\"] = true;", view);
+	}
+
+	// The View control works without JavaScript: a GET form with a labelled select and a button.
+	// site.js submits the form when the select changes; the button then sits in a noscript.
+	// The form carries the search, filters and sort, so a change of view keeps them.
+	[Fact]
+	public void MediaLibraryIndex_ViewControl_IsALabelledSelectInAGetForm_ThatKeepsTheFilters()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("<form method=\"get\" action=\"/admin/media\" data-media-library-view-form>", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"view\">View</label>", view);
+		Assert.Contains("<select class=\"govuk-select\" id=\"view\" name=\"view\" data-auto-submit=\"true\">", view);
+		Assert.Contains("<noscript><button type=\"submit\" class=\"govuk-button govuk-button--secondary\">Show</button></noscript>", view);
+		Assert.Contains("<input type=\"hidden\" name=\"search\"", view);
+		Assert.Contains("<input type=\"hidden\" name=\"view\" value=\"@Model.View\" />", view);
+		// The View control sits just above the images.
+		Assert.True(view.IndexOf("data-media-library-view-form", StringComparison.Ordinal)
+			< view.IndexOf("data-media-library-region", StringComparison.Ordinal));
+		Assert.True(view.IndexOf("data-media-library-filters", StringComparison.Ordinal)
+			< view.IndexOf("data-media-library-view-form", StringComparison.Ordinal));
+	}
+
+	// Details is a GOV.UK table: a caption, column headers, and a decorative thumbnail because the
+	// file name is the link text.
+	[Fact]
+	public void MediaLibraryIndex_DetailsView_IsATableWithACaptionAndColumnHeaders()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("<table class=\"govuk-table app-media-details\" data-media-library-table>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Images</caption>", view);
+		foreach (var header in new[] { "Image", "Name", "Details" })
+			Assert.Contains($"<th scope=\"col\" class=\"govuk-table__header\">{header}</th>", view);
+		Assert.Contains("<img src=\"@item.ThumbnailUrl\" alt=\"\" loading=\"lazy\" decoding=\"async\" class=\"app-media-details__img\" />", view);
+	}
+
+	[Fact]
+	public void MediaLibraryIndex_LargeView_ListsOneImagePerRow_WithADecorativeImage()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Contains("<ul class=\"govuk-list app-media-large\" data-media-library-large>", view);
+		Assert.Contains("<img src=\"@item.LargeUrl\" alt=\"\" loading=\"lazy\" decoding=\"async\"", view);
+	}
+
+	[Fact]
+	public void MediaLibraryIndex_DeleteUnusedLink_IsALinkStyledAsAButton()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Index.cshtml");
+
+		Assert.Matches("<a href=\"@Model.DeleteUnusedUrl\" role=\"button\" draggable=\"false\" class=\"govuk-button govuk-button--warning\"\\s+data-module=\"govuk-button\" data-media-delete-unused-link>Delete unused images</a>", view);
+	}
+
+	[Fact]
+	public void MediaLibraryDetail_TitleMatchesTheH1()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Detail.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = Model.FileName", view);
+		Assert.Contains(">@Model.FileName</h1>", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
+	public void MediaLibraryDetail_FormsHaveLabels_HintsTokens_AndFileErrorsReachTheSummary()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Detail.cshtml");
+
+		// Alt text guidance is hint text, in the GOV.UK way of describing images.
+		Assert.Contains("<govuk-textarea for=\"Metadata.AltText\"", view);
+		Assert.Contains("Describe what the image shows and why it is there.", view);
+		Assert.Contains("Do not start with “Image of”.", view);
+		Assert.Contains("decorative", view);
+		Assert.Contains("<govuk-textarea for=\"Metadata.Caption\"", view);
+		Assert.Contains("<govuk-input for=\"Metadata.Credit\"", view);
+		Assert.Contains("<govuk-input for=\"Metadata.Tags\"", view);
+		// The file control is plain markup, so its error is added to the generated summary by hand.
+		Assert.Contains("<label class=\"govuk-label govuk-label--s\" for=\"file\">", view);
+		Assert.Contains("Context.AddPageError", view);
+		Assert.Contains("Every page that uses this image will show the new file. Earlier versions of pages keep the file they were saved with.", view);
+		// Both forms post with a token (a literal action gets none from the tag helper).
+		Assert.Equal(2, view.Split("@Html.AntiForgeryToken()").Length - 1);
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Fact]
+	public void MediaLibraryDetail_VersionTableHasHeaders_CopyLinkIsAnEnhancement_AndDeleteLinkIsAButton()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Detail.cshtml");
+
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Version history</caption>", view);
+		Assert.Contains("scope=\"col\"", view);
+		// The public link is a read-only field that works without JavaScript; the script reveals the button.
+		Assert.Contains("<label class=\"govuk-label govuk-label--s\" for=\"public-url\">", view);
+		Assert.Contains("readonly", view);
+		Assert.Contains("data-media-copy-link hidden", view);
+		Assert.Contains("role=\"status\"", view);
+		Assert.Contains("media-library-detail.js", view);
+		Assert.Contains("role=\"button\" draggable=\"false\" data-module=\"govuk-button\"", view);
+	}
+
+	[Fact]
+	public void MoveEmbedded_TitleMatchesTheH1_TheTableHasHeaders_AndTheFormHasAToken()
+	{
+		var view = ReadView("Views", "MediaLibrary", "MoveEmbedded.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Move embedded images\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-xl\">Move embedded images</h1>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Pages</caption>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Content blocks</caption>", view);
+		Assert.Contains("scope=\"col\"", view);
+		Assert.Contains("class=\"govuk-summary-list\"", view);
+		// A literal action gets no token from the tag helper.
+		Assert.Contains("action=\"/admin/media/move-embedded\"", view);
+		Assert.Contains("@Html.AntiForgeryToken()", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
+	public void MoveEmbeddedResult_TitleMatchesTheH1_AndTheFailureTableHasHeaders()
+	{
+		var view = ReadView("Views", "MediaLibrary", "MoveEmbeddedResult.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Embedded images moved\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-xl\">Embedded images moved</h1>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Pages left as they were</caption>", view);
+		Assert.Contains("<caption class=\"govuk-table__caption govuk-table__caption--m\">Content blocks left as they were</caption>", view);
+		Assert.Contains("scope=\"col\"", view);
+		Assert.Contains("<span class=\"govuk-visually-hidden\">Warning</span>", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
+	[Fact]
+	public void MediaLibraryDelete_TitleMatchesTheH1_WarnsBeforeDeleting_AndListsUsagesInstead()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Delete.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = \"Delete image\"", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Delete image</h1>", view);
+		Assert.Contains("govuk-warning-text", view);
+		Assert.Contains("<span class=\"govuk-visually-hidden\">Warning</span>", view);
+		Assert.Contains("@if (Model.CanDelete)", view);
+		Assert.Contains("@Html.AntiForgeryToken()", view);
+		Assert.Contains("This image is used on @Model.Usage.UsedOn", view);
+		Assert.Contains("@MediaUsageSummary.OnlyInOlderVersionsMessage", view);
+		Assert.Contains("<partial name=\"~/Views/MediaLibrary/_MediaUsageLists.cshtml\" model=\"Model.Usage\" />", view);
+		Assert.DoesNotContain("Html.Raw", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	// Both groups have a heading under the page's h2, and each repeated "edit" link names its page.
+	[Fact]
+	public void MediaUsageLists_GroupPagesUnderHeadings_AndNameEachLink()
+	{
+		var view = ReadView("Views", "MediaLibrary", "_MediaUsageLists.cshtml");
+
+		Assert.Contains("<h3 class=\"govuk-heading-m\">Used on these pages</h3>", view);
+		Assert.Contains("<h3 class=\"govuk-heading-m\">Only in older versions of these pages</h3>", view);
+		Assert.Contains("href=\"/admin/pages/@usagePage.PageNodeId\">@usagePage.Title<span class=\"govuk-visually-hidden\"> (edit page)</span>", view);
+		Assert.Contains("<h3 class=\"govuk-heading-m\">Used in these content blocks</h3>", view);
+		Assert.Contains(">@block.Key<span class=\"govuk-visually-hidden\"> (edit content block)</span>", view);
+		Assert.DoesNotContain("Html.Raw", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+
+		var detail = ReadView("Views", "MediaLibrary", "Detail.cshtml");
+		Assert.Contains("<h2 class=\"govuk-heading-l\">Where the image is used</h2>", detail);
+		Assert.Contains("<partial name=\"~/Views/MediaLibrary/_MediaUsageLists.cshtml\" model=\"usage\" />", detail);
+	}
+
+	// ── Image widget ────────────────────────────────────────────────────────────────────
+
+	// The Image widget's edit form posts every prop, because the props builder resets any prop it
+	// does not see. Each visible control has a label, and a refused save shows the GOV.UK error
+	// message beside the field the error summary links to.
+	[Fact]
+	public void ImageWidgetEditForm_LabelsEveryControl_PostsEveryProp_AndShowsFieldErrors()
+	{
+		var view = ReadView("Views", "Shared", "ContentPages", "_EditWidget.cshtml");
+		var start = view.IndexOf("case \"image\":", StringComparison.Ordinal);
+		Assert.True(start > 0, "_EditWidget.cshtml has no image case.");
+		var image = view[start..view.IndexOf("break;", start, StringComparison.Ordinal)];
+
+		foreach (var prop in new[] { "mediaId", "alt", "decorative", "caption", "credit", "width", "align", "href", "crop", "aspect", "focal" })
+			Assert.Contains($"\"{prop}\"", image);
+		foreach (var labelled in new[] { "mediaId", "alt", "caption", "credit", "href", "crop", "aspect", "focal", "decorative" })
+			Assert.Contains($"for=\"@FieldId(\"{labelled}\")\"", image);
+		// Width and alignment are radios in a fieldset named by its legend. Each radio has its own
+		// label, and the first radio has the field id, so the error summary link lands on it.
+		Assert.Contains(">Width</legend>", image);
+		Assert.Contains(">Alignment</legend>", image);
+		Assert.Contains("var id = value == ImageWidgetProps.FullWidth ? FieldId(\"width\")", image);
+		Assert.Contains("var id = value == \"\" ? FieldId(\"align\")", image);
+		Assert.Contains("<label class=\"govuk-label govuk-radios__label\" for=\"@id\">", image);
+
+		Assert.Contains("id=\"@FieldId(", view);
+		Assert.Contains("govuk-form-group--error", view);
+		Assert.Contains("<p id=\"@FieldId(field)-error\" class=\"govuk-error-message\">", view);
+		Assert.Contains("<span class=\"govuk-visually-hidden\">Error:</span>", view);
+		// A refused widget opens its edit form so the editor sees the errors.
+		Assert.Contains("open=\"@(rejected is not null ? \"open\" : null)\"", view);
+	}
+
+	[Fact]
+	public void ContentEditor_ShowsAnErrorSummary_ForARefusedWidget()
+	{
+		var summary = ReadView("Views", "PageTreeAdmin", "_WidgetEditErrorSummary.cshtml");
+		Assert.Contains("class=\"govuk-error-summary\" data-module=\"govuk-error-summary\"", summary);
+		Assert.Contains("<h2 class=\"govuk-error-summary__title\">There is a problem</h2>", summary);
+		Assert.Contains("href=\"#wf-@error.Field-@rejected.Path\"", summary);
+		Assert.DoesNotContain("Html.Raw", summary);
+
+		var edit = ReadView("Views", "ContentPage", "Edit.cshtml");
+		Assert.Contains("@await Html.PartialAsync(\"~/Views/PageTreeAdmin/_WidgetEditErrorSummary.cshtml\")", edit);
+		// The layout adds "Error: " to the page title.
+		Assert.Contains("if (WidgetEditError.Read(TempData) is not null) ViewData[\"HasError\"] = true;", edit);
+	}
+
+	[Fact]
+	public void ImageWidget_IsAFigureWithAnAltAttribute_AndTheSiteCssSizesIt()
+	{
+		var view = ReadView("Views", "Shared", "ContentPages", "Widgets", "_Image.cshtml");
+		Assert.Contains("<figure class=\"@image.CssClass\">", view);
+		Assert.Contains("alt=\"@image.Alt\"", view);
+		Assert.Contains("loading=\"lazy\" decoding=\"async\"", view);
+		Assert.DoesNotContain("Html.Raw", view);
+
+		var css = ReadCss();
+		foreach (var rule in new[] { ".app-image {", ".app-image img {", ".app-image--two-thirds", ".app-image--one-half",
+			".app-image--one-third", ".app-image--align-left", ".app-image--align-right", ".app-image--align-centre" })
+			Assert.Contains(rule, css);
+		// Full width on a phone; the grid widths apply from the GOV.UK tablet break.
+		Assert.Contains("@media (min-width: 40.0625em)", css[css.IndexOf(".app-image {", StringComparison.Ordinal)..]);
+	}
+
+	// The folder page: its title is its h1, every form control has a label, and a refused change
+	// shows an error summary that links to the control.
+	[Fact]
+	public void MediaFolder_TitleMatchesTheH1_AndEveryControlHasALabel()
+	{
+		var view = ReadView("Views", "MediaLibrary", "Folder.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"] = $\"Folder: {Model.Folder.Name}\";", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Folder: @Model.Folder.Name</h1>", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"folder-name\">", view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"folder-parent\">", view);
+		Assert.Contains("<a href=\"#folder-name\">", view);
+		Assert.Contains("@section Breadcrumbs", view);
+		Assert.DoesNotContain("Html.Raw", view);
+	}
+
 	// ── #800 Per-window rules page: title, breadcrumb and GOV.UK components ─────────────
 
 	[Fact]

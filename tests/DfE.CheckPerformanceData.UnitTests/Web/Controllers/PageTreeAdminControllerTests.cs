@@ -41,6 +41,8 @@ public sealed class PageTreeAdminControllerTests
         StubImport(_sampleStaging, new ContentImportResult());
         StubImport(_fixtureStaging, new ContentImportResult());
         _fixtureRepository.GetDeletedAsync().Returns([]);
+        _contentEditor.UpdateWidgetAsync(default, default!, default!, default)
+            .ReturnsForAnyArgs(ci => new WidgetPropsValidation(ci.ArgAt<System.Text.Json.Nodes.JsonObject>(2), []));
     }
 
     private static void StubImport(IContentStagingService staging, ContentImportResult result) =>
@@ -608,6 +610,81 @@ public sealed class PageTreeAdminControllerTests
         Assert.Equal("My Page", vm.Title);
         Assert.Equal("content", vm.PageType);
         Assert.True(vm.IsPreview);
+    }
+
+    [Fact]
+    public async Task VersionPreview_ContentNode_ShowsTheImageVersionsRecordedForThatPageVersion()
+    {
+        var id = Guid.NewGuid();
+        var versionRowId = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "page", Path = "page", Title = "My Page", PageType = "content"
+        });
+        _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
+        {
+            new() { Id = versionRowId, VersionId = 5, IsCurrent = false, Content = "[]" }
+        });
+
+        var result = await Sut().VersionPreview(id, 5);
+
+        var vm = Assert.IsType<RenderedPageViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(versionRowId, vm.MediaPageVersionId);
+    }
+
+    [Fact]
+    public async Task VersionPreview_WikiNode_ShowsTheImageVersionsRecordedForThatPageVersion()
+    {
+        var id = Guid.NewGuid();
+        var versionRowId = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "wiki-page", Path = "wiki-page", Title = "Wiki Page", PageType = "wiki"
+        });
+        _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
+        {
+            new() { Id = versionRowId, VersionId = 2, IsCurrent = false, Content = "<p>Body</p>" }
+        });
+
+        var result = await Sut().VersionPreview(id, 2);
+
+        var vm = Assert.IsType<RenderedPageViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(versionRowId, vm.MediaPageVersionId);
+    }
+
+    [Fact]
+    public async Task ContentWidget_WhenTheEditorRefusesTheProps_KeepsTheErrorsAndThePostedValues_ForTheEditPage()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+        _contentEditor.UpdateWidgetAsync(default, default!, default!, default)
+            .ReturnsForAnyArgs(ci => new WidgetPropsValidation(ci.ArgAt<System.Text.Json.Nodes.JsonObject>(2),
+                [new WidgetFieldError("alt", "Enter alt text, or select that the image is decorative")]));
+        var sut = Sut();
+
+        var result = await sut.ContentWidget(id, "0.1", "image",
+            new Dictionary<string, string?> { ["alt"] = "", ["caption"] = "Kept caption" });
+
+        Assert.Equal($"/admin/pages/{id}/edit#widget-0.1", Assert.IsType<RedirectResult>(result).Url);
+        var error = WidgetEditError.Read(sut.TempData);
+        Assert.NotNull(error);
+        Assert.Equal("0.1", error!.Path);
+        Assert.Equal("Enter alt text, or select that the image is decorative", Assert.Single(error.Errors).Message);
+        Assert.Equal("Kept caption", error.Props["caption"]);
+    }
+
+    [Fact]
+    public async Task ContentWidget_WhenThePropsAreSaved_KeepsNoError()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+        var sut = Sut();
+
+        await sut.ContentWidget(id, "0.0", "image", new Dictionary<string, string?> { ["alt"] = "A" });
+
+        Assert.Null(WidgetEditError.Read(sut.TempData));
     }
 
     [Fact]

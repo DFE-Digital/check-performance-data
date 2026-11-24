@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.ContentStaging;
+using DfE.CheckPerformanceData.Application.Media;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.UnitTests.ContentStaging;
 
@@ -360,4 +361,178 @@ public class TestFixtureSeedBundleTests
     private static int BodyLength(ContentBundle bundle, string segment) =>
         bundle.PageNodes.Single(p => p.Segment == segment)
             .Versions.Sum(v => (v.BodyPlainText ?? string.Empty).Length);
+
+    // ---- the media library samples ---------------------------------------------------------
+
+    // The fixture pages show library images, so the file carries those images too: they arrive
+    // with the pages, wherever the pages are imported, before them. A page that names an image the
+    // file does not carry shows nothing there, and the import warns about it.
+    private static IEnumerable<Guid> ImagesUsedBy(ContentBundle bundle) =>
+        bundle.PageNodes.SelectMany(p => p.Versions).SelectMany(v => MediaReferenceExtractor.Extract(v.Content))
+            .Concat(bundle.ContentBlocks.Where(b => b.BlockType == "Content").SelectMany(b => MediaReferenceExtractor.ExtractRichText(b.Value)))
+            .Select(r => r.AssetId);
+
+    [Fact]
+    public void EveryImageTheFixturesUse_IsInTheFile_WithItsBytes()
+    {
+        var bundle = ShippedContent.Fixtures();
+        var files = bundle.MediaFiles.ToDictionary(f => f.Sha256);
+
+        foreach (var id in ImagesUsedBy(bundle).Distinct())
+        {
+            var asset = Assert.Single(bundle.MediaAssets, a => a.Id == id);
+            var current = Assert.Single(asset.Versions, v => v.Version == asset.CurrentVersion);
+            Assert.True(files.TryGetValue(current.Sha256, out var file), $"no file for image {id}");
+            Assert.Equal(current.Sha256, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(file.Data)));
+            Assert.Equal(current.SizeBytes, file.Data.Length);
+        }
+    }
+
+    // The Image test page was written against these two ids: a PNG about twice as wide as it is
+    // tall, so the crops show, and an SVG.
+    [Fact]
+    public void TheImageTestPage_HasItsPngAndSvg_InTheFile()
+    {
+        var bundle = ShippedContent.Fixtures();
+
+        var png = bundle.MediaAssets.Single(a => a.Id == new Guid("00000000-cd94-4a01-8f01-0000000e0201")).Versions.Single();
+        Assert.Equal("image/png", png.ContentType);
+        Assert.Equal(2.0, (double)png.Width!.Value / png.Height!.Value, 1);
+        Assert.True(png.Width >= 1280, "the PNG is too narrow to have resized copies at each width");
+        Assert.Equal("image/svg+xml", bundle.MediaAssets.Single(a => a.Id == new Guid("00000000-cd94-4a01-8f01-0000000e0202")).Versions.Single().ContentType);
+    }
+
+    [Fact]
+    public void TheSamples_AreAPngAPhotoAnSvgAndAnAnimation()
+    {
+        var versions = ShippedContent.Fixtures().MediaAssets.Select(a => a.Versions.Single()).ToList();
+
+        Assert.Contains(versions, v => v.ContentType == "image/png");
+        Assert.Contains(versions, v => v.ContentType == "image/jpeg");
+        Assert.Contains(versions, v => v.ContentType == "image/svg+xml");
+        Assert.Contains(versions, v => v.ContentType == "image/gif" && v.IsAnimated);
+    }
+
+    // Move embedded images needs something to move on a new stack.
+    [Fact]
+    public void TheEmbeddedImageTestPage_HoldsADataImage()
+    {
+        var page = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "embedded-image-test-page");
+
+        Assert.Contains("src=\\\"data:image/png;base64,", page.Versions.Single().Content);
+    }
+
+    [Theory]
+    [InlineData("media-library-test-page")]
+    [InlineData("media-rich-text-test-page")]
+    [InlineData("embedded-image-test-page")]
+    public void TheMediaTestPages_AreUnderTheRoot_PublishedAndOutOfSearch(string segment)
+    {
+        var page = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == segment);
+
+        Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingRootId, page.ParentId);
+        Assert.False(page.AppearInSearch);
+        // Live already: a publish time still to come leaves the page a 404 until then.
+        Assert.True(page.Versions.Single().PublishFrom <= DateTime.UtcNow, $"{segment} is not live yet");
+        var tree = ContentPageJson.Deserialize(page.Versions.Single().Content)!;
+        var shipped = ContentTreeWalker.AllWidgets(tree).Where(w => w.Type == "heading").Select(w => w.Anchor).ToList();
+        HeadingAnchorizer.Apply(tree);
+        Assert.Equal(ContentTreeWalker.AllWidgets(tree).Where(w => w.Type == "heading").Select(w => w.Anchor).ToList(), shipped);
+    }
+
+    // The guide has steps for deleting unused images, the picker's Media grant, the focal point
+    // that a preset crop turns off, and an import where the bundle's details win.
+    [Fact]
+    public void TheMediaLibraryGuide_HasStepsForEachLibraryChange()
+    {
+        var content = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-library-test-page").Versions.Single().Content;
+
+        Assert.Contains("\"text\": \"Delete unused images\"", content);
+        Assert.Contains("href=\\\"/admin/media?unused=true\\\"", content);
+        Assert.Contains("\"text\": \"The picker needs the Media section\"", content);
+        Assert.Contains("is now turned off, and a hint says why", content);
+        Assert.Contains("The bundle wins.", content);
+    }
+
+    // A rich-text image marked decorative in the editor: an empty alt and role="presentation".
+    [Fact]
+    public void TheMediaRichTextTestPage_HasADecorativeImage()
+    {
+        var page = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-rich-text-test-page");
+
+        Assert.Contains("alt=\\\"\\\" width=\\\"1280\\\" height=\\\"640\\\" role=\\\"presentation\\\"", page.Versions.Single().Content);
+    }
+
+    // The guide has steps for the library's views and for an image the editor gives another shape.
+    [Fact]
+    public void TheMediaLibraryGuide_HasStepsForTheViews_AndForAnImageOfAnotherShape()
+    {
+        var content = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-library-test-page").Versions.Single().Content;
+
+        Assert.Contains("choose “Details” in the View list", content);
+        Assert.Contains("Choose “Large”", content);
+        Assert.Contains("Select “Constrain proportions” to unlock it", content);
+    }
+
+    // A wide sample image that the editor stretched into a square box. The page shows the square.
+    [Fact]
+    public void TheMediaRichTextTestPage_HasAnImageInAnotherShapeThanItsFile()
+    {
+        var page = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-rich-text-test-page");
+
+        Assert.Contains("blocks.png\\\" alt=\\\"Coloured blocks, stretched into a square\\\" width=\\\"320\\\" height=\\\"320\\\"", page.Versions.Single().Content);
+    }
+
+    // Two boxes with a marker: one follows the shape of its file, one keeps a shape the editor set.
+    // The guide says how to see the difference with a replacement of another shape.
+    [Fact]
+    public void TheMediaRichTextTestPage_HasABoxThatFollowsTheFile_AndOneThatIsFixed()
+    {
+        var page = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-rich-text-test-page").Versions.Single().Content;
+        var guide = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-library-test-page").Versions.Single().Content;
+
+        Assert.Contains("alt=\\\"Coloured blocks, following the shape of the file\\\" width=\\\"320\\\" height=\\\"160\\\" data-media-box=\\\"follow\\\"", page);
+        Assert.Contains("alt=\\\"Coloured blocks, kept in a square box\\\" width=\\\"200\\\" height=\\\"200\\\" data-media-box=\\\"fixed\\\"", page);
+        Assert.Contains("Replace the sample PNG with a square file", guide);
+        Assert.Contains("The library remembers the view in this browser", guide);
+    }
+
+    // The guide has steps for folders: the nav tree, include subfolders, create, move and the picker.
+    [Fact]
+    public void TheMediaLibraryGuide_HasStepsForFolders()
+    {
+        var content = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-library-test-page").Versions.Single().Content;
+
+        Assert.Contains("\"text\": \"Folders in the media library\"", content);
+        Assert.Contains("href=\\\"/admin/media?folder=00000000-cd94-4a01-8f01-0000000e0301\\\"", content);
+        Assert.Contains("Untick “Find images in this folder and its subfolders”", content);
+        Assert.Contains("“Move selected images”", content);
+    }
+
+    // The sample images sit in sample folders, so a fresh stack has folders to try. The animation
+    // stays at the top of the library.
+    [Fact]
+    public void TheSampleImages_AreInSampleFolders()
+    {
+        var assets = ShippedContent.Fixtures().MediaAssets.ToDictionary(a => a.Id.ToString());
+
+        Assert.Equal(["Samples", "Graphics"], assets["00000000-cd94-4a01-8f01-0000000e0201"].FolderPath!.Select(f => f.Name));
+        Assert.Equal(["Samples", "Photos"], assets["00000000-cd94-4a01-8f01-0000000e0203"].FolderPath!.Select(f => f.Name));
+        Assert.Empty(assets["00000000-cd94-4a01-8f01-0000000e0204"].FolderPath!);
+    }
+
+    // The guide has steps for "Crops and sizes", and the image test page shows the sample PNG in
+    // more than one crop, so the image page lists more than one way.
+    [Fact]
+    public void TheMediaLibraryGuide_HasStepsForCropsAndSizes_AndTheImageTestPageCropsThePngTwoWays()
+    {
+        var guide = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "media-library-test-page").Versions.Single().Content;
+        var images = ShippedContent.Fixtures().PageNodes.Single(p => p.Segment == "image-test-page").Versions.Single().Content;
+
+        Assert.Contains("\"text\": \"Crops and sizes\"", guide);
+        Assert.Contains("href=\\\"/admin/media/00000000-cd94-4a01-8f01-0000000e0201#crops-and-sizes\\\"", guide);
+        Assert.Contains("“Used in 4 ways”", guide);
+        Assert.Contains("\"aspect\": \"16:9\"", images);
+        Assert.Contains("\"crop\": \"0,0,0.5,1\"", images);
+    }
 }

@@ -28,6 +28,10 @@ public sealed class AdminAccessibilityTests(PlaywrightFixture fixture) : Seeding
     [InlineData("/admin/Search/ZeroResults")]
     [InlineData("/admin/messages")]
     [InlineData("/admin/storage/app/rules-config")]
+    [InlineData("/admin/media")]
+    [InlineData("/admin/media/move-embedded")]
+    [InlineData("/admin/media/reports/alt-text")]
+    [InlineData("/admin/media/reports/size")]
     public async Task AdminPage_HasNoWcagViolations(string path)
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),

@@ -1,0 +1,101 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaDeleteUnusedViewModel
+@{
+    ViewData["Title"] = "Delete unused images";
+    var backUrl = Model.BackUrl;
+    var count = Model.Items.Count;
+}
+
+<a href="@backUrl" class="govuk-back-link">Back to the media library</a>
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-l">Delete unused images</h1>
+
+        @if (count == 0)
+        {
+            <p class="govuk-body" data-media-delete-unused-none>
+                @(string.IsNullOrEmpty(Model.Search)
+                    ? "No images are unused. There is nothing to delete."
+                    : "No unused images match your search. There is nothing to delete.")
+            </p>
+            <a class="govuk-link" href="@backUrl">Back to the media library</a>
+        }
+        else
+        {
+            <p class="govuk-body">
+                These images are not used by any page version or content block.
+                @if (Model.Folder is not null)
+                {
+                    @:They are in the folder ‘@Model.Folder.Name’@(Model.IncludeSubfolders ? " or a folder inside it" : "").
+                }
+                else if (!Model.IncludeSubfolders)
+                {
+                    @:They are in no folder.
+                }
+                @if (!string.IsNullOrEmpty(Model.Search))
+                {
+                    @:They match the search ‘@Model.Search’.
+                }
+            </p>
+            @if (Model.TotalCount > count)
+            {
+                <div class="govuk-inset-text" data-media-delete-unused-more>
+                    @Model.TotalCount unused images match. This deletes the first @count by file name. Run it again for the rest.
+                </div>
+            }
+
+            <table class="govuk-table" data-media-delete-unused-list>
+                <caption class="govuk-table__caption govuk-table__caption--m">Images to delete (@count)</caption>
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">File name</th>
+                        <th scope="col" class="govuk-table__header">Folder</th>
+                        <th scope="col" class="govuk-table__header">Size</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body">
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr class="govuk-table__row" data-media-item="@item.Id">
+                            <td class="govuk-table__cell"><a class="govuk-link" href="@item.DetailUrl">@item.FileName</a></td>
+                            <td class="govuk-table__cell" data-media-folder-fact>@(item.Folder.Length == 0 ? "Top of the library" : item.Folder)</td>
+                            <td class="govuk-table__cell">@item.Size</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div class="govuk-warning-text">
+                <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+                <strong class="govuk-warning-text__text">
+                    <span class="govuk-visually-hidden">Warning</span>
+                    This cannot be undone. Each image is deleted with every version of it, and its public links stop working.
+                    An image that content starts to use before you confirm is not deleted.
+                </strong>
+            </div>
+
+            <form method="post" action="/admin/media/delete-unused" data-media-delete-unused-form>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="search" value="@Model.Search" />
+                @if (Model.Folder is not null)
+                {
+                    <input type="hidden" name="folder" value="@Model.Folder.Id" />
+                }
+                @if (!Model.IncludeSubfolders)
+                {
+                    <input type="hidden" name="subfolders" value="false" />
+                }
+                @foreach (var item in Model.Items)
+                {
+                    <input type="hidden" name="ids" value="@item.Id" />
+                }
+                <div class="govuk-button-group">
+                    <button type="submit" class="govuk-button govuk-button--warning" data-module="govuk-button" data-prevent-double-click="true">
+                        Delete @(count == 1 ? "1 image" : $"{count} images")
+                    </button>
+                    <a class="govuk-link" href="@backUrl">Cancel</a>
+                </div>
+            </form>
+        }
+    </div>
+</div>

@@ -8,6 +8,10 @@ public sealed record PageNodeVersionBundleItem
 {
     public int VersionId { get; init; }
     public int MinorVersion { get; init; }
+
+    // The VersionId, in the same page, of the version that replaced this one, or null. A replaced
+    // version is never live, scheduled or the working draft. Optional: older bundles have none.
+    public int? SupersededByVersionId { get; init; }
     public DateTime? PublishFrom { get; init; }
     public DateTime? PublishTo { get; init; }
 
@@ -19,4 +23,14 @@ public sealed record PageNodeVersionBundleItem
     // from Content (which would require knowledge of every content type).
     private readonly string _bodyPlainText = string.Empty;
     public string BodyPlainText { get => _bodyPlainText; init => _bodyPlainText = BundleMemberDefaults.OrEmpty(value); }
+
+    // The library image versions this page version was saved with, so its history shows the
+    // same files in the target. Optional and additive: older bundles have none, and their
+    // versions show each image's current file.
+    private readonly List<MediaPinBundleItem> _media = [];
+    public List<MediaPinBundleItem> Media
+    {
+        get => _media;
+        init => _media = BundleMemberDefaults.NonNullItems(value);
+    }
 }

@@ -1,0 +1,198 @@
+@using DfE.CheckPerformanceData.Application.Media
+@using DfE.CheckPerformanceData.Application.Media.Reports
+@using DfE.CheckPerformanceData.Web.Common
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
+@model MediaAltTextReportViewModel
+@{
+    ViewData["Title"] = "Alt text report";
+    var images = Model.Images;
+    var uses = Model.Uses;
+    var folders = ViewData[DfE.CheckPerformanceData.Web.Controllers.MediaReportsController.FoldersKey] as DfE.CheckPerformanceData.Application.Media.Folders.MediaFolderTree
+        ?? DfE.CheckPerformanceData.Application.Media.Folders.MediaFolderTree.Empty;
+    string FolderOf(Guid? id) => id is null ? "Top of the library" : folders.PathText(id);
+}
+@* Library images, and uses on current pages and content blocks, whose alt text is missing or does
+   not describe the image. Each list pages on its own; each row links to where it is fixed. *@
+
+<a href="/admin/media" class="govuk-back-link">Back to the media library</a>
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-xl">Alt text report</h1>
+
+        <p class="govuk-body">
+            Alt text tells people who cannot see an image what it shows. This report lists alt text that
+            is missing, or that does not describe the image:
+        </p>
+        <ul class="govuk-list govuk-list--bullet">
+            <li>a general word on its own, such as ‘image’, ‘photo’ or ‘logo’</li>
+            <li>a file name</li>
+            <li>text shorter than @WeakAltText.MinimumLength characters</li>
+            <li>the same words as the caption</li>
+        </ul>
+        <p class="govuk-body">
+            It checks the default alt text of each image in the library. It also checks each place where
+            the live version, a scheduled version or the draft of a page uses an image, and each content
+            block. An image marked as decorative needs no alt text, so it is not listed.
+        </p>
+    </div>
+</div>
+
+<div class="govuk-summary-card">
+    <div class="govuk-summary-card__title-wrapper">
+        <h2 class="govuk-summary-card__title">Summary</h2>
+    </div>
+    <div class="govuk-summary-card__content">
+        <dl class="govuk-summary-list" data-alt-report-summary>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Library images to fix</dt>
+                <dd class="govuk-summary-list__value" data-alt-report-images="@images.Total">@images.Total</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Places where images are used to fix</dt>
+                <dd class="govuk-summary-list__value" data-alt-report-uses="@uses.Total">@uses.Total</dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+<div id="images">
+    @if (images.Total == 0)
+    {
+        <h2 class="govuk-heading-m">Library images</h2>
+        <p class="govuk-body" data-alt-report-images-empty>Every image in the library has alt text that passes these checks.</p>
+    }
+    else
+    {
+        <table class="govuk-table" data-alt-report-images-table>
+            <caption class="govuk-table__caption govuk-table__caption--m">Library images</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Image</th>
+                    <th scope="col" class="govuk-table__header">Folder</th>
+                    <th scope="col" class="govuk-table__header">Alt text</th>
+                    <th scope="col" class="govuk-table__header">Problem</th>
+                    <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Action</span></th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var row in images.Items)
+                {
+                    <tr class="govuk-table__row" data-alt-report-image="@row.AssetId">
+                        <td class="govuk-table__cell">@row.FileName</td>
+                        <td class="govuk-table__cell" data-media-folder-fact>@FolderOf(row.FolderId)</td>
+                        <td class="govuk-table__cell">@(string.IsNullOrWhiteSpace(row.Alt) ? "None" : row.Alt)</td>
+                        <td class="govuk-table__cell">@WeakAltText.Describe(row.Problem)</td>
+                        <td class="govuk-table__cell">
+                            <a class="govuk-link" href="@MediaAltTextReportViewModel.ImageUrl(row.AssetId)">Edit image<span class="govuk-visually-hidden"> @row.FileName</span></a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        @if (images.TotalPages > 1)
+        {
+            var currentIndex = images.Page - 1;
+            <govuk-pagination landmark-label="Library images">
+                @if (currentIndex > 0)
+                {
+                    <govuk-pagination-previous href="@Model.ImagesPageUrl(images.Page - 1)" />
+                }
+                @foreach (var index in PaginationWindow.Build(currentIndex, images.TotalPages))
+                {
+                    if (index is null)
+                    {
+                        <govuk-pagination-ellipsis />
+                    }
+                    else
+                    {
+                        <govuk-pagination-item href="@Model.ImagesPageUrl(index.Value + 1)" current="@(index.Value == currentIndex)">@(index.Value + 1)</govuk-pagination-item>
+                    }
+                }
+                @if (currentIndex < images.TotalPages - 1)
+                {
+                    <govuk-pagination-next href="@Model.ImagesPageUrl(images.Page + 1)" />
+                }
+            </govuk-pagination>
+        }
+    }
+</div>
+
+<div id="uses">
+    @if (uses.Total == 0)
+    {
+        <h2 class="govuk-heading-m">Where images are used</h2>
+        <p class="govuk-body" data-alt-report-uses-empty>Every page and content block gives its images alt text that passes these checks.</p>
+    }
+    else
+    {
+        <p class="govuk-body">
+            Where a page or block gives no alt text of its own, it shows the image’s default alt text.
+            Those rows link to the image, so one change fixes each place it is used.
+        </p>
+        <table class="govuk-table" data-alt-report-uses-table>
+            <caption class="govuk-table__caption govuk-table__caption--m">Where images are used</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Page or block</th>
+                    <th scope="col" class="govuk-table__header">Versions</th>
+                    <th scope="col" class="govuk-table__header">Image</th>
+                    <th scope="col" class="govuk-table__header">Alt text</th>
+                    <th scope="col" class="govuk-table__header">Problem</th>
+                    <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Action</span></th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var row in uses.Items)
+                {
+                    <tr class="govuk-table__row" data-alt-report-use="@row.AssetId">
+                        <td class="govuk-table__cell">@row.OwnerName</td>
+                        <td class="govuk-table__cell">@MediaAltTextReportViewModel.Versions(row)</td>
+                        <td class="govuk-table__cell">
+                            @row.FileName
+                            <div class="govuk-hint govuk-!-margin-bottom-0">@(row.Location == MediaUsageLocations.Widget ? "Image widget" : "In text")</div>
+                        </td>
+                        <td class="govuk-table__cell">
+                            @(string.IsNullOrWhiteSpace(row.Alt) ? "None" : row.Alt)
+                            @if (row.FromLibrary)
+                            {
+                                <div class="govuk-hint govuk-!-margin-bottom-0" data-alt-report-from-library>The image’s default alt text</div>
+                            }
+                        </td>
+                        <td class="govuk-table__cell">@WeakAltText.Describe(row.Problem)</td>
+                        <td class="govuk-table__cell">
+                            <a class="govuk-link" href="@MediaAltTextReportViewModel.FixUrl(row)" data-alt-report-fix>@MediaAltTextReportViewModel.FixText(row)<span class="govuk-visually-hidden"> for @row.FileName in @row.OwnerName</span></a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        @if (uses.TotalPages > 1)
+        {
+            var currentIndex = uses.Page - 1;
+            <govuk-pagination landmark-label="Where images are used">
+                @if (currentIndex > 0)
+                {
+                    <govuk-pagination-previous href="@Model.UsesPageUrl(uses.Page - 1)" />
+                }
+                @foreach (var index in PaginationWindow.Build(currentIndex, uses.TotalPages))
+                {
+                    if (index is null)
+                    {
+                        <govuk-pagination-ellipsis />
+                    }
+                    else
+                    {
+                        <govuk-pagination-item href="@Model.UsesPageUrl(index.Value + 1)" current="@(index.Value == currentIndex)">@(index.Value + 1)</govuk-pagination-item>
+                    }
+                }
+                @if (currentIndex < uses.TotalPages - 1)
+                {
+                    <govuk-pagination-next href="@Model.UsesPageUrl(uses.Page + 1)" />
+                }
+            </govuk-pagination>
+        }
+    }
+</div>

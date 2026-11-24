@@ -47,15 +47,18 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
     {
         var versions = await repository.GetVersionsAsync(nodeId);
 
-        // Working version = highest-VersionId version with PublishFrom null (never scheduled).
-        // GetVersionsAsync returns versions ordered descending by VersionId.
-        var working = versions.FirstOrDefault(v => v.PublishFrom is null);
+        var working = WorkingDraft(versions);
 
         if (working is not null)
             await repository.UpdateVersionContentAsync(nodeId, working.VersionId, content, bodyPlainText, userId);
         else
             await repository.AddVersionAsync(nodeId, content, bodyPlainText, null, null, userId);
     }
+
+    // The working draft is the highest-VersionId version with no publish window that no newer
+    // version replaced. GetVersionsAsync returns versions ordered descending by VersionId.
+    private static PageNodeVersionDto? WorkingDraft(IEnumerable<PageNodeVersionDto> versions) =>
+        versions.FirstOrDefault(v => v.PublishFrom is null && !v.IsSuperseded);
 
     public async Task PublishAsync(Guid nodeId, int versionId, DateTime? from, DateTime? to, string? userId)
     {
@@ -72,9 +75,7 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
     public async Task<string?> GetWorkingOrLatestContentAsync(Guid nodeId)
     {
         var versions = await GetVersionsAsync(nodeId);
-        // Draft = highest-VersionId version with no publish window (unscheduled).
-        // GetVersionsAsync returns versions ordered descending by VersionId.
-        var draft = versions.FirstOrDefault(v => v.PublishFrom is null);
+        var draft = WorkingDraft(versions);
         if (draft is not null)
             return draft.Content;
         // No draft: return the latest published version's content (first in desc-ordered list).
@@ -224,7 +225,7 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
         // working draft (highest-VersionId with no window) if one exists, otherwise the latest version
         // — which covers pages whose only version is scheduled or expired (no null-window draft).
         // GetVersionsAsync returns versions ordered descending by VersionId, so FirstOrDefault = latest.
-        var target = versions.FirstOrDefault(v => v.PublishFrom is null) ?? versions.FirstOrDefault();
+        var target = WorkingDraft(versions) ?? versions.FirstOrDefault();
         if (target is null) return; // no versions (e.g. a folder node)
         await PublishAsync(nodeId, target.VersionId, DateTime.UtcNow, null, userId);
     }

@@ -1,0 +1,64 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
+@model MediaDetailViewModel
+@* "Crops and sizes": each way that current content shows the image, the original first. A crop
+   is a setting of each use, made from the original file when the page is shown, so no file is
+   listed for it. Each card has a preview made the same way, the settings in words, and the pages
+   and blocks that show the image this way. *@
+<section class="app-media-variants" aria-labelledby="@MediaVariantViewModel.SectionId-heading" id="@MediaVariantViewModel.SectionId" data-media-variants>
+    <h2 class="govuk-heading-l" id="@MediaVariantViewModel.SectionId-heading">Crops and sizes</h2>
+    <p class="govuk-body">
+        Each page or content block that uses this image can crop it or give it a size. A crop is a
+        setting of that use. It is not a separate file. The page makes the cropped copy from the
+        original file when it is shown, so cropping never changes the original.
+    </p>
+    @if (Model.Variants.Count == 0)
+    {
+        <p class="govuk-body" data-media-variants-none>No live, scheduled or draft page and no content block uses this image.</p>
+    }
+    else
+    {
+        <p class="govuk-body">Live, scheduled and draft pages and content blocks use this image in @(Model.Variants.Count == 1 ? "1 way" : $"{Model.Variants.Count} ways").</p>
+        @foreach (var (variant, index) in Model.Variants.Select((v, i) => (v, i)))
+        {
+            var titleId = $"media-variant-{index}-title";
+            <div class="govuk-summary-card app-media-variant" data-media-variant="@(variant.IsOriginal ? "original" : "cut")" aria-labelledby="@titleId" role="region">
+                <div class="govuk-summary-card__title-wrapper">
+                    <h3 class="govuk-summary-card__title" id="@titleId" data-media-variant-title>@variant.Title</h3>
+                </div>
+                <div class="govuk-summary-card__content">
+                    <img src="@variant.PreviewUrl" alt="@variant.PreviewAlt" class="app-media-variant__img" loading="lazy" decoding="async"
+                         width="@variant.PreviewWidth" height="@variant.PreviewHeight" data-media-variant-preview />
+                    <dl class="govuk-summary-list">
+                        <div class="govuk-summary-list__row">
+                            <dt class="govuk-summary-list__key">Settings</dt>
+                            <dd class="govuk-summary-list__value" data-media-variant-settings>
+                                @foreach (var line in variant.Details)
+                                {
+                                    <p class="govuk-body govuk-!-margin-bottom-1">@line</p>
+                                }
+                            </dd>
+                        </div>
+                        <div class="govuk-summary-list__row">
+                            <dt class="govuk-summary-list__key">Used on</dt>
+                            <dd class="govuk-summary-list__value">
+                                <ul class="govuk-list" data-media-variant-uses>
+                                    @foreach (var use in variant.Uses)
+                                    {
+                                        <li>
+                                            <a class="govuk-link" href="@use.Url">@use.Name<span class="govuk-visually-hidden"> (@(use.IsBlock ? "edit content block" : "edit page"), @variant.Title)</span></a>
+                                            <span class="govuk-body-s">— @use.Where</span>
+                                            @foreach (var state in use.StateText.Split(", ", StringSplitOptions.RemoveEmptyEntries))
+                                            {
+                                                <strong class="govuk-tag @(state switch { "Live" => "govuk-tag--green", "Scheduled" => "govuk-tag--blue", "Draft" => "govuk-tag--grey", _ => "govuk-tag--purple" })" data-media-variant-state>@state</strong>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        }
+    }
+</section>

@@ -67,37 +67,25 @@
         new PageTreeAdminVersionHistoryModel { NodeId = Model.NodeId, Versions = Model.Versions })
 </div>
 
+@* The media picker dialog, outside the save form (it has its own antiforgery token). Images come
+   from the media library (see rich-text-media.js): picked in the image dialog, or pasted and
+   dropped, which uploads them to the library. *@
+@await Html.PartialAsync("~/Views/Shared/ContentPages/_MediaPicker.cshtml")
+<script src="~/js/media-picker.js" asp-append-version="true"></script>
+<script src="~/js/rich-text-media.js" asp-append-version="true"></script>
 <script src="~/lib/tinymce/tinymce.min.js"></script>
 <script>
     (function () {
         'use strict';
         if (typeof tinymce === 'undefined') return;
+        var textarea = document.getElementById('page-content');
+        if (!textarea) return;
 
-        tinymce.init({
-            selector: '#page-content',
+        window.RichTextMedia.init(textarea, {
             height: 400,
             menubar: true,
             plugins: 'lists link table code wordcount searchreplace fullscreen image',
             toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
-            // Images stay inline as data: URIs (see ContentPage/Edit.cshtml for the
-            // detailed comment); no upload endpoint, no blob storage.
-            automatic_uploads: false,
-            paste_data_images: true,
-            images_file_types: 'png,jpg,jpeg,gif,webp',
-            file_picker_types: 'image',
-            file_picker_callback: function (cb) {
-                var input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/png,image/jpeg,image/gif,image/webp';
-                input.onchange = function () {
-                    var file = input.files && input.files[0];
-                    if (!file) return;
-                    var reader = new FileReader();
-                    reader.onload = function () { cb(reader.result, { title: file.name }); };
-                    reader.readAsDataURL(file);
-                };
-                input.click();
-            },
             style_formats: [
                 { title: 'Heading 2', block: 'h2' },
                 { title: 'Heading 3', block: 'h3' },

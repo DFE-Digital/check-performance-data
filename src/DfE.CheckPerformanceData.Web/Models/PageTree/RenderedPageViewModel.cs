@@ -30,6 +30,12 @@ public sealed class RenderedPageViewModel
     public bool IsPreview { get; init; }
 
     /// <summary>
+    /// The page version (its row id) whose recorded image versions the page shows. Set only when an
+    /// editor previews one version from the version history; null shows each image's current version.
+    /// </summary>
+    public Guid? MediaPageVersionId { get; init; }
+
+    /// <summary>
     /// When true, the shared Content template renders the home page banners (#566) above the page's
     /// main heading. Set by the controller only for the guidance front page (#588); false (the
     /// default) for every other content page, so banners never leak onto the wider page tree.

@@ -23,6 +23,10 @@ public sealed class PortalDbContext(
     public DbSet<ContentBlockVersion> ContentBlockVersions => Set<ContentBlockVersion>();
     public DbSet<HomeBanner> HomeBanners => Set<HomeBanner>();
     public DbSet<HomeBannerVersion> HomeBannerVersions => Set<HomeBannerVersion>();
+    public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
+    public DbSet<MediaAssetVersion> MediaAssetVersions => Set<MediaAssetVersion>();
+    public DbSet<MediaUsage> MediaUsages => Set<MediaUsage>();
+    public DbSet<MediaFolder> MediaFolders => Set<MediaFolder>();
     public DbSet<ContentStagingSession> ContentStagingSessions => Set<ContentStagingSession>();
     public DbSet<RulesConfigVersion> RulesConfigVersions => Set<RulesConfigVersion>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
@@ -60,6 +64,10 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
         modelBuilder.ApplyConfiguration(new HomeBannerConfiguration());
         modelBuilder.ApplyConfiguration(new HomeBannerVersionConfiguration());
+        modelBuilder.ApplyConfiguration(new MediaAssetConfiguration());
+        modelBuilder.ApplyConfiguration(new MediaAssetVersionConfiguration());
+        modelBuilder.ApplyConfiguration(new MediaUsageConfiguration());
+        modelBuilder.ApplyConfiguration(new MediaFolderConfiguration());
         modelBuilder.ApplyConfiguration(new ContentStagingSessionConfiguration());
         modelBuilder.ApplyConfiguration(new RulesConfigVersionConfiguration());
         modelBuilder.ApplyConfiguration(new ChangeRequestConfiguration());
@@ -189,6 +197,11 @@ public sealed class PortalDbContext(
             // add a second, generic one per extension and per school.
             if (entry.Entity is CheckingExerciseExtension) continue;
             if (entry.Entity is CheckingExerciseExtensionSchool) continue;
+            // Media usages are derived from page content and rewritten on every page-version save.
+            // The page version's own audit row records the change; auditing each usage would add
+            // rows that say nothing new. Image uploads, replaces and edits (MediaAsset and
+            // MediaAssetVersion) ARE audited.
+            if (entry.Entity is MediaUsage) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var audit = new AuditEntry

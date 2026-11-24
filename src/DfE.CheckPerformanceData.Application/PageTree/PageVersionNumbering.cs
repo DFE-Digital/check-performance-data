@@ -1,30 +1,14 @@
 namespace DfE.CheckPerformanceData.Application.PageTree;
 
 /// <summary>
-/// Derives human-readable version labels from a list of versions. Whole-integer scheme —
-/// every version is displayed as a single integer, whether published or still a working draft.
-/// A draft is labelled with the integer it will become when published (the next major after the
-/// most recent live version), and that label does not change as the draft is edited.
+/// The number that the history, the edit screens and the published and draft labels show for a
+/// page version. It is the version's own number (VersionId): the next free number for the page
+/// when the version is added, unique for the page (a unique index guards it) and never changed.
+/// An editor's draft shows the number it publishes as, because publishing keeps the version.
+/// A version added above a draft, for example by the embedded image move, takes the next free
+/// number, so two versions never show the same number and no number moves later.
 /// </summary>
 public static class PageVersionNumbering
 {
-    /// <summary>
-    /// Returns the major number for a version within the given ordered list. Published versions
-    /// count as themselves (1st publish → 1, 2nd publish → 2, …). A draft takes the next major
-    /// after however many publishes existed at the time it was created — so a draft opened
-    /// against v2 is labelled "3".
-    /// </summary>
-    public static int MajorFor(IReadOnlyList<PageNodeVersionDto> all, PageNodeVersionDto v)
-    {
-        var publishedUpToInclusive = all.Count(x => x.MinorVersion == 0 && x.VersionId <= v.VersionId);
-        return v.MinorVersion == 0
-            ? publishedUpToInclusive
-            : publishedUpToInclusive + 1;
-    }
-
-    /// <summary>
-    /// Returns the display label — always the major number as a plain integer.
-    /// </summary>
-    public static string Label(IReadOnlyList<PageNodeVersionDto> all, PageNodeVersionDto v) =>
-        MajorFor(all, v).ToString();
+    public static string Label(PageNodeVersionDto version) => version.VersionId.ToString();
 }

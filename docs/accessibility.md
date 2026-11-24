@@ -147,7 +147,7 @@ Edit on Amendment requests.
 
 ## Skip link and breadcrumbs
 
-**Breadcrumbs render before `<main>`, never inside it.** A breadcrumb is a repeated navigation block, so landing on it is exactly what "Skip to main content" exists to avoid (audit #377). `Views/Page/Content.cshtml` puts its breadcrumb in an `@section Breadcrumbs`, which `_Layout.cshtml` renders inside the `Header` section — after the banner landmark closes, before `@RenderBody()`. The section supplies its own `govuk-width-container`, because the layout renders it outside the template's.
+**Breadcrumbs render before `<main>`, never inside it.** A breadcrumb is a repeated navigation block, so landing on it is exactly what "Skip to main content" exists to avoid (audit #377). `Views/Page/Content.cshtml` puts its breadcrumb in an `@section Breadcrumbs`, which `_Layout.cshtml` renders inside the `Header` section — after the banner landmark closes, before `@RenderBody()`. The section supplies its own `govuk-width-container`, because the layout renders it outside the template's. An admin page does the same: `_AdminLayout.cshtml` renders an `@section Breadcrumbs` before the navigation rail and `<main>`, in a container of its own. The media library and its folder pages use it for the folder path.
 
 The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cpb-content` wrapper that `Content.cshtml` puts around the authored tree. They do not key off the breadcrumb position inside `<main>`. `AccessibilityAuditViewTests` pins these rules.
 
@@ -161,6 +161,48 @@ The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cp
 ## Decorative separators
 
 **A visible `<hr class="govuk-section-break--visible">` used as decoration is `aria-hidden="true"`.** An `<hr>` maps to the separator role, and VoiceOver and TalkBack announce it — noise, when the heading either side already carries the structure (audit #386). This covers the landing page, the amendment requests page, `_FileUpload.cshtml` and the CMS Divider widget. The footer's `govuk-footer__section-break` is left alone: it is part of the GOV.UK Frontend footer markup.
+
+## Images in content pages
+
+**Every Image widget has alt text, unless the editor marks it decorative.** The save check refuses an image with no alt text. A decorative image renders `alt=""`, so screen readers skip it. Each image has `width` and `height`, so the page does not move as it loads. A caption and credit go in a `<figcaption>`. A refused save shows a GOV.UK error summary, and the error message sits beside its field. `AccessibilityAuditViewTests` pins the markup.
+
+## Media library
+
+- **Rich text images.** The image dialog has an "Image is decorative" option (TinyMCE
+  `a11y_advanced_options`). It writes `alt=""` and `role="presentation"`, and the sanitiser keeps
+  both. The editor warns about a library image with no alt text that is not decorative. An
+  `alt=""` with no role still gets the warning, and the alt text report lists it as missing.
+- **Picker dialog** (`_MediaPicker.cshtml`, `media-picker.js`). It is a modal `<dialog>`. Focus
+  goes to the search box when it opens. Tab stays inside it, and only one image radio is a Tab
+  stop. Enter on an image chooses it, and Escape closes the dialog. Focus goes back to the button
+  that opened it. A `role="status"` region announces "Loading images" and then the number of
+  images. The list is emptied when a new list is asked for, so focus never sits on an image that
+  is about to be replaced.
+- **Image widget focal point** (`image-widget-editor.js`). A preset crop shape with a crop makes
+  the focal point useless. The "Set focal point" button is then `disabled`, not only styled. A
+  visible GOV.UK hint says why and how to turn it on again, and the button's `aria-describedby`
+  names it. A visually hidden `role="status"` message announces each change. The typed focal
+  field is not disabled, so its value still posts.
+- **Library page.** Each control has a label. A `role="status"` region announces each upload's
+  start and end. A refused upload shows its reason beside the file.
+- **Library views.** The "View" select is in a GET form with a `<label>`. `site.js` submits the
+  form when the select changes (`data-auto-submit`). Without JavaScript, a "Show" button in a
+  `<noscript>` submits it. The Details view is a table with a `<caption>` and column headers. In
+  every view the file name is the link text, so each thumbnail or large image has `alt=""`. The
+  alt text shows as text in the image's facts.
+- **Crops and sizes** (`_MediaVariants.cshtml`). A `<section>` labelled by its `<h2>`. Each way
+  is a GOV.UK summary card with an `<h3>` title. Each preview has alt text: the file name and the
+  title of its card. A page can be on more than one card, so each link has a visually hidden
+  suffix that names the card. The "Used in N ways" link in the library has a visually hidden
+  suffix with the file name.
+- **Delete unused images** (`DeleteUnused.cshtml`). The title matches the `<h1>`. The images to
+  delete are a table with a `<caption>` and column headers. The "Delete unused images" link on the
+  library page is a link styled as a button, with `role="button"`.
+- **Reports and the embedded-image move.** Each page's title matches its `<h1>`. Each table has
+  a `<caption>`. The alt text report has two lists, each with its own pagination, so each
+  `govuk-pagination` has its own `landmark-label` ("Library images", "Where images are used").
+
+`AccessibilityAuditViewTests` pins the markup of the library page, the crops and sizes section and the two reports.
 
 ## Option groups
 

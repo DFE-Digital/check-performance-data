@@ -290,7 +290,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             .MaxAsync(v => (int?)v.VersionId) ?? 0;
         var versionId = max + 1;
 
-        context.PageNodeVersions.Add(new PageNodeVersion
+        var version = new PageNodeVersion
         {
             Id = Guid.NewGuid(),
             PageNodeId = nodeId,
@@ -304,7 +304,9 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             UpdatedDate = DateTime.UtcNow,
             CreatedBy = userId,
             UpdatedBy = userId
-        });
+        };
+        context.PageNodeVersions.Add(version);
+        await MediaUsageWriter.StageAsync(context, version, keepPins: false);
         await context.SaveChangesAsync();
         await RecomputeCurrentAsync(nodeId, DateTime.UtcNow);
         return versionId;
@@ -323,6 +325,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         entity.MinorVersion += 1;           // each working-draft save bumps the minor counter
         entity.UpdatedDate = DateTime.UtcNow;
         entity.UpdatedBy = userId;
+        // The draft's usages are replaced and pinned to the current files, in the same save.
+        await MediaUsageWriter.StageAsync(context, entity, keepPins: false);
         await context.SaveChangesAsync();
     }
 
@@ -340,8 +344,13 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         entity.UpdatedBy = userId;
         // Publishing or scheduling zeros the minor counter → version becomes an integer version.
         // Unpublishing (publishFrom == null) leaves minor unchanged — it becomes a past draft again.
+        // Publishing or scheduling a replaced version is an editor taking it back on purpose, so it
+        // is no longer replaced. Unpublishing a replaced version leaves it replaced.
         if (publishFrom is not null)
+        {
             entity.MinorVersion = 0;
+            entity.SupersededById = null;
+        }
         await context.SaveChangesAsync();
     }
 
@@ -358,7 +367,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         var windows = await context.PageNodeVersions
             .AsNoTracking()
             .Where(v => v.PageNodeId == nodeId)
-            .Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo))
+            .Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo, v.SupersededById != null))
             .ToListAsync();
 
         var liveId = LiveVersionResolver.Resolve(windows, nowUtc);
@@ -375,7 +384,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     {
         var windows = await context.PageNodeVersions
             .Where(v => v.PageNodeId == nodeId)
-            .Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo))
+            .Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo, v.SupersededById != null))
             .ToListAsync();
 
         var liveId = LiveVersionResolver.Resolve(windows, nowUtc);
@@ -654,15 +663,18 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         };
         context.PageNodes.Add(newNode);
 
+        // The copy keeps which versions were replaced, by the copies of the versions that replaced them.
+        var copiedIds = source.Versions.ToDictionary(v => v.Id, _ => Guid.NewGuid());
         foreach (var v in source.Versions)
         {
             context.PageNodeVersions.Add(new PageNodeVersion
             {
-                Id = Guid.NewGuid(),
+                Id = copiedIds[v.Id],
                 PageNodeId = newId,
                 VersionId = v.VersionId,
                 MinorVersion = v.MinorVersion,
                 IsCurrent = v.IsCurrent,
+                SupersededById = v.SupersededById is { } by && copiedIds.TryGetValue(by, out var copyOfBy) ? copyOfBy : null,
                 PublishFrom = v.PublishFrom,
                 PublishTo = v.PublishTo,
                 Content = v.Content,
@@ -671,6 +683,25 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 CreatedBy = userId,
                 UpdatedDate = now,
                 UpdatedBy = userId,
+            });
+        }
+
+        // The copy has the source's history, so its usages keep the source's pinned image versions.
+        var sourceVersionIds = copiedIds.Keys.Cast<Guid?>().ToList();
+        var sourceUsages = await context.MediaUsages.AsNoTracking()
+            .Where(u => sourceVersionIds.Contains(u.PageNodeVersionId))
+            .ToListAsync();
+        foreach (var u in sourceUsages)
+        {
+            context.MediaUsages.Add(new MediaUsage
+            {
+                Id = Guid.NewGuid(),
+                AssetId = u.AssetId,
+                AssetVersion = u.AssetVersion,
+                PageNodeId = newId,
+                PageNodeVersionId = copiedIds[u.PageNodeVersionId!.Value],
+                Location = u.Location,
+                WidgetId = u.WidgetId,
             });
         }
 
@@ -741,14 +772,23 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             .ToListAsync();
         context.PageNodeVersions.RemoveRange(existing);
 
+        // The old versions' usages go with them (cascade). The new versions get usages from their
+        // content, pinned to the image versions the bundle gives (MediaPins), or else the current files.
+        // A replaced version refers to the version that replaced it by its number in the bundle,
+        // because the rows get new ids here. A number not in the bundle leaves it not replaced.
+        var rowIds = versions.ToDictionary(v => v.VersionId, _ => Guid.NewGuid());
+        var added = new List<MediaUsageWriter.VersionContent>();
         foreach (var v in versions)
         {
+            var versionRowId = rowIds[v.VersionId];
+            added.Add(new MediaUsageWriter.VersionContent(versionRowId, nodeId, v.Content, v.MediaPins));
             context.PageNodeVersions.Add(new PageNodeVersion
             {
-                Id = Guid.NewGuid(),
+                Id = versionRowId,
                 PageNodeId = nodeId,
                 VersionId = v.VersionId,
                 MinorVersion = v.MinorVersion,
+                SupersededById = v.SupersededByVersionId is { } by && rowIds.TryGetValue(by, out var byId) ? byId : null,
                 Content = v.Content,
                 BodyPlainText = v.BodyPlainText,
                 PublishFrom = v.PublishFrom,
@@ -760,8 +800,32 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 UpdatedBy = userId
             });
         }
+        await MediaUsageWriter.StageAsync(context, added, keepPins: false);
         await context.SaveChangesAsync();
         await RecomputeCurrentAsync(nodeId, now);
+    }
+
+    // Works through the versions in batches, each its own save, so a large site does not hold
+    // every version's content in memory. Each batch is complete on its own, so a stopped run is
+    // finished by running it again.
+    public async Task<int> RebuildMediaUsagesAsync(CancellationToken ct = default)
+    {
+        const int batchSize = 200;
+        var allIds = await context.PageNodeVersions.AsNoTracking().Select(v => v.Id).ToListAsync(ct);
+
+        var changed = 0;
+        foreach (var ids in allIds.Chunk(batchSize))
+        {
+            var batch = await context.PageNodeVersions.AsNoTracking()
+                .Where(v => ids.Contains(v.Id))
+                .Select(v => new MediaUsageWriter.VersionContent(v.Id, v.PageNodeId, v.Content))
+                .ToListAsync(ct);
+
+            changed += await MediaUsageWriter.StageAsync(context, batch, keepPins: true, ct);
+            await context.SaveChangesAsync(ct);
+            context.ChangeTracker.Clear();
+        }
+        return changed;
     }
 
     // ── projections ──────────────────────────────────────────────────────────
@@ -792,6 +856,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             VersionId = v.VersionId,
             MinorVersion = v.MinorVersion,
             IsCurrent = v.IsCurrent,
+            SupersededById = v.SupersededById,
             PublishFrom = v.PublishFrom,
             PublishTo = v.PublishTo,
             Content = v.Content,

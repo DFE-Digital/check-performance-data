@@ -2074,10 +2074,12 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
   color: #d4351c;
 }
 
-/* Rich-text widget images. Inserted via the TinyMCE image dialog as inline base64 data
-   URIs — the sanitiser strips inline `style` attributes, so image sizing has to come
+/* Rich-text widget images: media library images, and older inline data: images. The
+   sanitiser strips inline `style` attributes, so image sizing has to come
    from a class instead. Applied automatically to every <img> inside a rich-text widget
-   so authors don't need to remember to add the class themselves. */
+   so authors don't need to remember to add the class themselves. A library image also gets an
+   aspect-ratio style when the page renders, so height:auto keeps the width and height the editor
+   set, even in another shape than the file. */
 .govuk-body img {
   max-width: 100%;
   height: auto;
@@ -2087,6 +2089,11 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
 }
 .govuk-body figure {
   margin: 1.5em 0;
+}
+/* The editor's warning for a rich-text image that is no longer in the media library. It is
+   built from inline elements so it can sit in a paragraph, and shown as a block. */
+.govuk-body span.govuk-warning-text {
+  display: block;
 }
 .govuk-body figure img {
   margin: 0;
@@ -2366,4 +2373,426 @@ dialog.seed-progress-modal {
 .govuk-header__homepage-link:focus .govuk-header__logotype {
   content: url(/images/department-for-education_black.png);
   height: 30px;
+}
+
+/* Media library grid. Each thumbnail sits in a fixed box, so rows line up whatever the image
+   shape. An SVG or an animation is the stored file, not a resized copy, so it gets a fixed size. */
+.app-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 20px;
+}
+
+.app-media-grid__item {
+  margin: 0;
+}
+
+.app-media-grid__link {
+  display: block;
+}
+
+.app-media-grid__thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 10rem;
+  margin-bottom: 5px;
+  background: #f3f2f1;
+  border: 1px solid #b1b4b6;
+}
+
+.app-media-grid__img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.app-media-grid__img--fixed {
+  width: 9rem;
+  height: 9rem;
+}
+
+.app-media-grid__name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.app-media-grid__meta {
+  display: block;
+  margin: 5px 0;
+  color: #505a5f;
+}
+
+/* The library's Details view: a table with a small thumbnail and the facts one to a line. */
+.app-media-details__thumb {
+  width: 6rem;
+}
+
+.app-media-details__img {
+  display: block;
+  width: 5rem;
+  height: 5rem;
+  object-fit: contain;
+  background: #f3f2f1;
+  border: 1px solid #b1b4b6;
+}
+
+.app-media-details__name {
+  width: 25%;
+  overflow-wrap: break-word;
+}
+
+.app-media-facts {
+  margin-bottom: 0;
+}
+
+/* The library's Large view: one image to a row, at up to 960 pixels wide, with its facts. */
+.app-media-large__item {
+  margin-bottom: 30px;
+  padding-bottom: 30px;
+  border-bottom: 1px solid #b1b4b6;
+}
+
+.app-media-large__name {
+  overflow-wrap: anywhere;
+}
+
+.app-media-large__img {
+  display: block;
+  max-width: 100%;
+  max-height: 40rem;
+  height: auto;
+  margin-bottom: 15px;
+  background: #f3f2f1;
+  border: 1px solid #b1b4b6;
+}
+
+/* An SVG or an animation is shown as stored, and may have no size of its own. */
+.app-media-large__img--fixed {
+  width: 30rem;
+  height: 30rem;
+  object-fit: contain;
+}
+
+.app-media-detail__img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* "Crops and sizes" on the image page. The preview takes the width and height attributes, so a
+   rich-text box of another shape shows stretched, as it does on the page. */
+.app-media-variant__img {
+  display: block;
+  max-width: 100%;
+  margin-bottom: 15px;
+  background: #f3f2f1;
+}
+
+.app-media-variant-badge {
+  display: inline-block;
+  margin-top: 5px;
+}
+
+/* Narrow screens scroll the version table instead of the page. */
+.app-media-versions {
+  overflow-x: auto;
+}
+
+.app-media-versions .govuk-table__cell {
+  overflow-wrap: anywhere;
+}
+
+.app-media-version__img {
+  display: block;
+  max-width: 120px;
+  max-height: 80px;
+  object-fit: contain;
+}
+
+.app-media-upload-results .app-media-upload-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-media-upload-results progress {
+  width: 12rem;
+  height: 1.25rem;
+}
+
+/* The idle upload controls and the empty error summary use [hidden]; GOV.UK rules that set
+   display would otherwise beat the browser's own rule. Scoped on purpose. */
+[data-media-upload-errors][hidden],
+.app-media-upload-results [hidden] {
+  display: none !important;
+}
+
+/* Image widget. Full width on a phone. From the GOV.UK tablet break, the image takes its grid
+   width (of the column it sits in) and can float left or right with text beside it, or sit in
+   the centre. The width and height attributes keep the space, so the page does not move. */
+.app-image {
+  margin: 0 0 20px;
+  max-width: 100%;
+}
+
+.app-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.app-image figcaption {
+  margin-top: 5px;
+  margin-bottom: 0;
+}
+
+@media (min-width: 40.0625em) {
+  .app-image--two-thirds {
+    max-width: 66.6667%;
+  }
+
+  .app-image--one-half {
+    max-width: 50%;
+  }
+
+  .app-image--one-third {
+    max-width: 33.3333%;
+  }
+
+  .app-image--align-left {
+    float: left;
+    margin-right: 30px;
+  }
+
+  .app-image--align-right {
+    float: right;
+    margin-left: 30px;
+  }
+
+  .app-image--align-centre {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Media picker dialog. The images are radio buttons: the input is hidden from view but keeps
+   focus, and its label shows the focus and the choice. A wider dialog fits the grid. */
+@media (min-width: 769px) {
+  dialog.app-media-picker {
+    width: 860px;
+  }
+}
+
+/* Media library folders: the list of folders, and an input with its button on one row. */
+.app-media-folders li {
+  margin-bottom: 5px;
+}
+
+.app-media-folders a::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 0.7em;
+  margin-right: 0.4em;
+  border-radius: 0 2px 2px 2px;
+  background: #505a5f;
+  box-shadow: 0 -0.15em 0 -0.05em #505a5f;
+  vertical-align: -0.05em;
+}
+
+.app-media-folder-create {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.app-media-folder-create .govuk-button {
+  margin-bottom: 0;
+}
+
+.app-media-select {
+  margin-top: 5px;
+}
+
+.admin-breadcrumbs--wide {
+  padding: 0 15px;
+}
+
+.app-media-picker__search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.app-media-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.app-media-picker__item {
+  position: relative;
+}
+
+.app-media-picker__radio {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.app-media-picker__label {
+  display: block;
+  padding: 5px;
+  border: 3px solid transparent;
+  cursor: pointer;
+}
+
+.app-media-picker__radio:checked + .app-media-picker__label {
+  border-color: #1d70b8;
+  background: #f3f2f1;
+}
+
+.app-media-picker__radio:focus + .app-media-picker__label {
+  outline: 3px solid #fd0;
+  outline-offset: 0;
+  box-shadow: inset 0 0 0 4px #0b0c0c;
+}
+
+.app-media-picker__paging {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: baseline;
+}
+
+/* Image widget editor. */
+.app-image-editor__chosen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.app-image-editor__thumb {
+  max-width: 160px;
+  max-height: 120px;
+  border: 1px solid #b1b4b6;
+  background: #f3f2f1;
+}
+
+.app-image-editor__panel {
+  margin-bottom: 20px;
+}
+
+.app-image-editor__crop {
+  max-width: 640px;
+}
+
+.app-image-editor__crop img {
+  display: block;
+  max-width: 100%;
+}
+
+.app-image-editor__focal {
+  position: relative;
+  display: inline-block;
+  max-width: 640px;
+  cursor: crosshair;
+}
+
+.app-image-editor__focal:focus {
+  outline: 3px solid #fd0;
+  outline-offset: 0;
+  box-shadow: 0 0 0 7px #0b0c0c;
+}
+
+.app-image-editor__focal img {
+  display: block;
+  max-width: 100%;
+}
+
+.app-image-editor__marker {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: -13px 0 0 -13px;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #0b0c0c;
+  pointer-events: none;
+}
+
+.app-image-editor__preview {
+  padding: 15px;
+  margin-bottom: 20px;
+  border: 1px solid #b1b4b6;
+}
+
+/* [hidden] must win over GOV.UK rules that set display. Scoped on purpose. */
+.app-image-editor [hidden],
+.app-media-picker [hidden] {
+  display: none !important;
+}
+
+.app-input--read-only {
+  background: #f3f2f1;
+  color: #505a5f;
+}
+
+/* Media picker folder tree: nested buttons, the chosen one filled. Long trees scroll. */
+.app-media-picker__tree {
+  max-height: 12rem;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid #b1b4b6;
+}
+
+.app-media-picker__tree-group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-media-picker__tree-group .app-media-picker__tree-group {
+  margin-left: 8px;
+  padding-left: 15px;
+  border-left: 1px dotted #b1b4b6;
+}
+
+.app-media-picker__folder {
+  margin: 1px 0;
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: #1d70b8;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.app-media-picker__folder[aria-pressed="true"] {
+  background: #1d70b8;
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.app-media-picker__folder:focus {
+  outline: 3px solid transparent;
+  background: #ffdd00;
+  color: #0b0c0c;
+  box-shadow: 0 -2px #ffdd00, 0 4px #0b0c0c;
+  text-decoration: none;
 }

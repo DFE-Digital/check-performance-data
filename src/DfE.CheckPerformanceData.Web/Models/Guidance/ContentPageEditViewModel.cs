@@ -60,20 +60,21 @@ public sealed class ContentPageEditViewModel
     /// <summary>Display label of the currently-live version (e.g. "1"), or null if none is live.</summary>
     public string? PublishedVersionLabel =>
         Versions.FirstOrDefault(v => v.IsCurrent) is { } live
-            ? PageVersionNumbering.Label(Versions, live)
+            ? PageVersionNumbering.Label(live)
             : null;
 
     /// <summary>
-    /// Display label of the working draft (newest version with MinorVersion >= 1); if none and the
+    /// Display label of the working draft (newest version with MinorVersion >= 1 that no newer version
+    /// replaced); if none and the
     /// page is not live, the latest version is surfaced as the draft. Null only when there are no versions.
     /// </summary>
     public string? DraftVersionLabel
     {
         get
         {
-            var draft = Versions.FirstOrDefault(v => v.MinorVersion >= 1);
+            var draft = Versions.FirstOrDefault(v => v.MinorVersion >= 1 && !v.IsSuperseded);
             if (draft is null && PublishedVersionLabel is null) draft = Versions.FirstOrDefault();
-            return draft is null ? null : PageVersionNumbering.Label(Versions, draft);
+            return draft is null ? null : PageVersionNumbering.Label(draft);
         }
     }
 }

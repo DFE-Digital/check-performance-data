@@ -163,59 +163,52 @@ else
                                 </div>
                             </form>
 
-                            @if (b.BlockType == "Content")
-                            {
-                                <script src="~/lib/tinymce/tinymce.min.js"></script>
-                                <script>
-                                    (function () {
-                                        'use strict';
-                                        if (typeof tinymce === 'undefined') return;
-                                        tinymce.init({
-                                            selector: '#cb-@b.Key',
-                                            height: 360,
-                                            menubar: true,
-                                            plugins: 'lists link table code wordcount searchreplace fullscreen image',
-                                            toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
-                                            // Images stay inline as data: URIs — see ContentPage/Edit.cshtml.
-                                            automatic_uploads: false,
-                                            paste_data_images: true,
-                                            images_file_types: 'png,jpg,jpeg,gif,webp',
-                                            file_picker_types: 'image',
-                                            file_picker_callback: function (cb) {
-                                                var input = document.createElement('input');
-                                                input.type = 'file';
-                                                input.accept = 'image/png,image/jpeg,image/gif,image/webp';
-                                                input.onchange = function () {
-                                                    var file = input.files && input.files[0];
-                                                    if (!file) return;
-                                                    var reader = new FileReader();
-                                                    reader.onload = function () { cb(reader.result, { title: file.name }); };
-                                                    reader.readAsDataURL(file);
-                                                };
-                                                input.click();
-                                            },
-                                            style_formats: [
-                                                { title: 'Heading 2', block: 'h2' },
-                                                { title: 'Heading 3', block: 'h3' },
-                                                { title: 'Heading 4', block: 'h4' },
-                                                { title: 'Paragraph', block: 'p' }
-                                            ],
-                                            branding: false,
-                                            promotion: false,
-                                            license_key: 'gpl',
-                                            setup: function (editor) {
-                                                editor.on('change', function () { editor.save(); });
-                                            }
-                                        });
-                                    })();
-                                </script>
-                            }
                         </td>
                     </tr>
                 }
             }
         </tbody>
     </table>
+}
+
+@* The open Content block's rich text editor. Images come from the media library (see
+   rich-text-media.js) when the editor may use it: the picker needs the media section. The
+   picker dialog sits outside the save form, because it has its own antiforgery token. *@
+@if (Model.Blocks.FirstOrDefault(b => b.Key == Model.EditKey && b.BlockType == "Content") is { } editing)
+{
+    @if (Model.CanUseMediaLibrary)
+    {
+        @await Html.PartialAsync("~/Views/Shared/ContentPages/_MediaPicker.cshtml")
+        <script src="~/js/media-picker.js" asp-append-version="true"></script>
+    }
+    <script src="~/js/rich-text-media.js" asp-append-version="true"></script>
+    <script src="~/lib/tinymce/tinymce.min.js"></script>
+    <script>
+        (function () {
+            'use strict';
+            if (typeof tinymce === 'undefined') return;
+            var textarea = document.getElementById('cb-@editing.Key');
+            if (!textarea) return;
+            window.RichTextMedia.init(textarea, {
+                height: 360,
+                menubar: true,
+                plugins: 'lists link table code wordcount searchreplace fullscreen image',
+                toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
+                style_formats: [
+                    { title: 'Heading 2', block: 'h2' },
+                    { title: 'Heading 3', block: 'h3' },
+                    { title: 'Heading 4', block: 'h4' },
+                    { title: 'Paragraph', block: 'p' }
+                ],
+                branding: false,
+                promotion: false,
+                license_key: 'gpl',
+                setup: function (editor) {
+                    editor.on('change', function () { editor.save(); });
+                }
+            });
+        })();
+    </script>
 }
 
 @section Scripts {

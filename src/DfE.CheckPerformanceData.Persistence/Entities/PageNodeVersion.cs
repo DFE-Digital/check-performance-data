@@ -15,6 +15,12 @@ public sealed class PageNodeVersion
     public DateTime? PublishFrom { get; set; }
     public DateTime? PublishTo { get; set; }
     public int MinorVersion { get; set; }
+
+    // The version that replaced this one: the embedded image move adds a new version in place of
+    // a live, scheduled or draft version and records it here. A replaced version is never live,
+    // scheduled or the working draft again, whatever happens to the new version's window, unless
+    // an editor publishes or re-dates it.
+    public Guid? SupersededById { get; set; }
     public string Content { get; set; } = string.Empty;
     public string BodyPlainText { get; set; } = string.Empty;
 

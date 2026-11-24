@@ -45,6 +45,8 @@
            Refit.HttpClientFactory and Refit.Reflection. -->
       <PackageReference Include="Refit.HttpClientFactory.Reflection" />
       <PackageReference Include="Riok.Mapperly" />
+      <PackageReference Include="SkiaSharp" />
+      <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
       <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
       <PackageReference Include="System.Security.Cryptography.Xml" />
     </ItemGroup>

@@ -91,6 +91,21 @@ public static class BlobStorageExtensions
         services.AddSingleton<Application.Journey.NotOnRoll.INotOnRollCollegeListProvider>(
             sp => sp.GetRequiredService<NotOnRollCollegeListStore>());
         services.AddHostedService<Seeding.NotOnRollCollegeListService>();
+        services.Configure<Application.Media.MediaProcessingOptions>(
+            configuration.GetSection(Application.Media.MediaProcessingOptions.SectionName));
+        // CMS media library files (originals and renditions) in the cms-media container.
+        services.AddSingleton<Application.Media.IMediaBlobStore>(sp =>
+            new MediaBlobStore(sp.GetRequiredService<BlobServiceClient>()));
+        // Checks and re-encodes uploaded raster images with Skia; the upload service uses it.
+        services.AddSingleton<Application.Media.Upload.IRasterImageCleaner, Infrastructure.Media.SkiaRasterImageCleaner>();
+        // Makes resized and cropped WebP copies for the public media endpoint.
+        services.AddSingleton<Application.Media.Serving.IMediaRenditionRenderer, Infrastructure.Media.SkiaMediaRenditionRenderer>();
+        // Signs rendition URLs with a key kept beside the Data Protection key ring, so every replica agrees.
+        services.AddSingleton<Application.Media.Serving.IMediaUrlSigningKey>(sp =>
+            new Infrastructure.Media.BlobMediaUrlSigningKey(
+                sp.GetRequiredService<BlobServiceClient>(),
+                sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Infrastructure.Media.BlobMediaUrlSigningKey>>()));
         services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
         services.AddScoped<IIngressSummaryStore, IngressSummaryStore>();
         // ICheckingDataReader is also registered in the Infrastructure DependencyManager (the

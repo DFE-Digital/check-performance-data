@@ -41,6 +41,32 @@ public sealed class DiagnosticFooterMiddlewareTests
         Assert.True(original.Length > 0);
     }
 
+    // Media library files can be large and are never HTML, so they go straight to the client.
+    [Fact]
+    public async Task MediaFileRequest_PassesTheResponseBodyThroughUnbuffered()
+    {
+        Stream? bodySeenByNext = null;
+        var middleware = new DiagnosticFooterMiddleware(
+            ctx =>
+            {
+                bodySeenByNext = ctx.Response.Body;
+                ctx.Response.ContentType = "image/png";
+                return Task.CompletedTask;
+            },
+            DevelopmentEnvironment(),
+            EnabledConfiguration());
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = HttpMethods.Get;
+        context.Request.Path = "/media/8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11/1/a.png";
+        var original = new MemoryStream();
+        context.Response.Body = original;
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Same(original, bodySeenByNext);
+    }
+
     [Fact]
     public async Task HtmlPageRequest_IsBufferedAndGetsTheDiagnosticComment()
     {

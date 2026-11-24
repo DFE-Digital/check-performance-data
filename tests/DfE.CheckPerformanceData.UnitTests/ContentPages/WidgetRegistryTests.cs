@@ -13,7 +13,7 @@ public class WidgetRegistryTests
         var types = WidgetRegistry.All.Select(w => w.Type).ToList();
 
         Assert.Equal(
-            ["heading", "richtext", "divider", "card", "summarylist", "published", "search", "results", "pagenav"],
+            ["heading", "richtext", "divider", "card", "summarylist", "published", "search", "results", "pagenav", "image"],
             types);
     }
 
@@ -27,6 +27,7 @@ public class WidgetRegistryTests
     [InlineData("search")]
     [InlineData("results")]
     [InlineData("pagenav")]
+    [InlineData("image")]
     public void IsKnown_IsTrue_ForEveryRegisteredType(string type) =>
         Assert.True(WidgetRegistry.IsKnown(type));
 
@@ -120,5 +121,21 @@ public class WidgetRegistryTests
         Assert.Equal("true", (string)props["h3"]!);
         foreach (var off in new[] { "h1", "h4", "h5", "h6" })
             Assert.Equal("false", (string)props[off]!);
+    }
+
+    [Fact]
+    public void CreateDefaultProps_Image_HoldsEveryPropAsAString()
+    {
+        var props = WidgetRegistry.CreateDefaultProps("image");
+
+        Assert.Equal("Image", WidgetRegistry.Get("image")!.PaletteLabel);
+        Assert.False(WidgetRegistry.Get("image")!.ContributesToNav);
+        Assert.Equal(
+            ["mediaId", "alt", "decorative", "caption", "credit", "width", "align", "href", "crop", "aspect", "focal"],
+            props.Select(p => p.Key));
+        Assert.Equal("false", (string)props["decorative"]!);
+        Assert.Equal("full", (string)props["width"]!);
+        foreach (var key in new[] { "mediaId", "alt", "caption", "credit", "align", "href", "crop", "aspect", "focal" })
+            Assert.Equal("", (string)props[key]!);
     }
 }

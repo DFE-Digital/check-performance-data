@@ -42,6 +42,7 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, ContentPagesNavEntry>();
         services.AddSingleton<IAdminNavEntry, ContentBlocksNavEntry>();
         services.AddSingleton<IAdminNavEntry, HomeBannersNavEntry>();
+        services.AddSingleton<IAdminNavEntry, MediaLibraryNavEntry>();
         services.AddSingleton<IAdminNavEntry, DeletedPagesNavEntry>();
         services.AddSingleton<IAdminNavEntry, SearchAdminNavEntry>();
         services.AddSingleton<IAdminNavEntry, MessagesInboxNavEntry>();

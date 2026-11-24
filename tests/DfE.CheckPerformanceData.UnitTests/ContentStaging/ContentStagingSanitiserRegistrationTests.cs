@@ -58,4 +58,13 @@ public sealed class ContentStagingSanitiserRegistrationTests
         Assert.NotNull(parameter);
         Assert.Contains(Registered(), d => d.ServiceType == typeof(ContentBundleSanitiser));
     }
+
+    // The media staging is optional in the same way: without the registration, exports would
+    // carry no images and imports would drop the ones they are given, with no error.
+    [Fact]
+    public void ApplicationDependencies_RegisterTheMediaStaging()
+    {
+        Assert.Contains(Registered(), d =>
+            d.ServiceType == typeof(IContentMediaStaging) && d.ImplementationType == typeof(ContentMediaStaging));
+    }
 }

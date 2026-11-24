@@ -9,6 +9,7 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Infrastructure.Authentication;
 using DfE.CheckPerformanceData.Infrastructure.Impersonation;
+using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Web.Impersonation;
 using DfE.CheckPerformanceData.Web.Middleware;
 using DfE.CheckPerformanceData.Web.Services;
@@ -230,6 +231,7 @@ public sealed class ImpersonationSessionTests
             .AddApplicationPart(typeof(GovUkFrontendExtensions).Assembly);
         builder.Services.AddGovUkFrontend();
         builder.Services.AddSingleton(Substitute.For<IContentBlockService>());
+        builder.Services.AddEmptyMediaLibrary();
         builder.Services.AddScoped<IEstablishmentViewContext>(sp => sp.GetRequiredService<ImpersonationSessionService>());
         var assets = Substitute.For<DfE.CheckPerformanceData.Application.SiteAssets.ISiteAssetService>();
         assets.GetAsync().Returns(new DfE.CheckPerformanceData.Application.SiteAssets.SiteAssetContent("", "", false, false));

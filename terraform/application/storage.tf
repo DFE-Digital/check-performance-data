@@ -26,7 +26,12 @@ module "storage" {
     # NOTE: the rules-engine blobs must be excluded from the lifecycle delete
     # policy (a deleted rules.json would force the worker into cold-fallback);
     # delegate that to the storage_account module's lifecycle rules.
-    { name = "rules-config" }
+    { name = "rules-config" },
+
+    # CMS media library: uploaded images and their resized renditions. Pages keep using an
+    # image indefinitely, so blob_delete_after_days must stay 0 for this account (it is in
+    # every config/*.tfvars.json) or the lifecycle policy deletes images that pages still show.
+    { name = "cms-media" }
   ]
   # Configure blob lifecycle management (default: delete after 7 days)
   container_delete_retention_days = var.container_delete_retention_days

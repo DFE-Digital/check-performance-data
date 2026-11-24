@@ -17,6 +17,13 @@ internal sealed class PageNodeVersionConfiguration : IEntityTypeConfiguration<Pa
         builder.HasIndex(v => new { v.PageNodeId, v.VersionId }).IsUnique();
         builder.HasIndex(v => new { v.PageNodeId, v.IsCurrent });
 
+        // Set null: content import replaces a page's versions by deleting them all, both ends of
+        // the reference together.
+        builder.HasOne<PageNodeVersion>()
+            .WithMany()
+            .HasForeignKey(v => v.SupersededById)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // Body-only search vector at weight D — lowest of the four weights so title / keywords
         // on the parent PageNode outrank a body-only hit. Combined with PageNode.SearchVector
         // in SearchPagesAsync via ts_rank sum.

@@ -1098,4 +1098,40 @@ public sealed class ContentStagingControllerTests
 
         Assert.NotNull(_sut.TempData["ContentStagingWarnings"]);
     }
+
+    // The summary says what happened to the images an import brought, and says nothing about
+    // images when the bundle had none.
+    [Theory]
+    [InlineData(2, 1, 3, "Images: 2 added, 1 updated, 3 already here.")]
+    [InlineData(0, 0, 0, null)]
+    public async Task Import_Confirm_SummarisesTheImages(int created, int updated, int reused, string? expected)
+    {
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>(), Arg.Any<ContentImportMode>())
+            .Returns(new ContentImportResult { MediaAssetsCreated = created, MediaAssetsUpdated = updated, MediaAssetsReused = reused });
+
+        await _sut.Import(new ImportConfirmFormModel { SessionId = SessionWith(ValidBundleJson()), GlobalMode = ContentImportMode.Skip });
+
+        var summary = Assert.IsType<string>(_sut.TempData["ContentStagingResult"]);
+        if (expected is null) Assert.DoesNotContain("Images", summary);
+        else Assert.EndsWith(" " + expected, summary);
+    }
+
+    // The download is rebuilt to stamp who exported it; the images must survive that.
+    [Fact]
+    public async Task Export_KeepsTheMediaLibraryImagesAndTheirFiles()
+    {
+        var mediaId = Guid.NewGuid();
+        _staging.ExportAsync(Arg.Any<ContentExportSelection?>()).Returns(new ContentBundle
+        {
+            MediaAssets = [new MediaAssetBundleItem { Id = mediaId, FileName = "a.png" }],
+            MediaFiles = [new MediaFileBundleItem { Sha256 = "abc", Data = [1, 2, 3] }]
+        });
+
+        var json = ExportedJson(Assert.IsType<FileContentResult>(await _sut.Export()));
+
+        var bundle = ContentStagingJson.Deserialize(json)!;
+        Assert.Equal(mediaId, Assert.Single(bundle.MediaAssets).Id);
+        Assert.Equal(new byte[] { 1, 2, 3 }, Assert.Single(bundle.MediaFiles).Data);
+    }
 }

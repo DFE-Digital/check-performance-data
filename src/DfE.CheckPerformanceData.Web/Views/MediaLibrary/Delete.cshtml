@@ -1,0 +1,60 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media.MediaDeleteViewModel
+@{
+    ViewData["Title"] = "Delete image";
+    var item = Model.Item;
+}
+
+<a href="@item.DetailUrl" class="govuk-back-link">Back to @Model.FileName</a>
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-l">Delete image</h1>
+
+        <p class="govuk-body">
+            @* The paragraph names the file, so the thumbnail is decorative. *@
+            <img src="@item.ThumbnailUrl" alt="" class="app-media-grid__img@(item.IsShownAsStored ? " app-media-grid__img--fixed" : "")" />
+        </p>
+
+        @if (Model.CanDelete)
+        {
+            <p class="govuk-body">You are about to delete <strong>@Model.FileName</strong> and every version of it.</p>
+
+            <div class="govuk-warning-text">
+                <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+                <strong class="govuk-warning-text__text">
+                    <span class="govuk-visually-hidden">Warning</span>
+                    This cannot be undone. The image's public links will stop working.
+                </strong>
+            </div>
+
+            <form method="post" action="@item.DetailUrl/delete" data-media-delete-form>
+                @Html.AntiForgeryToken()
+                <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-right-2" data-module="govuk-button" data-prevent-double-click="true">Delete image</button>
+                <a class="govuk-link" href="@item.DetailUrl">Cancel</a>
+            </form>
+        }
+        else
+        {
+            <div class="govuk-warning-text" data-media-in-use>
+                <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+                <strong class="govuk-warning-text__text">
+                    <span class="govuk-visually-hidden">Warning</span>
+                    @if (Model.Usage.OnlyInOlderVersions)
+                    {
+                        @MediaUsageSummary.OnlyInOlderVersionsMessage
+                    }
+                    else
+                    {
+                        @:This image is used on @Model.Usage.UsedOn. You cannot delete it.
+                    }
+                </strong>
+            </div>
+
+            <p class="govuk-body">Remove the image from these pages and content blocks first. A deleted page still counts until it is removed for good.</p>
+            <partial name="~/Views/MediaLibrary/_MediaUsageLists.cshtml" model="Model.Usage" />
+
+            <a class="govuk-link" href="@item.DetailUrl">Back to the image</a>
+        }
+    </div>
+</div>

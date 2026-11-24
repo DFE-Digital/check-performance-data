@@ -13,4 +13,7 @@ public sealed class ContentBlocksAdminViewModel
     public string? FilterPagePath { get; init; }
     public string? FilterPageTitle { get; init; }
     public int TotalBlockCount { get; init; }
+    // True when the user may browse and upload to the media library (the media section),
+    // so the editor offers the library picker.
+    public bool CanUseMediaLibrary { get; init; }
 }

@@ -138,6 +138,83 @@ public class PageNodeContentEditorTests
         Assert.Equal("Key dates", widget.GetString("text"));
     }
 
+    [Fact]
+    public async Task UpdateWidget_WithNoValidatorForItsType_SavesThePropsAndReportsNoErrors()
+    {
+        var validator = new FakeValidator("image");
+        await SutWith(validator).AddWidgetAsync(_nodeId, [new TreeStep(0, 0)], "heading", null);
+
+        var result = await SutWith(validator).UpdateWidgetAsync(_nodeId, [new TreeStep(0, 0)],
+            new JsonObject { ["level"] = 2, ["text"] = "Key dates" }, null);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(0, validator.Calls);
+        Assert.Equal("Key dates", Assert.IsType<WidgetNode>(CurrentTree()[0]).GetString("text"));
+    }
+
+    [Fact]
+    public async Task UpdateWidget_RunsTheValidatorForTheStoredWidgetsType_AndSavesWhatItReturns()
+    {
+        var validator = new FakeValidator("image", props => new WidgetPropsValidation(
+            new JsonObject { ["alt"] = "cleaned" }, []));
+        await SutWith(validator).AddWidgetAsync(_nodeId, [new TreeStep(0, 0)], "image", null);
+
+        var result = await SutWith(validator).UpdateWidgetAsync(_nodeId, [new TreeStep(0, 0)],
+            new JsonObject { ["alt"] = "posted" }, null);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(1, validator.Calls);
+        Assert.Equal("cleaned", Assert.IsType<WidgetNode>(CurrentTree()[0]).GetString("alt"));
+    }
+
+    [Fact]
+    public async Task UpdateWidget_WhenTheValidatorFindsErrors_SavesNothing_AndReturnsTheErrors()
+    {
+        var validator = new FakeValidator("image", props => new WidgetPropsValidation(
+            props, [new WidgetFieldError("alt", "Enter alt text")]));
+        await SutWith(validator).AddWidgetAsync(_nodeId, [new TreeStep(0, 0)], "image", null);
+        var before = _service.ReadContent(_nodeId);
+        var saves = _service.SaveCount;
+
+        var result = await SutWith(validator).UpdateWidgetAsync(_nodeId, [new TreeStep(0, 0)],
+            new JsonObject { ["alt"] = "" }, null);
+
+        Assert.False(result.IsValid);
+        Assert.Equal("alt", Assert.Single(result.Errors).Field);
+        Assert.Equal(before, _service.ReadContent(_nodeId));
+        Assert.Equal(saves, _service.SaveCount);
+    }
+
+    [Fact]
+    public async Task AddWidget_DoesNotValidate_SoANewImageWidgetCanBePlacedEmpty()
+    {
+        var validator = new FakeValidator("image", props => new WidgetPropsValidation(
+            props, [new WidgetFieldError("mediaId", "Select an image")]));
+
+        await SutWith(validator).AddWidgetAsync(_nodeId, [new TreeStep(0, 0)], "image", null);
+        await SutWith(validator).SaveDraftAsync(_nodeId, null);
+
+        Assert.Equal(0, validator.Calls);
+        Assert.Equal("image", Assert.IsType<WidgetNode>(Assert.Single(CurrentTree())).Type);
+    }
+
+    private PageNodeContentEditor SutWith(IWidgetPropsValidator validator) =>
+        new(_service, new StubHtmlRenderer(), [validator]);
+
+    private sealed class FakeValidator(string type, Func<JsonObject, WidgetPropsValidation>? validate = null)
+        : IWidgetPropsValidator
+    {
+        public int Calls { get; private set; }
+
+        public string WidgetType => type;
+
+        public Task<WidgetPropsValidation> ValidateAsync(JsonObject props, CancellationToken ct = default)
+        {
+            Calls++;
+            return Task.FromResult(validate?.Invoke(props) ?? new WidgetPropsValidation(props, []));
+        }
+    }
+
     // ── HeadingAnchorizer ────────────────────────────────────────────────────
 
     [Fact]
@@ -171,7 +248,7 @@ public class PageNodeContentEditorTests
     // plain-text body as a widget edit. The old action wrote an empty body, and the published
     // page then lost its body from site search.
 
-    private static readonly string[] TypesWithText = ["heading", "richtext", "card", "published"];
+    private static readonly string[] TypesWithText = ["heading", "richtext", "card", "published", "image"];
     private static readonly string[] TypesWithNoText = ["divider", "summarylist", "search", "results", "pagenav"];
 
     private PageNodeContentEditor SutWithRealRenderer() => new(_service, new HtmlRenderingService());
@@ -221,6 +298,7 @@ public class PageNodeContentEditorTests
     [InlineData("richtext", """{"html":"<p>Bravo <strong>paragraph</strong></p>"}""", "Bravo paragraph")]
     [InlineData("card", """{"title":"Charlie title","body":"Charlie body","href":"/x"}""", "Charlie title Charlie body")]
     [InlineData("published", """{"text":"Delta callout"}""", "Delta callout")]
+    [InlineData("image", """{"mediaId":"","alt":"Echo pupils reading","caption":"Echo caption","credit":"Echo credit"}""", "Echo pupils reading Echo caption")]
     public async Task SaveDraft_IndexesTheTextOfEachWidgetTypeThatHasText(
         string type, string propsJson, string expectedBody)
     {
@@ -344,8 +422,11 @@ public class PageNodeContentEditorTests
         {
             _content[nodeId] = content;
             _body[nodeId] = bodyPlainText;
+            SaveCount++;
             return Task.CompletedTask;
         }
+
+        public int SaveCount { get; private set; }
 
         // Not called by PageNodeContentEditor — throw to catch accidental usage.
         public Task<List<PageNodeVersionDto>> GetVersionsAsync(Guid nodeId) => throw new NotSupportedException();

@@ -1,3 +1,8 @@
+@using DfE.CheckPerformanceData.Application.Media.RichText
+@using DfE.CheckPerformanceData.Application.Media.Serving
+@using DfE.CheckPerformanceData.Application.Media.Widget
+@inject IMediaVersionResolver MediaResolver
+@inject IMediaUrlBuilder MediaUrls
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.ContentBlockVersionsViewModel
 @{
     ViewData["Title"] = $"Version history - {Model.Block.Key}";
@@ -92,7 +97,9 @@ else
                         <div class="version-preview-content wiki-content">
                             @if (isContentBlock)
                             {
-                                @Html.Raw(version.ValueHtml)
+                                @* Sanitised already. Library images show their newest version, and
+                                   a preview warns about an image no longer in the library. *@
+                                @Html.Raw(await MediaResolver.RenderRichTextImagesAsync(version.ValueHtml ?? string.Empty, MediaUrls, null, showEditorNotices: true))
                             }
                             else
                             {

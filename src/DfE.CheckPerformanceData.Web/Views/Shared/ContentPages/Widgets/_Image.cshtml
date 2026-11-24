@@ -1,0 +1,56 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Application.Media.Serving
+@using DfE.CheckPerformanceData.Application.Media.Widget
+@using DfE.CheckPerformanceData.Web.PageTree
+@inject IMediaVersionResolver Resolver
+@inject IMediaUrlBuilder Urls
+@model WidgetNode
+@*
+    Image widget: a media library image by id, written as a <figure>. The page chooses which
+    version to show (see MediaRenderContext); the URLs are signed when the page renders. A public
+    page shows nothing for an image that is not in the library. The editor and previews show a
+    warning instead, so the editor can fix the page.
+*@
+@{
+    var context = ViewData[MediaRenderContext.ViewDataKey] as MediaRenderContext ?? MediaRenderContext.Public;
+    var hasId = ImageWidgetProps.TryMediaId(Model.Props, out var mediaId);
+    ResolvedMedia? media = null;
+    if (hasId)
+    {
+        (await Resolver.ResolveAsync([mediaId], context.PageVersionId)).TryGetValue(mediaId, out media);
+    }
+    var image = media is null ? null : ImageWidgetViewBuilder.Build(Model, media, Urls);
+}
+@if (image is not null)
+{
+    <figure class="@image.CssClass">
+        @if (image.Href is not null)
+        {
+            <a class="govuk-link" href="@image.Href">
+                <img src="@image.Src" srcset="@image.SrcSet" sizes="@image.Sizes" width="@image.Width" height="@image.Height" alt="@image.Alt" loading="lazy" decoding="async">
+            </a>
+        }
+        else
+        {
+            <img src="@image.Src" srcset="@image.SrcSet" sizes="@image.Sizes" width="@image.Width" height="@image.Height" alt="@image.Alt" loading="lazy" decoding="async">
+        }
+        @if (image.Caption is not null || image.Credit is not null)
+        {
+            <figcaption class="govuk-body-s">@image.Caption@if (image.Caption is not null && image.Credit is not null){<text> &mdash; </text>}@image.Credit</figcaption>
+        }
+    </figure>
+}
+else if (context.ShowEditorNotices && hasId)
+{
+    <div class="govuk-warning-text">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            This image is no longer in the media library
+        </strong>
+    </div>
+}
+else if (context.ShowEditorNotices)
+{
+    <p class="govuk-body govuk-hint">No image selected</p>
+}

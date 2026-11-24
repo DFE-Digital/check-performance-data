@@ -218,4 +218,88 @@ public sealed class HtmlRenderingServiceTests
         Assert.DoesNotContain("<script", result);
         Assert.DoesNotContain("alert(1)", result);
     }
+
+    // --- Media library images and data: URIs ---
+
+    private const string PngDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    [Fact]
+    public void RenderHtml_KeepsTheMediaIdOfALibraryImage()
+    {
+        var result = _sut.RenderHtml(
+            "<p><img data-media-id=\"8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11\" src=\"/media/8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11/1/photo.png\" alt=\"A photo\" width=\"200\" height=\"100\"></p>");
+
+        Assert.Contains("data-media-id=\"8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11\"", result);
+        Assert.Contains("src=\"/media/8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11/1/photo.png\"", result);
+    }
+
+    [Fact]
+    public void RenderHtml_KeepsTheBoxMarkerOfALibraryImage()
+    {
+        var result = _sut.RenderHtml(
+            "<p><img data-media-id=\"8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11\" src=\"/media/8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11/1/photo.png\" alt=\"A photo\" width=\"200\" height=\"200\" data-media-box=\"fixed\"></p>");
+
+        Assert.Contains("data-media-box=\"fixed\"", result);
+    }
+
+    [Fact]
+    public void RenderHtml_KeepsAnExistingDataImage()
+    {
+        var result = _sut.RenderHtml($"<p><img src=\"{PngDataUri}\" alt=\"Dot\"></p>");
+
+        Assert.Contains($"src=\"{PngDataUri}\"", result);
+    }
+
+    [Theory]
+    [InlineData("data:image/jpg;base64,/9j/4AAQ")]
+    [InlineData("data:image/svg+xml;base64,PHN2Zy8+")]
+    [InlineData("data:image/bmp;base64,Qk0=")]
+    public void RenderHtml_KeepsAnyExistingDataImageType_OnAnImage(string src)
+    {
+        var result = _sut.RenderHtml($"<img src=\"{src}\" alt=\"x\">");
+
+        Assert.Contains($"src=\"{src}\"", result);
+    }
+
+    [Theory]
+    [InlineData("<a href=\"data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==\">Click</a>")]
+    [InlineData("<a href=\"data:image/png;base64,iVBORw0KGgo=\">Click</a>")]
+    [InlineData("<iframe src=\"data:text/html,hello\"></iframe>")]
+    [InlineData("<form action=\"data:text/html,hello\"><button>Go</button></form>")]
+    public void RenderHtml_DropsADataUri_AnywhereButAnImageSource(string html)
+    {
+        var result = _sut.RenderHtml(html);
+
+        Assert.DoesNotContain("data:", result);
+    }
+
+    [Fact]
+    public void RenderHtml_DropsADataUri_ThatIsNotAnImage_EvenOnAnImage()
+    {
+        var result = _sut.RenderHtml("<img src=\"data:text/html;base64,PHNjcmlwdD4=\" alt=\"x\">");
+
+        Assert.DoesNotContain("data:", result);
+    }
+
+    [Fact]
+    public void RenderHtml_DoesNotSignOrResizeLibraryImages()
+    {
+        // Signed, versioned addresses are made when a page renders, never in stored or indexed text.
+        var result = _sut.RenderHtml(
+            "<img data-media-id=\"8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11\" src=\"/media/8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11/1/photo.png\" alt=\"A photo\">");
+
+        Assert.DoesNotContain("srcset", result);
+        Assert.DoesNotContain("sig=", result);
+    }
+
+    [Fact]
+    public void RenderHtml_KeepsADecorativeImage_WithItsEmptyAltAndPresentationRole()
+    {
+        // The rich text editor marks an image decorative with an empty alt and role="presentation".
+        var result = _sut.RenderHtml(
+            "<img data-media-id=\"8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11\" src=\"/media/8a8e3a52-38a9-4a65-9e3a-5f8f2f0f7a11/1/photo.png\" alt=\"\" role=\"presentation\">");
+
+        Assert.Contains("alt=\"\"", result);
+        Assert.Contains("role=\"presentation\"", result);
+    }
 }

@@ -1,5 +1,6 @@
 using System.Text;
 using DfE.CheckPerformanceData.Web.Authentication;
+using DfE.CheckPerformanceData.Web.Middleware;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -68,6 +69,7 @@ public sealed class DiagnosticFooterMiddleware(
     // hold every event in memory and the client would never receive a byte.
     private static bool ShouldIntercept(HttpContext context) =>
         HttpMethods.IsGet(context.Request.Method)
+        && !MediaFilePaths.IsMediaFile(context.Request.Path)
         && !context.Request.Headers.Accept.ToString()
             .Contains("text/event-stream", StringComparison.OrdinalIgnoreCase);
 

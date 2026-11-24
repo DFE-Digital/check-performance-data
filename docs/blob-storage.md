@@ -77,3 +77,24 @@ pupil files carry a whole population, and a run missing one writes a blob missin
 
 `ICsvSchemaFileProcessor.ProcessAsync` and every path-naming method on `IPupilDataBlobClient` (`GetPupilsAsync`, `HasPupilDataAsync`, `ListSchoolLaestabsAsync`, `UploadPupilsAsync`) take a `CheckingExerciseType`. `IResultsClient` does not — its exercise is implied by the class — but `ResultsEnquiryBlobPaths` derives its paths from the shared helper rather than describing the layout a second time.
 
+
+## Media library
+
+The media library keeps its files in the `cms-media` container of the app storage account.
+Terraform provisions it (`terraform/application/storage.tf`). `MediaBlobStore` also creates it
+when it is missing. Get every name from `MediaBlobKeys`. Do not build one by hand.
+
+| Path | Holds |
+| --- | --- |
+| `originals/{assetId}/{version}` | The stored file of one image version, as cleaned by the upload pipeline. Written once, never overwritten. |
+| `renditions/{assetId}/{version}/{hash}` | A resized or cropped WebP copy. `hash` comes from the canonical rendition settings. Made on the first request and kept. |
+
+- Every write is create-only. A second write of the same name does nothing.
+- Deleting an image removes everything under `originals/{assetId}/` and `renditions/{assetId}/`,
+  after the rows are gone.
+- A content import of a new image id deletes stale files under the same two prefixes first.
+- The size report lists everything under `renditions/` once, to count the copies and their bytes
+  (`IMediaBlobStore.ListAsync`, `MediaBlobKeys.AllRenditionsPrefix`).
+
+The URL signing key is blob `media-url-signing-key` in the `data-protection-keys` container, next
+to the Data Protection key ring. See [media-library.md](media-library.md#the-signing-key).

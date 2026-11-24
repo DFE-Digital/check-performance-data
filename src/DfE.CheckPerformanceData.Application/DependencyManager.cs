@@ -41,6 +41,25 @@ public static class DependencyManager
         services.AddScoped<IAdminAccessPolicy, AdminAccessPolicy>();
         services.AddScoped<DefaultAdminAccessSeeder>();
         services.AddScoped<IPageNodeService, PageNodeService>();
+        // Media library uploads. The raster cleaner (IRasterImageCleaner) is Skia, registered by the host.
+        services.AddSingleton<Media.Upload.IMediaFileCleaner, Media.Upload.MediaFileCleaner>();
+        // One gate per process caps how many images are decoded at once (Media:MaxConcurrentProcessing).
+        services.AddOptions<Media.MediaProcessingOptions>();
+        services.AddSingleton<Media.MediaProcessingGate>();
+        // Media serving. The signing key and the renderer are registered by the host.
+        services.AddSingleton<Media.Serving.MediaUrlSigner>();
+        services.AddSingleton<Media.Serving.IMediaUrlBuilder, Media.Serving.MediaUrlBuilder>();
+        services.AddScoped<Media.Serving.IMediaDeliveryService, Media.Serving.MediaDeliveryService>();
+        services.AddScoped<Media.Upload.IMediaUploadService, Media.Upload.MediaUploadService>();
+        services.AddScoped<Media.IMediaDeletionService, Media.MediaDeletionService>();
+        services.AddScoped<Media.Folders.IMediaFolderService, Media.Folders.MediaFolderService>();
+        // Moves images embedded in page content as data: URIs into the media library.
+        services.AddScoped<Media.Embedded.IEmbeddedImageMover, Media.Embedded.EmbeddedImageMover>();
+        services.AddScoped<Media.Reports.IMediaReportService, Media.Reports.MediaReportService>();
+        services.AddScoped<Media.Variants.IMediaVariantService, Media.Variants.MediaVariantService>();
+        // The Image widget: props checked on save, and image versions resolved once per request.
+        services.AddScoped<ContentPages.IWidgetPropsValidator, Media.Widget.ImageWidgetValidator>();
+        services.AddScoped<Media.Widget.IMediaVersionResolver, Media.Widget.MediaVersionResolver>();
         services.AddScoped<IPageNodeContentEditor, PageNodeContentEditor>();
         services.AddScoped<DefaultPageNodeSeeder>();
         services.AddScoped<SamplePageNodeSeeder>();
@@ -48,6 +67,7 @@ public static class DependencyManager
         services.AddScoped<Analytics.SampleSearchDataSeeder>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
         services.AddScoped<ContentStaging.ContentBundleSanitiser>();
+        services.AddScoped<ContentStaging.IContentMediaStaging, ContentStaging.ContentMediaStaging>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<Settings.ISettingService, Settings.SettingService>();
         services.AddScoped<SiteAssets.ISiteAssetService, SiteAssets.SiteAssetService>();

@@ -1,0 +1,125 @@
+@using DfE.CheckPerformanceData.Application.Media.Reports
+@using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels.Media
+@model MediaSizeReport
+@{
+    ViewData["Title"] = "Size report";
+    var totals = Model.Totals;
+    var folders = ViewData[DfE.CheckPerformanceData.Web.Controllers.MediaReportsController.FoldersKey] as DfE.CheckPerformanceData.Application.Media.Folders.MediaFolderTree
+        ?? DfE.CheckPerformanceData.Application.Media.Folders.MediaFolderTree.Empty;
+    string FolderOf(Guid? id) => id is null ? "Top of the library" : folders.PathText(id);
+}
+@* Storage used by the media library: totals from the database, resized copies from one listing
+   of the blob container, and the largest images by the size of the file they show now. *@
+
+<a href="/admin/media" class="govuk-back-link">Back to the media library</a>
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-xl">Size report</h1>
+        <p class="govuk-body">
+            Sizes are of the stored files. The library cleans each upload before it stores it, so a
+            stored file can be smaller than the file that was uploaded.
+        </p>
+    </div>
+</div>
+
+<div class="govuk-summary-card">
+    <div class="govuk-summary-card__title-wrapper">
+        <h2 class="govuk-summary-card__title">Library</h2>
+    </div>
+    <div class="govuk-summary-card__content">
+        <dl class="govuk-summary-list" data-size-report-library>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Images</dt>
+                <dd class="govuk-summary-list__value" data-size-report-images="@totals.Images">@totals.Images</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Current files</dt>
+                <dd class="govuk-summary-list__value" data-size-report-current="@totals.CurrentBytes">
+                    @MediaFileSize.Format(totals.CurrentBytes)
+                    <div class="govuk-hint govuk-!-margin-bottom-0">The file each image shows now.</div>
+                </dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Stored versions</dt>
+                <dd class="govuk-summary-list__value" data-size-report-versions="@totals.Versions">
+                    @totals.Versions, @MediaFileSize.Format(totals.StoredBytes) in total
+                    <div class="govuk-hint govuk-!-margin-bottom-0">A replaced file stays, so older page versions still show it.</div>
+                </dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+<div class="govuk-summary-card">
+    <div class="govuk-summary-card__title-wrapper">
+        <h2 class="govuk-summary-card__title">Resized copies</h2>
+    </div>
+    <div class="govuk-summary-card__content">
+        <dl class="govuk-summary-list" data-size-report-renditions>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Copies stored</dt>
+                <dd class="govuk-summary-list__value" data-size-report-rendition-count="@Model.Renditions.Count">
+                    @Model.Renditions.Count, @MediaFileSize.Format(Model.Renditions.Bytes) in total
+                </dd>
+            </div>
+        </dl>
+        <p class="govuk-body">
+            The service makes a resized copy the first time a page asks for an image at a width or a
+            crop, and keeps it. Copies are stored as well as the original files, so they add to the
+            storage used.
+        </p>
+        <p class="govuk-body govuk-!-margin-bottom-0">
+            This report does not show the space saved by resized copies. A copy makes each page download
+            smaller, but the service does not record how often it sends each copy, so it cannot add up
+            the saving.
+        </p>
+    </div>
+</div>
+
+@if (Model.Largest.Count == 0)
+{
+    <h2 class="govuk-heading-m">Largest images</h2>
+    <p class="govuk-body" data-size-report-empty>The library has no images.</p>
+}
+else
+{
+    <table class="govuk-table" data-size-report-table>
+        <caption class="govuk-table__caption govuk-table__caption--m">Largest images</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Image</th>
+                <th scope="col" class="govuk-table__header">Folder</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Current file</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Versions</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">All versions</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Resized copies</th>
+                <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Action</span></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Largest)
+            {
+                var asset = row.Asset;
+                <tr class="govuk-table__row" data-size-report-row="@asset.Id">
+                    <td class="govuk-table__cell">
+                        @asset.FileName
+                        <div class="govuk-hint govuk-!-margin-bottom-0">@asset.ContentType</div>
+                    </td>
+                    <td class="govuk-table__cell" data-media-folder-fact>@FolderOf(asset.FolderId)</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@MediaFileSize.Format(asset.CurrentBytes)</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@asset.Versions</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@MediaFileSize.Format(asset.StoredBytes)</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.Renditions.Count, @MediaFileSize.Format(row.Renditions.Bytes)</td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="@MediaAltTextReportViewModel.ImageUrl(asset.Id)">View image<span class="govuk-visually-hidden"> @asset.FileName</span></a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p class="govuk-body">
+        This shows up to @MediaReportsController.LargestCount images, largest current file first.
+    </p>
+}

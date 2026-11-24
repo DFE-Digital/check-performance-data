@@ -15,7 +15,9 @@ When you edit a published page, the CMS starts a draft. From then on the page ha
 - the **live** version, which visitors see
 - your **draft**, which only editors see
 
-The tags at the top of the editor show both, for example *Published — version 2* and *Draft — version 3*. A draft is numbered with the version it will become when you publish it.
+The tags at the top of the editor show both, for example *Published — version 2* and *Draft — version 3*. A draft keeps its number when you publish it.
+
+Every version of a page has its own number, and a version keeps its number for good. A new version takes the next free number. So if the CMS adds a version while you work on a draft, for example when it moves embedded images into the media library, your draft keeps its number and the new version takes the next one.
 
 ## Publish now
 
@@ -42,6 +44,7 @@ The **Versions** tab lists every version, newest first, with who changed it and 
 | Live | The version visitors see now. |
 | Scheduled | Has a **Publish from** date in the future. |
 | Past | Has been published and is not the live version now. Kept so that you can go back to it. |
+| Replaced | A newer version took its place. Moving embedded images into the media library replaces the live version, a scheduled version and the draft this way. A replaced version never goes live by its dates, even if you change the dates of the newer version, unschedule it or unpublish it. You cannot edit its dates. Select **Publish** on its row to make it live again on purpose. |
 | Draft | Has no publishing dates. It has never been published, or it has been unpublished. |
 
 The *Live* tag is set when someone publishes, unpublishes or edits the page. It does not move by itself when a date passes. The other tags are worked out each time you open the tab, so a *Scheduled* version shows as *Past* once its **Publish from** time has gone by, even though visitors can already see it. See *Publish at a future date* below.
@@ -50,7 +53,7 @@ Each version has these actions.
 
 | Action | What it does |
 |---|---|
-| **Save** | Saves the **Publish from** and **Publish to** dates you have entered for that version. |
+| **Save** | Saves the **Publish from** and **Publish to** dates you have entered for that version. Not shown on a *Replaced* version. |
 | **Publish** | Makes that version live now, with no end date. It ignores the date fields. |
 | **Unpublish** | Shown on the live version. Takes it off the site. |
 | **View** | Opens that version in a new tab so you can read it. |
@@ -97,7 +100,7 @@ Going back changes what visitors see. It does not change what the editor holds: 
 ## Good to know
 
 - You cannot compare two versions side by side. Open each with **View** in its own tab.
-- Version numbers are whole numbers and only ever go up.
+- Version numbers are whole numbers. Each version of a page has a different number, and a version's number never changes.
 - A page with no live version is never in search results.
 - A draft cannot be thrown away. To abandon one, leave it unpublished and edit it back to what you want.
 - Every change to a version is recorded in the audit log, with who made it.

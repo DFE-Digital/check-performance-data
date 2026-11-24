@@ -44,13 +44,29 @@ public sealed partial class HtmlRenderingService : IHtmlRenderingService
         s.AllowedAttributes.Add("aria-expanded");
         s.AllowedAttributes.Add("aria-controls");
         s.AllowedAttributes.Add("aria-current");
-        // Allow data: URIs on <img src="data:image/...;base64,..."> so images pasted
-        // or uploaded through the TinyMCE image dialog can be embedded inline and travel
-        // with the content-staging export/import bundle. Restricted to the image family
-        // — data: URIs on <a href> or <link> would enable phishing / CSS injection.
+        // A rich-text image from the media library names its image, so a replaced image shows on
+        // every page that uses it.
+        s.AllowedAttributes.Add("data-media-id");
+        // It also says whether the editor set its width and height in another shape on purpose, so a
+        // replacement of another shape is shown in the right box.
+        s.AllowedAttributes.Add("data-media-box");
+        // Older rich text embeds images as data: URIs, which must keep showing. The scheme is
+        // allowed for an image on <img> only: a data: URI on a link, a frame or a form
+        // would enable phishing or script, so the filter below drops it everywhere else.
         s.AllowedSchemes.Add("data");
+        s.FilterUrl += (_, e) =>
+        {
+            if (e.SanitizedUrl is { } url && url.TrimStart().StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+                && !(e.Tag.LocalName == "img" && DataImage().IsMatch(url.Trim())))
+            {
+                e.SanitizedUrl = null;
+            }
+        };
         return s;
     }
+
+    [GeneratedRegex(@"^data:image/[a-z0-9.+-]+[;,]", RegexOptions.IgnoreCase)]
+    private static partial Regex DataImage();
 
     public string? RenderHtml(string? content)
     {

@@ -8,4 +8,6 @@ public sealed class EditableContentViewModel
     public bool IsEditing { get; init; }
     public bool HasSavedContent { get; init; }
     public string ReturnUrl { get; init; } = "/";
+    // True when the open editor may use the media library (the media section).
+    public bool CanUseMediaLibrary { get; init; }
 }

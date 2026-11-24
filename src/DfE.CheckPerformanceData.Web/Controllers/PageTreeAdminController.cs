@@ -173,7 +173,9 @@ public sealed class PageTreeAdminController(
             return View("~/Views/Page/Content.cshtml", new RenderedPageViewModel
             {
                 Title = node.Title, PageType = "content", Content = tree,
-                Nav = ContentNavBuilder.Build(tree), IsPreview = true
+                Nav = ContentNavBuilder.Build(tree), IsPreview = true,
+                // The page version shows the image versions recorded when it was saved.
+                MediaPageVersionId = version.Id
             });
         }
         if (node.PageType == "wiki")
@@ -183,7 +185,8 @@ public sealed class PageTreeAdminController(
                 .Select(n => new ContentNavItem(n.Title, "/" + n.Path, [])).ToList();
             return View("~/Views/Page/Wiki.cshtml", new RenderedPageViewModel
             {
-                Title = node.Title, PageType = "wiki", WikiHtml = version.Content, Nav = siblings, IsPreview = true
+                Title = node.Title, PageType = "wiki", WikiHtml = version.Content, Nav = siblings, IsPreview = true,
+                MediaPageVersionId = version.Id
             });
         }
         return NotFound();
@@ -624,7 +627,13 @@ public sealed class PageTreeAdminController(
         }
 
         var built = WidgetPropsBuilder.Build(type, fields);
-        await nodeContentEditor.UpdateWidgetAsync(id, TreePath.Parse(path), built, User?.Identity?.Name);
+        var saved = await nodeContentEditor.UpdateWidgetAsync(id, TreePath.Parse(path), built, User?.Identity?.Name);
+        if (!saved.IsValid)
+        {
+            // Nothing was saved. The editor shows the errors and what was posted, at the widget.
+            new WidgetEditError(path, saved.Errors, fields).Save(TempData);
+            return Redirect($"/admin/pages/{id}/edit#widget-{path}");
+        }
         return Redirect($"/admin/pages/{id}/edit");
     }
 

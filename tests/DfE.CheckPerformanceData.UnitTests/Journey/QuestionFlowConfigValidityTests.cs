@@ -33,6 +33,7 @@ public sealed class QuestionFlowConfigValidityTests
     [
         // ResultIssueController.LateResultsGuidancePageId: the late results guidance, shown before the journey starts.
         ("IncorrectGrade_Post16.json", "check-late-results"),
+        ("IncorrectGrade_KS4Autumn.json", "check-late-results"),
     ];
 
     private static readonly string[] PupilKeys = ["primary", "match"];

@@ -1,0 +1,122 @@
+{
+  "firstPageId": "cohort-scope",
+  "pages": [
+    {
+      "id": "check-late-results",
+      "type": "Content",
+      "title": "Check your second late results file before you report an incorrect grade",
+      "content": "Nearly all incorrect grades are updated in the second late results file. We will email you in late November to let you know it's available.",
+      "nextPageId": "cohort-scope"
+    },
+    {
+      "id": "cohort-scope",
+      "questions": [
+        {
+          "id": "q-cohort-scope",
+          "type": "Radio",
+          "role": "Enquiry.CohortScope",
+          "title": "Does the incorrect grade affect the whole cohort?",
+          "hint": "Select one option",
+          "validationFailure": "Select if the incorrect grade affects the whole cohort",
+          "summaryTitle": "Affects the whole cohort",
+          "options": [
+            {
+              "value": "yes",
+              "meaning": "Yes",
+              "label": "Yes",
+              "subLabel": "Provide an example of one pupil",
+              "nextPageId": "cohort-count"
+            },
+            {
+              "value": "no",
+              "meaning": "No",
+              "label": "No",
+              "subLabel": "Complete a separate enquiry for each pupil affected",
+              "nextPageId": "select-pupil-single"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cohort-count",
+      "nextPageId": "select-pupil-cohort",
+      "questions": [
+        {
+          "id": "q-cohort-count",
+          "type": "FreeText",
+          "role": "Enquiry.CohortCount",
+          "title": "Enter the number of pupils who have an incorrect grade for this qualification",
+          "hint": "Enter the number of pupils",
+          "validator": "WholeNumber",
+          "validationFailure": "Enter how many pupils have an incorrect grade for this qualification",
+          "formatFailure": "Enter how many pupils have an incorrect grade for this qualification",
+          "summaryTitle": "Number of pupils in affected cohort"
+        }
+      ]
+    },
+    {
+      "id": "select-pupil-cohort",
+      "type": "PupilSearch",
+      "pupilFilter": "All",
+      "requireResults": true,
+      "pupilKey": "primary",
+      "title": "What is the name of one of the pupils from the affected cohort?",
+      "subheading": "Start typing to search by name, UPN, CYPMD ID or date of birth. You can only search for pupils who have results.",
+      "validationFailure": "Enter the name of one of the pupils from the affected cohort",
+      "nextPageId": "select-result"
+    },
+    {
+      "id": "select-pupil-single",
+      "type": "PupilSearch",
+      "pupilFilter": "All",
+      "requireResults": true,
+      "pupilKey": "primary",
+      "title": "What is the name of the pupil with an incorrect grade?",
+      "subheading": "Start typing to search by name, UPN, CYPMD ID or date of birth. You can only search for pupils who have results.",
+      "validationFailure": "Enter the name of the pupil with an incorrect grade",
+      "nextPageId": "select-result"
+    },
+    {
+      "id": "select-result",
+      "type": "ResultSearch",
+      "title": "Which of {pupilName}'s results is incorrect?",
+      "pageTitle": "Which result is incorrect?",
+      "subheading": "Results are listed by subject and QAN",
+      "validationFailure": "Select which of {pupilName}'s results is incorrect",
+      "nextPageId": "grade-details"
+    },
+    {
+      "id": "grade-details",
+      "type": "ResultDetails",
+      "title": "Incorrect grade details",
+      "nextPageId": "additional-info",
+      "questions": [
+        {
+          "id": "q-revised-grade",
+          "type": "GradeSelect",
+          "role": "Enquiry.Grade",
+          "title": "What should the revised grade be?",
+          "validationFailure": "Select the revised grade",
+          "summaryTitle": "Revised grade"
+        }
+      ]
+    },
+    {
+      "id": "additional-info",
+      "pageTitle": "Additional information",
+      "questions": [
+        {
+          "id": "q-additional-info",
+          "type": "TextArea",
+          "role": "Enquiry.AdditionalComments",
+          "title": "Additional information",
+          "hint": "You can provide us with any additional information to support your query if you need to.",
+          "optional": true,
+          "characterLimit": 250,
+          "summaryTitle": "Additional information"
+        }
+      ]
+    }
+  ]
+}

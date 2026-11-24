@@ -34,10 +34,11 @@ after merge orphans stored enquiries. `IncorrectGradeFlowTests` pins them.
 
 ### Getting in
 
-The check-your-student-data page's "What would you like to do?" radios gain a third option for 16-19
-windows: **Report an issue with an exam result**, routed to `ResultIssueController`. The issue page
+The check-your-student-data page's "What would you like to do?" radios gain a third option on each
+window with an open results enquiry exercise (16-19 and KS4 Autumn): **Report an issue with an exam
+result**, routed to `ResultIssueController`. The issue page
 now renders all three Figma options — *Incorrect grade*, *Missing qualification* and *Result does not
-belong to student* — each routed to its own flow. A posted value matching none of them (forged or
+belong to student* (*pupil* on a KS4 Autumn window) — each routed to its own flow. A posted value matching none of them (forged or
 otherwise unknown) is rejected as unanswered rather than starting a journey with no flow behind it.
 
 After the pupil-data exercise closes (AB#298317) the same chooser is reached from the Yes/No question
@@ -258,7 +259,8 @@ already scoped to the signed-in school's own file, so a request that forges or o
 **Because it hides students, the pages say so.** The `subheading` ends "You can only search for
 students who have results", and the autocomplete's no-match text becomes "No students found with
 results" rather than the component's default "No results found" — otherwise a school cannot tell a
-typo from a student who holds nothing. Copy on both is FLAGGED for content sign-off.
+typo from a student who holds nothing. Copy on both is FLAGGED for content sign-off. On a KS4 Autumn
+window both say "pupils" (the window's learner noun).
 
 `select-result` keeps its own empty state for the cases the restriction cannot cover — back
 navigation, a stale session, or a results file that changes mid-journey. Rather than an autocomplete
@@ -505,7 +507,7 @@ has no answer. Two places call it:
 - The check-answers summary of a KS4 Autumn enquiry shows the row "Graded Exam" with "Yes" or "No".
   The row comes after "Qualification name and subject". A summary with no answer has no such row.
 
-No KS4 Autumn enquiry flow file exists yet (#903), so no page shows the row today.
+The KS4 Autumn incorrect grade and result does not belong to pupil journeys show the row (#901).
 
 How a school sees its own enquiries is designed: AB#298325 added an Issues tab
 beside Requests on the Amendment request summary page (`AmendmentRequestsService.GetAmendmentRequestsAsync`,
@@ -668,7 +670,8 @@ result. A matching submitted enquiry for the same result puts the error on the r
 
 ### Summary and completeness gap
 
-Reuses `ResultsEnquirySummary`: `EnquiryTypeLabel = "Result does not belong to student"`,
+Reuses `ResultsEnquirySummary`: `EnquiryTypeLabel = "Result does not belong to student"`
+(from `EnquiryTypeLabels`; "pupil" on KS4 Autumn),
 `IsCohortWide = false` always, and `ShowRevisedGrade = false` — the row and its Change link are
 omitted entirely rather than rendered empty, since this journey has no grade step.
 
@@ -686,7 +689,8 @@ hard prerequisite (additional info is optional), found via `PageType.ResultSearc
 
 Shares `SubmitResultsEnquiryAsync` with the other two kinds. A row persists with
 `AmendmentType = WhatToChange.ResultDoesNotBelong`,
-`RequestTypeDescription = "Results enquiry - Result does not belong to student"`, same
+`RequestTypeDescription = "Results enquiry - Result does not belong to student"`
+(`EnquiryTypeLabels.DescriptionFor`; "pupil" on KS4 Autumn), same
 `RequestType.ResultsEnquiry` / `Status.Submitted` shape, same dispatch at submit (see "Downstream processing"), same
 `QuestionFlowOutcomeKeyAlignmentTests` exclusion from rules-engine routing. The guard that used to list
 the two live enquiry members by name (`is IncorrectGrade or MissingQualification`) is now

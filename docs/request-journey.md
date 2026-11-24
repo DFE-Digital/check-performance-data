@@ -164,7 +164,7 @@ All flow configs begin with one or more `PupilSearch` pages. These are full-page
 |---|---|---|---|
 | `pupilFilter` | yes | `"Included"` / `"All"` / `"Includable"` / `"NotIncludable"` | `Included` limits results to pupils stamped `INCLUDED`; `All` returns every pupil for the school; `Includable` returns pupils stamped `INCLUDABLE` — the Include journey's search, which on 16-19 adds the included file's P_INCL 502 students to the non-included file (#711), and on KS4 Autumn is only the not-included codes the schema names (#750); `NotIncludable` is the rest, which the Include journey's "already included" guards look a name up in |
 | `pupilKey` | yes | `"primary"` / `"match"` | Controls which session field is populated (see below) |
-| `requireResults` | no | `true` / `false` (default) | Limits the search to students the school holds a 16-19 result for. Independent of `pupilFilter`, which selects by inclusion status. Used by the results enquiry — there is no grade to correct for a student with no result. A page that sets it must say so in its `subheading`, because the restriction hides students silently |
+| `requireResults` | no | `true` / `false` (default) | Limits the search to learners the school holds a result for (16-19 and KS4 Autumn). Independent of `pupilFilter`, which selects by inclusion status. Used by the results enquiry — there is no grade to correct for a learner with no result. A page that sets it must say so in its `subheading`, because the restriction hides learners silently |
 | `pupilSearchField` | no | `"All"` / `"CypmdId"` (default `All`) | Which field(s) the query is matched against. `All` (or absent) matches forename, surname, split names, UPN/ULN, CYPMD ID and date of birth. `CypmdId` matches **only** a trimmed, case-insensitive prefix of `Cypmd_Id` — a name, UPN or date of birth returns nothing. No shipped flow sets it. A page that sets it must say so in its `subheading`, because the narrowed search hides records silently |
 | `nextPageId` | no | page id string | Absent → redirect to Summary after selection |
 | `validationFailure` | no | string | Error shown when no pupil is submitted. Supports `{pupilName}`. Falls back to `"Enter the name of the pupil"` |
@@ -537,6 +537,7 @@ Data/QuestionFlows/
 ├── Include_KS4Autumn.json                          ← Include flow config (KS4 Autumn, #750)
 ├── Include_KS4June.json                            ← Include flow config (KS4 June)
 ├── Include_Post16.json                             ← Include flow config (16-19)
+├── IncorrectGrade_KS4Autumn.json                   ← Incorrect grade flow config (KS4 Autumn, #901)
 ├── IncorrectGrade_Post16.json                      ← Incorrect grade flow config (16-19)
 ├── Merge_KS4Autumn.json                            ← The same merge journey for KS4 Autumn (#747)
 ├── Merge_KS4June.json                              ← Merge flow config (KS4 June)
@@ -546,6 +547,7 @@ Data/QuestionFlows/
 ├── Remove_KS4Autumn.json                           ← Remove flow config (KS4 Autumn, #748)
 ├── Remove_KS4June.json                             ← Remove flow config (KS4 June)
 ├── Remove_Post16.json                              ← Remove flow config (16-19)
+├── ResultDoesNotBelong_KS4Autumn.json              ← Result does not belong flow config (KS4 Autumn, #901)
 └── ResultDoesNotBelong_Post16.json                 ← Result does not belong flow config (16-19)
 ```
 

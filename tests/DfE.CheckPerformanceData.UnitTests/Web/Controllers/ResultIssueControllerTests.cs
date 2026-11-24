@@ -124,17 +124,18 @@ public sealed class ResultIssueControllerTests
         Assert.Equal(expected, Assert.IsType<ResultIssueViewModel>(view.Model).ResultDoesNotBelongLabel);
     }
 
-    [Fact]
-    public async Task Post_without_a_selection_keeps_the_learner_noun_of_the_window()
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, "Result does not belong to student")]
+    [InlineData(CheckingWindowType.KS4Autumn, "Result does not belong to pupil")]
+    public async Task Post_without_a_selection_keeps_the_learner_noun_of_the_window(
+        CheckingWindowType windowType, string expected)
     {
-        _service.GetCheckingWindowAsync(WindowId).Returns(WindowOf(CheckingWindowType.KS4Autumn));
+        _service.GetCheckingWindowAsync(WindowId).Returns(WindowOf(windowType));
 
         var view = Assert.IsType<ViewResult>(
             await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = null }));
 
-        Assert.Equal(
-            "Result does not belong to pupil",
-            Assert.IsType<ResultIssueViewModel>(view.Model).ResultDoesNotBelongLabel);
+        Assert.Equal(expected, Assert.IsType<ResultIssueViewModel>(view.Model).ResultDoesNotBelongLabel);
     }
 
     [Fact]

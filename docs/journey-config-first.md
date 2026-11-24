@@ -151,8 +151,8 @@ Roles replace most of groups 1 and 4:
 - `JourneyController` clears the answers that are marked `clearWhen: ResultChanged`.
 - `JourneyViewModelBuilder` gets the summary values by role.
 
-**Roles in use now (#863).** `QuestionRole` has the roles that the 16-19 results enquiry ticket
-needs. The three 16-19 enquiry flows declare them. Submission copies the role onto each
+**Roles in use now (#863).** `QuestionRole` has the roles that the results enquiry ticket
+needs. The three 16-19 enquiry flows and the two KS4 Autumn enquiry flows declare them. Submission copies the role onto each
 `AnswerRecord` in the queue message. The role is not copied onto the saved `QuestionAnswer` yet.
 
 | Role (JSON name) | Question in the 16-19 flows |

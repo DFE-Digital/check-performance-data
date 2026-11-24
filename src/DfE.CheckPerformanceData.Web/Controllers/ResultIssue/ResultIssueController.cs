@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 /// <summary>
-/// The way in to a 16-19 results enquiry (AB#296648). Mirrors <see cref="WhatToChangeController"/>:
+/// The way in to a results enquiry (AB#296648). Mirrors <see cref="WhatToChangeController"/>:
 /// pick what you are reporting, and the journey engine takes it from there.
 /// </summary>
 [ServiceNavSection(ServiceNavSection.Pupils)]

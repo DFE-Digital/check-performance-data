@@ -180,7 +180,7 @@ public sealed class JourneyViewModelBuilder(
         };
     }
 
-    // Question ids from IncorrectGrade_Post16.json. A serialization contract — see the flow tests.
+    // Question ids from the incorrect grade flow files. A serialization contract — see the flow tests.
     private const string CohortScopeQuestionId = "q-cohort-scope";
     private const string CohortCountQuestionId = "q-cohort-count";
     private const string AdditionalInfoQuestionId = "q-additional-info";

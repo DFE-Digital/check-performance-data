@@ -40,6 +40,33 @@ public sealed class EnquiryQuestionIdsFlowAlignmentTests
         Assert.Contains(EnquiryQuestionIds.MissingGrade, ids);
     }
 
+    public static TheoryData<string> FlowFiles(string change)
+    {
+        var data = new TheoryData<string>();
+        var directory = Path.GetDirectoryName(LocateFlowFile($"{change}_Post16.json"))!;
+        foreach (var file in Directory.GetFiles(directory, $"{change}_*.json").Order())
+            data.Add(Path.GetFileName(file));
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(FlowFiles), "IncorrectGrade")]
+    public void Each_incorrect_grade_flow_has_the_ids_that_the_code_reads(string file)
+    {
+        var flow = Load(file);
+        var questionIds = QuestionIds(flow).ToList();
+
+        Assert.Contains("check-late-results", flow.Pages.Select(p => p.Id));
+        Assert.All(
+            new[] { "q-cohort-scope", "q-cohort-count", EnquiryQuestionIds.RevisedGrade, "q-additional-info" },
+            id => Assert.Contains(id, questionIds));
+    }
+
+    [Theory]
+    [MemberData(nameof(FlowFiles), "ResultDoesNotBelong")]
+    public void Each_result_does_not_belong_flow_has_the_ids_that_the_code_reads(string file)
+        => Assert.Contains("q-additional-info", QuestionIds(Load(file)));
+
     private static string LocateFlowFile(string fileName)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

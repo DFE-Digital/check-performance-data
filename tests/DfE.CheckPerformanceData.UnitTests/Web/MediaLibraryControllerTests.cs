@@ -697,10 +697,24 @@ public sealed class MediaLibraryControllerTests
     [InlineData("https://evil.example/admin/media")]
     [InlineData("//evil.example")]
     [InlineData("/admin/mediabad")]
+    [InlineData("/\evil.example")]
+    [InlineData("/\evil.example/admin/media")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("")]
     [InlineData(null)]
     public void MoveImages_GoesOnlyToALibraryAddress(string? returnUrl)
     {
         Assert.Equal("/admin/media", MediaLibraryController.SafeReturnUrl(returnUrl));
+    }
+
+    [Theory]
+    [InlineData("/admin/media")]
+    [InlineData("/admin/media?x=//evil.example")]
+    [InlineData("/admin/media?folder=00000000-0000-0000-0000-000000000001&view=details")]
+    public void MoveImages_KeepsALibraryAddress_EvenWhenItsQueryHoldsAnotherAddress(string returnUrl)
+    {
+        // The path is fixed to the library, so text in the query string cannot leave the site.
+        Assert.Equal(returnUrl, MediaLibraryController.SafeReturnUrl(returnUrl));
     }
 
     [Fact]

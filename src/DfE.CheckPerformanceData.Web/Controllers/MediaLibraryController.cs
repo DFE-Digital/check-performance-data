@@ -41,8 +41,7 @@ public sealed class MediaLibraryController(
     /// <summary>
     /// The most one upload request may carry. Kestrel's own limit is off app-wide, so the action
     /// sets one. Each file must also be under <see cref="MediaUploadLimits.MaxFileBytes"/> (20 MB),
-    /// which the upload pipeline checks. 50 MB lets a plain form post carry a few files, and
-    /// matches the cluster ingress, which refuses a larger body anyway.
+    /// which the upload pipeline checks. 50 MB lets a plain form post carry a few files.
     /// </summary>
     public const long MaxUploadRequestBytes = 50L * 1024 * 1024;
 

@@ -17,7 +17,7 @@ public sealed class EnquiryConfirmationViewModel
     /// <summary>
     /// The onward journeys this window has open right now for the signed-in school, from
     /// <see cref="INextStepsService.GetConfirmationPageSteps"/> (#713). Empty is a valid answer:
-    /// the page then offers only "Return to check your data".
+    /// the page then offers only "Return to check your performance measures data".
     /// </summary>
     public IReadOnlyList<NextSteps> NextSteps { get; init; } = [];
 

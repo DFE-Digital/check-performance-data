@@ -227,6 +227,20 @@ public sealed class DuplicateRequestValidationIntegrationTests
             service.ConfirmRequestAsync(windowId, journey));
     }
 
+    [Fact]
+    public async Task UpsertAsync_SecondConfirmCorrectDeclaration_DoesNotConflictWithTheFirst()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        var repository = new RequestRepository(_fixture.CreateContext());
+
+        await repository.UpsertAsync(ConfirmCorrectDeclaration(windowId, "REF-CONFIRM-1"));
+        await repository.UpsertAsync(ConfirmCorrectDeclaration(windowId, "REF-CONFIRM-2"));
+
+        await using var ctx = _fixture.CreateContext();
+        Assert.Equal(2, await ctx.ChangeRequests.CountAsync(r => r.RequestType == RequestType.ConfirmCorrect));
+    }
+
     // ── Scenario messages ───────────────────────────────────────────────────
 
     [Fact]
@@ -301,6 +315,20 @@ public sealed class DuplicateRequestValidationIntegrationTests
                 RequestTypeDescription = "Remove"
             });
     }
+
+    // A declaration has no pupil, as RequestService.ConfirmDataCorrectAsync writes it.
+    private static ChangeRequestData ConfirmCorrectDeclaration(Guid windowId, string referenceNumber) => new()
+    {
+        WindowId = windowId,
+        ReferenceNumber = referenceNumber,
+        OrganisationUrn = 100000,
+        Timestamp = DateTime.UtcNow,
+        SubmittedById = Guid.NewGuid(),
+        SubmittedByName = "Test User",
+        Status = RequestStatus.Submitted,
+        RequestType = RequestType.ConfirmCorrect,
+        RequestTypeDescription = "Confirm Pupil Data Declaration"
+    };
 
     private async Task TruncateAsync()
     {

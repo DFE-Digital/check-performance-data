@@ -2,12 +2,22 @@ using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
-/// <summary>One results file of the supplier feed: the tag stamped on its rows and its name for schools.</summary>
+/// <summary>One results file of the supplier feed.</summary>
+/// <param name="Tag">The tag that ingress stamps on each row of the file.</param>
+/// <param name="Name">The plain name of the file. Admin pages show it with the tag.</param>
 /// <param name="IsRequired">
 /// A file the exercise starts with: its slot must hold a file before the exercise can be validated.
 /// The later files land weeks apart and one may never land, so they are optional.
 /// </param>
-public sealed record ResultsSource(string Tag, string Label, bool IsRequired = false);
+/// <param name="TagShownToSchools">
+/// True when schools see the tag in place of the name, so that they can find the file a result
+/// came from.
+/// </param>
+public sealed record ResultsSource(string Tag, string Name, bool IsRequired = false, bool TagShownToSchools = false)
+{
+    /// <summary>The text schools see for this file.</summary>
+    public string Label => TagShownToSchools ? Tag : Name;
+}
 
 /// <summary>
 /// The results files each window type offers, in the order they arrive, and the label schools see
@@ -29,10 +39,10 @@ public static class ResultsSources
 
     private static readonly IReadOnlyList<ResultsSource> Ks4 =
     [
-        new(ResultsFileTags.Ks4Main, "Main results", IsRequired: true),
-        new(ResultsFileTags.Ks4LateResults1, "Late results 1"),
-        new(ResultsFileTags.Ks4LateResults2, "Late results 2"),
-        new(ResultsFileTags.Ks4Revised, "Revised results")
+        new(ResultsFileTags.Ks4Main, "Main results", IsRequired: true, TagShownToSchools: true),
+        new(ResultsFileTags.Ks4LateResults1, "Late results 1", TagShownToSchools: true),
+        new(ResultsFileTags.Ks4LateResults2, "Late results 2", TagShownToSchools: true),
+        new(ResultsFileTags.Ks4Revised, "Revised results", TagShownToSchools: true)
     ];
 
     // No longer offered, but blobs and releases written before may carry them.
@@ -54,7 +64,11 @@ public static class ResultsSources
         _ => []
     };
 
-    /// <summary>The label for a tag. An unknown tag is shown as it is, rather than hidden.</summary>
+    /// <summary>The text schools see for a tag. An unknown tag is shown as it is, rather than hidden.</summary>
     public static string LabelFor(string? tag) =>
         tag is not null && ByTag.TryGetValue(tag, out var source) ? source.Label : tag ?? string.Empty;
+
+    /// <summary>The plain name for a tag, which admin pages show. An unknown tag is shown as it is.</summary>
+    public static string NameFor(string? tag) =>
+        tag is not null && ByTag.TryGetValue(tag, out var source) ? source.Name : tag ?? string.Empty;
 }

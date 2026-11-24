@@ -231,6 +231,17 @@ public sealed class JourneyValidationServiceGradeSelectTests
     }
 
     [Fact]
+    public void A_grade_that_a_ks4_file_holds_is_refused_and_the_message_names_the_file_tag()
+    {
+        var error = ValidateWithOtherFiles("D1", Btec, "M1", HeldBy(ResultsFileTags.Ks4LateResults1, "D1"));
+
+        Assert.Equal(
+            string.Format(
+                JourneyValidationService.RevisedGradeAlreadyHeldMessage, ResultsFileTags.Ks4LateResults1, "D1"),
+            error);
+    }
+
+    [Fact]
     public void A_grade_that_no_other_file_holds_is_accepted() =>
         Assert.Null(ValidateWithOtherFiles("D2", Btec, "M1", HeldBy(ResultsFileTags.Post16LateResults1, "D1")));
 

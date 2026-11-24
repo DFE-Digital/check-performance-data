@@ -20,7 +20,7 @@ public static class DatasetLabels
         // every other name, so a data share's slot was labelled as pupil data.
         WindowDatasets.Pupils => "Pupils",
         // A results slot is named by its tag: shown with its label, from the one list of results files.
-        _ when ResultsSources.LabelFor(datasetName) is var label && label != datasetName => $"{label} ({datasetName})",
+        _ when ResultsSources.NameFor(datasetName) is var name && name != datasetName => $"{name} ({datasetName})",
         _ => datasetName
     };
 }

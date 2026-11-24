@@ -62,6 +62,20 @@ public class ResultColumnSetsTests
     }
 
     [Fact]
+    public void A_ks4_result_names_its_source_file_by_the_tag()
+    {
+        var result = new ResultRecord
+        {
+            CypmdId = "500123", Qan = "60145642", QualificationName = "GCSE (9-1) Bus. Studs:Single",
+            SyllabusCode = "1BS0", Session = "S2024", Grade = "5", SourceFile = ResultsFileTags.Ks4Main
+        };
+
+        var table = ResultTable.Build(ResultColumnSets.Csv(), [new ResultRow(Pupil(), result)]);
+
+        Assert.Equal(ResultsFileTags.Ks4Main, Assert.Single(table.Rows).Last());
+    }
+
+    [Fact]
     public void Unmatched_row_keeps_blank_demographics_and_the_result_cypmd_id()
     {
         var table = ResultTable.Build(ResultColumnSets.Table(), [new ResultRow(null, Result())]);

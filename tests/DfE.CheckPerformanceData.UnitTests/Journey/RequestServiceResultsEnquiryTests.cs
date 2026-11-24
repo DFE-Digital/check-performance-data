@@ -648,6 +648,23 @@ public sealed class RequestServiceResultsEnquiryTests
     }
 
     [Fact]
+    public async Task A_ks4_autumn_result_does_not_belong_enquiry_is_described_with_pupil()
+    {
+        var journey = ResultDoesNotBelongJourney();
+        journey.CheckingWindow = new CheckingWindowDto
+        {
+            Title = "KS4 Autumn 2026", KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4Autumn,
+            StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+        };
+
+        await _sut.SubmitResultsEnquiryAsync(WindowId, journey);
+
+        await _repository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+            d.RequestTypeDescription == "Results enquiry - Result does not belong to pupil"));
+    }
+
+    [Fact]
     public async Task A_result_does_not_belong_enquiry_without_a_selected_result_is_rejected()
     {
         var journey = ResultDoesNotBelongJourney();

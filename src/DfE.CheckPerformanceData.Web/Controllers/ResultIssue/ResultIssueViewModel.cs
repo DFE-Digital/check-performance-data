@@ -1,3 +1,7 @@
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 public sealed class ResultIssueViewModel
@@ -15,4 +19,10 @@ public sealed class ResultIssueViewModel
 
     /// <summary>The posted radio value. Null on first render and on a validation redisplay.</summary>
     public string? IssueType { get; set; }
+
+    [BindNever]
+    public LearnerNoun LearnerNoun { get; set; } = LearnerNoun.Pupil;
+
+    public string ResultDoesNotBelongLabel =>
+        EnquiryTypeLabels.For(Application.CheckYourPupilData.WhatToChange.ResultDoesNotBelong, LearnerNoun);
 }

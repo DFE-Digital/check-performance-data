@@ -102,6 +102,41 @@ public sealed class ResultIssueControllerTests
         Assert.Null(model.IssueType);
     }
 
+    private static CheckingWindowDto WindowOf(CheckingWindowType type) => new()
+    {
+        Title = "A window",
+        KeyStage = type == CheckingWindowType.Post16 ? KeyStages.Post16 : KeyStages.KS4,
+        CheckingWindowType = type,
+        StartDate = new DateTime(2026, 10, 1),
+        EndDate = new DateTime(2027, 3, 31)
+    };
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, "Result does not belong to student")]
+    [InlineData(CheckingWindowType.KS4Autumn, "Result does not belong to pupil")]
+    public async Task Get_names_the_result_does_not_belong_option_with_the_learner_noun_of_the_window(
+        CheckingWindowType windowType, string expected)
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(WindowOf(windowType));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId));
+
+        Assert.Equal(expected, Assert.IsType<ResultIssueViewModel>(view.Model).ResultDoesNotBelongLabel);
+    }
+
+    [Fact]
+    public async Task Post_without_a_selection_keeps_the_learner_noun_of_the_window()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(WindowOf(CheckingWindowType.KS4Autumn));
+
+        var view = Assert.IsType<ViewResult>(
+            await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = null }));
+
+        Assert.Equal(
+            "Result does not belong to pupil",
+            Assert.IsType<ResultIssueViewModel>(view.Model).ResultDoesNotBelongLabel);
+    }
+
     [Fact]
     public async Task Get_does_not_preselect_an_option_even_when_a_journey_is_already_in_session()
     {

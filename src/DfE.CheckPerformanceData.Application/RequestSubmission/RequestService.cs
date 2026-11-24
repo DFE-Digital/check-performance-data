@@ -143,7 +143,8 @@ public sealed class RequestService(
         Guid windowId, RequestState journey, CancellationToken ct = default)
     {
         if (writeGuard is not null) await writeGuard.EnsureCanWriteAsync(windowId, journey);
-        if (!WhatToChangeCheckingExerciseMap.IsResultsEnquiry(journey.SelectedWhatToChange))
+        if (journey.SelectedWhatToChange is not { } enquiryType
+            || !WhatToChangeCheckingExerciseMap.IsResultsEnquiry(enquiryType))
             throw new InvalidOperationException(
                 $"SubmitResultsEnquiryAsync is the results-enquiry path; got {journey.SelectedWhatToChange}. " +
                 "Routing an amendment through here would store the wrong RequestType and skip the rules engine.");
@@ -160,17 +161,11 @@ public sealed class RequestService(
 
         // The row first: it is the record of truth, and a journey blob with no row would be invisible
         // to every admin view.
-        var requestTypeDescription = journey.SelectedWhatToChange switch
-        {
-            WhatToChange.IncorrectGrade => "Results enquiry - Incorrect grade",
-            WhatToChange.MissingQualification => "Results enquiry - Missing qualification",
-            WhatToChange.ResultDoesNotBelong => "Results enquiry - Result does not belong to student",
-            _ => throw new InvalidOperationException(
-                $"No results-enquiry description for {journey.SelectedWhatToChange}.")
-        };
+        var requestTypeDescription = EnquiryTypeLabels.DescriptionFor(
+            enquiryType, journey.LearnerNoun);
 
         var config = await flowService.GetConfigAsync(
-            journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
+            enquiryType, journey.CheckingWindow.CheckingWindowType);
         if (config is null)
             throw new InvalidOperationException(
                 $"No question flow config found for {journey.SelectedWhatToChange}/{journey.CheckingWindow.CheckingWindowType}.");
@@ -197,7 +192,7 @@ public sealed class RequestService(
             Status = RequestStatus.Submitted,
             RequestType = RequestType.ResultsEnquiry,
             RequestTypeDescription = requestTypeDescription,
-            AmendmentType = journey.SelectedWhatToChange.Value,
+            AmendmentType = enquiryType,
             OrganisationLaestab = OrganisationLaestabOrNull,
             EnquirySubject = EnquirySubject.ForJourney(journey),
             // Queued for its ticket in this same write (#536): an enquiry never passes the Rules

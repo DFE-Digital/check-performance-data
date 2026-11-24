@@ -500,6 +500,20 @@ public sealed class JourneyViewModelBuilderEnquirySummaryTests
         Assert.Equal("Yes", lines.Single(l => l.Key == "Graded Exam").Value);
     }
 
+    [Fact]
+    public void A_ks4_autumn_result_does_not_belong_summary_names_the_enquiry_type_with_pupil()
+    {
+        foreach (var page in RdbFlow.Pages)
+            _flowService.GetPage(RdbFlow, page.Id).Returns(page);
+        var journey = ResultDoesNotBelongJourney();
+        journey.CheckingWindow = Ks4AutumnWindow;
+
+        var enquiry = _sut.BuildSummaryVm(WindowId, journey, RdbFlow).Enquiry!;
+
+        Assert.Equal("Result does not belong to pupil", enquiry.EnquiryTypeLabel);
+        Assert.Equal("Result does not belong to pupil", enquiry.Lines.Single(l => l.Key == "Enquiry type").Value);
+    }
+
     private static RequestState MissingQualificationJourney(CheckingWindowDto window, string qan) => new()
     {
         SelectedWhatToChange = WhatToChange.MissingQualification,

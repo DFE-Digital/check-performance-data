@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
@@ -54,7 +55,7 @@ public sealed class ResultIssueViewSourceTests
 
         Assert.Equal(3, view.Split("<govuk-radios-item").Length - 1);
         Assert.Contains("Missing qualification", view);
-        Assert.Contains("Result does not belong to student", view);
+        Assert.Contains("@Model.ResultDoesNotBelongLabel", view);
     }
 
     [Fact]
@@ -114,6 +115,14 @@ public sealed class ResultIssueViewSourceTests
         Assert.Contains(
             "<a asp-action=\"Index\" asp-controller=\"CheckYourPupilData\" asp-route-windowId=\"@Model.WindowId\" class=\"govuk-back-link\">Back</a>",
             ViewSource());
+    }
+
+    [Fact]
+    public void The_page_names_the_learner_only_through_the_model()
+    {
+        var rendered = Regex.Replace(ViewSource(), @"@\*[\s\S]*?\*@", string.Empty);
+
+        Assert.DoesNotContain("student", rendered, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

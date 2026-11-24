@@ -110,9 +110,7 @@ public sealed class JourneyViewModelBuilder(
         {
             DfeNumber = currentUserService.OrganisationLaestab,
             KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
-            EnquiryTypeLabel = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
-                ? "Incorrect grade"
-                : "Result does not belong to student",
+            EnquiryTypeLabel = EnquiryTypeLabels.For(kind.Value, journey.LearnerNoun),
             StudentName = pupilName,
             IsCohortWide = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
                 && string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),

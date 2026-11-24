@@ -49,7 +49,7 @@ public sealed class ResultIssueController(
 
         // Never pre-selects: the confirmation page's "Report another issue" link lands here, and the
         // AC is that nothing carries over from the previous enquiry.
-        return View(new ResultIssueViewModel { WindowId = windowId });
+        return View(ViewModelFor(windowId, window.CheckingWindowType));
     }
 
     [HttpPost]
@@ -79,7 +79,7 @@ public sealed class ResultIssueController(
                 ErrorCodes = [ValidationErrorCoding.NoSelection],
                 ErrorFields = [nameof(ResultIssueViewModel.IssueType)]
             });
-            return View("Index", new ResultIssueViewModel { WindowId = windowId });
+            return View("Index", ViewModelFor(windowId, window.CheckingWindowType));
         }
 
         var config = await flowService.GetConfigAsync(whatToChange.Value, window.CheckingWindowType);
@@ -165,4 +165,7 @@ public sealed class ResultIssueController(
 
         return RedirectToAction(nameof(Index), new { windowId });
     }
+
+    private static ResultIssueViewModel ViewModelFor(Guid windowId, CheckingWindowType windowType) =>
+        new() { WindowId = windowId, LearnerNoun = LearnerNoun.For(windowType) };
 }

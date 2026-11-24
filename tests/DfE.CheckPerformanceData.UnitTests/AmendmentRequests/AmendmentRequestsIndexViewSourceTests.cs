@@ -70,7 +70,7 @@ public sealed class AmendmentRequestsIndexViewSourceTests
     {
         var panel = ResultsEnquiriesPanel();
         Assert.Contains("@enquiryDeadline.Sentence", panel);
-        Assert.Contains("You can edit your @enquiryDeadline.ExerciseLabel.ToLowerInvariant() requests any time", panel);
+        Assert.Contains("You can edit your @enquiryDeadline.RequestsLabel any time", panel);
     }
 
     // The header inset and the Requests tab list every deadline BUT results enquiry: a results

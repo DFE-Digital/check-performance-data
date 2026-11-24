@@ -143,8 +143,12 @@ public sealed class SubmittedRequestController(
             await analytics.TrackSafeAsync(deletedEvent);
         }
 
+        // A draft and a data-correct confirmation are both hard-deleted, so the amendment-request
+        // wording keys on the row's type; the confirmation keeps its own message.
         TempData["DeletedMessage"] = result.WasHardDeleted
-            ? $"{result.PupilName} has been removed from your saved request"
+            ? (result.RequestType is RequestType.Amendment
+                ? $"The amendment request for {result.PupilName} has been deleted"
+                : $"{result.PupilName} has been removed from your saved request")
             : $"{result.PupilName} (reference number - {referenceNumber}) has been removed from your submitted request.";
         if (allEst)
         {

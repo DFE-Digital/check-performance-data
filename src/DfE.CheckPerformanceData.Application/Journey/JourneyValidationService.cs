@@ -219,29 +219,34 @@ public sealed class JourneyValidationService(
             ? $"You can only upload {EvidenceUploadLimits.MaxFiles} files. Remove a file before you upload another."
             : null;
 
+    private const string Post16ReferencePart = "16to19";
+    private const string Ks4ReferencePart = "KS4";
+    private const string UnknownReferencePart = "Unknown";
+    private const string EnquiryReferencePart = "RE";
+
     public string GenerateReference(CheckingWindowType? windowType)
     {
         var type = windowType switch
         {
-            CheckingWindowType.Post16 => "16to19",
-            _ => windowType?.ToString() ?? "Unknown"
+            CheckingWindowType.Post16 => Post16ReferencePart,
+            _ => windowType?.ToString() ?? UnknownReferencePart
         };
         var uniqueId = Guid.NewGuid().ToString("N")[..7].ToUpper();
         return $"CYPMD_{type}_{uniqueId}";
     }
 
-    /// <summary>
-    /// The reference for a 16-19 results enquiry: <c>CYPMD_16to19_RE_{7 hex}</c>. AB#296648.
-    ///
-    /// A separate format from <see cref="GenerateReference"/> because support staff read these aloud
-    /// and need to tell an enquiry from an amendment at a glance — hence the <c>RE</c> segment, and
-    /// <c>16to19</c> rather than the enum's <c>Post16</c>, which is what the service calls the key
-    /// stage everywhere a school can see it.
-    ///
-    /// Decided: the confirmation mockup's <c>3014023_RE10005</c> was confirmed illustrative.
-    /// </summary>
-    public string GenerateEnquiryReference()
-        => $"CYPMD_16to19_RE_{Guid.NewGuid().ToString("N")[..7].ToUpper()}";
+    /// <inheritdoc cref="IJourneyValidationService.GenerateEnquiryReference(CheckingWindowType?)" />
+    public string GenerateEnquiryReference(CheckingWindowType? windowType)
+    {
+        var keyStage = windowType switch
+        {
+            CheckingWindowType.Post16 => Post16ReferencePart,
+            CheckingWindowType.KS4Autumn => Ks4ReferencePart,
+            _ => windowType?.ToString() ?? UnknownReferencePart
+        };
+        var uniqueId = Guid.NewGuid().ToString("N")[..7].ToUpper();
+        return $"CYPMD_{keyStage}_{EnquiryReferencePart}_{uniqueId}";
+    }
 
     public EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName,
         IReadOnlySet<string>? conditionallyOptionalQuestionIds = null,

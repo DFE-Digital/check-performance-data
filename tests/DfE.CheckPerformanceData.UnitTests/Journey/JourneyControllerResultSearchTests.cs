@@ -518,7 +518,7 @@ public sealed class JourneyControllerResultSearchTests
         _pupilData.GetPupilAsync(WindowId, pupil.Id).Returns(pupil);
         _requestService.HasSubmittedRequestAsync(WindowId, pupil.Id, Arg.Any<long>())
             .Returns(new DuplicateCheckResult.NoConflict());
-        _journeyService.GenerateEnquiryReference().Returns("CYPMD_16to19_RE_ABCDEF1");
+        _journeyService.GenerateEnquiryReference(CheckingWindowType.Post16).Returns("CYPMD_16to19_RE_ABCDEF1");
 
         _session.SetRequestState(WindowId, new RequestState
         {

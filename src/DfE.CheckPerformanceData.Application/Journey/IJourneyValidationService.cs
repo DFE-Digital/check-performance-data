@@ -79,8 +79,16 @@ public interface IJourneyValidationService
 
     string GenerateReference(CheckingWindowType? windowType);
 
-    /// <summary>AB#296648: the reference for a 16-19 results enquiry, <c>CYPMD_16to19_RE_{7 hex}</c>.</summary>
-    string GenerateEnquiryReference();
+    /// <summary>
+    /// Makes the reference of a results enquiry: <c>CYPMD_{key stage}_RE_{7 hex}</c>. The <c>RE</c>
+    /// part tells support staff that the reference is for an enquiry, not for an amendment.
+    /// </summary>
+    /// <param name="windowType">
+    /// The type of the enquiry's window. <c>Post16</c> gives the key stage part <c>16to19</c> and
+    /// <c>KS4Autumn</c> gives <c>KS4</c>. Another type gives its enum name. Null gives <c>Unknown</c>.
+    /// </param>
+    /// <returns>A new reference. Its last part is seven random hexadecimal characters in upper case.</returns>
+    string GenerateEnquiryReference(CheckingWindowType? windowType);
     EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName,
         IReadOnlySet<string>? conditionallyOptionalQuestionIds = null,
         bool? requireAtLeastOneActive = null);

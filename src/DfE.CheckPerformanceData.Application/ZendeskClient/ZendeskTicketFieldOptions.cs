@@ -66,7 +66,9 @@ public static class ZendeskTicketFieldOptions
         public const string TLevel = "yes_tlevel_cypmd";
         public const string NotTLevel = "no_tlevel_cypmd";
 
-        /// <summary>"Withdrawal qualification (CYPMD)". DCI agents change it by hand.</summary>
+        /// <summary>"Withdrawal qualification (CYPMD)". The ticket builder sets "yes" when the
+        /// school's additional information names a withdrawal (#908). DCI agents can change it.</summary>
+        public const string Withdrawn = "yes_withdraw_cypmd";
         public const string NotWithdrawn = "no_withdraw_cypmd";
 
         /// <summary>"Whole cohort affected? (CYPMD)".</summary>

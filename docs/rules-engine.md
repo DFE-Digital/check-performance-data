@@ -281,6 +281,13 @@ The Zendesk views select tickets by these values. The worker does not change the
 If `ScrutinyGroupId` is not set or is 0, Scrutiny tickets go to `GroupId`. Production sets both to 0
 until its Zendesk IDs are confirmed.
 
+**Ticket text is an internal note.** The worker signs in to Zendesk as an agent. Zendesk adds that
+agent's signature to each public comment, so the comment looks like an email to the school. So
+every ticket sends its text as `comment` with `public: false`, not as `description`.
+`ZendeskAttachmentService` adds the evidence comment with `public: false` too. A ticket whose first
+comment is an internal note is a private ticket (`is_public: false`). The requester is the API
+agent, not the school, so this has no effect on the school.
+
 A results enquiry does not use this table. `ResultsEnquiryTicketBuilder` makes its ticket: status
 `new`, group `GroupId`, and the Results Enquiry DCI form. See
 [results-enquiry.md](results-enquiry.md#the-enquiry-ticket-859).

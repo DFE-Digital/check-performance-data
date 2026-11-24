@@ -48,7 +48,7 @@ public sealed class EnquiryConfirmationViewSourceTests
     {
         var view = ViewSource();
 
-        Assert.Contains("Return to check your data", view);
+        Assert.Contains("Return to check your performance measures data", view);
         Assert.Contains("asp-controller=\"CheckYourPupilData\"", view);
     }
 

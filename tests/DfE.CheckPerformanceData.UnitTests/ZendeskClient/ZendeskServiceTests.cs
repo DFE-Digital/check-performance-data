@@ -844,7 +844,7 @@ public sealed class ZendeskServiceTests
             Ticket = new CreateTicketDto
             {
                 Subject = "Test subject",
-                Description = "Body text"
+                Comment = CreateTicketCommentDto.InternalNote("Body text")
             }
         };
 
@@ -867,7 +867,7 @@ public sealed class ZendeskServiceTests
             Ticket = new CreateTicketDto
             {
                 Subject = "Created subject",
-                Description = "Body"
+                Comment = CreateTicketCommentDto.InternalNote("Body")
             }
         };
 
@@ -899,7 +899,7 @@ public sealed class ZendeskServiceTests
             Ticket = new CreateTicketDto
             {
                 Subject = "Test",
-                Description = "Body"
+                Comment = CreateTicketCommentDto.InternalNote("Body")
             }
         };
 
@@ -924,7 +924,7 @@ public sealed class ZendeskServiceTests
             Ticket = new CreateTicketDto
             {
                 Subject = "New issue",
-                Description = "Something is broken"
+                Comment = CreateTicketCommentDto.InternalNote("Something is broken")
             }
         };
 
@@ -954,7 +954,7 @@ public sealed class ZendeskServiceTests
             Ticket = new CreateTicketDto
             {
                 Subject = "Test",
-                Description = "Body",
+                Comment = CreateTicketCommentDto.InternalNote("Body"),
                 Priority = "high"
             }
         };
@@ -976,7 +976,7 @@ public sealed class ZendeskServiceTests
             Ticket = new CreateTicketDto
             {
                 Subject = "Test",
-                Description = "Body",
+                Comment = CreateTicketCommentDto.InternalNote("Body"),
                 CustomFields = new List<CustomFieldDto> { new() { Id = 10L, Value = "Engineering" } }
             }
         };
@@ -998,7 +998,7 @@ public sealed class ZendeskServiceTests
             Ticket = new CreateTicketDto
             {
                 Subject = "Test",
-                Description = "Body",
+                Comment = CreateTicketCommentDto.InternalNote("Body"),
                 GroupId = 42L,
                 Priority = "high"
             }
@@ -1021,7 +1021,7 @@ public sealed class ZendeskServiceTests
             Ticket = new CreateTicketDto
             {
                 Subject = "Test",
-                Description = "Body",
+                Comment = CreateTicketCommentDto.InternalNote("Body"),
                 Type = "task"
             }
         };
@@ -1043,7 +1043,7 @@ public sealed class ZendeskServiceTests
             Ticket = new CreateTicketDto
             {
                 Subject = "Test",
-                Description = "Body",
+                Comment = CreateTicketCommentDto.InternalNote("Body"),
                 BrandId = 5L,
                 Priority = "high"
             }
@@ -1066,7 +1066,7 @@ public sealed class ZendeskServiceTests
             Ticket = new CreateTicketDto
             {
                 Subject = "Test",
-                Description = "Body with comment"
+                Comment = CreateTicketCommentDto.InternalNote("Body with comment")
             }
         };
 
@@ -1076,7 +1076,7 @@ public sealed class ZendeskServiceTests
         await CreateSut().CreateTicketAsync(request);
 
         await _api.Received(1).CreateTicket(
-            Arg.Is<CreateTicketRequest>(r => r.Ticket!.Description == "Body with comment"));
+            Arg.Is<CreateTicketRequest>(r => r.Ticket!.Comment!.Body == "Body with comment" && !r.Ticket.Comment.Public));
     }
 
     [Fact]
@@ -1291,7 +1291,7 @@ public sealed class ZendeskServiceTests
     {
         var request = new CreateTicketRequestDto
         {
-            Ticket = new CreateTicketDto { Subject = "Test", Description = "Body" }
+            Ticket = new CreateTicketDto { Subject = "Test", Comment = CreateTicketCommentDto.InternalNote("Body") }
         };
         var response = new CreateTicketResponse { Ticket = new() { Id = 99L } };
 

@@ -57,7 +57,9 @@ public sealed class ZendeskAttachmentService : IZendeskAttachmentService
                     Comment = new TicketCommentUpdate
                     {
                         Body = commentBody,
-                        Uploads = new List<string> { token }
+                        Uploads = new List<string> { token },
+                        // An internal note, so Zendesk does not add the agent signature.
+                        Public = false
                     }
                 }
             };

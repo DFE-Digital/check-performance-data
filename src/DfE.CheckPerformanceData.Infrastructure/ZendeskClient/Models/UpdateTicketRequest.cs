@@ -31,5 +31,10 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 
         [JsonProperty("uploads")]
         public List<string>? Uploads { get; set; }
+
+        /// <summary>False makes the comment an internal note. Zendesk adds the agent signature
+        /// only to a public comment.</summary>
+        [JsonProperty("public")]
+        public bool Public { get; set; }
     }
 }

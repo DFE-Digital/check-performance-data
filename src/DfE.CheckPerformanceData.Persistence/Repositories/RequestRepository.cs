@@ -118,8 +118,10 @@ public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewCon
                 // AB#296648: the amendment rule guards against two competing AMENDMENTS to the same
                 // pupil's record. A results enquiry is not an amendment: it changes no pupil data, so
                 // it neither raises an amendment conflict nor counts as one. Duplicate enquiries have
-                // their own rule below.
-                var conflict = data.RequestType == RequestType.ResultsEnquiry
+                // their own rule below. A request with no pupil (a ConfirmCorrect declaration) cannot
+                // compete for a pupil's record. Without this guard, `PupilId == null` translates to
+                // `IS NULL` and every earlier declaration for the school conflicts with a new one.
+                var conflict = data.RequestType == RequestType.ResultsEnquiry || data.PupilId is null
                     ? null
                     : await ConflictQuery(db, data, existingId).FirstOrDefaultAsync();
 

@@ -43,7 +43,7 @@ public sealed class PupilSearchViewSourceTests
         var view = ViewSource();
 
         Assert.Contains("tNoResults:", view);
-        Assert.Contains("No students found with results", view);
+        Assert.Contains("No @Model.LearnerNoun.Plural found with results", view);
     }
 
     [Fact]

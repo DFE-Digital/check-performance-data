@@ -57,11 +57,11 @@ else
     <h1 class="govuk-heading-l">@Model.Title</h1>
 
     <div class="govuk-inset-text">
-        We hold no results for this student, so there is no grade to correct.
+        We hold no results for this @(Model.LearnerNoun.Singular), so there is no grade to correct.
     </div>
 
     <p class="govuk-body">
-        Check you selected the right student. If the student's results are missing, report that
+        Check you selected the right @(Model.LearnerNoun.Singular). If the @(Model.LearnerNoun.Singular)'s results are missing, report that
         instead of an incorrect grade.
     </p>
 
@@ -69,7 +69,7 @@ else
         <a class="govuk-link" asp-action="@(Model.BackPageId is null ? "Index" : Model.BackPageAction)"
            asp-controller="@(Model.BackPageId is null ? "CheckYourPupilData" : "Journey")"
            asp-route-windowId="@Model.WindowId"
-           asp-route-pageId="@Model.BackPageId">Search for a different student</a>
+           asp-route-pageId="@Model.BackPageId">Search for a different @(Model.LearnerNoun.Singular)</a>
     </p>
 }
 else

@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -137,7 +138,7 @@ public sealed class ResultSearchViewSourceTests
 
         Assert.Contains("if (!Model.AvailableResults.Any())", view);
         Assert.Contains("govuk-inset-text", view);
-        Assert.Contains("We hold no results for this student", view);
+        Assert.Contains("We hold no results for this @(Model.LearnerNoun.Singular)", view);
     }
 
     [Fact]
@@ -147,7 +148,7 @@ public sealed class ResultSearchViewSourceTests
         // Continue button would only ever fail validation.
         var view = ViewSource();
 
-        Assert.Contains("Search for a different student", view);
+        Assert.Contains("Search for a different @(Model.LearnerNoun.Singular)", view);
         Assert.DoesNotContain("href=\"#\"", view);
     }
 
@@ -229,5 +230,13 @@ public sealed class ResultSearchViewSourceTests
         var view = ViewSource();
 
         Assert.Contains("hidden=\"@(result.CompositeKey == Model.SelectedResultKey ? null : \"hidden\")\"", view);
+    }
+
+    [Fact]
+    public void The_page_names_the_learner_only_through_the_model()
+    {
+        var rendered = Regex.Replace(ViewSource(), @"@\*[\s\S]*?\*@", string.Empty);
+
+        Assert.DoesNotContain("student", rendered, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -112,6 +112,7 @@ public sealed class JourneyViewModelBuilder(
             KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
             EnquiryTypeLabel = EnquiryTypeLabels.For(kind.Value, journey.LearnerNoun),
             StudentName = pupilName,
+            LearnerNoun = journey.LearnerNoun,
             IsCohortWide = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
                 && string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
             CohortCount = Answer(CohortCountQuestionId),
@@ -305,6 +306,7 @@ public sealed class JourneyViewModelBuilder(
             CypmdId = journey.SelectedPupil?.Cypmd_Id,
             FromSummary = fromSummary,
             PupilName = pupilName,
+            LearnerNoun = journey.LearnerNoun,
             ContentKey = contentKey,
             EvidenceContentBlocks = evidenceContentBlocks,
             Caption = page.Type is PageType.EvidenceUpload && config is not null
@@ -380,6 +382,7 @@ public sealed class JourneyViewModelBuilder(
             PageTitle = page.PageTitle,
             Hint = page.Subheading,
             Content = page.Content,
+            LearnerNoun = journey.LearnerNoun,
             SelectedResultKey = selectedResultKey ?? journey.SelectedResult?.CompositeKey,
             AvailableResults = availableResults,
             BackPageId = backPageId,

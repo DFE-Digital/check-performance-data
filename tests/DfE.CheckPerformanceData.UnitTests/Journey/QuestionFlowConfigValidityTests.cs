@@ -133,6 +133,17 @@ public sealed class QuestionFlowConfigValidityTests
 
     [Theory]
     [MemberData(nameof(FlowFiles))]
+    public void A_format_failure_needs_a_validator(string file)
+    {
+        var orphans = Load(file).Pages.SelectMany(p => p.Questions)
+            .Where(q => q.FormatFailure is not null && string.IsNullOrWhiteSpace(q.Validator))
+            .Select(q => q.Id);
+
+        Assert.Empty(orphans);
+    }
+
+    [Theory]
+    [MemberData(nameof(FlowFiles))]
     public void Every_radio_and_checkbox_has_options_with_unique_values(string file)
     {
         foreach (var page in Load(file).Pages)

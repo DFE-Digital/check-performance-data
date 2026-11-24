@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -553,5 +554,56 @@ public sealed class JourneyViewModelBuilderEnquirySummaryTests
 
         Assert.Contains(lines, l => l.Key == "Qualification name and subject");
         Assert.DoesNotContain(lines, l => l.Key == "Graded Exam");
+    }
+
+    [Fact]
+    public void A_ks4_autumn_cohort_summary_says_pupil()
+    {
+        var journey = CohortJourney();
+        journey.CheckingWindow = Ks4AutumnWindow;
+
+        var keys = Lines(journey).Select(l => l.Key).ToList();
+
+        Assert.Contains("Number of pupils in affected cohort", keys);
+        Assert.Contains("Name of a pupil in cohort", keys);
+        Assert.DoesNotContain(keys, key => key.Contains("student", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void A_ks4_autumn_single_pupil_summary_says_pupil()
+    {
+        var journey = SingleJourney();
+        journey.CheckingWindow = Ks4AutumnWindow;
+
+        Assert.Contains("Name of pupil", Lines(journey).Select(l => l.Key));
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, "Student")]
+    [InlineData(CheckingWindowType.KS4Autumn, "Pupil")]
+    public void The_grade_details_page_carries_the_learner_noun_of_the_window(
+        CheckingWindowType windowType, string expected)
+    {
+        var journey = SingleJourney();
+        journey.CheckingWindow = windowType == CheckingWindowType.Post16 ? Window : Ks4AutumnWindow;
+
+        var vm = _sut.BuildPageVm(
+            WindowId, GradeDetailsPage, journey.QuestionAnswers, journey, false, new ModelStateDictionary(), Flow);
+
+        Assert.Equal(expected, vm.LearnerNoun.SingularCapitalised);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, "student")]
+    [InlineData(CheckingWindowType.KS4Autumn, "pupil")]
+    public void The_result_search_page_carries_the_learner_noun_of_the_window(
+        CheckingWindowType windowType, string expected)
+    {
+        var journey = SingleJourney();
+        journey.CheckingWindow = windowType == CheckingWindowType.Post16 ? Window : Ks4AutumnWindow;
+
+        var vm = _sut.BuildResultSearchVm(WindowId, SelectResultPage.Id, SelectResultPage, journey, Flow, []);
+
+        Assert.Equal(expected, vm.LearnerNoun.Singular);
     }
 }

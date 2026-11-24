@@ -178,7 +178,9 @@ public sealed class JourneyValidationService(
             return null;
 
         var validator = _formatValidators.FirstOrDefault(v => v.Name == question.Validator);
-        return validator is not null && !validator.IsValid(textValue) ? validator.FailureMessage : null;
+        return validator is not null && !validator.IsValid(textValue)
+            ? question.FormatFailure ?? validator.FailureMessage
+            : null;
     }
 
     // Appended to every date format failure; the hint shows an example in the same order.

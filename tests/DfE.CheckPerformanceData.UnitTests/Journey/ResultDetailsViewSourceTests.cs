@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -26,7 +27,7 @@ public sealed class ResultDetailsViewSourceTests
 
         foreach (var row in new[]
                  {
-                     "Student name", "CYPMD ID", "Qualification number (QAN)",
+                     "@Model.LearnerNoun.SingularCapitalised name", "CYPMD ID", "Qualification number (QAN)",
                      "Qualification name and subject", "Session", "Current grade"
                  })
         {
@@ -179,4 +180,12 @@ public sealed class ResultDetailsViewSourceTests
     }
 
     private static string ThisFilePath([CallerFilePath] string path = "") => path;
+
+    [Fact]
+    public void The_page_names_the_learner_only_through_the_model()
+    {
+        var rendered = Regex.Replace(Page(), @"@\*[\s\S]*?\*@", string.Empty);
+
+        Assert.DoesNotContain("student", rendered, StringComparison.OrdinalIgnoreCase);
+    }
 }

@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
@@ -22,6 +23,7 @@ public sealed class ResultsEnquirySummary
     public required string KeyStageLabel { get; init; }
     public required string EnquiryTypeLabel { get; init; }
     public required string StudentName { get; init; }
+    public LearnerNoun LearnerNoun { get; init; } = LearnerNoun.Pupil;
 
     /// <summary>True when the enquiry covers a whole cohort, which adds the count row and changes
     /// how the student row is labelled — the student is then an example, not the subject.</summary>
@@ -61,11 +63,13 @@ public sealed class ResultsEnquirySummary
             };
 
             if (IsCohortWide)
-                lines.Add(Fixed("Number of students in affected cohort", CohortCount ?? string.Empty));
+                lines.Add(Fixed($"Number of {LearnerNoun.Plural} in affected cohort", CohortCount ?? string.Empty));
 
             // The label is how the summary conveys the cohort answer — there is no separate yes/no
             // row on the Figma screens.
-            lines.Add(Fixed(IsCohortWide ? "Name of a student in cohort" : "Name of student", StudentName));
+            lines.Add(Fixed(
+                IsCohortWide ? $"Name of a {LearnerNoun.Singular} in cohort" : $"Name of {LearnerNoun.Singular}",
+                StudentName));
 
             lines.Add(Fixed("CYPMD ID", Result?.CypmdId ?? string.Empty));
             // AB#301903: the AO is known only from the 16-19 reference, so the row appears only

@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using Options = DfE.CheckPerformanceData.Application.ZendeskClient.ZendeskTicketFieldOptions;
 using Names = DfE.CheckPerformanceData.Application.ZendeskClient.ZendeskTicketFieldConstants;
@@ -57,7 +58,10 @@ internal sealed class ResultsEnquiryTicketBuilder(
         // Routing fields. The Zendesk views filter on these.
         Add(dto, Names.SituationCypmdName, Situation(enquiry.Type));
         Add(dto, Names.KeyStageName, ticketFieldService.GetOptionValue(Names.KeyStageName, message.CheckingWindowType));
-        Add(dto, Names.GradedExamCypmdName, Options.ResultsEnquiry.NotGradedExam);
+        Add(dto, Names.GradedExamCypmdName,
+            GradedExamQualifications.ForEnquiry(WindowType(message), enquiry.Qan) == true
+                ? Options.ResultsEnquiry.GradedExam
+                : Options.ResultsEnquiry.NotGradedExam);
         Add(dto, Names.TLevelExamsCypmdName,
             TLevelQualifications.Contains(enquiry.Qan) ? Options.ResultsEnquiry.TLevel : Options.ResultsEnquiry.NotTLevel);
         Add(dto, Names.WithdrawalQualificationCypmdName, Withdrawal(enquiry.Type, message));
@@ -130,6 +134,13 @@ internal sealed class ResultsEnquiryTicketBuilder(
             : Options.ResultsEnquiry.NotWithdrawn;
 
     private const string WithdrawalStem = "withdr";
+
+    // TryParse also accepts a number, a comma list and outer spaces. Only an exact name counts.
+    private static CheckingWindowType? WindowType(RequestDocument message) =>
+        Enum.TryParse<CheckingWindowType>(message.CheckingWindowType, out var type)
+        && type.ToString() == message.CheckingWindowType
+            ? type
+            : null;
 
     private static AnswerRecord? Answer(RequestDocument message, QuestionRole role) =>
         message.Answers.FirstOrDefault(a => a.Role == role);

@@ -19,6 +19,8 @@ public sealed class ResultsEnquiryTicketBuilderTests
 {
     private const string Reference = "CYPMD_16to19_RE_4F9C2A1";
     private const string TLevelQan = "60369115";
+    private const string GradedExamQan = "5010648X";
+    private const string Ks4Autumn = "KS4Autumn";
 
     private readonly ZendeskTicketFieldSettings _fieldIds = AllFieldIdsSet();
     private readonly ILogger _logger = Substitute.For<ILogger>();
@@ -159,6 +161,50 @@ public sealed class ResultsEnquiryTicketBuilderTests
     {
         Assert.Equal(21, TLevelQualifications.All.Count);
         Assert.True(TLevelQualifications.Contains("6037066x"));
+    }
+
+    [Theory]
+    [InlineData(WhatToChange.MissingQualification)]
+    [InlineData(WhatToChange.IncorrectGrade)]
+    [InlineData(WhatToChange.ResultDoesNotBelong)]
+    public void A_ks4_autumn_enquiry_for_a_qan_on_the_graded_exam_list_sends_yes_graded(WhatToChange type)
+    {
+        var ticket = Build(Message(type, qan: GradedExamQan, windowType: Ks4Autumn));
+
+        Assert.Equal("yes_graded", Field(ticket, Names.GradedExamCypmdName));
+    }
+
+    [Theory]
+    [InlineData(WhatToChange.MissingQualification)]
+    [InlineData(WhatToChange.IncorrectGrade)]
+    [InlineData(WhatToChange.ResultDoesNotBelong)]
+    public void A_ks4_autumn_enquiry_for_another_qan_sends_no_graded(WhatToChange type)
+    {
+        var ticket = Build(Message(type, windowType: Ks4Autumn));
+
+        Assert.Equal("no_graded", Field(ticket, Names.GradedExamCypmdName));
+    }
+
+    [Theory]
+    [InlineData("Post16")]
+    [InlineData("KS4June")]
+    [InlineData("NotAWindowType")]
+    public void An_enquiry_outside_ks4_autumn_sends_no_graded_for_a_qan_on_the_list(string windowType)
+    {
+        var ticket = Build(Message(WhatToChange.IncorrectGrade, qan: GradedExamQan, windowType: windowType));
+
+        Assert.Equal("no_graded", Field(ticket, Names.GradedExamCypmdName));
+    }
+
+    [Theory]
+    [InlineData("3")]
+    [InlineData(" KS4Autumn ")]
+    [InlineData("KS2, Post16")]
+    public void A_window_type_that_is_not_an_exact_name_sends_no_graded(string windowType)
+    {
+        var ticket = Build(Message(WhatToChange.IncorrectGrade, qan: GradedExamQan, windowType: windowType));
+
+        Assert.Equal("no_graded", Field(ticket, Names.GradedExamCypmdName));
     }
 
     // ── Data fields ─────────────────────────────────────────────────────────
@@ -323,14 +369,15 @@ public sealed class ResultsEnquiryTicketBuilderTests
         string qan = "60146084",
         string currentGrade = "5",
         string ao = "AQA",
-        List<AnswerRecord>? answers = null) => new()
+        List<AnswerRecord>? answers = null,
+        string windowType = "Post16") => new()
     {
         ChangeRequestId = Guid.NewGuid(),
         ReferenceNumber = Reference,
         SubmittedAt = DateTime.UtcNow,
         SubmittedBy = new UserDetails { UserId = "u", DisplayName = "Ada Editor", Email = "ada@school.test" },
         CheckingWindowId = Guid.NewGuid(),
-        CheckingWindowType = "Post16",
+        CheckingWindowType = windowType,
         RequestTypeCode = "Results enquiry - Incorrect grade",
         School = new SchoolDetails { Urn = "142313", Name = "Test School", Laestab = "860/4070" },
         Pupil = new PupilDetails

@@ -24,5 +24,6 @@
            needs no deployment-relative file path. -->
       <EmbeddedResource Include="PageTree/SeedContent/sample-content.json" />
       <EmbeddedResource Include="ResultsEnquiry/Data/t-level-qans.csv" />
+      <EmbeddedResource Include="ResultsEnquiry/Data/graded-exam-qans.csv" />
     </ItemGroup>
 </Project>

@@ -451,4 +451,93 @@ public sealed class JourneyViewModelBuilderEnquirySummaryTests
         Assert.Equal("AQA Level 1/Level 2 GCSE (9-1) in Art and Design", values["Qualification name and subject"]);
         Assert.Single(lines, l => l.HasChange);
     }
+
+    private const string GradedExamQan = "5010648X";
+
+    private static CheckingWindowDto Ks4AutumnWindow => new()
+    {
+        Title = "KS4 Autumn 2026", KeyStage = KeyStages.KS4,
+        CheckingWindowType = CheckingWindowType.KS4Autumn,
+        StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+    };
+
+    private static ResultRecord ResultWithQan(string qan) => new()
+    {
+        CypmdId = "1596410810", Qan = qan, QualificationName = "A qualification", Session = "S2026", Grade = "9"
+    };
+
+    [Theory]
+    [InlineData(GradedExamQan, "Yes")]
+    [InlineData("60180882", "No")]
+    public void A_ks4_autumn_incorrect_grade_summary_shows_the_graded_exam_row_after_the_qualification_name(
+        string qan, string expected)
+    {
+        var journey = SingleJourney();
+        journey.CheckingWindow = Ks4AutumnWindow;
+        journey.SelectedResult = ResultWithQan(qan);
+
+        var lines = Lines(journey).ToList();
+
+        var index = lines.FindIndex(l => l.Key == "Graded Exam");
+        Assert.True(index > 0);
+        Assert.Equal("Qualification name and subject", lines[index - 1].Key);
+        Assert.Equal("Session", lines[index + 1].Key);
+        Assert.Equal(expected, lines[index].Value);
+        Assert.False(lines[index].HasChange);
+    }
+
+    [Fact]
+    public void A_ks4_autumn_result_does_not_belong_summary_shows_the_graded_exam_row()
+    {
+        foreach (var page in RdbFlow.Pages)
+            _flowService.GetPage(RdbFlow, page.Id).Returns(page);
+        var journey = ResultDoesNotBelongJourney();
+        journey.CheckingWindow = Ks4AutumnWindow;
+        journey.SelectedResult = ResultWithQan(GradedExamQan);
+
+        var lines = _sut.BuildSummaryVm(WindowId, journey, RdbFlow).Lines;
+
+        Assert.Equal("Yes", lines.Single(l => l.Key == "Graded Exam").Value);
+    }
+
+    private static RequestState MissingQualificationJourney(CheckingWindowDto window, string qan) => new()
+    {
+        SelectedWhatToChange = WhatToChange.MissingQualification,
+        CheckingWindow = window,
+        SelectedPupil = Billy(),
+        SelectedQualification = new QualificationReference { Qan = qan, QualificationTitle = "A qualification" },
+        QuestionHistory = ["additional-info"]
+    };
+
+    [Theory]
+    [InlineData(GradedExamQan, "Yes")]
+    [InlineData("60146084", "No")]
+    public void A_ks4_autumn_missing_qualification_summary_shows_the_graded_exam_row(string qan, string expected)
+    {
+        var lines = Lines(MissingQualificationJourney(Ks4AutumnWindow, qan)).ToList();
+
+        var index = lines.FindIndex(l => l.Key == "Graded Exam");
+        Assert.True(index > 0);
+        Assert.Equal("Qualification name and subject", lines[index - 1].Key);
+        Assert.Equal(expected, lines[index].Value);
+        Assert.False(lines[index].HasChange);
+    }
+
+    [Fact]
+    public void A_16_to_19_summary_has_no_graded_exam_row_for_a_qan_on_the_list()
+    {
+        var journey = SingleJourney();
+        journey.SelectedResult = ResultWithQan(GradedExamQan);
+
+        Assert.DoesNotContain(Lines(journey), l => l.Key == "Graded Exam");
+    }
+
+    [Fact]
+    public void A_16_to_19_missing_qualification_summary_has_no_graded_exam_row_for_a_qan_on_the_list()
+    {
+        var lines = Lines(MissingQualificationJourney(Window, GradedExamQan));
+
+        Assert.Contains(lines, l => l.Key == "Qualification name and subject");
+        Assert.DoesNotContain(lines, l => l.Key == "Graded Exam");
+    }
 }

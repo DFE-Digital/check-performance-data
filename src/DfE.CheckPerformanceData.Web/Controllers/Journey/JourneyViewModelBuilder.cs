@@ -122,6 +122,8 @@ public sealed class JourneyViewModelBuilder(
             // the stray result by the reference's AO and title too, pinned by
             // A_result_does_not_belong_summary_also_names_the_qualification_from_the_reference.
             Qualification = journey.SelectedResultQualification,
+            IsGradedExam = GradedExamQualifications.ForEnquiry(
+                journey.CheckingWindow?.CheckingWindowType, journey.SelectedResult?.Qan),
             ShowRevisedGrade = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade,
             RevisedGrade = Answer(JourneyController.RevisedGradeQuestionId),
             RevisedGradePageId = PageAsking(JourneyController.RevisedGradeQuestionId),
@@ -165,6 +167,8 @@ public sealed class JourneyViewModelBuilder(
             AwardingOrganisation = journey.SelectedQualification?.AwardingOrganisation,
             Qan = journey.SelectedQualification?.Qan,
             QualificationTitle = journey.SelectedQualification?.QualificationTitle,
+            IsGradedExam = GradedExamQualifications.ForEnquiry(
+                journey.CheckingWindow?.CheckingWindowType, journey.SelectedQualification?.Qan),
             SyllabusCode = Answer(SyllabusQuestionId),
             ShowSyllabusCode = journey.SelectedQualification?.SyllabusCodes.Count > 0,
             AwardDate = awardDate,

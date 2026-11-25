@@ -159,7 +159,8 @@ public sealed class CheckYourPupilDataRepository(
         return ToPupilDto(pupils.Single(p => p.Id == pupilId));
     }
 
-    public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null, PupilSearchField searchField = PupilSearchField.All)
+    /// <inheritdoc cref="ICheckYourPupilDataRepository.SearchPupilsAsync(Guid, string, string, string, PupilFilter, Guid?, IReadOnlySet{string}, PupilSearchField, PupilSuggestionStyle)" />
+    public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null, PupilSearchField searchField = PupilSearchField.All, PupilSuggestionStyle style = PupilSuggestionStyle.Standard)
     {
         // urn is retained on the signature for callers but is unused: the UPN-based exclusion
         // query it served was removed in 3f9efadf, which moved conflict detection onto pupil Id.
@@ -194,7 +195,7 @@ public sealed class CheckYourPupilDataRepository(
             .Take(10)
             .Select(p => new PupilSuggestionDto(
                 p.Id,
-                PupilSuggestionFormat.Label(p, windowType, searchField),
+                PupilSuggestionFormat.Label(p, windowType, searchField, style),
                 p.Firstname,
                 p.Surname,
                 PupilDateFormatter.ToDisplayDate(p.DateOfBirth)))

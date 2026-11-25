@@ -28,8 +28,11 @@ public interface ICheckYourPupilDataRepository
     /// results enquiry keeps a school from naming a student who holds no result. Null means no
     /// restriction (every other journey); an empty set correctly matches nobody. It is applied
     /// before the cap, so a student who does hold results is never crowded out by ten who do not.
+    ///
+    /// <paramref name="style"/> chooses the layout of the text of each row. It does not change
+    /// which pupils return (see <see cref="PupilSuggestionStyle"/>).
     /// </summary>
-    Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null, PupilSearchField searchField = PupilSearchField.All);
+    Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null, PupilSearchField searchField = PupilSearchField.All, PupilSuggestionStyle style = PupilSuggestionStyle.Standard);
 
     Task<PupilDto> GetPupilAsync(Guid windowId, string laestab, Guid pupilId);
 }

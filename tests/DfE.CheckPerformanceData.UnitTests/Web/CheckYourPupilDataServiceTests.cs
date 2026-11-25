@@ -80,6 +80,31 @@ public class CheckYourPupilDataServiceTests
             windowId, TestLaestab, TestUrn, "smith", PupilFilter.Included, null, null);
     }
 
+    [Fact]
+    public async Task GetPupilSuggestionsAsync_PassesTheRowStyleToTheRepository()
+    {
+        var windowId = Guid.NewGuid();
+
+        await _sut.GetPupilSuggestionsAsync(
+            windowId, "smith", PupilFilter.All, style: PupilSuggestionStyle.ResultsEnquiry);
+
+        await _repository.Received(1).SearchPupilsAsync(
+            windowId, TestLaestab, TestUrn, "smith", PupilFilter.All, null, null,
+            PupilSearchField.All, PupilSuggestionStyle.ResultsEnquiry);
+    }
+
+    [Fact]
+    public async Task GetPupilSuggestionsAsync_WithNoStyle_AsksForTheStandardRow()
+    {
+        var windowId = Guid.NewGuid();
+
+        await _sut.GetPupilSuggestionsAsync(windowId, "smith", PupilFilter.All);
+
+        await _repository.Received(1).SearchPupilsAsync(
+            windowId, TestLaestab, TestUrn, "smith", PupilFilter.All, null, null,
+            PupilSearchField.All, PupilSuggestionStyle.Standard);
+    }
+
     private void StubWindow(Guid windowId, CheckingWindowType type) =>
         _repository.GetCheckingWindowAsync(windowId).Returns(new CheckingWindowDto
         {

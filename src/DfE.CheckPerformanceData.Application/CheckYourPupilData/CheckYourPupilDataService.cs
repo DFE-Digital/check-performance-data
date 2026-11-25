@@ -110,7 +110,8 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
     public Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId)
         => _repository.GetCheckingWindowAsync(windowId);
 
-    public async Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query, PupilFilter filter, Guid? excludeId = null, bool requireResults = false, PupilSearchField searchField = PupilSearchField.All)
+    /// <inheritdoc cref="ICheckYourPupilDataService.GetPupilSuggestionsAsync(Guid, string, PupilFilter, Guid?, bool, PupilSearchField, PupilSuggestionStyle)" />
+    public async Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query, PupilFilter filter, Guid? excludeId = null, bool requireResults = false, PupilSearchField searchField = PupilSearchField.All, PupilSuggestionStyle style = PupilSuggestionStyle.Standard)
     {
         var laestab = (_viewContext?.OrganisationLaestab ?? _currentUserService.OrganisationLaestab);
         var urn = (_viewContext?.OrganisationUrn ?? _currentUserService.OrganisationUrn);
@@ -122,7 +123,7 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
             ? await _resultsClient.GetCypmdIdsWithResultsAsync(windowId, laestab)
             : null;
 
-        return await _repository.SearchPupilsAsync(windowId, laestab, urn, query, filter, excludeId, withResults, searchField);
+        return await _repository.SearchPupilsAsync(windowId, laestab, urn, query, filter, excludeId, withResults, searchField, style);
     }
 
     public async Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId)

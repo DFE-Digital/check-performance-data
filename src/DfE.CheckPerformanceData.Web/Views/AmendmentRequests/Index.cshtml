@@ -164,7 +164,7 @@
             @foreach (var deadline in Model.RequestDeadlines.Where(d => d.IsOpen && !Impersonation.IsImpersonating))
             {
                 <p class="govuk-body">
-                    You can edit your @deadline.ExerciseLabel.ToLowerInvariant() requests any time
+                    You can edit your @deadline.RequestsLabel any time
                     before <strong>@deadline.DeadlineText</strong>
                 </p>
             }
@@ -245,7 +245,7 @@
                     @if (enquiryDeadline.IsOpen && !Impersonation.IsImpersonating)
                     {
                         <p class="govuk-body">
-                            You can edit your @enquiryDeadline.ExerciseLabel.ToLowerInvariant() requests any time
+                            You can edit your @enquiryDeadline.RequestsLabel any time
                             before <strong>@enquiryDeadline.DeadlineText</strong>
                         </p>
                     }

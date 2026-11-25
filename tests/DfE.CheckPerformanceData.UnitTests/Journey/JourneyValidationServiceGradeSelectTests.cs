@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -230,15 +231,18 @@ public sealed class JourneyValidationServiceGradeSelectTests
         Assert.DoesNotContain(ResultsFileTags.Post16LateResults1, error);
     }
 
-    [Fact]
-    public void A_grade_that_a_ks4_file_holds_is_refused_and_the_message_names_the_file_tag()
+    [Theory]
+    [InlineData(CheckingWindowType.KS4Autumn, ResultsFileTags.Ks4LateResults1)]
+    [InlineData(CheckingWindowType.KS4June, "Late results 1")]
+    public void A_grade_that_a_ks4_file_holds_is_refused_and_the_message_names_the_file_as_the_window_type_shows_it(
+        CheckingWindowType windowType, string fileText)
     {
-        var error = ValidateWithOtherFiles("D1", Btec, "M1", HeldBy(ResultsFileTags.Ks4LateResults1, "D1"));
+        var error = _sut.ValidateGradeSelect(
+            RevisedGrade, new QuestionAnswer { TextValue = "D1" }, Btec, "M1",
+            RevisedGrade.ValidationFailure, [HeldBy(ResultsFileTags.Ks4LateResults1, "D1")], windowType);
 
         Assert.Equal(
-            string.Format(
-                JourneyValidationService.RevisedGradeAlreadyHeldMessage, ResultsFileTags.Ks4LateResults1, "D1"),
-            error);
+            string.Format(JourneyValidationService.RevisedGradeAlreadyHeldMessage, fileText, "D1"), error);
     }
 
     [Fact]

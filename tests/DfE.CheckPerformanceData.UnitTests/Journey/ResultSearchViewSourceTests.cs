@@ -37,8 +37,12 @@ public sealed class ResultSearchViewSourceTests
     {
         // Same helper the suggestions endpoint uses, so this page and that endpoint cannot describe
         // the same result differently.
-        Assert.Contains("ResultLabel.For(result)", ViewSource());
+        Assert.Contains("ResultLabel.For(result, Model.WindowType)", ViewSource());
     }
+
+    [Fact]
+    public void The_csv_file_row_names_the_file_as_the_window_type_shows_it()
+        => Assert.Contains("ResultsSources.SchoolLabelFor(Model.WindowType, result.SourceFile)", ViewSource());
 
     [Fact]
     public void Nothing_is_preselected()

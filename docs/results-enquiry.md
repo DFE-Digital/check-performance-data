@@ -124,7 +124,7 @@ the October, November, February and March states are four releases and any can b
 
 The KS4 files (#901):
 
-| Month | KS4 file | Tag | Plain name |
+| Month | KS4 file | Tag | Label |
 |---|---|---|---|
 | Oct | Included and non-included results | `KS4_MAIN` | Main results |
 | Oct | Late results 1 | `KS4_LR1` | Late results 1 |
@@ -164,14 +164,14 @@ name the CSV column it is read from, or a list of columns to join with `x-ingres
 **not** replace the result it corrects (decision, 2026-09-25): both show, the amendment tagged with its
 late file. Rows with a NULL `CYPMD_ID` are ignored — they match no student.
 
-A 16-19 school sees the label, never the raw tag. A KS4 school sees the tag (#901), so that it can
-find the file a result came from. `ResultsSource.Label` is the text a school sees, and
-`ResultsSources.LabelFor` gives it for a tag. The result dropdown reads
-*"{qualification}, QAN: {qan}, Session: {session}, Grade: {grade}, File: {label}"* (`ResultLabel`), the
-result details say *CSV file: {label}*, and the Results tab CSV's *Source file* column carries the
+A KS4 Autumn school sees the tag (#901), so that it can find the file a result came from. A school
+in a window of another type sees the label, never the raw tag: 16-19 today, and KS4 June if it gets
+a results enquiry. `ResultsSources.SchoolLabelFor` gives the text for a window type and a tag. The
+result dropdown reads
+*"{qualification}, QAN: {qan}, Session: {session}, Grade: {grade}, File: {text}"* (`ResultLabel`), the
+result details say *CSV file: {text}*, and the Results tab CSV's *Source file* column carries the
 same text. The Results tab lists every result in the live file, not one tag's. Admin pages show the
-plain name with the tag, for example "Main results (KS4_MAIN)" (`ResultsSources.NameFor`,
-`DatasetLabels`).
+label with the tag, for example "Main results (KS4_MAIN)" (`DatasetLabels`).
 
 Source tags (`ResultsFileTags`, verbatim from AB#296999 — a data contract with ingestion). The MAIN,
 Revised and Retention 16-19 tags are no longer offered, but blobs already written may carry them, so
@@ -277,7 +277,7 @@ JavaScript off. Rule 2 below is therefore reached only by a forged or stale post
 
 The picker does offer a grade that another results file holds for the same result. Rule 4 refuses
 that grade when the user selects Continue (#844). The message names the file as the school sees it
-(`ResultsSources.LabelFor`): the label on 16-19, the tag on KS4. `HeldResults.InOtherFiles` finds the other copies of the
+(`ResultsSources.SchoolLabelFor`): the tag on KS4 Autumn, the label on each other window type. `HeldResults.InOtherFiles` finds the other copies of the
 result: the student's results with the same `EnquirySubject`, minus the selected result itself.
 `JourneyController.PagePost` reads them from the student's cached results.
 
@@ -745,7 +745,7 @@ The code differences, all from the window type:
   on the issue page, on the summary and in the stored description (`Results enquiry - Result does not
   belong to pupil`). The Results Enquiries tab shows the name, and the Zendesk ticket subject shows
   the description.
-- **The results file.** A KS4 school sees the tag, for example "File: KS4_MAIN" (see
+- **The results file.** A KS4 Autumn school sees the tag, for example "File: KS4_MAIN" (see
   [The results files over the year](#the-results-files-over-the-year)).
 - **The reference.** `CYPMD_KS4_RE_{7 hex}`.
 - **Graded exam.** The summary and the ticket state it (#899). See

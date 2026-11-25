@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
@@ -26,6 +27,8 @@ public sealed class ResultSearchViewModel
     public string? Hint { get; set; }
 
     public LearnerNoun LearnerNoun { get; set; } = LearnerNoun.Pupil;
+
+    public CheckingWindowType? WindowType { get; set; }
 
     /// <summary>
     /// The composite key (<c>QAN|SESSION|SOURCE</c>) of the current selection, re-rendered on a

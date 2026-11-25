@@ -383,6 +383,7 @@ public sealed class JourneyViewModelBuilder(
             Hint = page.Subheading,
             Content = page.Content,
             LearnerNoun = journey.LearnerNoun,
+            WindowType = journey.CheckingWindow?.CheckingWindowType,
             SelectedResultKey = selectedResultKey ?? journey.SelectedResult?.CompositeKey,
             AvailableResults = availableResults,
             BackPageId = backPageId,

@@ -1,5 +1,6 @@
 using System.Globalization;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.CheckYourPupilData.Results;
 
@@ -23,12 +24,12 @@ public static class ResultColumnSets
         new("Subject", r => r.Result.QualificationName)
     ];
 
-    public static IReadOnlyList<ResultColumn> Csv() =>
+    public static IReadOnlyList<ResultColumn> Csv(CheckingWindowType windowType) =>
     [
         .. Table(),
         new("QAN", r => r.Result.Qan),
         new("Session", r => r.Result.Session),
         new("Grade", r => r.Result.Grade),
-        new("Source file", r => ResultsSources.LabelFor(r.Result.SourceFile))
+        new("Source file", r => ResultsSources.SchoolLabelFor(windowType, r.Result.SourceFile))
     ];
 }

@@ -7,53 +7,14 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.ResultsEnquiry;
 public class ResultsSourcesTests
 {
     [Fact]
-    public void Every_offered_tag_has_its_own_name()
+    public void Every_offered_tag_has_its_own_label()
     {
         foreach (var type in Enum.GetValues<CheckingWindowType>())
         {
             var sources = ResultsSources.For(type);
             Assert.Equal(sources.Count, sources.Select(s => s.Tag).Distinct().Count());
-            Assert.All(sources, s => Assert.NotEqual(s.Tag, s.Name));
+            Assert.All(sources, s => Assert.NotEqual(s.Tag, s.Label));
         }
-    }
-
-    [Theory]
-    [InlineData(ResultsFileTags.Ks4Main)]
-    [InlineData(ResultsFileTags.Ks4LateResults1)]
-    [InlineData(ResultsFileTags.Ks4LateResults2)]
-    [InlineData(ResultsFileTags.Ks4Revised)]
-    public void A_ks4_tag_is_shown_to_schools_as_the_tag(string tag)
-        => Assert.Equal(tag, ResultsSources.LabelFor(tag));
-
-    [Fact]
-    public void No_16_to_19_tag_is_shown_to_schools_as_the_tag()
-        => Assert.All(ResultsSources.For(CheckingWindowType.Post16), s => Assert.NotEqual(s.Tag, s.Label));
-
-    [Theory]
-    [InlineData(ResultsFileTags.Ks4Main, "Main results")]
-    [InlineData(ResultsFileTags.Ks4LateResults1, "Late results 1")]
-    [InlineData(ResultsFileTags.Ks4LateResults2, "Late results 2")]
-    [InlineData(ResultsFileTags.Ks4Revised, "Revised results")]
-    [InlineData(ResultsFileTags.Post16Included, "Included")]
-    public void A_tag_has_a_plain_name_for_admin_pages(string tag, string name)
-        => Assert.Equal(name, ResultsSources.NameFor(tag));
-
-    [Fact]
-    public void An_unknown_tag_has_itself_as_its_name()
-        => Assert.Equal("something-else", ResultsSources.NameFor("something-else"));
-
-    [Fact]
-    public void A_ks4_result_is_described_to_a_school_with_its_file_tag()
-    {
-        var result = new ResultRecord
-        {
-            CypmdId = "000001", Qan = "60146084", QualificationName = "GCSE (9-1) Mathematics",
-            SyllabusCode = "8300H", Session = "S2025", Grade = "5", SourceFile = ResultsFileTags.Ks4LateResults1
-        };
-
-        Assert.Equal(
-            "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2025, Grade: 5, File: KS4_LR1",
-            ResultLabel.For(result));
     }
 
     [Theory]
@@ -70,6 +31,46 @@ public class ResultsSourcesTests
     [Fact]
     public void An_unknown_tag_is_shown_as_it_is()
         => Assert.Equal("something-else", ResultsSources.LabelFor("something-else"));
+
+    [Theory]
+    [InlineData(ResultsFileTags.Ks4Main)]
+    [InlineData(ResultsFileTags.Ks4LateResults1)]
+    [InlineData(ResultsFileTags.Ks4LateResults2)]
+    [InlineData(ResultsFileTags.Ks4Revised)]
+    public void A_ks4_autumn_school_sees_the_tag_of_a_file(string tag)
+        => Assert.Equal(tag, ResultsSources.SchoolLabelFor(CheckingWindowType.KS4Autumn, tag));
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June, ResultsFileTags.Ks4Main, "Main results")]
+    [InlineData(CheckingWindowType.KS4June, ResultsFileTags.Ks4LateResults1, "Late results 1")]
+    [InlineData(CheckingWindowType.Post16, ResultsFileTags.Post16Included, "Included")]
+    [InlineData(CheckingWindowType.Post16, ResultsFileTags.Post16LateResults1, "Late results 1")]
+    [InlineData(null, ResultsFileTags.Ks4Main, "Main results")]
+    public void A_school_in_another_window_type_sees_the_label_of_a_file(
+        CheckingWindowType? windowType, string tag, string label)
+        => Assert.Equal(label, ResultsSources.SchoolLabelFor(windowType, tag));
+
+    [Fact]
+    public void A_ks4_autumn_school_sees_an_unknown_tag_as_it_is()
+        => Assert.Equal(
+            "something-else", ResultsSources.SchoolLabelFor(CheckingWindowType.KS4Autumn, "something-else"));
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4Autumn, "File: KS4_LR1")]
+    [InlineData(CheckingWindowType.KS4June, "File: Late results 1")]
+    public void A_ks4_result_is_described_to_a_school_as_its_window_type_names_the_file(
+        CheckingWindowType windowType, string ending)
+    {
+        var result = new ResultRecord
+        {
+            CypmdId = "000001", Qan = "60146084", QualificationName = "GCSE (9-1) Mathematics",
+            SyllabusCode = "8300H", Session = "S2025", Grade = "5", SourceFile = ResultsFileTags.Ks4LateResults1
+        };
+
+        Assert.Equal(
+            $"GCSE (9-1) Mathematics, QAN: 60146084, Session: S2025, Grade: 5, {ending}",
+            ResultLabel.For(result, windowType));
+    }
 
     [Fact]
     public void A_tag_no_longer_offered_is_not_offered()

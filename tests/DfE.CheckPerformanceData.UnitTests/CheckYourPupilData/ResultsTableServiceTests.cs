@@ -169,4 +169,20 @@ public sealed class ResultsTableServiceTests
         Assert.Equal("Included", table.Rows[0][^1]);
         Assert.Contains(table.Rows, r => r[^1] == "Late results 1");
     }
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4Autumn, "KS4_MAIN")]
+    [InlineData(CheckingWindowType.KS4June, "Main results")]
+    public async Task Csv_names_a_ks4_file_as_the_window_type_shows_it(CheckingWindowType windowType, string expected)
+    {
+        Window(windowType, CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry);
+        _results.GetAllResultsAsync(WindowId, Laestab).Returns(new List<ResultRecord>
+        {
+            Result("500001", "Maths", ResultsFileTags.Ks4Main)
+        });
+
+        var table = await _sut.GetResultsCsvAsync(WindowId);
+
+        Assert.Equal(expected, Assert.Single(table!.Rows)[^1]);
+    }
 }

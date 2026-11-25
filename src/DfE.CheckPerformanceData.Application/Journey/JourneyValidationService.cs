@@ -75,7 +75,7 @@ public sealed class JourneyValidationService(
     public const string RevisedGradeMustDifferMessage =
         "The revised grade must be different from the current grade";
 
-    /// <summary>Format: {0} is the results file's label, {1} is the grade that file holds.</summary>
+    /// <summary>Format: {0} is the results file as the school sees it, {1} is the grade that file holds.</summary>
     public const string RevisedGradeAlreadyHeldMessage =
         "{0} already has grade {1} for this result. Select a different grade";
 
@@ -85,7 +85,8 @@ public sealed class JourneyValidationService(
         GradeReference? reference,
         string? currentGrade,
         string? resolvedValidationFailure = null,
-        IReadOnlyList<ResultRecord>? heldInOtherFiles = null)
+        IReadOnlyList<ResultRecord>? heldInOtherFiles = null,
+        CheckingWindowType? windowType = null)
     {
         var required = resolvedValidationFailure ?? "Select the revised grade";
         var chosen = answer?.TextValue?.Trim();
@@ -110,7 +111,7 @@ public sealed class JourneyValidationService(
             ? null
             : string.Format(
                 CultureInfo.InvariantCulture, RevisedGradeAlreadyHeldMessage,
-                ResultsSources.LabelFor(holder.SourceFile), holder.Grade.Trim());
+                ResultsSources.SchoolLabelFor(windowType, holder.SourceFile), holder.Grade.Trim());
     }
 
     /// <summary>

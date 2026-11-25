@@ -926,7 +926,7 @@ public sealed class JourneyController(
                     {
                         QuestionType.GradeSelect => journeyService.ValidateGradeSelect(
                             question, answer, gradeReference, journey.SelectedResult?.Grade,
-                            resolvedValidationFailure, heldInOtherFiles),
+                            resolvedValidationFailure, heldInOtherFiles, journey.CheckingWindow?.CheckingWindowType),
                         // AB#297848: syllabus options live on the resolved qualification; a QAN
                         // with none (961 of 974 today) rejects everything and the page explains
                         // the gap. Membership is on the code alone — the title is display-only.

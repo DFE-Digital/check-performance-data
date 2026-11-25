@@ -605,5 +605,6 @@ public sealed class JourneyViewModelBuilderEnquirySummaryTests
         var vm = _sut.BuildResultSearchVm(WindowId, SelectResultPage.Id, SelectResultPage, journey, Flow, []);
 
         Assert.Equal(expected, vm.LearnerNoun.Singular);
+        Assert.Equal(windowType, vm.WindowType);
     }
 }

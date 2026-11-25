@@ -419,6 +419,36 @@ public sealed class JourneyControllerResultDetailsTests
     }
 
     [Fact]
+    public async Task Post_on_a_ks4_autumn_window_names_the_file_that_holds_the_grade_by_its_tag()
+    {
+        _flowService.GetConfigAsync(WhatToChange.IncorrectGrade, CheckingWindowType.KS4Autumn).Returns(Flow);
+        var late = InLateResults1("D1");
+        StudentHolds(Result(), new ResultRecord
+        {
+            CypmdId = late.CypmdId, Qan = late.Qan, QualificationName = late.QualificationName,
+            SyllabusCode = late.SyllabusCode, Session = late.Session, Grade = late.Grade,
+            SourceFile = ResultsFileTags.Ks4LateResults1
+        });
+        Ready();
+        var state = _session.GetRequestState(WindowId);
+        state.CheckingWindow = new CheckingWindowDto
+        {
+            Title = "KS4 Autumn", KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4Autumn,
+            StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+        };
+        _session.SetRequestState(WindowId, state);
+        Post("D1");
+
+        var view = Assert.IsType<ViewResult>(await _sut.PagePost(WindowId, "grade-details", false));
+
+        Assert.Equal(
+            string.Format(
+                JourneyValidationService.RevisedGradeAlreadyHeldMessage, ResultsFileTags.Ks4LateResults1, "D1"),
+            _sut.ModelState["q-revised-grade"]!.Errors[0].ErrorMessage);
+    }
+
+    [Fact]
     public async Task Post_accepts_a_grade_that_another_file_holds_for_another_session()
     {
         StudentHolds(Result(), InLateResults1("D1", session: "S2023"));

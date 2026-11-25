@@ -442,6 +442,7 @@ public sealed class JourneyControllerResultDetailsTests
 
         var view = Assert.IsType<ViewResult>(await _sut.PagePost(WindowId, "grade-details", false));
 
+        Assert.Equal("ResultDetails", view.ViewName);
         Assert.Equal(
             string.Format(
                 JourneyValidationService.RevisedGradeAlreadyHeldMessage, ResultsFileTags.Ks4LateResults1, "D1"),

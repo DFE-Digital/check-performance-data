@@ -277,8 +277,9 @@ JavaScript off. Rule 2 below is therefore reached only by a forged or stale post
 
 The picker does offer a grade that another results file holds for the same result. Rule 4 refuses
 that grade when the user selects Continue (#844). The message names the file as the school sees it
-(`ResultsSources.SchoolLabelFor`): the tag on KS4 Autumn, the label on each other window type. `HeldResults.InOtherFiles` finds the other copies of the
-result: the student's results with the same `EnquirySubject`, minus the selected result itself.
+(`ResultsSources.SchoolLabelFor`): the tag on KS4 Autumn, the label on each other window type.
+`HeldResults.InOtherFiles` finds the other copies of the result: the student's results with the
+same `EnquirySubject`, minus the selected result itself.
 `JourneyController.PagePost` reads them from the student's cached results.
 
 Server-authoritative, in this order (`JourneyValidationService.ValidateGradeSelect`):
@@ -766,9 +767,14 @@ Locally, the seeded window "Key Stage 4 Autumn" (`7d2e9a14-5c38-4b6f-a0e1-3f8b6c
 `000001`) holds four results: mathematics in two sessions, and English language in the main file
 and in late results 1.
 
-Decided by the lead developer on 25 Nov 2026: the result page stays a dropdown with no type-ahead;
-the issue page keeps Missing qualification before #900; no rule reads the calendar to choose the
-files; KS4 June shows file labels, not tags; main results is one file.
+Decided by the lead developer on 25 Nov 2026:
+
+- The result page stays a dropdown with no type-ahead.
+- The KS4 learner noun is "pupil", in the inset on the result page too.
+- The issue page keeps Missing qualification before #900.
+- No rule reads the calendar to choose the files.
+- KS4 June shows file labels, not tags.
+- Main results is one file.
 
 ## Confirmation email
 

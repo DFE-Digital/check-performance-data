@@ -44,7 +44,7 @@ public interface IJourneyValidationService
     /// (<see cref="ResultsEnquiry.HeldResults.InOtherFiles"/>). A chosen grade that one of them holds
     /// is refused with a message that names that file. Null or empty skips the rule.</param>
     /// <param name="windowType">The type of the journey's window. It decides how the message names the
-    /// file (<see cref="ResultsEnquiry.ResultsSources.SchoolLabelFor"/>).</param>
+    /// file (<see cref="ResultsEnquiry.ResultsSources.SchoolLabelFor"/>). Null gives the label.</param>
     string? ValidateGradeSelect(
         Question question,
         QuestionAnswer? answer,

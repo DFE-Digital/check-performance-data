@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Dashboard;
 namespace DfE.CheckPerformanceData.Application.Journey.Validators;
 
 /// <summary>
@@ -6,8 +7,8 @@ namespace DfE.CheckPerformanceData.Application.Journey.Validators;
 /// surfaces the pinned design copy "Enter the 7 digit DfE number of the school which permanently
 /// excluded the pupil", so the required (blank) case — the config's <c>validationFailure</c> — and
 /// the malformed case — THIS message — read identically to the user. The value rules are shared:
-/// an opinionated identifier either in <c>nnn/nnnn</c> or <c>nnnnnnn</c> form, exact match, no
-/// normalisation (see <see cref="DfeNumberFormatValidator"/>).
+/// an opinionated identifier either in <c>nnn/nnnn</c> or <c>nnnnnnn</c> form, exact match
+/// (see <see cref="DfeNumberFormatValidator"/>). <see cref="Normalise"/> gives the 7-digit form.
 /// </summary>
 public sealed partial class PermanentExclusionDfeNumberFormatValidator : IFormatValidator
 {
@@ -22,6 +23,9 @@ public sealed partial class PermanentExclusionDfeNumberFormatValidator : IFormat
         "Enter the 7 digit DfE number of the school which permanently excluded the pupil";
 
     public bool IsValid(string value) => DfeNumberPattern().IsMatch(value);
+
+    /// <summary>Sends the number as 7 digits, with no slash (#920).</summary>
+    public string Normalise(string value) => LaestabNormaliser.Normalise(value);
 
     // Duplicated from DfeNumberFormatValidator rather than delegating so the format rule stays
     // visible here in full; the same GeneratedRegex is shared by the framework at compile time.

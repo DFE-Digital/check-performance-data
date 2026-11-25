@@ -77,6 +77,33 @@ names no file. The migration that added it ticked it wherever the old rule showe
 no journey changed when it shipped. Before that, it was "does this school hold any LR2 row", which
 told a school with no late results to wait for a file that had already arrived.
 
+### The words are content blocks
+
+The lead developer decided on 25 Nov 2026 that a content designer owns these words (#901). Each
+window type has its own blocks, so KS4 Autumn and 16-19 can say different things. Each block starts
+with the 16-19 words.
+
+| Where | Block key | Type | Where to edit |
+|---|---|---|---|
+| Issue page, the Incorrect grade option | `result-issue-incorrect-grade-option-{window type}` | Plain text | Admin page |
+| Issue page, the expander summary | `result-issue-late-results-summary-{window type}` | Plain text | Admin page |
+| Issue page, the expander body | `result-issue-late-results-body-{window type}` | Rich text | On the page, or admin page |
+| `check-late-results` page, the body | `journey-{window type}-incorrectgrade` | Rich text | On the page, or admin page |
+| Grade details page, the inset | `result-details-late-results-inset-{window type}` | Plain text | Admin page |
+
+`{window type}` is the window type in lower case, for example `ks4autumn` or `post16`. The admin
+page is **Content blocks** (`/admin/content-blocks`). `LateResultsGuidanceBlocks` (Web) holds the
+keys and the default texts.
+
+- `ContentText` (a view component) shows a plain text block as encoded text. It has no element
+  around it and no edit link. The option and the inset are in the form of the page, and a summary
+  holds only text. The editor on the page cannot go in those places.
+- A plain text block with no text shows its default. The option always has a label.
+- The title of the `check-late-results` page stays in the flow file. The browser title and the
+  `<h1>` must have the same words.
+- A block is written one time for each key, in each environment. A content designer changes the
+  words in each environment, or moves them with a content staging bundle.
+
 ## Data seams
 
 ### Student results — `IResultsClient`
@@ -759,8 +786,8 @@ Not changed for KS4 Autumn:
 - The qualification title, the awarding organisation and the grade scale come from the 16-19
   qualification reference. #900 gives KS4 Autumn its own reference file.
 - The pupil search rows have the format of the other KS4 journeys (#902 changes it).
-- The late results guidance has the 16-19 words. It needs words for this window (see
-  [Still open](#still-open)).
+- The late results guidance starts with the 16-19 words. A content designer changes them for this
+  window in its content blocks (see [The words are content blocks](#the-words-are-content-blocks)).
 
 Locally, the seeded window "Key Stage 4 Autumn" (`7d2e9a14-5c38-4b6f-a0e1-3f8b6c2d4a97`,
 `SeedKs4AutumnSamples`) holds main results and late results 1 for Kingsmead. Alice Smith (CYPMD ID
@@ -775,6 +802,7 @@ Decided by the lead developer on 25 Nov 2026:
 - No rule reads the calendar to choose the files.
 - KS4 June shows file labels, not tags.
 - Main results is one file.
+- The late results guidance is in content blocks. A content designer writes the words for KS4 Autumn.
 
 ## Confirmation email
 
@@ -942,4 +970,4 @@ ingress run that fill these blobs, is #324); drafts (decided against).
 | Whether to keep or delete `/results/suggestions` | Dev team |
 | Breadcrumb: the designs show `Check your student data - 16 to 19 and result enquiry`, but no journey view in the service renders a breadcrumb. Worth doing across the whole 16-19 journey at once rather than on one page | Design / dev |
 | `PupilSearch.cshtml` is still JavaScript-dependent (pre-existing). A server-rendered `<select>`, enhanced or not, would fix it — the roll is too long to list unenhanced, so this one needs the `enhanceSelectElement` pattern the other pickers have now dropped | Dev team |
-| KS4 Autumn (#901): the late results guidance (the issue page option and expander, the `check-late-results` page, the inset on the grade details page) has the 16-19 words. It needs words for this window (lead developer, 25 Nov 2026) | Content designer |
+| KS4 Autumn (#901): the words of the late results guidance for this window. The blocks hold the 16-19 words ("late November") until a content designer changes them, in each environment | Content designer |

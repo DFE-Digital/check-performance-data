@@ -167,5 +167,5 @@ public sealed class ResultIssueController(
     }
 
     private static ResultIssueViewModel ViewModelFor(Guid windowId, CheckingWindowType windowType) =>
-        new() { WindowId = windowId, LearnerNoun = LearnerNoun.For(windowType) };
+        new() { WindowId = windowId, WindowType = windowType };
 }

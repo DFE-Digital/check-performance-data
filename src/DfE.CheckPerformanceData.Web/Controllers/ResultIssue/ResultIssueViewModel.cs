@@ -1,5 +1,7 @@
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Common;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
@@ -21,7 +23,11 @@ public sealed class ResultIssueViewModel
     public string? IssueType { get; set; }
 
     [BindNever]
-    public LearnerNoun LearnerNoun { get; set; } = LearnerNoun.Pupil;
+    public CheckingWindowType WindowType { get; set; }
+
+    public LearnerNoun LearnerNoun => LearnerNoun.For(WindowType);
+
+    public LateResultsGuidanceBlocks LateResultsGuidance => LateResultsGuidanceBlocks.For(WindowType);
 
     public string ResultDoesNotBelongLabel =>
         EnquiryTypeLabels.For(Application.CheckYourPupilData.WhatToChange.ResultDoesNotBelong, LearnerNoun);

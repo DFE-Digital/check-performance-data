@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
 using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
@@ -136,6 +137,45 @@ public sealed class ResultIssueControllerTests
             await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = null }));
 
         Assert.Equal(expected, Assert.IsType<ResultIssueViewModel>(view.Model).ResultDoesNotBelongLabel);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    public async Task Get_names_the_late_results_guidance_blocks_of_the_window_type(CheckingWindowType windowType)
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(WindowOf(windowType));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId));
+
+        Assert.Equal(
+            LateResultsGuidanceBlocks.For(windowType),
+            Assert.IsType<ResultIssueViewModel>(view.Model).LateResultsGuidance);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    public async Task Post_without_a_selection_keeps_the_late_results_guidance_blocks_of_the_window_type(
+        CheckingWindowType windowType)
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(WindowOf(windowType));
+
+        var view = Assert.IsType<ViewResult>(
+            await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = null }));
+
+        Assert.Equal(
+            LateResultsGuidanceBlocks.For(windowType),
+            Assert.IsType<ResultIssueViewModel>(view.Model).LateResultsGuidance);
+    }
+
+    [Fact]
+    public void A_posted_value_cannot_set_the_window_type()
+    {
+        Assert.NotNull(typeof(ResultIssueViewModel)
+            .GetProperty(nameof(ResultIssueViewModel.WindowType))!
+            .GetCustomAttributes(typeof(BindNeverAttribute), inherit: false)
+            .SingleOrDefault());
     }
 
     [Fact]

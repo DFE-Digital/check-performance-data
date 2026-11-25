@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Web.Common;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
@@ -308,6 +309,9 @@ public sealed class JourneyViewModelBuilder(
             PupilName = pupilName,
             LearnerNoun = journey.LearnerNoun,
             ContentKey = contentKey,
+            LateResultsInsetKey = page.Type is PageType.ResultDetails && journey.CheckingWindow is { } window
+                ? LateResultsGuidanceBlocks.For(window.CheckingWindowType).InsetKey
+                : null,
             EvidenceContentBlocks = evidenceContentBlocks,
             Caption = page.Type is PageType.EvidenceUpload && config is not null
                 ? EvidenceCaption(config, journey)

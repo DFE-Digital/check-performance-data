@@ -71,6 +71,10 @@ public sealed class PageViewModel
         Application.WindowManagement.LearnerNoun.Pupil;
     public string? ContentKey { get; init; }
 
+    /// <summary>The key of the content block that holds the late results reminder of a
+    /// ResultDetails page. Null on every other page type.</summary>
+    public string? LateResultsInsetKey { get; init; }
+
     /// <summary>#591: the CMS blocks an EvidenceUpload page shows its requirements from, one for
     /// each option the school ticked. Empty on every other page type.</summary>
     public IReadOnlyList<Application.Journey.EvidenceContentBlock> EvidenceContentBlocks { get; init; } = [];

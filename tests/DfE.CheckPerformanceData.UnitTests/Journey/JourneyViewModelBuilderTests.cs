@@ -53,6 +53,11 @@ public class JourneyViewModelBuilderTests
         Questions = [new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Upload evidence" }]
     };
 
+    private static readonly JourneyPage ResultDetailsPage = new()
+    {
+        Id = "a-result-details-page", Type = PageType.ResultDetails
+    };
+
     private static readonly QuestionFlowConfig Config = new()
     {
         FirstPageId = "select-pupil",
@@ -725,6 +730,43 @@ public class JourneyViewModelBuilderTests
             WindowId, SyllabusQuestionPage, [], journey, false, new ModelStateDictionary());
 
         Assert.DoesNotContain(vm.QuestionModels, q => q.Question.Id == "q-syllabus-code");
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, "result-details-late-results-inset-post16")]
+    [InlineData(CheckingWindowType.KS4Autumn, "result-details-late-results-inset-ks4autumn")]
+    public void BuildPageVm_ResultDetailsPage_NamesTheLateResultsBlockOfTheWindowType(
+        CheckingWindowType windowType, string expected)
+    {
+        var journey = JourneyWithHistory(["select-pupil"], windowType);
+
+        var vm = _sut.BuildPageVm(WindowId, ResultDetailsPage, journey.QuestionAnswers, journey,
+            fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
+
+        Assert.Equal(expected, vm.LateResultsInsetKey);
+    }
+
+    [Fact]
+    public void BuildPageVm_AnotherPageType_NamesNoLateResultsBlock()
+    {
+        var journey = JourneyWithHistory(["select-pupil"], CheckingWindowType.KS4Autumn);
+
+        var vm = _sut.BuildPageVm(WindowId, ContentPage, journey.QuestionAnswers, journey,
+            fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
+
+        Assert.Null(vm.LateResultsInsetKey);
+    }
+
+    [Fact]
+    public void BuildPageVm_ResultDetailsPage_WithNoWindow_NamesNoLateResultsBlock()
+    {
+        var journey = JourneyWithHistory(["select-pupil"]);
+        journey.CheckingWindow = null;
+
+        var vm = _sut.BuildPageVm(WindowId, ResultDetailsPage, journey.QuestionAnswers, journey,
+            fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
+
+        Assert.Null(vm.LateResultsInsetKey);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

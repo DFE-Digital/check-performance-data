@@ -36,12 +36,15 @@ public sealed class ResultDetailsViewSourceTests
     }
 
     [Fact]
-    public void The_late_results_reminder_is_pinned_verbatim()
+    public void The_late_results_reminder_is_a_plain_text_content_block()
     {
+        var view = Page();
+
         Assert.Contains(
-            "Before you report an incorrect grade, check the second late results (issued in November) to",
-            Page());
-        Assert.Contains("make sure the grade is not included there.", Page());
+            "@await Component.InvokeAsync(\"ContentText\", new { key = Model.LateResultsInsetKey, defaultText = LateResultsGuidanceBlocks.InsetDefault })",
+            view);
+        Assert.Contains("@if (Model.LateResultsInsetKey is not null)", view);
+        Assert.DoesNotContain("November", Regex.Replace(view, @"@\*[\s\S]*?\*@", string.Empty), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

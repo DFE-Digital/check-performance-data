@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Notify;
@@ -51,7 +52,8 @@ public class RequestServiceTests
         });
 
         _sut = new RequestService(_flowService, _requestStateBlobClient, Substitute.For<IRequestBlobClient>(), _requestRepository, _currentUser, _logger, _queueService, _requestNotificationService, _checkYourPupilDataService,
-            new CheckingExerciseService(TimeProvider.System));
+            new CheckingExerciseService(TimeProvider.System),
+            formatValidators: [new DfeNumberFormatValidator(), new PermanentExclusionDfeNumberFormatValidator(), new NcnValidator()]);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -402,6 +404,45 @@ public class RequestServiceTests
         var doc = await CaptureDocument(journey, config);
 
         Assert.Equal("Some detail", doc.Answers[0].RawValue);
+    }
+
+    [Theory]
+    [InlineData("DfeNumber")]
+    [InlineData("PermanentExclusionDfeNumber")]
+    public async Task ConfirmRequestAsync_DfeNumberAnswer_IsSentAsSevenDigits(string validator)
+    {
+        // #920: Zendesk gets one form of a DfE number, the same as the school's own LAESTAB.
+        var doc = await CaptureFreeTextAnswer("123/4567", validator);
+
+        Assert.Equal("1234567", doc.Answers[0].Value);
+        Assert.Equal("1234567", doc.Answers[0].RawValue);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_FreeTextAnswerWithSlash_IsNotChanged()
+    {
+        var doc = await CaptureFreeTextAnswer("Moved 01/09 to 123/4567", validator: null);
+
+        Assert.Equal("Moved 01/09 to 123/4567", doc.Answers[0].Value);
+        Assert.Equal("Moved 01/09 to 123/4567", doc.Answers[0].RawValue);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_AnswerWithOtherValidator_IsNotChanged()
+    {
+        var doc = await CaptureFreeTextAnswer("12/3", "Ncn");
+
+        Assert.Equal("12/3", doc.Answers[0].Value);
+    }
+
+    private Task<RequestDocument> CaptureFreeTextAnswer(string text, string? validator)
+    {
+        var question = new Question { Id = "dfe", Type = QuestionType.FreeText, Title = "DfE number", Validator = validator };
+        var config = MakeConfig([new JourneyPage { Id = "dfe", Questions = [question] }]);
+        var journey = ValidJourney(
+            history: ["dfe"],
+            answers: new() { ["dfe"] = new QuestionAnswer { TextValue = text } });
+        return CaptureDocument(journey, config);
     }
 
     [Fact]

@@ -42,4 +42,12 @@ public class DfeNumberFormatValidatorTests
     {
         Assert.False(_sut.IsValid(value));
     }
+
+    [Theory]
+    [InlineData("123/4567", "1234567")]
+    [InlineData("1234567", "1234567")]
+    public void Normalise_GivesSevenDigits(string value, string expected)
+    {
+        Assert.Equal(expected, _sut.Normalise(value));
+    }
 }

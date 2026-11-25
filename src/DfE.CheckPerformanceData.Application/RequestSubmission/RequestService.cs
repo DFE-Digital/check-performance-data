@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.Queue;
@@ -23,8 +24,11 @@ public sealed class RequestService(
     IQueueService queueService,
     IRequestNotificationService requestNotificationService,
     ICheckYourPupilDataService checkYourPupilDataService,
- ICheckingExerciseService checkingExerciseService, ICheckingExerciseStorageResolver? storageResolver = null, IImpersonationWriteGuard? writeGuard = null) : IRequestService
+ ICheckingExerciseService checkingExerciseService, ICheckingExerciseStorageResolver? storageResolver = null, IImpersonationWriteGuard? writeGuard = null,
+    IEnumerable<IFormatValidator>? formatValidators = null) : IRequestService
 {
+    private readonly IReadOnlyList<IFormatValidator> _formatValidators = formatValidators?.ToList() ?? [];
+
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
     // Empty claim → null column, never an empty string, so "unknown" reads the same on every row.
@@ -584,7 +588,7 @@ public sealed class RequestService(
         };
     }
 
-    private static AnswerRecord BuildAnswerRecord(Question question, QuestionAnswer? answer, string pupilName)
+    private AnswerRecord BuildAnswerRecord(Question question, QuestionAnswer? answer, string pupilName)
     {
         var title = JourneyTemplate.Resolve(question.Title, pupilName);
 
@@ -615,7 +619,7 @@ public sealed class RequestService(
                 ? $"{d.Day:D2}/{d.Month:D2}/{d.Year}"
                 : null,
             QuestionType.Checkbox => CheckboxAnswerDisplay.Join(question, answer),
-            _ => answer?.TextValue
+            _ => NormaliseText(question, answer?.TextValue)
         };
 
         var rawValue = question.Type switch
@@ -627,7 +631,7 @@ public sealed class RequestService(
             QuestionType.Autocomplete => answer?.CodeValue ?? answer?.TextValue,
             // The machine-readable form, the exact analogue of an Autocomplete's CodeValue.
             QuestionType.Checkbox => CheckboxAnswerDisplay.JoinValues(question, answer),
-            _ => answer?.TextValue
+            _ => NormaliseText(question, answer?.TextValue)
         };
 
         return new AnswerRecord
@@ -642,5 +646,15 @@ public sealed class RequestService(
             Value = value,
             RawValue = rawValue
         };
+    }
+
+    // The question's format validator gives the form that goes to the Rules Engine and Zendesk,
+    // for example a DfE number as 7 digits (#920). The validator is found from the question's
+    // Validator field, never from a question id. An invalid value or an unknown validator stays as typed.
+    private string? NormaliseText(Question question, string? text)
+    {
+        if (text is null || string.IsNullOrWhiteSpace(question.Validator)) return text;
+        var validator = _formatValidators.FirstOrDefault(v => v.Name == question.Validator);
+        return validator is not null && validator.IsValid(text) ? validator.Normalise(text) : text;
     }
 }

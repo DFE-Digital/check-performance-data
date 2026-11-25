@@ -18,4 +18,10 @@ public interface IFormatValidator
 
     /// <summary>GOV.UK-style error shown when the format rule is not satisfied.</summary>
     string FailureMessage { get; }
+
+    /// <summary>
+    /// The form of a valid <paramref name="value"/> that goes to the Rules Engine and Zendesk.
+    /// The default does not change the value. The school-facing pages show the typed value.
+    /// </summary>
+    string Normalise(string value) => value;
 }

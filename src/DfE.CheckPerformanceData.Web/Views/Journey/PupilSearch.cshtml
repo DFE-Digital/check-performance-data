@@ -87,6 +87,7 @@ else
             var filter = '@Model.Filter.ToString().ToLower()';
             var requireResults = @(Model.RequireResults ? "true" : "false");
             var searchField = '@Model.SearchField';
+            var suggestionStyle = '@Model.SuggestionStyle';
             var excludePupilId = '@(Model.ExcludePupilId?.ToString() ?? "")';
             var hasError = @(hasError ? "true" : "false");
             var initialLabel = @Json.Serialize(Model.SelectedPupilLabel ?? "");
@@ -140,6 +141,7 @@ else
                     // Sent only when the page config narrows the search. The endpoint defaults to All,
                     // so omitting it keeps every unconfigured page on the historical matching.
                     if (searchField !== 'All') url += '&pupilSearchField=' + searchField;
+                    if (suggestionStyle !== 'Standard') url += '&suggestionStyle=' + suggestionStyle;
 
                     fetch(url)
                         .then(function (r) { return r.json(); })

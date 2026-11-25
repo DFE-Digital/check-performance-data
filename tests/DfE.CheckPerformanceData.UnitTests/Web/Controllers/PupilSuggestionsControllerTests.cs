@@ -144,4 +144,31 @@ public class PupilSuggestionsControllerTests
         await _service.Received(1).GetPupilSuggestionsAsync(
             WindowId, "Jo", PupilFilter.All, null, false, PupilSearchField.All);
     }
+
+    [Fact]
+    public async Task Suggestions_WithTheResultsEnquiryStyle_AsksTheServiceForThatRow()
+    {
+        _service.GetPupilSuggestionsAsync(
+                WindowId, "Jo", PupilFilter.All, null, true, PupilSearchField.All, PupilSuggestionStyle.ResultsEnquiry)
+            .Returns([]);
+
+        await _sut.Suggestions(WindowId, "Jo", PupilFilter.All, null,
+            requireResults: true, suggestionStyle: PupilSuggestionStyle.ResultsEnquiry);
+
+        await _service.Received(1).GetPupilSuggestionsAsync(
+            WindowId, "Jo", PupilFilter.All, null, true, PupilSearchField.All, PupilSuggestionStyle.ResultsEnquiry);
+    }
+
+    [Fact]
+    public async Task Suggestions_DefaultsToTheStandardRow()
+    {
+        _service.GetPupilSuggestionsAsync(
+                WindowId, "Jo", PupilFilter.All, null, false, PupilSearchField.All, PupilSuggestionStyle.Standard)
+            .Returns([]);
+
+        await _sut.Suggestions(WindowId, "Jo", PupilFilter.All, null);
+
+        await _service.Received(1).GetPupilSuggestionsAsync(
+            WindowId, "Jo", PupilFilter.All, null, false, PupilSearchField.All, PupilSuggestionStyle.Standard);
+    }
 }

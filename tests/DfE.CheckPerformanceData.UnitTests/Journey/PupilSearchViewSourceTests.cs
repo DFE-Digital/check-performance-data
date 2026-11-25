@@ -76,6 +76,15 @@ public sealed class PupilSearchViewSourceTests
     }
 
     [Fact]
+    public void The_suggestions_request_carries_the_pages_row_style()
+    {
+        var view = ViewSource();
+
+        Assert.Contains("var suggestionStyle = '@Model.SuggestionStyle';", view);
+        Assert.Contains("if (suggestionStyle !== 'Standard') url += '&suggestionStyle=' + suggestionStyle;", view);
+    }
+
+    [Fact]
     public void Every_query_parameter_the_view_sends_binds_to_a_parameter_of_the_suggestions_action()
     {
         // Model binding is by name and silently ignores a query key the action does not declare.
@@ -103,7 +112,7 @@ public sealed class PupilSearchViewSourceTests
         // one side alone: the binding test above would pass on an empty list, and this fails if the
         // emitted keys change without the endpoint gaining the matching parameter.
         Assert.Equal(
-            new[] { "excludePupilId", "filter", "pupilSearchField", "query", "requireResults", "windowId" },
+            new[] { "excludePupilId", "filter", "pupilSearchField", "query", "requireResults", "suggestionStyle", "windowId" },
             QueryKeysSent(ViewSource()));
     }
 

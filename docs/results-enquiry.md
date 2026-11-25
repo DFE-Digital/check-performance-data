@@ -779,13 +779,22 @@ The code differences, all from the window type:
 - **Graded exam.** The summary and the ticket state it (#899). See
   [The enquiry ticket (#859)](#the-enquiry-ticket-859).
 
+One difference comes from the journey type, not from the window type (#902). On a results enquiry
+page, a pupil search row reads `Alice, Smith, (CYPMD ID:000001, UPN:A86040700001B, DOB:01/01/2010,
+INCLUDED)`. A pupil from the not-included data ends `NOT INCLUDED)`. This is the 16-19 row with
+`UPN` in place of `ULN`. The other KS4 Autumn journeys keep the row from #623.
+`PupilSuggestionStyles.For` gives the style for a journey. The page sends it to
+`/pupils/suggestions` as `suggestionStyle`, and `PupilSuggestionFormat.Label` writes the row. A
+Missing qualification page gets the same row when #900 adds its flow file.
+
 Not changed for KS4 Autumn:
 
 - The result page is the same plain dropdown. It lists each result the pupil holds in the live
   release. A user cannot type part of a subject or a QAN to search.
 - The qualification title, the awarding organisation and the grade scale come from the 16-19
   qualification reference. #900 gives KS4 Autumn its own reference file.
-- The pupil search rows have the format of the other KS4 journeys (#902 changes it).
+- The pupil search error says "Enter the name of …", as on 16-19. #902 asks for an error that tells
+  the user to select a pupil.
 - The late results guidance starts with the 16-19 words. A content designer changes them for this
   window in its content blocks (see [The words are content blocks](#the-words-are-content-blocks)).
 

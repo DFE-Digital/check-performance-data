@@ -14,14 +14,19 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// tag so two students with similar names can be told apart. #623 gave KS4 the same: date-of-birth
 /// search, and a suggestion that shows CYPMD ID, UPN, date of birth and inclusion status. Matching
 /// no longer depends on the window type; the label still does (ULN on 16-19, UPN elsewhere).
+/// #902: a results enquiry page asks for <see cref="PupilSuggestionStyle.ResultsEnquiry"/>, which
+/// gives the 16-19 row on each window type, with the UPN where the window is not 16-19.
 /// </summary>
 public static class PupilSuggestionFormat
 {
-    public static string Label(IPupilRecord pupil, CheckingWindowType windowType, PupilSearchField searchField = PupilSearchField.All)
+    private const string UlnName = "ULN";
+    private const string UpnName = "UPN";
+
+    public static string Label(IPupilRecord pupil, CheckingWindowType windowType, PupilSearchField searchField = PupilSearchField.All, PupilSuggestionStyle style = PupilSuggestionStyle.Standard)
     {
         var dob = PupilDateFormatter.ToDisplayDate(pupil.DateOfBirth);
 
-        if (windowType != CheckingWindowType.Post16)
+        if (windowType != CheckingWindowType.Post16 && style != PupilSuggestionStyle.ResultsEnquiry)
         {
             // #623: the row shows every identifier the hint says a school can search by, in the
             // format UCD gave. It carries the CYPMD ID, so a page narrowed to the ID (AB#304118: the
@@ -34,8 +39,9 @@ public static class PupilSuggestionFormat
         // AB#297004 specifies "UPN" here, but 16-19 students have a ULN and no UPN — Identifier is
         // the ULN for Post16. FLAGGED to the BA: the label says ULN because that is what the value is.
         var inclusion = pupil.IsIncluded ? "INCLUDED" : "NOT INCLUDED";
+        var identifierName = windowType == CheckingWindowType.Post16 ? UlnName : UpnName;
         return $"{pupil.Firstname}, {pupil.Surname}, " +
-               $"(CYPMD ID:{pupil.Cypmd_Id}, ULN:{pupil.Identifier}, DOB:{dob}, {inclusion})";
+               $"(CYPMD ID:{pupil.Cypmd_Id}, {identifierName}:{pupil.Identifier}, DOB:{dob}, {inclusion})";
     }
 
     public static bool Matches(IPupilRecord pupil, string query, CheckingWindowType windowType, PupilSearchField searchField = PupilSearchField.All)

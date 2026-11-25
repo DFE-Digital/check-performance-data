@@ -159,7 +159,7 @@ public sealed class ResultSearchViewSourceTests
     [Fact]
     public void The_control_and_the_continue_button_are_hidden_when_there_is_nothing_to_choose()
     {
-        // A submit that can only ever produce "Enter which result is incorrect" is a dead end.
+        // A submit that can only ever produce "Select which result is incorrect" is a dead end.
         var view = ViewSource();
 
         // The submit and the select live in the else branch of the empty check, so neither is

@@ -704,9 +704,10 @@ is added to the map.
 - The student-search subheading reuses the sibling enquiry pages' richer copy ("Start typing to search
   by name, ULN, CYPMD ID or date of birth...") rather than Figma f04's bare "Start typing to see a list
   of names".
-- Validation-failure messages (`Enter the name of the student the result does not belong to`, `Enter
-  which result does not belong to {pupilName}`) are not in the captured Figma frames; they follow the
-  GDS "Enter…" pattern.
+- The validation-failure message `Enter the name of the student the result does not belong to` is not
+  in the captured Figma frames; it follows the GDS "Enter…" pattern. The result page says `Select
+  which result does not belong to {pupilName}`, because the control is a dropdown (lead developer,
+  25 Nov 2026).
 - The summary's student row keeps the existing "Name of student" label; Figma f07 says "Student name".
   One label serves all three enquiry kinds until content decides otherwise.
 - `ResultSearch.cshtml`'s empty-state copy ("We hold no results for this student, so there is no grade
@@ -733,7 +734,6 @@ Each KS4 Autumn flow file has the pages, page types, question ids, roles and opt
 - **Wording.** The texts say "pupil", and the pupil search hint names the UPN, not the ULN (#902).
 - **Pupil search page ids.** They are `select-pupil-cohort`, `select-pupil-single` and `select-pupil`.
   A page id is in the address of the page, and a KS4 school must not read "student" there.
-- **The result page error.** It says "Select which …", because the control is a dropdown.
 - **The cohort count.** The question sets `formatFailure`, because the `WholeNumber` validator's own
   message says "students" (see `docs/question-flows.md`).
 
@@ -758,12 +758,17 @@ Not changed for KS4 Autumn:
 - The qualification title, the awarding organisation and the grade scale come from the 16-19
   qualification reference. #900 gives KS4 Autumn its own reference file.
 - The pupil search rows have the format of the other KS4 journeys (#902 changes it).
-- The late results guidance has the 16-19 words.
+- The late results guidance has the 16-19 words. It needs words for this window (see
+  [Still open](#still-open)).
 
 Locally, the seeded window "Key Stage 4 Autumn" (`7d2e9a14-5c38-4b6f-a0e1-3f8b6c2d4a97`,
 `SeedKs4AutumnSamples`) holds main results and late results 1 for Kingsmead. Alice Smith (CYPMD ID
 `000001`) holds four results: mathematics in two sessions, and English language in the main file
 and in late results 1.
+
+Decided by the lead developer on 25 Nov 2026: the result page stays a dropdown with no type-ahead;
+the issue page keeps Missing qualification before #900; no rule reads the calendar to choose the
+files; KS4 June shows file labels, not tags; main results is one file.
 
 ## Confirmation email
 
@@ -927,10 +932,8 @@ ingress run that fill these blobs, is #324); drafts (decided against).
 
 | Item | Owner |
 |---|---|
-| Copy sign-off: the must-differ message; the held-grade message and the two duplicate-enquiry messages (FLAGGED, #844); "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session; the result page's hint, now "Results are listed by subject and QAN" since the type-ahead went (the designs' "Start typing to search" described a control the page no longer has); the "Enter which result is incorrect" validation copy, which still says Enter for what is now a dropdown; the "Awarding Organisation (AO) name" row label, now the one label on both journeys' details pages and summaries (AB#301903) | Content designer |
+| Copy sign-off: the must-differ message; the held-grade message and the two duplicate-enquiry messages (FLAGGED, #844); "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session; the result page's hint, now "Results are listed by subject and QAN" since the type-ahead went (the designs' "Start typing to search" described a control the page no longer has); the "Awarding Organisation (AO) name" row label, now the one label on both journeys' details pages and summaries (AB#301903) | Content designer |
 | Whether to keep or delete `/results/suggestions` | Dev team |
 | Breadcrumb: the designs show `Check your student data - 16 to 19 and result enquiry`, but no journey view in the service renders a breadcrumb. Worth doing across the whole 16-19 journey at once rather than on one page | Design / dev |
 | `PupilSearch.cshtml` is still JavaScript-dependent (pre-existing). A server-rendered `<select>`, enhanced or not, would fix it — the roll is too long to list unenhanced, so this one needs the `enhanceSelectElement` pattern the other pickers have now dropped | Dev team |
-| KS4 Autumn (#901): AC1 asks for a search by typing part of a subject or a QAN, and the result page is a dropdown with no type-ahead | BA |
-| KS4 Autumn (#901) copy: "pupil" in the inset where the mockup says "student"; "Select which …" on the result page error; the late results guidance with the 16-19 words | Content designer |
-| KS4 Autumn (#901): the issue page offers Missing qualification before #900 builds its flow | Dev team |
+| KS4 Autumn (#901): the late results guidance (the issue page option and expander, the `check-late-results` page, the inset on the grade details page) has the 16-19 words. It needs words for this window (lead developer, 25 Nov 2026) | Content designer |

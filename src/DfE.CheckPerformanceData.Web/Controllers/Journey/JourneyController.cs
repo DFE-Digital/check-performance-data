@@ -490,7 +490,7 @@ public sealed class JourneyController(
         {
             var validationMessage = page.ValidationFailure is not null
                 ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
-                : "Enter which result is incorrect";
+                : "Select which result is incorrect";
             ModelState.AddModelError(SelectedResultKeyField, validationMessage);
             await analytics.TrackSafeAsync(new ValidationErrorEvent
             {

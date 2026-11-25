@@ -9,7 +9,7 @@
     Layout = "_Layout";
     var hasError = !ViewData.ModelState.IsValid;
     var fieldErrorMessage = ViewData.ModelState["selectedResultKey"]?.Errors.FirstOrDefault()?.ErrorMessage
-        ?? "Enter which result is incorrect";
+        ?? "Select which result is incorrect";
     @* FLAGGED: copy needs content sign-off. "Start typing to search" described the type-ahead this
        page no longer has, so the hint now says what the options are instead of how to search them.
        The flow configs' subheading carries the same replacement. *@

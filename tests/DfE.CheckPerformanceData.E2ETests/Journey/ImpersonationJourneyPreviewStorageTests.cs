@@ -25,9 +25,9 @@ public sealed class ImpersonationJourneyPreviewStorageTests(PlaywrightFixture fi
         await Page.Locator("#Urn").FillAsync("142313");
         await Page.Locator("#LowestAge").FillAsync("4");
         await Page.Locator("#HighestAge").FillAsync("11");
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Start read-only impersonation" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Continue to choose where to start" }).ClickAsync();
         await Page.WaitForURLAsync("**/admin/impersonation/choices");
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Go establishment home page" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Go to establishment home page" }).ClickAsync();
 
         var requestsBefore = await ChangeRequestProbeHelper.TryCountChangeRequestsAsync();
         Skip.If(requestsBefore is null, ChangeRequestProbeHelper.UnavailableReason);

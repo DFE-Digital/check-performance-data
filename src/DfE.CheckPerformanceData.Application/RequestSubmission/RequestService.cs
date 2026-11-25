@@ -24,12 +24,11 @@ public sealed class RequestService(
     IQueueService queueService,
     IRequestNotificationService requestNotificationService,
     ICheckYourPupilDataService checkYourPupilDataService,
- ICheckingExerciseService checkingExerciseService, ICheckingExerciseStorageResolver? storageResolver = null, IImpersonationWriteGuard? writeGuard = null,
-    IEnumerable<IFormatValidator>? formatValidators = null) : IRequestService
     ICheckingExerciseService checkingExerciseService,
     ICheckingExerciseStorageResolver? storageResolver = null,
     IImpersonationWriteGuard? writeGuard = null,
-    IEstablishmentViewContext? establishmentViewContext = null) : IRequestService
+    IEstablishmentViewContext? establishmentViewContext = null,
+    IEnumerable<IFormatValidator>? formatValidators = null) : IRequestService
 {
     private readonly IReadOnlyList<IFormatValidator> _formatValidators = formatValidators?.ToList() ?? [];
 

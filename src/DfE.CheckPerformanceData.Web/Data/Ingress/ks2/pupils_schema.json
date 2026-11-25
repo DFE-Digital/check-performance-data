@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "pupils_schema.json",
   "title": "KS2 pupils",
-  "description": "One row of the supplier's (LDS) KS2 September pupil file, transcribed from the KS2 field specification. This is the pupil data checking exercise's file: it feeds the journeys. The December file replaces it in the same exercise, but does not feed the journeys (pupils-december_schema.json). Field references are the CSV headers, and the download's headings. MATCHREF is in the file but not in the download. Four supplier columns are read under the names the journeys read (x-ingress.source): P_INCL <- PINCL_Flag, SEX <- Sex, SENF <- SEN, ETHNIC <- ETHNICITY.",
+  "description": "One row of the supplier's (LDS) KS2 September pupil file, transcribed from the KS2 field specification. This is the pupil data checking exercise's file: it feeds the journeys. The December file replaces it in the same exercise, but does not feed the journeys (pupils-december_schema.json). Field references are the CSV headers. The download's headings are the spec's \"Column heading provided on file\" values. MATCHREF is in the file but not in the download. Four supplier columns are read under the names the journeys read (x-ingress.source): P_INCL <- PINCL_Flag, SEX <- Sex, SENF <- SEN, ETHNIC <- ETHNICITY.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
@@ -68,7 +68,7 @@
         "columns": {
           "september": "A"
         },
-        "heading": "LAESTAB"
+        "heading": "DfE Establishment number"
       },
       "x-display": {
         "label": "DfE Establishment number",
@@ -88,7 +88,7 @@
         "columns": {
           "september": "B"
         },
-        "heading": "URN"
+        "heading": "School Unique Reference Number (URN)"
       },
       "x-display": {
         "label": "School URN",
@@ -106,7 +106,7 @@
         "columns": {
           "september": "C"
         },
-        "heading": "UPN"
+        "heading": "Unique Pupil Number (UPN)"
       },
       "x-display": {
         "label": "UPN",
@@ -125,7 +125,7 @@
         "columns": {
           "september": "D"
         },
-        "heading": "CYPMD_ID"
+        "heading": "CYPMD ID"
       },
       "x-display": {
         "label": "CYPMD ID",
@@ -159,7 +159,7 @@
         "columns": {
           "september": "E"
         },
-        "heading": "PINCL_Flag"
+        "heading": "Pupil Inclusion Status Flag"
       },
       "x-display": {
         "label": "Inclusion status",
@@ -177,7 +177,7 @@
         "columns": {
           "september": "F"
         },
-        "heading": "P_INCL_DESC"
+        "heading": "Pupil Inclusion description"
       },
       "x-display": {
         "label": "Inclusion description",
@@ -195,7 +195,7 @@
         "columns": {
           "september": "G"
         },
-        "heading": "SURNAME"
+        "heading": "Pupil surname"
       },
       "x-display": {
         "label": "Last name",
@@ -214,7 +214,7 @@
         "columns": {
           "september": "H"
         },
-        "heading": "FORENAME"
+        "heading": "Pupil forename(s)"
       },
       "x-display": {
         "label": "First name",
@@ -236,7 +236,7 @@
         "columns": {
           "september": "I"
         },
-        "heading": "Sex"
+        "heading": "Pupil sex"
       },
       "x-display": {
         "label": "Sex",
@@ -254,7 +254,7 @@
         "columns": {
           "september": "J"
         },
-        "heading": "DOB"
+        "heading": "Pupil date of birth"
       },
       "x-display": {
         "label": "Date of birth",
@@ -272,7 +272,7 @@
         "columns": {
           "september": "K"
         },
-        "heading": "ENTRYDAT"
+        "heading": "Admission date"
       },
       "x-display": {
         "label": "Admission date",
@@ -314,7 +314,7 @@
         "columns": {
           "september": "M"
         },
-        "heading": "ETHNICITY"
+        "heading": "Pupil's ethnicity"
       },
       "x-display": {
         "label": "Ethnicity",
@@ -332,7 +332,7 @@
         "columns": {
           "september": "N"
         },
-        "heading": "LANG1ST"
+        "heading": "Pupil's first language"
       },
       "x-display": {
         "label": "First language",
@@ -350,7 +350,7 @@
         "columns": {
           "september": "O"
         },
-        "heading": "EALGRP"
+        "heading": "Language group"
       },
       "x-display": {
         "label": "Language group",
@@ -368,7 +368,7 @@
         "columns": {
           "september": "P"
         },
-        "heading": "FSM"
+        "heading": "Is the pupil eligible for free school meals?"
       },
       "x-display": {
         "label": "Free school meals",
@@ -386,7 +386,7 @@
         "columns": {
           "september": "Q"
         },
-        "heading": "FSM6_P"
+        "heading": "Is pupil known to have been eligible for FSM in any period in the last 6 years?"
       },
       "x-display": {
         "label": "FSM in last 6 years",
@@ -404,7 +404,7 @@
         "columns": {
           "september": "R"
         },
-        "heading": "YOUNGCARER"
+        "heading": "Has pupil been identified as a young carer?"
       },
       "x-display": {
         "label": "Young carer",
@@ -427,7 +427,7 @@
         "columns": {
           "september": "S"
         },
-        "heading": "NEWMOBILE"
+        "heading": "Is pupil defined as mobile?"
       },
       "x-display": {
         "label": "Mobile",
@@ -445,7 +445,7 @@
         "columns": {
           "september": "T"
         },
-        "heading": "KS1READ"
+        "heading": "KS1 reading outcome"
       },
       "x-display": {
         "label": "KS1 reading",
@@ -463,7 +463,7 @@
         "columns": {
           "september": "U"
         },
-        "heading": "KS1WRIT"
+        "heading": "KS1 writing outcome"
       },
       "x-display": {
         "label": "KS1 writing",
@@ -481,7 +481,7 @@
         "columns": {
           "september": "V"
         },
-        "heading": "KS1MAT"
+        "heading": "KS1 mathematics outcome"
       },
       "x-display": {
         "label": "KS1 mathematics",
@@ -499,7 +499,7 @@
         "columns": {
           "september": "W"
         },
-        "heading": "KS1AVERAGEPS"
+        "heading": "KS1 average point score"
       },
       "x-display": {
         "label": "KS1 average point score",
@@ -517,7 +517,7 @@
         "columns": {
           "september": "X"
         },
-        "heading": "KS1GROUP"
+        "heading": "KS1 prior attainment band"
       },
       "x-display": {
         "label": "KS1 prior attainment band",
@@ -535,7 +535,7 @@
         "columns": {
           "september": "Y"
         },
-        "heading": "READOUTCOME"
+        "heading": "KS2 reading outcome"
       },
       "x-display": {
         "label": "KS2 reading outcome",
@@ -553,7 +553,7 @@
         "columns": {
           "september": "Z"
         },
-        "heading": "MATOUTCOME"
+        "heading": "KS2 mathematics outcome"
       },
       "x-display": {
         "label": "KS2 mathematics outcome",
@@ -571,7 +571,7 @@
         "columns": {
           "september": "AA"
         },
-        "heading": "GPSOUTCOME"
+        "heading": "KS2 GPS outcome"
       },
       "x-display": {
         "label": "KS2 GPS outcome",
@@ -589,7 +589,7 @@
         "columns": {
           "september": "AB"
         },
-        "heading": "READSCORE"
+        "heading": "KS2 reading scaled score"
       },
       "x-display": {
         "label": "KS2 reading scaled score",
@@ -607,7 +607,7 @@
         "columns": {
           "september": "AC"
         },
-        "heading": "MATSCORE"
+        "heading": "KS2 mathematics scaled score"
       },
       "x-display": {
         "label": "KS2 mathematics scaled score",
@@ -625,7 +625,7 @@
         "columns": {
           "september": "AD"
         },
-        "heading": "GPSSCORE"
+        "heading": "KS2 GPS scaled score"
       },
       "x-display": {
         "label": "KS2 GPS scaled score",
@@ -643,7 +643,7 @@
         "columns": {
           "september": "AE"
         },
-        "heading": "READMRK"
+        "heading": "KS2 reading mark"
       },
       "x-display": {
         "label": "KS2 reading mark",
@@ -661,7 +661,7 @@
         "columns": {
           "september": "AF"
         },
-        "heading": "MATMRK"
+        "heading": "KS2 mathematics mark"
       },
       "x-display": {
         "label": "KS2 mathematics mark",
@@ -679,7 +679,7 @@
         "columns": {
           "september": "AG"
         },
-        "heading": "GPSMRK"
+        "heading": "KS2 GPS mark"
       },
       "x-display": {
         "label": "KS2 GPS mark",
@@ -697,7 +697,7 @@
         "columns": {
           "september": "AH"
         },
-        "heading": "READSPECCON"
+        "heading": "KS2 reading special consideration"
       },
       "x-display": {
         "label": "KS2 reading special consideration",
@@ -715,7 +715,7 @@
         "columns": {
           "september": "AI"
         },
-        "heading": "MATSPECCON"
+        "heading": "KS2 mathematics special consideration"
       },
       "x-display": {
         "label": "KS2 mathematics special consideration",
@@ -733,7 +733,7 @@
         "columns": {
           "september": "AJ"
         },
-        "heading": "GPSSPECCON"
+        "heading": "KS2 GPS special consideration"
       },
       "x-display": {
         "label": "KS2 GPS special consideration",
@@ -751,7 +751,7 @@
         "columns": {
           "september": "AK"
         },
-        "heading": "ELIGRWM"
+        "heading": "Is pupil eligible in reading test, writing TA and mathematics test?"
       },
       "x-display": {
         "label": "Eligible for RWM",
@@ -769,7 +769,7 @@
         "columns": {
           "september": "AL"
         },
-        "heading": "RWMEXP"
+        "heading": "Has pupil reached the expected standard in reading test, writing TA and mathematics test?"
       },
       "x-display": {
         "label": "RWM expected standard",
@@ -787,7 +787,7 @@
         "columns": {
           "september": "AM"
         },
-        "heading": "WRITTAOUTCOME"
+        "heading": "Writing teacher assessment"
       },
       "x-display": {
         "label": "Writing TA",
@@ -805,7 +805,7 @@
         "columns": {
           "september": "AN"
         },
-        "heading": "SCITAOUTCOME"
+        "heading": "Science teacher assessment"
       },
       "x-display": {
         "label": "Science TA",
@@ -823,7 +823,7 @@
         "columns": {
           "september": "AO"
         },
-        "heading": "MATTAOUTCOME"
+        "heading": "Mathematics teacher assessment"
       },
       "x-display": {
         "label": "Mathematics TA",
@@ -841,7 +841,7 @@
         "columns": {
           "september": "AP"
         },
-        "heading": "READTAOUTCOME"
+        "heading": "Reading teacher assessment"
       },
       "x-display": {
         "label": "Reading TA",
@@ -859,7 +859,7 @@
         "columns": {
           "september": "AQ"
         },
-        "heading": "INREADPROG"
+        "heading": "Is pupil in the reading progress measure calculation?"
       },
       "x-display": {
         "label": "In reading progress",
@@ -877,7 +877,7 @@
         "columns": {
           "september": "AR"
         },
-        "heading": "INWRITPROG"
+        "heading": "Is pupil in the writing progress measure calculation?"
       },
       "x-display": {
         "label": "In writing progress",
@@ -895,7 +895,7 @@
         "columns": {
           "september": "AS"
         },
-        "heading": "INMATPROG"
+        "heading": "Is pupil in the mathematics progress measure calculation?"
       },
       "x-display": {
         "label": "In mathematics progress",
@@ -913,7 +913,7 @@
         "columns": {
           "september": "AT"
         },
-        "heading": "KS1AVERAGE_GRP_P"
+        "heading": "Prior attainment group for progress measures"
       },
       "x-display": {
         "label": "Prior attainment group",
@@ -931,7 +931,7 @@
         "columns": {
           "september": "AU"
         },
-        "heading": "KS2READSCORE"
+        "heading": "KS2 reading attainment score for progress measure"
       },
       "x-display": {
         "label": "KS2 reading progress attainment score",
@@ -949,7 +949,7 @@
         "columns": {
           "september": "AV"
         },
-        "heading": "KS2WRITSCORE"
+        "heading": "KS2 writing attainment score for progress measure"
       },
       "x-display": {
         "label": "KS2 writing progress attainment score",
@@ -967,7 +967,7 @@
         "columns": {
           "september": "AW"
         },
-        "heading": "KS2MATSCORE"
+        "heading": "KS2 mathematics attainment score for progress measure"
       },
       "x-display": {
         "label": "KS2 mathematics progress attainment score",
@@ -985,7 +985,7 @@
         "columns": {
           "september": "AX"
         },
-        "heading": "KS2READPRED_EM"
+        "heading": "Predicted KS2 reading score"
       },
       "x-display": {
         "label": "Predicted KS2 reading score",
@@ -1003,7 +1003,7 @@
         "columns": {
           "september": "AY"
         },
-        "heading": "KS2WRITPRED_EM"
+        "heading": "Predicted KS2 writing score"
       },
       "x-display": {
         "label": "Predicted KS2 writing score",
@@ -1021,7 +1021,7 @@
         "columns": {
           "september": "AZ"
         },
-        "heading": "KS2MATPRED_EM"
+        "heading": "Predicted KS2 mathematics score"
       },
       "x-display": {
         "label": "Predicted KS2 mathematics score",
@@ -1039,7 +1039,7 @@
         "columns": {
           "september": "BA"
         },
-        "heading": "READPROGSCORE_EM_ADJUSTED"
+        "heading": "Reading progress score"
       },
       "x-display": {
         "label": "Reading progress score",
@@ -1057,7 +1057,7 @@
         "columns": {
           "september": "BB"
         },
-        "heading": "WRITPROGSCORE_EM_ADJUSTED"
+        "heading": "Writing progress score"
       },
       "x-display": {
         "label": "Writing progress score",
@@ -1075,7 +1075,7 @@
         "columns": {
           "september": "BC"
         },
-        "heading": "MATPROGSCORE_EM_ADJUSTED"
+        "heading": "Mathematics progress score"
       },
       "x-display": {
         "label": "Mathematics progress score",

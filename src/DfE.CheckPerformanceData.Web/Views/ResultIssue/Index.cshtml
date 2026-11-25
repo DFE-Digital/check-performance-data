@@ -57,8 +57,7 @@
     <govuk-button type="submit">Continue</govuk-button>
 </form>
 
-@* Guidance, not a gate (BA, 2026-08-17), so it sits below Continue. The words are content blocks.
-   The panel opens when an editor edits its body. *@
+@* Guidance, not a gate (BA, 2026-08-17), so it sits below Continue. *@
 <details class="govuk-details" data-module="govuk-details" open="@editingGuidanceBody">
     <summary class="govuk-details__summary">
         <span class="govuk-details__summary-text">@await Component.InvokeAsync("ContentText", new { key = guidance.SummaryKey, defaultText = LateResultsGuidanceBlocks.SummaryDefault })</span>

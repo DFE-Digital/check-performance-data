@@ -102,6 +102,14 @@ public sealed class ResultIssueViewSourceTests
     }
 
     [Fact]
+    public void The_expander_opens_when_an_editor_edits_its_body()
+    {
+        Assert.Contains(
+            "var editingGuidanceBody = Context.Request.Query[\"edit\"].ToString() == guidance.BodyKey;",
+            ViewSource());
+    }
+
+    [Fact]
     public void The_expander_sits_after_continue_so_it_reads_as_guidance_not_a_gate()
     {
         var view = ViewSource();

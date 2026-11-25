@@ -96,8 +96,8 @@ page is **Content blocks** (`/admin/content-blocks`). `LateResultsGuidanceBlocks
 keys and the default texts.
 
 - `ContentText` (a view component) shows a plain text block as encoded text. It has no element
-  around it and no edit link. The option and the inset are in the form of the page, and a summary
-  holds only text. The editor on the page cannot go in those places.
+  around it and no edit link. The editor on the page is a form in a `<div>`. It cannot go in the
+  form of the page, where the option and the inset are, or in a `<summary>`.
 - A plain text block with no text shows its default. The option always has a label.
 - The title of the `check-late-results` page stays in the flow file. The browser title and the
   `<h1>` must have the same words.

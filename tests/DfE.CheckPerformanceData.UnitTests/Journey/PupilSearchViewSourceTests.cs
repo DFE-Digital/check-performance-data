@@ -80,8 +80,9 @@ public sealed class PupilSearchViewSourceTests
     {
         var view = ViewSource();
 
-        Assert.Contains("var suggestionStyle = '@Model.SuggestionStyle';", view);
-        Assert.Contains("if (suggestionStyle !== 'Standard') url += '&suggestionStyle=' + suggestionStyle;", view);
+        Assert.Contains("var suggestionStyle = '@(Model.SuggestionStyle == PupilSuggestionStyle.Standard ? \"\" : Model.SuggestionStyle.ToString())';", view);
+        Assert.Contains("if (suggestionStyle) url += '&suggestionStyle=' + suggestionStyle;", view);
+        Assert.DoesNotContain("'Standard'", view);
     }
 
     [Fact]

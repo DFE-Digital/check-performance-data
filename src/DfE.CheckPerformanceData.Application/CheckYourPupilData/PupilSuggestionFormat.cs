@@ -14,8 +14,8 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// tag so two students with similar names can be told apart. #623 gave KS4 the same: date-of-birth
 /// search, and a suggestion that shows CYPMD ID, UPN, date of birth and inclusion status. Matching
 /// no longer depends on the window type; the label still does (ULN on 16-19, UPN elsewhere).
-/// #902: a results enquiry page asks for <see cref="PupilSuggestionStyle.ResultsEnquiry"/>, which
-/// gives the 16-19 row on each window type, with the UPN where the window is not 16-19.
+/// A results enquiry page asks for <see cref="PupilSuggestionStyle.ResultsEnquiry"/>, which gives
+/// the 16-19 row on each window type, with the UPN where the window is not 16-19.
 /// </summary>
 public static class PupilSuggestionFormat
 {
@@ -36,8 +36,6 @@ public static class PupilSuggestionFormat
                    $"(CYPMD ID: {pupil.Cypmd_Id}, UPN: {pupil.Identifier}, DOB: {dob}, Status: {status})";
         }
 
-        // AB#297004 specifies "UPN" here, but 16-19 students have a ULN and no UPN — Identifier is
-        // the ULN for Post16. FLAGGED to the BA: the label says ULN because that is what the value is.
         var inclusion = pupil.IsIncluded ? "INCLUDED" : "NOT INCLUDED";
         var identifierName = windowType == CheckingWindowType.Post16 ? UlnName : UpnName;
         return $"{pupil.Firstname}, {pupil.Surname}, " +

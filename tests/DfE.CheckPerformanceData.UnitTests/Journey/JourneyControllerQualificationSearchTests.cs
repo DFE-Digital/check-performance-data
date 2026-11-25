@@ -476,7 +476,7 @@ public sealed class JourneyControllerQualificationSearchTests
         _flowService.GetConfigAsync(WhatToChange.MissingQualification, CheckingWindowType.Post16).Returns(flow);
         foreach (var page in flow.Pages)
             _flowService.GetPage(flow, page.Id).Returns(page);
-        _journeyService.GenerateEnquiryReference().Returns("CYPMD_16to19_RE_ABCDEF1");
+        _journeyService.GenerateEnquiryReference(CheckingWindowType.Post16).Returns("CYPMD_16to19_RE_ABCDEF1");
 
         var pupil = Pupil();
         _pupilData.GetPupilAsync(WindowId, pupil.Id).Returns(pupil);

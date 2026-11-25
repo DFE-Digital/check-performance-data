@@ -51,7 +51,7 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 
     public async Task<(PupilTable Table, int TotalCount)?> GetResultsTableAsync(Guid windowId, string? search, int page, int pageSize)
     {
-        var rows = await GetResultRowsAsync(windowId);
+        var rows = await GetResultRowsAsync(windowId, await _repository.GetCheckingWindowAsync(windowId));
         if (rows is null) return null;
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -69,18 +69,18 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 
     public async Task<PupilTable?> GetResultsCsvAsync(Guid windowId)
     {
-        var rows = await GetResultRowsAsync(windowId);
-        return rows is null ? null : ResultTable.Build(ResultColumnSets.Csv(), rows);
+        var window = await _repository.GetCheckingWindowAsync(windowId);
+        var rows = await GetResultRowsAsync(windowId, window);
+        return rows is null ? null : ResultTable.Build(ResultColumnSets.Csv(window.CheckingWindowType), rows);
     }
 
     /// <summary>
     /// Every result for the school, from every file the live release read, joined and sorted. Null
     /// when there is no Results tab for this window.
     /// </summary>
-    private async Task<List<ResultRow>?> GetResultRowsAsync(Guid windowId)
+    private async Task<List<ResultRow>?> GetResultRowsAsync(Guid windowId, CheckingWindowDto window)
     {
         var laestab = (_viewContext?.OrganisationLaestab ?? _currentUserService.OrganisationLaestab);
-        var window = await _repository.GetCheckingWindowAsync(windowId);
 
         if (window.Exercises.All(e => e.ExerciseType != CheckingExerciseType.ResultsEnquiry))
             return null;

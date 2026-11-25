@@ -223,7 +223,7 @@ public sealed class IncorrectGradeFlowTests
 
         Assert.Equal(PageType.ResultSearch, page.Type);
         Assert.Equal("Which of {pupilName}'s results is incorrect?", page.Title);
-        Assert.Equal("Enter which of {pupilName}'s results is incorrect", page.ValidationFailure);
+        Assert.Equal("Select which of {pupilName}'s results is incorrect", page.ValidationFailure);
         Assert.Equal("grade-details", page.NextPageId);
     }
 

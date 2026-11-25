@@ -1,4 +1,5 @@
 @model DfE.CheckPerformanceData.Web.Controllers.Journey.PageViewModel
+@using DfE.CheckPerformanceData.Web.Common
 
 @*
     "Incorrect grade details" (AB#296648). A question page that first shows which result is being
@@ -26,7 +27,7 @@
 {
     <govuk-summary-list>
         <govuk-summary-list-row>
-            <govuk-summary-list-row-key>Student name</govuk-summary-list-row-key>
+            <govuk-summary-list-row-key>@Model.LearnerNoun.SingularCapitalised name</govuk-summary-list-row-key>
             <govuk-summary-list-row-value>@Model.PupilName</govuk-summary-list-row-value>
         </govuk-summary-list-row>
         <govuk-summary-list-row>
@@ -73,10 +74,12 @@
     }
 
     @* Sits after the picker, as the Figma screen has it: a reminder, not a precondition. *@
-    <div class="govuk-inset-text">
-        Before you report an incorrect grade, check the second late results (issued in November) to
-        make sure the grade is not included there.
-    </div>
+    @if (Model.LateResultsInsetKey is not null)
+    {
+        <div class="govuk-inset-text">
+            @await Component.InvokeAsync("ContentText", new { key = Model.LateResultsInsetKey, defaultText = LateResultsGuidanceBlocks.InsetDefault })
+        </div>
+    }
 
     <govuk-button type="submit">Continue</govuk-button>
 </form>

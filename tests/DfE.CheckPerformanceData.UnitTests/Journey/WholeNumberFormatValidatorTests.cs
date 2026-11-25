@@ -20,8 +20,9 @@ public class WholeNumberFormatValidatorTests
     [Fact]
     public void The_failure_message_is_the_cohort_count_copy()
     {
-        // The engine reports validator.FailureMessage, not the question's validationFailure, so the
-        // two must read identically or the user sees different copy for empty vs malformed.
+        // The engine reports validator.FailureMessage, not the question's validationFailure (unless
+        // the question sets formatFailure), so the two must read identically or the user sees
+        // different copy for empty vs malformed.
         Assert.Equal("Enter how many students have an incorrect grade for this qualification", _sut.FailureMessage);
     }
 

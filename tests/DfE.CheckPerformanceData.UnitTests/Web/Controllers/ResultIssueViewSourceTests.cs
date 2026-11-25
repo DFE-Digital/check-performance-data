@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
@@ -39,11 +40,20 @@ public sealed class ResultIssueViewSourceTests
     }
 
     [Fact]
-    public void The_incorrect_grade_label_is_pinned_verbatim()
+    public void The_incorrect_grade_label_is_a_plain_text_content_block()
     {
         Assert.Contains(
-            "Incorrect grade (once you have checked your second late results file in late November)",
+            "@await Component.InvokeAsync(\"ContentText\", new { key = guidance.OptionKey, defaultText = LateResultsGuidanceBlocks.OptionDefault })",
             ViewSource());
+    }
+
+    [Fact]
+    public void The_view_holds_no_late_results_words()
+    {
+        var rendered = Regex.Replace(ViewSource(), @"@\*[\s\S]*?\*@", string.Empty);
+
+        Assert.DoesNotContain("late results", rendered, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("November", rendered, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -54,7 +64,7 @@ public sealed class ResultIssueViewSourceTests
 
         Assert.Equal(3, view.Split("<govuk-radios-item").Length - 1);
         Assert.Contains("Missing qualification", view);
-        Assert.Contains("Result does not belong to student", view);
+        Assert.Contains("@Model.ResultDoesNotBelongLabel", view);
     }
 
     [Fact]
@@ -77,14 +87,26 @@ public sealed class ResultIssueViewSourceTests
     }
 
     [Fact]
-    public void The_late_results_expander_is_present_with_the_designs_summary_text()
+    public void The_late_results_expander_takes_its_summary_and_its_body_from_content_blocks()
     {
         var view = ViewSource();
 
-        Assert.Contains("<details class=\"govuk-details\" data-module=\"govuk-details\">", view);
         Assert.Contains(
-            "<span class=\"govuk-details__summary-text\">Have you checked your second late results file?</span>",
+            "<details class=\"govuk-details\" data-module=\"govuk-details\" open=\"@editingGuidanceBody\">", view);
+        Assert.Contains(
+            "<span class=\"govuk-details__summary-text\">@await Component.InvokeAsync(\"ContentText\", new { key = guidance.SummaryKey, defaultText = LateResultsGuidanceBlocks.SummaryDefault })</span>",
             view);
+        Assert.Contains(
+            "@await Component.InvokeAsync(\"EditableContent\", new { key = guidance.BodyKey, defaultHtml = LateResultsGuidanceBlocks.BodyDefault })",
+            view);
+    }
+
+    [Fact]
+    public void The_expander_opens_when_an_editor_edits_its_body()
+    {
+        Assert.Contains(
+            "var editingGuidanceBody = Context.Request.Query[\"edit\"].ToString() == guidance.BodyKey;",
+            ViewSource());
     }
 
     [Fact]
@@ -114,6 +136,14 @@ public sealed class ResultIssueViewSourceTests
         Assert.Contains(
             "<a asp-action=\"Index\" asp-controller=\"CheckYourPupilData\" asp-route-windowId=\"@Model.WindowId\" class=\"govuk-back-link\">Back</a>",
             ViewSource());
+    }
+
+    [Fact]
+    public void The_page_names_the_learner_only_through_the_model()
+    {
+        var rendered = Regex.Replace(ViewSource(), @"@\*[\s\S]*?\*@", string.Empty);
+
+        Assert.DoesNotContain("student", rendered, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Web.Common;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
@@ -110,10 +111,9 @@ public sealed class JourneyViewModelBuilder(
         {
             DfeNumber = currentUserService.OrganisationLaestab,
             KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
-            EnquiryTypeLabel = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
-                ? "Incorrect grade"
-                : "Result does not belong to student",
+            EnquiryTypeLabel = EnquiryTypeLabels.For(kind.Value, journey.LearnerNoun),
             StudentName = pupilName,
+            LearnerNoun = journey.LearnerNoun,
             IsCohortWide = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
                 && string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
             CohortCount = Answer(CohortCountQuestionId),
@@ -181,7 +181,7 @@ public sealed class JourneyViewModelBuilder(
         };
     }
 
-    // Question ids from IncorrectGrade_Post16.json. A serialization contract — see the flow tests.
+    // Question ids from the incorrect grade flow files. A serialization contract — see the flow tests.
     private const string CohortScopeQuestionId = "q-cohort-scope";
     private const string CohortCountQuestionId = "q-cohort-count";
     private const string AdditionalInfoQuestionId = "q-additional-info";
@@ -307,7 +307,11 @@ public sealed class JourneyViewModelBuilder(
             CypmdId = journey.SelectedPupil?.Cypmd_Id,
             FromSummary = fromSummary,
             PupilName = pupilName,
+            LearnerNoun = journey.LearnerNoun,
             ContentKey = contentKey,
+            LateResultsInsetKey = page.Type is PageType.ResultDetails && journey.CheckingWindow is { } window
+                ? LateResultsGuidanceBlocks.For(window.CheckingWindowType).InsetKey
+                : null,
             EvidenceContentBlocks = evidenceContentBlocks,
             Caption = page.Type is PageType.EvidenceUpload && config is not null
                 ? EvidenceCaption(config, journey)
@@ -382,6 +386,8 @@ public sealed class JourneyViewModelBuilder(
             PageTitle = page.PageTitle,
             Hint = page.Subheading,
             Content = page.Content,
+            LearnerNoun = journey.LearnerNoun,
+            WindowType = journey.CheckingWindow?.CheckingWindowType,
             SelectedResultKey = selectedResultKey ?? journey.SelectedResult?.CompositeKey,
             AvailableResults = availableResults,
             BackPageId = backPageId,

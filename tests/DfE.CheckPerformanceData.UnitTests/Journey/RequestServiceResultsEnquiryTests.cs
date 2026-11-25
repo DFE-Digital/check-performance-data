@@ -99,9 +99,21 @@ public sealed class RequestServiceResultsEnquiryTests
     public void The_enquiry_reference_follows_the_agreed_format()
     {
         // Decided: CYPMD_16to19_RE_{7 hex}. The mockup's "3014023_RE10005" was confirmed illustrative.
-        var reference = new JourneyValidationService().GenerateEnquiryReference();
+        var reference = new JourneyValidationService().GenerateEnquiryReference(CheckingWindowType.Post16);
 
         Assert.Matches(new Regex("^CYPMD_16to19_RE_[0-9A-F]{7}$"), reference);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, "16to19")]
+    [InlineData(CheckingWindowType.KS4Autumn, "KS4")]
+    [InlineData(CheckingWindowType.KS4June, "KS4June")]
+    [InlineData(null, "Unknown")]
+    public void The_enquiry_reference_names_the_key_stage_of_the_window(CheckingWindowType? windowType, string segment)
+    {
+        var reference = new JourneyValidationService().GenerateEnquiryReference(windowType);
+
+        Assert.Matches(new Regex($"^CYPMD_{segment}_RE_[0-9A-F]{{7}}$"), reference);
     }
 
     [Fact]
@@ -109,7 +121,7 @@ public sealed class RequestServiceResultsEnquiryTests
     {
         var service = new JourneyValidationService();
 
-        var references = Enumerable.Range(0, 200).Select(_ => service.GenerateEnquiryReference()).ToHashSet();
+        var references = Enumerable.Range(0, 200).Select(_ => service.GenerateEnquiryReference(CheckingWindowType.Post16)).ToHashSet();
 
         Assert.Equal(200, references.Count);
     }
@@ -120,7 +132,7 @@ public sealed class RequestServiceResultsEnquiryTests
         // Support staff read these aloud; "RE" is how they tell an enquiry from an amendment.
         var service = new JourneyValidationService();
 
-        Assert.Contains("_RE_", service.GenerateEnquiryReference());
+        Assert.Contains("_RE_", service.GenerateEnquiryReference(CheckingWindowType.Post16));
         Assert.DoesNotContain("_RE_", service.GenerateReference(CheckingWindowType.Post16));
     }
 
@@ -633,6 +645,23 @@ public sealed class RequestServiceResultsEnquiryTests
             d.RequestTypeDescription == "Results enquiry - Result does not belong to student" &&
             d.AmendmentType == WhatToChange.ResultDoesNotBelong &&
             d.Status == RequestStatus.Submitted));
+    }
+
+    [Fact]
+    public async Task A_ks4_autumn_result_does_not_belong_enquiry_is_described_with_pupil()
+    {
+        var journey = ResultDoesNotBelongJourney();
+        journey.CheckingWindow = new CheckingWindowDto
+        {
+            Title = "KS4 Autumn 2026", KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4Autumn,
+            StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+        };
+
+        await _sut.SubmitResultsEnquiryAsync(WindowId, journey);
+
+        await _repository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+            d.RequestTypeDescription == "Results enquiry - Result does not belong to pupil"));
     }
 
     [Fact]

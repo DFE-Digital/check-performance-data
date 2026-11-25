@@ -40,7 +40,7 @@ public sealed class ResultSuggestionsController(
             .Where(r => Matches(r, query))
             // The composite key, not the QAN: a pupil can hold the same qualification across
             // sessions and across source files, and the server re-resolves this key on POST.
-            .Select(r => new { value = r.CompositeKey, label = ResultLabel.For(r) })
+            .Select(r => new { value = r.CompositeKey, label = ResultLabel.For(r, journey.CheckingWindow?.CheckingWindowType) })
             .ToArray());
     }
 

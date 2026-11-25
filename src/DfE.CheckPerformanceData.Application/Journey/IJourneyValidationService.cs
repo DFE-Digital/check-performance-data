@@ -42,14 +42,17 @@ public interface IJourneyValidationService
     /// <param name="currentGrade">The grade the selected result holds, or null when unknown.</param>
     /// <param name="heldInOtherFiles">The same result in the student's other results files
     /// (<see cref="ResultsEnquiry.HeldResults.InOtherFiles"/>). A chosen grade that one of them holds
-    /// is refused with a message that names that file's label. Null or empty skips the rule.</param>
+    /// is refused with a message that names that file. Null or empty skips the rule.</param>
+    /// <param name="windowType">The type of the journey's window. It decides how the message names the
+    /// file (<see cref="ResultsEnquiry.ResultsSources.SchoolLabelFor"/>). Null gives the label.</param>
     string? ValidateGradeSelect(
         Question question,
         QuestionAnswer? answer,
         ResultsEnquiry.GradeReference? reference,
         string? currentGrade,
         string? resolvedValidationFailure = null,
-        IReadOnlyList<ResultsEnquiry.ResultRecord>? heldInOtherFiles = null);
+        IReadOnlyList<ResultsEnquiry.ResultRecord>? heldInOtherFiles = null,
+        CheckingWindowType? windowType = null);
     /// <summary>
     /// AB#297848: membership validation for a select whose options come from server-side state
     /// (SyllabusSelect). Fails closed — blank, unknown, and nothing-to-offer all return the same
@@ -79,8 +82,16 @@ public interface IJourneyValidationService
 
     string GenerateReference(CheckingWindowType? windowType);
 
-    /// <summary>AB#296648: the reference for a 16-19 results enquiry, <c>CYPMD_16to19_RE_{7 hex}</c>.</summary>
-    string GenerateEnquiryReference();
+    /// <summary>
+    /// Makes the reference of a results enquiry: <c>CYPMD_{key stage}_RE_{7 hex}</c>. The <c>RE</c>
+    /// part tells support staff that the reference is for an enquiry, not for an amendment.
+    /// </summary>
+    /// <param name="windowType">
+    /// The type of the enquiry's window. <c>Post16</c> gives the key stage part <c>16to19</c> and
+    /// <c>KS4Autumn</c> gives <c>KS4</c>. Another type gives its enum name. Null gives <c>Unknown</c>.
+    /// </param>
+    /// <returns>A new reference. Its last part is seven random hexadecimal characters in upper case.</returns>
+    string GenerateEnquiryReference(CheckingWindowType? windowType);
     EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName,
         IReadOnlySet<string>? conditionallyOptionalQuestionIds = null,
         bool? requireAtLeastOneActive = null);

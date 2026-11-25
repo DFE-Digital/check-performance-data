@@ -1,4 +1,5 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel
+@using DfE.CheckPerformanceData.Web.Common
 
 @{
     // Matches the page heading the radios legend renders (is-page-heading="true"), so the
@@ -7,6 +8,8 @@
     Layout = "_Layout";
     var hasError = !ViewData.ModelState.IsValid;
     var fieldErrorMessage = ViewData.ModelState[nameof(Model.IssueType)]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var guidance = Model.LateResultsGuidance;
+    var editingGuidanceBody = Context.Request.Query["edit"].ToString() == guidance.BodyKey;
 }
 
 <a asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
@@ -40,13 +43,13 @@
             }
 
             <govuk-radios-item value="@DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel.IncorrectGrade" id="issueType">
-                Incorrect grade (once you have checked your second late results file in late November)
+                @await Component.InvokeAsync("ContentText", new { key = guidance.OptionKey, defaultText = LateResultsGuidanceBlocks.OptionDefault })
             </govuk-radios-item>
             <govuk-radios-item value="@DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel.MissingQualification">
                 Missing qualification
             </govuk-radios-item>
             <govuk-radios-item value="@DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel.ResultDoesNotBelong">
-                Result does not belong to student
+                @Model.ResultDoesNotBelongLabel
             </govuk-radios-item>
         </govuk-radios-fieldset>
     </govuk-radios>
@@ -54,18 +57,12 @@
     <govuk-button type="submit">Continue</govuk-button>
 </form>
 
-@* Guidance, not a gate. The BA confirmed on 2026-08-17 that the late-results message informs the
-   user and never blocks them, so this expander sits below Continue exactly as the Figma screen has
-   it. FLAGGED: the Figma frame shows this expander collapsed, so its body copy was never captured —
-   the wording below reuses the interstitial copy the plan already pins, and needs content sign-off. *@
-<details class="govuk-details" data-module="govuk-details">
+@* Guidance, not a gate (BA, 2026-08-17), so it sits below Continue. *@
+<details class="govuk-details" data-module="govuk-details" open="@editingGuidanceBody">
     <summary class="govuk-details__summary">
-        <span class="govuk-details__summary-text">Have you checked your second late results file?</span>
+        <span class="govuk-details__summary-text">@await Component.InvokeAsync("ContentText", new { key = guidance.SummaryKey, defaultText = LateResultsGuidanceBlocks.SummaryDefault })</span>
     </summary>
     <div class="govuk-details__text">
-        <p class="govuk-body">
-            Nearly all incorrect grades are updated in the second late results file. We will email you
-            in late November to let you know it's available.
-        </p>
+        @await Component.InvokeAsync("EditableContent", new { key = guidance.BodyKey, defaultHtml = LateResultsGuidanceBlocks.BodyDefault })
     </div>
 </details>

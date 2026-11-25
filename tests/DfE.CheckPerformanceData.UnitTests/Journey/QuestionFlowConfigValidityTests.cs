@@ -33,6 +33,7 @@ public sealed class QuestionFlowConfigValidityTests
     [
         // ResultIssueController.LateResultsGuidancePageId: the late results guidance, shown before the journey starts.
         ("IncorrectGrade_Post16.json", "check-late-results"),
+        ("IncorrectGrade_KS4Autumn.json", "check-late-results"),
     ];
 
     private static readonly string[] PupilKeys = ["primary", "match"];
@@ -129,6 +130,17 @@ public sealed class QuestionFlowConfigValidityTests
             Assert.True(!duplicates.Any(),
                 $"{file}: page '{page.Id}' has more than one question with id '{string.Join("', '", duplicates)}'.");
         }
+    }
+
+    [Theory]
+    [MemberData(nameof(FlowFiles))]
+    public void A_format_failure_needs_a_validator(string file)
+    {
+        var orphans = Load(file).Pages.SelectMany(p => p.Questions)
+            .Where(q => q.FormatFailure is not null && string.IsNullOrWhiteSpace(q.Validator))
+            .Select(q => q.Id);
+
+        Assert.Empty(orphans);
     }
 
     [Theory]

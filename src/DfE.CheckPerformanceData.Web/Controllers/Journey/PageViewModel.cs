@@ -67,7 +67,13 @@ public sealed class PageViewModel
     /// (ResultDetails gets it from SelectedResult.CypmdId instead — there is no result here).</summary>
     public string? CypmdId { get; init; }
     public string PupilName { get; init; } = string.Empty;
+    public Application.WindowManagement.LearnerNoun LearnerNoun { get; init; } =
+        Application.WindowManagement.LearnerNoun.Pupil;
     public string? ContentKey { get; init; }
+
+    /// <summary>The key of the content block that holds the late results reminder of a
+    /// ResultDetails page. Null on every other page type.</summary>
+    public string? LateResultsInsetKey { get; init; }
 
     /// <summary>#591: the CMS blocks an EvidenceUpload page shows its requirements from, one for
     /// each option the school ticked. Empty on every other page type.</summary>

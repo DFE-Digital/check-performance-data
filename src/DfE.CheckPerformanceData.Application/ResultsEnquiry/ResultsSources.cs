@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
-/// <summary>One results file of the supplier feed: the tag stamped on its rows and its name for schools.</summary>
+/// <summary>One results file of the supplier feed: the tag stamped on its rows and its label.</summary>
 /// <param name="IsRequired">
 /// A file the exercise starts with: its slot must hold a file before the exercise can be validated.
 /// The later files land weeks apart and one may never land, so they are optional.
@@ -10,8 +10,9 @@ namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 public sealed record ResultsSource(string Tag, string Label, bool IsRequired = false);
 
 /// <summary>
-/// The results files each window type offers, in the order they arrive, and the label schools see
-/// for each tag. This is the only list of results files: the default slots and every label read it.
+/// The results files each window type offers, in the order they arrive, the label of each tag,
+/// and the text a school sees for a file. This is the only list of results files: the default
+/// slots and every label read it.
 /// </summary>
 public static class ResultsSources
 {
@@ -57,4 +58,11 @@ public static class ResultsSources
     /// <summary>The label for a tag. An unknown tag is shown as it is, rather than hidden.</summary>
     public static string LabelFor(string? tag) =>
         tag is not null && ByTag.TryGetValue(tag, out var source) ? source.Label : tag ?? string.Empty;
+
+    /// <summary>
+    /// The text a school sees for a results file. A KS4 Autumn school sees the tag, so that it can
+    /// find the file a result came from. A school in a window of another type sees the label.
+    /// </summary>
+    public static string SchoolLabelFor(CheckingWindowType? windowType, string? tag) =>
+        windowType == CheckingWindowType.KS4Autumn ? tag ?? string.Empty : LabelFor(tag);
 }

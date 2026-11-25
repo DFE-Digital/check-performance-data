@@ -42,6 +42,12 @@ public sealed class Question
     public string? Validator { get; init; }
 
     /// <summary>
+    /// The error for an answer that fails <see cref="Validator"/>. Null gives the validator's own
+    /// message.
+    /// </summary>
+    public string? FormatFailure { get; init; }
+
+    /// <summary>
     /// <c>Date</c> questions only: the rules that the answer must meet, in the order that they
     /// run. The first rule that fails gives the message. See docs/question-flows.md.
     /// </summary>

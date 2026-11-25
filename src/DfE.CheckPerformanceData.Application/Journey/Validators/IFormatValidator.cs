@@ -16,7 +16,10 @@ public interface IFormatValidator
     /// <summary>True when <paramref name="value"/> satisfies the format rule.</summary>
     bool IsValid(string value);
 
-    /// <summary>GOV.UK-style error shown when the format rule is not satisfied.</summary>
+    /// <summary>
+    /// GOV.UK-style error shown when the format rule is not satisfied. A question's
+    /// <c>formatFailure</c> replaces it.
+    /// </summary>
     string FailureMessage { get; }
 
     /// <summary>

@@ -9,7 +9,7 @@
     Layout = "_Layout";
     var hasError = !ViewData.ModelState.IsValid;
     var fieldErrorMessage = ViewData.ModelState["selectedResultKey"]?.Errors.FirstOrDefault()?.ErrorMessage
-        ?? "Enter which result is incorrect";
+        ?? "Select which result is incorrect";
     @* FLAGGED: copy needs content sign-off. "Start typing to search" described the type-ahead this
        page no longer has, so the hint now says what the options are instead of how to search them.
        The flow configs' subheading carries the same replacement. *@
@@ -57,11 +57,11 @@ else
     <h1 class="govuk-heading-l">@Model.Title</h1>
 
     <div class="govuk-inset-text">
-        We hold no results for this student, so there is no grade to correct.
+        We hold no results for this @(Model.LearnerNoun.Singular), so there is no grade to correct.
     </div>
 
     <p class="govuk-body">
-        Check you selected the right student. If the student's results are missing, report that
+        Check you selected the right @(Model.LearnerNoun.Singular). If the @(Model.LearnerNoun.Singular)'s results are missing, report that
         instead of an incorrect grade.
     </p>
 
@@ -69,7 +69,7 @@ else
         <a class="govuk-link" asp-action="@(Model.BackPageId is null ? "Index" : Model.BackPageAction)"
            asp-controller="@(Model.BackPageId is null ? "CheckYourPupilData" : "Journey")"
            asp-route-windowId="@Model.WindowId"
-           asp-route-pageId="@Model.BackPageId">Search for a different student</a>
+           asp-route-pageId="@Model.BackPageId">Search for a different @(Model.LearnerNoun.Singular)</a>
     </p>
 }
 else
@@ -96,7 +96,7 @@ else
             <option value=""></option>
             @foreach (var result in Model.AvailableResults)
             {
-                <option value="@result.CompositeKey" selected="@(result.CompositeKey == Model.SelectedResultKey)">@DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultLabel.For(result)</option>
+                <option value="@result.CompositeKey" selected="@(result.CompositeKey == Model.SelectedResultKey)">@DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultLabel.For(result, Model.WindowType)</option>
             }
         </select>
     </div>
@@ -140,7 +140,7 @@ else
                     </govuk-summary-list-row>
                     <govuk-summary-list-row>
                         <govuk-summary-list-row-key>CSV file</govuk-summary-list-row-key>
-                        <govuk-summary-list-row-value>@DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsSources.LabelFor(result.SourceFile)</govuk-summary-list-row-value>
+                        <govuk-summary-list-row-value>@DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsSources.SchoolLabelFor(Model.WindowType, result.SourceFile)</govuk-summary-list-row-value>
                     </govuk-summary-list-row>
                 </govuk-summary-list>
             </div>

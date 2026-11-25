@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -36,8 +37,12 @@ public sealed class ResultSearchViewSourceTests
     {
         // Same helper the suggestions endpoint uses, so this page and that endpoint cannot describe
         // the same result differently.
-        Assert.Contains("ResultLabel.For(result)", ViewSource());
+        Assert.Contains("ResultLabel.For(result, Model.WindowType)", ViewSource());
     }
+
+    [Fact]
+    public void The_csv_file_row_names_the_file_as_the_window_type_shows_it()
+        => Assert.Contains("ResultsSources.SchoolLabelFor(Model.WindowType, result.SourceFile)", ViewSource());
 
     [Fact]
     public void Nothing_is_preselected()
@@ -137,7 +142,7 @@ public sealed class ResultSearchViewSourceTests
 
         Assert.Contains("if (!Model.AvailableResults.Any())", view);
         Assert.Contains("govuk-inset-text", view);
-        Assert.Contains("We hold no results for this student", view);
+        Assert.Contains("We hold no results for this @(Model.LearnerNoun.Singular)", view);
     }
 
     [Fact]
@@ -147,14 +152,14 @@ public sealed class ResultSearchViewSourceTests
         // Continue button would only ever fail validation.
         var view = ViewSource();
 
-        Assert.Contains("Search for a different student", view);
+        Assert.Contains("Search for a different @(Model.LearnerNoun.Singular)", view);
         Assert.DoesNotContain("href=\"#\"", view);
     }
 
     [Fact]
     public void The_control_and_the_continue_button_are_hidden_when_there_is_nothing_to_choose()
     {
-        // A submit that can only ever produce "Enter which result is incorrect" is a dead end.
+        // A submit that can only ever produce "Select which result is incorrect" is a dead end.
         var view = ViewSource();
 
         // The submit and the select live in the else branch of the empty check, so neither is
@@ -229,5 +234,13 @@ public sealed class ResultSearchViewSourceTests
         var view = ViewSource();
 
         Assert.Contains("hidden=\"@(result.CompositeKey == Model.SelectedResultKey ? null : \"hidden\")\"", view);
+    }
+
+    [Fact]
+    public void The_page_names_the_learner_only_through_the_model()
+    {
+        var rendered = Regex.Replace(ViewSource(), @"@\*[\s\S]*?\*@", string.Empty);
+
+        Assert.DoesNotContain("student", rendered, StringComparison.OrdinalIgnoreCase);
     }
 }

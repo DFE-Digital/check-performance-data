@@ -82,7 +82,7 @@
       "title": "Which of {pupilName}'s results is incorrect?",
       "pageTitle": "Which result is incorrect?",
       "subheading": "Results are listed by subject and QAN",
-      "validationFailure": "Enter which of {pupilName}'s results is incorrect",
+      "validationFailure": "Select which of {pupilName}'s results is incorrect",
       "nextPageId": "grade-details"
     },
     {

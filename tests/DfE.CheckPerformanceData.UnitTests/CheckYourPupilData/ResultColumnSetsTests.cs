@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Results;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.CheckYourPupilData;
 
@@ -49,16 +50,33 @@ public class ResultColumnSetsTests
     {
         Assert.Equal(
             ["Last name", "First name", "Sex", "Date of birth", "Age", "CYPMD ID", "Subject", "QAN", "Session", "Grade", "Source file"],
-            ResultColumnSets.Csv().Select(c => c.Header));
+            ResultColumnSets.Csv(CheckingWindowType.Post16).Select(c => c.Header));
     }
 
     [Fact]
     public void Matched_row_renders_pupil_demographics_and_the_qualification_name_as_subject()
     {
-        var table = ResultTable.Build(ResultColumnSets.Csv(), [new ResultRow(Pupil(), Result())]);
+        var table = ResultTable.Build(ResultColumnSets.Csv(CheckingWindowType.Post16), [new ResultRow(Pupil(), Result())]);
 
         var row = Assert.Single(table.Rows);
         Assert.Equal(["Jones", "Bob", "M", "01/09/2007", "18", "500123", "GCSE (9-1) Bus. Studs:Single", "60145642", "S2024", "5", "Main results"], row);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4Autumn, "KS4_MAIN")]
+    [InlineData(CheckingWindowType.KS4June, "Main results")]
+    public void A_ks4_result_names_its_source_file_as_the_window_type_shows_it(
+        CheckingWindowType windowType, string expected)
+    {
+        var result = new ResultRecord
+        {
+            CypmdId = "500123", Qan = "60145642", QualificationName = "GCSE (9-1) Bus. Studs:Single",
+            SyllabusCode = "1BS0", Session = "S2024", Grade = "5", SourceFile = ResultsFileTags.Ks4Main
+        };
+
+        var table = ResultTable.Build(ResultColumnSets.Csv(windowType), [new ResultRow(Pupil(), result)]);
+
+        Assert.Equal(expected, Assert.Single(table.Rows).Last());
     }
 
     [Fact]

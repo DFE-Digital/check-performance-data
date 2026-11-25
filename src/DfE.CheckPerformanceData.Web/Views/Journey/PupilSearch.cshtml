@@ -129,7 +129,7 @@ else
                 // here is the only place the user sees it — the hint above is gone once they type.
                 // FLAGGED: copy needs content sign-off.
                 tNoResults: function () {
-                    return requireResults ? 'No students found with results' : 'No results found';
+                    return requireResults ? 'No @Model.LearnerNoun.Plural found with results' : 'No results found';
                 },
                 source: function (query, populateResults) {
                     var url = '/pupils/suggestions?windowId=' + windowId

@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
 using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
@@ -100,6 +101,81 @@ public sealed class ResultIssueControllerTests
         var model = Assert.IsType<ResultIssueViewModel>(view.Model);
         Assert.Equal(WindowId, model.WindowId);
         Assert.Null(model.IssueType);
+    }
+
+    private static CheckingWindowDto WindowOf(CheckingWindowType type) => new()
+    {
+        Title = "A window",
+        KeyStage = type == CheckingWindowType.Post16 ? KeyStages.Post16 : KeyStages.KS4,
+        CheckingWindowType = type,
+        StartDate = new DateTime(2026, 10, 1),
+        EndDate = new DateTime(2027, 3, 31)
+    };
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, "Result does not belong to student")]
+    [InlineData(CheckingWindowType.KS4Autumn, "Result does not belong to pupil")]
+    public async Task Get_names_the_result_does_not_belong_option_with_the_learner_noun_of_the_window(
+        CheckingWindowType windowType, string expected)
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(WindowOf(windowType));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId));
+
+        Assert.Equal(expected, Assert.IsType<ResultIssueViewModel>(view.Model).ResultDoesNotBelongLabel);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, "Result does not belong to student")]
+    [InlineData(CheckingWindowType.KS4Autumn, "Result does not belong to pupil")]
+    public async Task Post_without_a_selection_keeps_the_learner_noun_of_the_window(
+        CheckingWindowType windowType, string expected)
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(WindowOf(windowType));
+
+        var view = Assert.IsType<ViewResult>(
+            await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = null }));
+
+        Assert.Equal(expected, Assert.IsType<ResultIssueViewModel>(view.Model).ResultDoesNotBelongLabel);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    public async Task Get_names_the_late_results_guidance_blocks_of_the_window_type(CheckingWindowType windowType)
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(WindowOf(windowType));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId));
+
+        Assert.Equal(
+            LateResultsGuidanceBlocks.For(windowType),
+            Assert.IsType<ResultIssueViewModel>(view.Model).LateResultsGuidance);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    public async Task Post_without_a_selection_keeps_the_late_results_guidance_blocks_of_the_window_type(
+        CheckingWindowType windowType)
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(WindowOf(windowType));
+
+        var view = Assert.IsType<ViewResult>(
+            await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = null }));
+
+        Assert.Equal(
+            LateResultsGuidanceBlocks.For(windowType),
+            Assert.IsType<ResultIssueViewModel>(view.Model).LateResultsGuidance);
+    }
+
+    [Fact]
+    public void A_posted_value_cannot_set_the_window_type()
+    {
+        Assert.NotNull(typeof(ResultIssueViewModel)
+            .GetProperty(nameof(ResultIssueViewModel.WindowType))!
+            .GetCustomAttributes(typeof(BindNeverAttribute), inherit: false)
+            .SingleOrDefault());
     }
 
     [Fact]

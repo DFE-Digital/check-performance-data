@@ -3,6 +3,8 @@ using System.Text.Json;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Session;
@@ -106,6 +108,27 @@ public sealed class ResultSuggestionsControllerTests
                 ("60181576|S2024|16to19_LR1", "GCSE (9-1) French, QAN: 60181576, Session: S2024, Grade: 5, File: Late results 1")
             ],
             payload);
+    }
+
+    [Fact]
+    public async Task On_a_ks4_autumn_window_the_label_ends_with_the_file_tag()
+    {
+        _session.SetRequestState(WindowId, new RequestState
+        {
+            SelectedPupilId = Guid.NewGuid().ToString(),
+            SelectedPupil = Pupil(CypmdId),
+            CheckingWindow = new CheckingWindowDto
+            {
+                Title = "KS4 Autumn", KeyStage = KeyStages.KS4,
+                CheckingWindowType = CheckingWindowType.KS4Autumn,
+                StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+            }
+        });
+        HasResults(Result("60146084", "GCSE (9-1) Mathematics", source: ResultsFileTags.Ks4LateResults1));
+
+        var payload = Payload(await _sut.Suggestions(WindowId, "Mathematics", CancellationToken.None));
+
+        Assert.EndsWith("File: KS4_LR1", Assert.Single(payload).Label);
     }
 
     [Fact]

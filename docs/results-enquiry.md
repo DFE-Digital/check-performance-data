@@ -5,6 +5,9 @@ through to a reference number on screen and by email. Three journeys share the e
 submission path: incorrect grade (AB#296648, documented first below), missing qualification
 (AB#297848) and result does not belong to student (AB#298704), each with its own section.
 
+KS4 Autumn has two of the three journeys, incorrect grade and result does not belong to pupil. See
+[KS4 Autumn](#ks4-autumn).
+
 Related tickets: AB#296999 (results data), AB#297004 (student selection), AB#297130 (grade reference
 data), AB#297013, AB#297848 (missing qualification), AB#298704 (result does not belong to student).
 
@@ -31,11 +34,13 @@ after merge orphans stored enquiries. `IncorrectGradeFlowTests` pins them.
 
 ### Getting in
 
-The check-your-student-data page's "What would you like to do?" radios gain a third option for 16-19
-windows: **Report an issue with an exam result**, routed to `ResultIssueController`. The issue page
-now renders all three Figma options — *Incorrect grade*, *Missing qualification* and *Result does not
-belong to student* — each routed to its own flow. A posted value matching none of them (forged or
-otherwise unknown) is rejected as unanswered rather than starting a journey with no flow behind it.
+The Check your pupil data page's "What would you like to do?" radios gain a third option: **Report
+an issue with an exam result**, routed to `ResultIssueController`. Each window with an open results
+enquiry exercise has the option (16-19 and KS4 Autumn). The issue page renders all three Figma
+options — *Incorrect grade*, *Missing qualification* and *Result does not belong to student* (*pupil*
+on a KS4 Autumn window) — each routed to its own flow. On KS4 Autumn, Missing qualification has no
+flow yet (see [KS4 Autumn](#ks4-autumn)). A posted value matching none of them (forged or otherwise
+unknown) is rejected as unanswered rather than starting a journey with no flow behind it.
 
 After the pupil-data exercise closes (AB#298317) the same chooser is reached from the Yes/No question
 Check your pupil data asks in that state; the seeded window `7D3F0B21-…` is in that state locally.
@@ -71,6 +76,33 @@ results arrive another way, or a file the service has never seen, could not use 
 names no file. The migration that added it ticked it wherever the old rule showed the guidance, so
 no journey changed when it shipped. Before that, it was "does this school hold any LR2 row", which
 told a school with no late results to wait for a file that had already arrived.
+
+### The words are content blocks
+
+The lead developer decided on 25 Nov 2026 that a content designer owns these words (#901). Each
+window type has its own blocks, so KS4 Autumn and 16-19 can say different things. Each block starts
+with the 16-19 words.
+
+| Where | Block key | Type | Where to edit |
+|---|---|---|---|
+| Issue page, the Incorrect grade option | `result-issue-incorrect-grade-option-{window type}` | Plain text | Admin page |
+| Issue page, the expander summary | `result-issue-late-results-summary-{window type}` | Plain text | Admin page |
+| Issue page, the expander body | `result-issue-late-results-body-{window type}` | Rich text | On the page, or admin page |
+| `check-late-results` page, the body | `journey-{window type}-incorrectgrade` | Rich text | On the page, or admin page |
+| Grade details page, the inset | `result-details-late-results-inset-{window type}` | Plain text | Admin page |
+
+`{window type}` is the window type in lower case, for example `ks4autumn` or `post16`. The admin
+page is **Content blocks** (`/admin/content-blocks`). `LateResultsGuidanceBlocks` (Web) holds the
+keys and the default texts.
+
+- `ContentText` (a view component) shows a plain text block as encoded text. It has no element
+  around it and no edit link. The editor on the page writes a `<form>` where the block is. A form
+  cannot go in the form of the page, where the option and the inset are, or in a `<summary>`.
+- A plain text block with no text shows its default. The option always has a label.
+- The title of the `check-late-results` page stays in the flow file. The browser title and the
+  `<h1>` must have the same words.
+- A block is written one time for each key, in each environment. A content designer changes the
+  words in each environment, or moves them with a content staging bundle.
 
 ## Data seams
 
@@ -117,6 +149,20 @@ left out of the validation checksums, so the stamp goes stale until the next run
 deleted, because earlier releases name it, and it can be put back in use. Each run is a release, so
 the October, November, February and March states are four releases and any can be made live again.
 
+The KS4 files (#901):
+
+| Month | KS4 file | Tag | Label |
+|---|---|---|---|
+| Oct | Included and non-included results | `KS4_MAIN` | Main results |
+| Oct | Late results 1 | `KS4_LR1` | Late results 1 |
+| Nov | Late results 2 | `KS4_LR2` | Late results 2 |
+| Feb | Revised results (replaces the three above) | `KS4_Revised` | Revised results |
+
+A KS4 results enquiry is created with all four slots. Only main results is required. In February
+the admin fills the revised slot and retires the other three, so schools see results from the
+revised file only. No rule reads the calendar: a run reads the slots that are filled and not
+retired, and schools see the live release. KS4 Autumn has no retention file.
+
 The Data tab gives each slot a status (`CheckingExerciseDto.StatusOf`): **Live** when the live release
 read the files the slot holds now (matched by checksum), **Not validated** when the slot holds files
 the live release did not read, **Not supplied** when it lacks its CSV or schema, and **Retired**. It
@@ -145,10 +191,14 @@ name the CSV column it is read from, or a list of columns to join with `x-ingres
 **not** replace the result it corrects (decision, 2026-09-25): both show, the amendment tagged with its
 late file. Rows with a NULL `CYPMD_ID` are ignored — they match no student.
 
-Schools see the label, never the raw tag: the result dropdown reads
-*"{qualification}, QAN: {qan}, Session: {session}, Grade: {grade}, File: {label}"* (`ResultLabel`), the result
-details say *CSV file: {label}*, and the Results tab CSV's *Source file* column carries the label. The
-Results tab lists every result in the live file, not one tag's.
+A KS4 Autumn school sees the tag (#901), so that it can find the file a result came from. A school
+in a window of another type sees the label, never the raw tag: 16-19 today, and KS4 June if it gets
+a results enquiry. `ResultsSources.SchoolLabelFor` gives the text for a window type and a tag. The
+result dropdown reads
+*"{qualification}, QAN: {qan}, Session: {session}, Grade: {grade}, File: {text}"* (`ResultLabel`), the
+result details say *CSV file: {text}*, and the Results tab CSV's *Source file* column carries the
+same text. The Results tab lists every result in the live file, not one tag's. Admin pages show the
+label with the tag, for example "Main results (KS4_MAIN)" (`DatasetLabels`).
 
 Source tags (`ResultsFileTags`, verbatim from AB#296999 — a data contract with ingestion). The MAIN,
 Revised and Retention 16-19 tags are no longer offered, but blobs already written may carry them, so
@@ -237,7 +287,8 @@ already scoped to the signed-in school's own file, so a request that forges or o
 **Because it hides students, the pages say so.** The `subheading` ends "You can only search for
 students who have results", and the autocomplete's no-match text becomes "No students found with
 results" rather than the component's default "No results found" — otherwise a school cannot tell a
-typo from a student who holds nothing. Copy on both is FLAGGED for content sign-off.
+typo from a student who holds nothing. Copy on both is FLAGGED for content sign-off. On a KS4 Autumn
+window both say "pupils" (the window's learner noun).
 
 `select-result` keeps its own empty state for the cases the restriction cannot cover — back
 navigation, a stale session, or a results file that changes mid-journey. Rather than an autocomplete
@@ -252,9 +303,10 @@ GradeOptions` drops it from the scale before the `<select>` is rendered, so the 
 JavaScript off. Rule 2 below is therefore reached only by a forged or stale post.
 
 The picker does offer a grade that another results file holds for the same result. Rule 4 refuses
-that grade when the user selects Continue (#844). The message names the file's label
-(`ResultsSources.LabelFor`), never its tag. `HeldResults.InOtherFiles` finds the other copies of the
-result: the student's results with the same `EnquirySubject`, minus the selected result itself.
+that grade when the user selects Continue (#844). The message names the file as the school sees it
+(`ResultsSources.SchoolLabelFor`): the tag on KS4 Autumn, the label on each other window type.
+`HeldResults.InOtherFiles` finds the other copies of the result: the student's results with the
+same `EnquirySubject`, minus the selected result itself.
 `JourneyController.PagePost` reads them from the student's cached results.
 
 Server-authoritative, in this order (`JourneyValidationService.ValidateGradeSelect`):
@@ -308,7 +360,8 @@ remove it.
 Both enum columns are `HasConversion<string>()` capped at 20 characters; `ResultsEnquiry` (14) and
 `IncorrectGrade` (14) fit, which is why **no migration was needed**.
 
-Reference format: `CYPMD_16to19_RE_{7 hex}` (`GenerateEnquiryReference`). The `RE` segment lets support
+Reference format: `CYPMD_{key stage}_RE_{7 hex}` (`GenerateEnquiryReference`). The key stage part is
+`16to19` for a 16-19 window and `KS4` for a KS4 Autumn window (#903). The `RE` segment lets support
 staff tell an enquiry from an amendment when a school reads one out. The confirmation mockup's
 `3014023_RE10005` was confirmed illustrative.
 
@@ -483,7 +536,7 @@ has no answer. Two places call it:
 - The check-answers summary of a KS4 Autumn enquiry shows the row "Graded Exam" with "Yes" or "No".
   The row comes after "Qualification name and subject". A summary with no answer has no such row.
 
-No KS4 Autumn enquiry flow file exists yet (#903), so no page shows the row today.
+The KS4 Autumn incorrect grade and result does not belong to pupil journeys show the row (#901).
 
 How a school sees its own enquiries is designed: AB#298325 added an Issues tab
 beside Requests on the Amendment request summary page (`AmendmentRequestsService.GetAmendmentRequestsAsync`,
@@ -646,7 +699,8 @@ result. A matching submitted enquiry for the same result puts the error on the r
 
 ### Summary and completeness gap
 
-Reuses `ResultsEnquirySummary`: `EnquiryTypeLabel = "Result does not belong to student"`,
+Reuses `ResultsEnquirySummary`: `EnquiryTypeLabel = "Result does not belong to student"`
+(from `EnquiryTypeLabels`; "pupil" on KS4 Autumn),
 `IsCohortWide = false` always, and `ShowRevisedGrade = false` — the row and its Change link are
 omitted entirely rather than rendered empty, since this journey has no grade step.
 
@@ -664,7 +718,8 @@ hard prerequisite (additional info is optional), found via `PageType.ResultSearc
 
 Shares `SubmitResultsEnquiryAsync` with the other two kinds. A row persists with
 `AmendmentType = WhatToChange.ResultDoesNotBelong`,
-`RequestTypeDescription = "Results enquiry - Result does not belong to student"`, same
+`RequestTypeDescription = "Results enquiry - Result does not belong to student"`
+(`EnquiryTypeLabels.DescriptionFor`; "pupil" on KS4 Autumn), same
 `RequestType.ResultsEnquiry` / `Status.Submitted` shape, same dispatch at submit (see "Downstream processing"), same
 `QuestionFlowOutcomeKeyAlignmentTests` exclusion from rules-engine routing. The guard that used to list
 the two live enquiry members by name (`is IncorrectGrade or MissingQualification`) is now
@@ -677,14 +732,77 @@ is added to the map.
 - The student-search subheading reuses the sibling enquiry pages' richer copy ("Start typing to search
   by name, ULN, CYPMD ID or date of birth...") rather than Figma f04's bare "Start typing to see a list
   of names".
-- Validation-failure messages (`Enter the name of the student the result does not belong to`, `Enter
-  which result does not belong to {pupilName}`) are not in the captured Figma frames; they follow the
-  GDS "Enter…" pattern.
+- The validation-failure message `Enter the name of the student the result does not belong to` is not
+  in the captured Figma frames; it follows the GDS "Enter…" pattern. The result page says `Select
+  which result does not belong to {pupilName}`, because the control is a dropdown (lead developer,
+  25 Nov 2026).
 - The summary's student row keeps the existing "Name of student" label; Figma f07 says "Student name".
   One label serves all three enquiry kinds until content decides otherwise.
 - `ResultSearch.cshtml`'s empty-state copy ("We hold no results for this student, so there is no grade
   to correct") is still worded for incorrect grade — a stray result has no "grade to correct" either,
   but the empty state is shared and untouched by this ticket.
+
+## KS4 Autumn
+
+Epic #903. The KS4 Autumn results enquiry works as the 16-19 one does, with the differences below.
+#901 added the two journeys that have a result search.
+
+| Journey | Flow file | State |
+|---|---|---|
+| Incorrect grade | `IncorrectGrade_KS4Autumn.json` | Built (#901) |
+| Result does not belong to pupil | `ResultDoesNotBelong_KS4Autumn.json` | Built (#901) |
+| Missing qualification | none | Not built (#900) |
+
+Until #900 adds its flow file, the issue page still offers Missing qualification on a KS4 Autumn
+window. `ResultIssueController` finds no flow for it and returns the school to Check your pupil data.
+
+Each KS4 Autumn flow file has the pages, page types, question ids, roles and option values of its
+16-19 file. The differences are:
+
+- **Wording.** The texts say "pupil", and the pupil search hint names the UPN, not the ULN (#902).
+- **Pupil search page ids.** They are `select-pupil-cohort`, `select-pupil-single` and `select-pupil`.
+  A page id is in the address of the page, and a KS4 school must not read "student" there.
+- **The cohort count.** The question sets `formatFailure`, because the `WholeNumber` validator's own
+  message says "students" (see `docs/question-flows.md`).
+
+The code differences, all from the window type:
+
+- **The learner noun.** The issue page, the result search empty state, the grade details page, the
+  summary rows and the pupil search no-match text take "student" or "pupil" from `LearnerNoun`.
+  `EnquiryTypeLabels` names the enquiry types, so the third type is "Result does not belong to pupil"
+  on the issue page, on the summary and in the stored description (`Results enquiry - Result does not
+  belong to pupil`). The Results Enquiries tab shows the name, and the Zendesk ticket subject shows
+  the description.
+- **The results file.** A KS4 Autumn school sees the tag, for example "File: KS4_MAIN" (see
+  [The results files over the year](#the-results-files-over-the-year)).
+- **The reference.** `CYPMD_KS4_RE_{7 hex}`.
+- **Graded exam.** The summary and the ticket state it (#899). See
+  [The enquiry ticket (#859)](#the-enquiry-ticket-859).
+
+Not changed for KS4 Autumn:
+
+- The result page is the same plain dropdown. It lists each result the pupil holds in the live
+  release. A user cannot type part of a subject or a QAN to search.
+- The qualification title, the awarding organisation and the grade scale come from the 16-19
+  qualification reference. #900 gives KS4 Autumn its own reference file.
+- The pupil search rows have the format of the other KS4 journeys (#902 changes it).
+- The late results guidance starts with the 16-19 words. A content designer changes them for this
+  window in its content blocks (see [The words are content blocks](#the-words-are-content-blocks)).
+
+Locally, the seeded window "Key Stage 4 Autumn" (`7d2e9a14-5c38-4b6f-a0e1-3f8b6c2d4a97`,
+`SeedKs4AutumnSamples`) holds main results and late results 1 for Kingsmead. Alice Smith (CYPMD ID
+`000001`) holds four results: mathematics in two sessions, and English language in the main file
+and in late results 1.
+
+Decided by the lead developer on 25 Nov 2026:
+
+- The result page stays a dropdown with no type-ahead.
+- The KS4 learner noun is "pupil", in the inset on the result page too.
+- The issue page keeps Missing qualification before #900.
+- No rule reads the calendar to choose the files.
+- KS4 June shows file labels, not tags.
+- Main results is one file.
+- The late results guidance is in content blocks. A content designer writes the words for KS4 Autumn.
 
 ## Confirmation email
 
@@ -848,7 +966,8 @@ ingress run that fill these blobs, is #324); drafts (decided against).
 
 | Item | Owner |
 |---|---|
-| Copy sign-off: the must-differ message; the held-grade message and the two duplicate-enquiry messages (FLAGGED, #844); "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session; the result page's hint, now "Results are listed by subject and QAN" since the type-ahead went (the designs' "Start typing to search" described a control the page no longer has); the "Enter which result is incorrect" validation copy, which still says Enter for what is now a dropdown; the "Awarding Organisation (AO) name" row label, now the one label on both journeys' details pages and summaries (AB#301903) | Content designer |
+| Copy sign-off: the must-differ message; the held-grade message and the two duplicate-enquiry messages (FLAGGED, #844); "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session; the result page's hint, now "Results are listed by subject and QAN" since the type-ahead went (the designs' "Start typing to search" described a control the page no longer has); the "Awarding Organisation (AO) name" row label, now the one label on both journeys' details pages and summaries (AB#301903) | Content designer |
 | Whether to keep or delete `/results/suggestions` | Dev team |
 | Breadcrumb: the designs show `Check your student data - 16 to 19 and result enquiry`, but no journey view in the service renders a breadcrumb. Worth doing across the whole 16-19 journey at once rather than on one page | Design / dev |
 | `PupilSearch.cshtml` is still JavaScript-dependent (pre-existing). A server-rendered `<select>`, enhanced or not, would fix it — the roll is too long to list unenhanced, so this one needs the `enhanceSelectElement` pattern the other pickers have now dropped | Dev team |
+| KS4 Autumn (#901): the words of the late results guidance for this window. The blocks hold the 16-19 words ("late November") until a content designer changes them, in each environment | Content designer |

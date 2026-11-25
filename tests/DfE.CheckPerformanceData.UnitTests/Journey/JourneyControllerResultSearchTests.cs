@@ -57,7 +57,7 @@ public sealed class JourneyControllerResultSearchTests
         Id = "select-result",
         Type = PageType.ResultSearch,
         Title = "Which of {pupilName}'s results is incorrect?",
-        ValidationFailure = "Enter which of {pupilName}'s results is incorrect",
+        ValidationFailure = "Select which of {pupilName}'s results is incorrect",
         NextPageId = "grade-details"
     };
 
@@ -323,7 +323,7 @@ public sealed class JourneyControllerResultSearchTests
 
         Assert.Equal("ResultSearch", view.ViewName);
         Assert.Equal(
-            "Enter which of Billy B's results is incorrect",
+            "Select which of Billy B's results is incorrect",
             _sut.ModelState["selectedResultKey"]!.Errors[0].ErrorMessage);
     }
 
@@ -352,7 +352,7 @@ public sealed class JourneyControllerResultSearchTests
         Assert.Equal("ResultSearch", view.ViewName);
         Assert.Null(_session.GetRequestState(WindowId).SelectedResult);
         Assert.Equal(
-            "Enter which of Billy B's results is incorrect",
+            "Select which of Billy B's results is incorrect",
             _sut.ModelState["selectedResultKey"]!.Errors[0].ErrorMessage);
     }
 
@@ -518,7 +518,7 @@ public sealed class JourneyControllerResultSearchTests
         _pupilData.GetPupilAsync(WindowId, pupil.Id).Returns(pupil);
         _requestService.HasSubmittedRequestAsync(WindowId, pupil.Id, Arg.Any<long>())
             .Returns(new DuplicateCheckResult.NoConflict());
-        _journeyService.GenerateEnquiryReference().Returns("CYPMD_16to19_RE_ABCDEF1");
+        _journeyService.GenerateEnquiryReference(CheckingWindowType.Post16).Returns("CYPMD_16to19_RE_ABCDEF1");
 
         _session.SetRequestState(WindowId, new RequestState
         {

@@ -395,9 +395,10 @@ public sealed class JourneyController(
             // AB#296648/AB#297848/AB#298704: an enquiry's reference carries an RE segment so support
             // staff can tell it from an amendment when a school reads it out. All enquiry kinds
             // share it — resolved through the exercise map, never a member list.
+            var windowType = journey.CheckingWindow?.CheckingWindowType;
             var reference = WhatToChangeCheckingExerciseMap.IsResultsEnquiry(journey.SelectedWhatToChange)
-                ? journeyService.GenerateEnquiryReference()
-                : journeyService.GenerateReference(journey.CheckingWindow?.CheckingWindowType);
+                ? journeyService.GenerateEnquiryReference(windowType)
+                : journeyService.GenerateReference(windowType);
 
             // Choosing the primary pupil discards everything that was answered ABOUT a pupil — but
             // only what came after this page. On the amendment journeys the pupil page is first, so
@@ -489,7 +490,7 @@ public sealed class JourneyController(
         {
             var validationMessage = page.ValidationFailure is not null
                 ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
-                : "Enter which result is incorrect";
+                : "Select which result is incorrect";
             ModelState.AddModelError(SelectedResultKeyField, validationMessage);
             await analytics.TrackSafeAsync(new ValidationErrorEvent
             {
@@ -925,7 +926,7 @@ public sealed class JourneyController(
                     {
                         QuestionType.GradeSelect => journeyService.ValidateGradeSelect(
                             question, answer, gradeReference, journey.SelectedResult?.Grade,
-                            resolvedValidationFailure, heldInOtherFiles),
+                            resolvedValidationFailure, heldInOtherFiles, journey.CheckingWindow?.CheckingWindowType),
                         // AB#297848: syllabus options live on the resolved qualification; a QAN
                         // with none (961 of 974 today) rejects everything and the page explains
                         // the gap. Membership is on the code alone — the title is display-only.

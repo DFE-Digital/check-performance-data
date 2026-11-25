@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 /// <summary>
-/// The way in to a 16-19 results enquiry (AB#296648). Mirrors <see cref="WhatToChangeController"/>:
+/// The way in to a results enquiry (AB#296648). Mirrors <see cref="WhatToChangeController"/>:
 /// pick what you are reporting, and the journey engine takes it from there.
 /// </summary>
 [ServiceNavSection(ServiceNavSection.Pupils)]
@@ -49,7 +49,7 @@ public sealed class ResultIssueController(
 
         // Never pre-selects: the confirmation page's "Report another issue" link lands here, and the
         // AC is that nothing carries over from the previous enquiry.
-        return View(new ResultIssueViewModel { WindowId = windowId });
+        return View(ViewModelFor(windowId, window.CheckingWindowType));
     }
 
     [HttpPost]
@@ -79,7 +79,7 @@ public sealed class ResultIssueController(
                 ErrorCodes = [ValidationErrorCoding.NoSelection],
                 ErrorFields = [nameof(ResultIssueViewModel.IssueType)]
             });
-            return View("Index", new ResultIssueViewModel { WindowId = windowId });
+            return View("Index", ViewModelFor(windowId, window.CheckingWindowType));
         }
 
         var config = await flowService.GetConfigAsync(whatToChange.Value, window.CheckingWindowType);
@@ -165,4 +165,7 @@ public sealed class ResultIssueController(
 
         return RedirectToAction(nameof(Index), new { windowId });
     }
+
+    private static ResultIssueViewModel ViewModelFor(Guid windowId, CheckingWindowType windowType) =>
+        new() { WindowId = windowId, WindowType = windowType };
 }

@@ -1,0 +1,51 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.SampleSchoolAddItem
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = "Use sample data for a school";
+}
+
+<govuk-back-link href="@Model.CancelUrl" />
+
+@* #937. GovUk.Frontend.AspNetCore adds the error summary from the field errors below. *@
+
+<span class="govuk-caption-l">@Model.WindowTitle</span>
+<h1 class="govuk-heading-l">Use sample data for a school</h1>
+
+<p class="govuk-body">
+  The school sees made-up data in every exercise of this window, not its real data.
+  This happens after the next validation of each exercise.
+</p>
+
+@* The same school search as impersonation: choosing a school fills the LAESTAB and URN fields. *@
+<div class="govuk-form-group" id="establishment-picker" data-search-url="@Model.SearchUrl">
+    <label class="govuk-label govuk-label--s" for="establishment-search">Search for a school</label>
+    <div class="govuk-hint" id="establishment-search-hint">Enter at least 2 characters from the school name or URN. Or enter the LAESTAB and URN below.</div>
+    <div id="establishment-search-container"></div>
+</div>
+
+<form method="post" action="@Model.PostUrl" novalidate>
+    @Html.AntiForgeryToken()
+
+    <govuk-input for="@Model.Laestab" input-class="govuk-input--width-10" spellcheck="false" autocomplete="off">
+        <govuk-input-label class="govuk-label--s">LAESTAB</govuk-input-label>
+        <govuk-input-hint>For example, 933/4290 or 9334290</govuk-input-hint>
+        <govuk-input-error-message asp-validation-for="Laestab" />
+    </govuk-input>
+
+    <govuk-input for="@Model.Urn" input-class="govuk-input--width-10" inputmode="numeric" spellcheck="false" autocomplete="off">
+        <govuk-input-label class="govuk-label--s">URN</govuk-input-label>
+        <govuk-input-hint>6 digits, for example 123456</govuk-input-hint>
+        <govuk-input-error-message asp-validation-for="Urn" />
+    </govuk-input>
+
+    <div class="govuk-button-group">
+        <govuk-button type="submit">Continue</govuk-button>
+        <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    @* _Layout loads accessible-autocomplete.min.js. *@
+    <script src="~/js/impersonation-establishment-picker.js" asp-append-version="true" defer></script>
+}

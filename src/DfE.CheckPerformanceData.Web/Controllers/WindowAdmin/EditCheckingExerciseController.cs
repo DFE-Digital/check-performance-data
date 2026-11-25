@@ -117,6 +117,7 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
     private void Decorate(CreateCheckingExerciseItem model, CheckingWindowDto window, CheckingExerciseDto exercise)
     {
         model.DataExercise = exercise;
+        model.SampleSchoolsChanged = window.SampleSchoolsChangedSinceLiveRelease(exercise);
         model.IsEditing = true;
         model.WindowTitle = window.Title;
         model.ReplacementOptions = window.Exercises

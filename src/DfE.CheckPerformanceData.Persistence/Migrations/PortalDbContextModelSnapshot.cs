@@ -845,6 +845,12 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
 
+                    b.PrimitiveCollection<List<string>>("SampleLaestabs")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasDefaultValueSql("'{}'::text[]");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CheckingExerciseId", "Number")
@@ -1037,6 +1043,42 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("CheckingWindowDatasets");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowSampleSchool", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("AddedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("CheckingWindowId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Laestab")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("Urn")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("character varying(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckingWindowId", "Laestab")
+                        .IsUnique();
+
+                    b.ToTable("CheckingWindowSampleSchools", (string)null);
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", b =>
@@ -2377,6 +2419,15 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", null)
                         .WithMany("Datasets")
                         .HasForeignKey("CheckingExerciseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowSampleSchool", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", null)
+                        .WithMany()
+                        .HasForeignKey("CheckingWindowId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

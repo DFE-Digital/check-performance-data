@@ -133,7 +133,7 @@ public sealed class Post16EndToEndTests(AzuriteFixture azurite, PostgresFixture 
     {
         var processor = new CsvSchemaFileProcessor(
             NullLogger<CsvSchemaFileProcessor>.Instance,
-            new Dictionary<string, BlobServiceClient> { ["app"] = _blobs });
+            new Dictionary<string, BlobServiceClient> { ["app"] = _blobs }, new DfE.CheckPerformanceData.Infrastructure.Ingress.SampleData.SampleDataGenerators([]));
 
         ValidationProgress? last = null;
         await foreach (var p in processor.ProcessAsync(windowId, CheckingExerciseType.PupilData, Datasets(), clearExistingFiles: clearExistingFiles))

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -44,7 +45,7 @@ public sealed class CheckingExerciseIngressFailureSummaryTests
     {
         _definitions.GetAsync(_exerciseId, Arg.Any<CancellationToken>())
             .Returns(new CheckingExerciseDefinition(Guid.NewGuid(), exercise));
-        var ingress = new CheckingExerciseIngress(_definitions, _processor, TimeProvider.System, _summaryStore);
+        var ingress = new CheckingExerciseIngress(_definitions, _processor, TimeProvider.System, DfE.CheckPerformanceData.Application.UnitTests.Common.NoSampleSchools.Repository(), _summaryStore);
 
         await ingress.ProcessAsync(_exerciseId).ToListAsync();
     }
@@ -53,7 +54,7 @@ public sealed class CheckingExerciseIngressFailureSummaryTests
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
                 Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
-                Arg.Any<IngressSummaryCapture?>())
+                Arg.Any<IngressSummaryCapture?>(), Arg.Any<IReadOnlyList<SampleSchool>?>())
             .Returns(call => run(call.Arg<IngressSummaryCapture>()));
 
     private void PublicationThrows(Exception exception) =>

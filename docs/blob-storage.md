@@ -58,6 +58,21 @@ included" check matches every typed name. Validate the exercise again to restamp
 two normalise the laestab differently on purpose. Every feed must carry a `LAESTAB` column, or the column its schema's `x-ingress.institutionKey` names
 (`LAESTAB_0` in the previously published file): it is what splits one supplier file into one blob per school; a file without it fails the run by name.
 
+**Sample data schools (#936).** A window can list schools that see sample data, not their real data
+(`CheckingWindowSampleSchools`, admin page "Schools that use sample data"). When the list is not
+empty, each run removes every CSV row of a listed school and adds generated rows for it. A listed
+school that is not in the file gets rows too. A schema names its generator with
+`"x-ingress": { "sample": "<name>" }`. `SampleDataGeneratorCatalogue.All` (Infrastructure) holds the
+generators. KS2 has its own generators (`Ks2SampleData`), which the KS2 dev seed uses too. KS4 and
+16-19 use `SchemaSampleGenerator`: it reads the file's schema and fills the fields that it knows by
+name (identifiers, names, dates, the inclusion code, qualifications, grades). It sets other numbers
+to small values and leaves other text blank. A pupil has the same identifiers in each file of a
+school, so results belong to the pupils. A schema that names no generator, or an unknown one, fails
+the run by name, so real rows of a listed school never pass. During a run, the validation page shows a
+"Sample data" step for each dataset, with the listed LAESTABs. The final table tags each school that
+uses sample data (`SchoolRecordCount.UsesSampleData`). The generated rows then go through the normal steps and schema
+validation. See `docs/adrs/0004-sample-data-for-chosen-schools-at-ingress.md`.
+
 **A slot may be optional (#324).** Only the files a results enquiry starts with are required (`ResultsSource.IsRequired`:
 16-19 included, non-included and late results 1; KS4 main); the others
 arrive weeks apart and one may never arrive, so `CheckingExerciseDto` asks

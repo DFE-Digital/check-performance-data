@@ -8,6 +8,7 @@
   "x-ingress": {
     "collection": "students-non-included",
     "pageTab": "students",
+    "sample": "post16-students-non-included",
     "institutionKey": "LAESTAB"
   },
   "x-download": {

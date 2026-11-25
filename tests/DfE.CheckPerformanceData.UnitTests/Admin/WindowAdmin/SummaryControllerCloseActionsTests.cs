@@ -31,7 +31,8 @@ public sealed class SummaryControllerCloseActionsTests
     }
 
     private SummaryController Sut() =>
-        new(_windowService, new CheckingExerciseService(new FixedTimeProvider(Now)));
+        new(_windowService, new CheckingExerciseService(new FixedTimeProvider(Now)),
+            Substitute.For<Application.WindowManagement.SampleData.ISampleSchoolService>());
 
     private void TheWindowHolds(params CheckingExerciseDto[] exercises) =>
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(new CheckingWindowDto

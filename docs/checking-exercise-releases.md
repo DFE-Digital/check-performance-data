@@ -226,6 +226,18 @@ could name a different row from the one whose release the request is stamped wit
 from one row keeps the pair consistent (AB#307773, related fix). See
 `docs/exercise-extensions.md`.
 
+### Sample data schools (#936)
+
+Each release records the LAESTABs that it gave sample data (`CheckingExerciseRelease.SampleLaestabs`,
+`text[]`). The list never changes after the release. The window page shows the tag "Sample schools
+changed since validation" when the window's list differs from the live release. The exercise page
+shows the count in each release row. A change to the list has an effect only after the exercise
+validates again.
+
+`ZendeskConsumer` reads the release that a request names. When that release lists the school's
+LAESTAB, the ticket gets the tag `cpd_sample_data` and the subject prefix `[SAMPLE DATA] `. See
+`docs/rules-engine.md`.
+
 ## Rules for later changes
 
 - **Do not write over a release's output.** A run always gets a new release id.

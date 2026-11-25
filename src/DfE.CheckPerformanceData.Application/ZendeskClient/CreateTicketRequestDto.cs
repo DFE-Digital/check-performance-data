@@ -45,6 +45,12 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         [JsonPropertyName("ticket_form_id")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public long? TicketFormId { get; set; }
+
+        /// <summary>#942: the ticket's tags. Only a ticket about sample data sets them. Null is
+        /// left out of the request.</summary>
+        [JsonPropertyName("tags")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<string>? Tags { get; set; }
     }
 
     /// <summary>

@@ -138,6 +138,10 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
+        // #942: read before the claim, so a failed read cannot leave the row claimed. A read that
+        // fails throws, and the queue retries: an unmarked ticket about sample data must not go out.
+        var isSampleData = await IsSampleDataAsync(changeRequest, cancellationToken);
+
         // Durably claim the "ticket created" transition before calling Zendesk. The claim flips
         // the status out of TicketQueued in a single atomic UPDATE, so of two concurrent
         // deliveries that both saw CrmId == null only one flips a row — the loser gets zero rows
@@ -167,6 +171,8 @@ public sealed class ZendeskConsumer : ConsumerBase
         var ticket = message.Enquiry is null
             ? BuildTicket(message, decision)
             : new ResultsEnquiryTicketBuilder(_ticketFieldService, _checkingExerciseSettings, _logger).Build(message);
+        if (isSampleData)
+            MarkAsSampleData(ticket);
 
         CreateTicketResponseDto response;
         try
@@ -279,6 +285,31 @@ public sealed class ZendeskConsumer : ConsumerBase
                 "Could not load change request for Reference={Reference}; proceeding to create.", referenceNumber);
             return null;
         }
+    }
+
+    /// <summary>#942: the Zendesk tag of a ticket about sample data. Agents find these tickets by it.</summary>
+    public const string SampleDataTag = "cpd_sample_data";
+
+    /// <summary>#942: the start of the subject of a ticket about sample data.</summary>
+    public const string SampleDataSubjectPrefix = "[SAMPLE DATA] ";
+
+    // #942: a request is about sample data when the release it was made against gave sample data
+    // to its school. The release's list never changes, so the answer is the same as at submit.
+    private async Task<bool> IsSampleDataAsync(ChangeRequest? changeRequest, CancellationToken cancellationToken)
+    {
+        if (changeRequest?.CheckingExerciseReleaseId is not { } releaseId
+            || LaestabNormaliser.Normalise(changeRequest.OrganisationLaestab) is not { Length: > 0 } laestab)
+            return false;
+
+        return await _dbContext.CheckingExercises
+            .SelectMany(e => e.Releases)
+            .AnyAsync(r => r.Id == releaseId && r.SampleLaestabs.Contains(laestab), cancellationToken);
+    }
+
+    internal static void MarkAsSampleData(CreateTicketRequestDto ticket)
+    {
+        ticket.Ticket.Subject = SampleDataSubjectPrefix + ticket.Ticket.Subject;
+        ticket.Ticket.Tags = [.. ticket.Ticket.Tags ?? [], SampleDataTag];
     }
 
     private static Decision DeriveDecision(RequestDocument message, ChangeRequest? changeRequest)

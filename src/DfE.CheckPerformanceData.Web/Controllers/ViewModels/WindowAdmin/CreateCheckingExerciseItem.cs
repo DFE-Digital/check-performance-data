@@ -12,6 +12,10 @@ public sealed class CreateCheckingExerciseItem : AdminPage, IValidatableObject
     [BindNever]
     public CheckingExerciseDto? DataExercise { get; set; }
 
+    /// <summary>#938: the window's sample schools changed since the live release, so the exercise
+    /// must validate again. From <c>CheckingWindowDto.SampleSchoolsChangedSinceLiveRelease</c>.</summary>
+    public bool SampleSchoolsChanged { get; set; }
+
     [BindNever]
     public bool IsEditing { get; set; }
 

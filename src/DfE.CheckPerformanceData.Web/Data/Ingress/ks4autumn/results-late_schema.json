@@ -8,6 +8,7 @@
   "x-ingress": {
     "collection": "results-late",
     "pageTab": "results",
+    "sample": "ks4-results-late",
     "institutionKey": "LAESTAB"
   },
   "x-download": {

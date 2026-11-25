@@ -1,6 +1,8 @@
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.WindowManagement.Extensions;
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
 using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -11,7 +13,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 [RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class SummaryController(
     IWindowService windowService,
-    ICheckingExerciseService checkingExercises) : Controller
+    ICheckingExerciseService checkingExercises,
+    ISampleSchoolService sampleSchools) : Controller
 {
    
     [HttpGet("admin/windows/summary/{id:guid}")]
@@ -22,6 +25,8 @@ public sealed class SummaryController(
         {
             return NotFound();
         }
+
+        var schools = await sampleSchools.ListAsync(id, cancellationToken);
 
         WindowEditItem vm = new WindowEditItem
         {
@@ -62,6 +67,7 @@ public sealed class SummaryController(
                     IsValidated = e.IsValidated,
                     ValidatedAt = e.ValidatedAt,
                     IsStale = e.ValidatedAt is not null && !e.IsValidated,
+                    SampleSchoolsChanged = w.SampleSchoolsChangedSinceLiveRelease(e),
                     // A retired slot is left out: no run reads it, so it neither blocks nor
                     // counts towards validation. The exercise's Data tab still lists it.
                     Datasets = e.Datasets
@@ -98,6 +104,16 @@ public sealed class SummaryController(
                             RequestsSent = x.RequestsSentAt is not null
                         })
                         .ToList()
+                })
+                .ToList(),
+            SampleSchools = schools
+                .Select(s => new SampleSchoolRow
+                {
+                    LaestabDisplay = LaestabList.Display(s.Laestab),
+                    Urn = s.Urn,
+                    AddedBy = s.AddedBy,
+                    AddedAt = s.AddedAt,
+                    RemoveLink = $"/admin/windows/{w.Id}/sample-schools/{s.Id}/remove"
                 })
                 .ToList()
         };

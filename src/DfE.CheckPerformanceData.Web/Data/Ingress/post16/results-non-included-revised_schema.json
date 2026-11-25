@@ -8,6 +8,7 @@
   "x-ingress": {
     "collection": "results-non-included-revised",
     "pageTab": "results",
+    "sample": "post16-results-non-included",
     "institutionKey": "LAESTAB",
     "codeDescriptions": [
       {

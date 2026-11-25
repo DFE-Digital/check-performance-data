@@ -106,6 +106,11 @@ public static class BlobStorageExtensions
                 sp.GetRequiredService<BlobServiceClient>(),
                 sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(),
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Infrastructure.Media.BlobMediaUrlSigningKey>>()));
+        // #938: the generators that make the rows of the schools that see sample data. A schema
+        // names one with x-ingress.sample.
+        services.AddSingleton<Infrastructure.Ingress.SampleData.ISampleDataGenerators>(
+            new Infrastructure.Ingress.SampleData.SampleDataGenerators(
+                Infrastructure.Ingress.SampleData.SampleDataGeneratorCatalogue.All));
         services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
         services.AddScoped<IIngressSummaryStore, IngressSummaryStore>();
         // ICheckingDataReader is also registered in the Infrastructure DependencyManager (the

@@ -95,6 +95,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 PublishedAt = r.PublishedAt,
                                 PublishedBy = r.PublishedBy,
                                 FilesWritten = r.FilesWritten,
+                                SampleLaestabs = r.SampleLaestabs,
                                 Files = r.Files
                                     .OrderBy(f => f.SortOrder)
                                     .Select(f => new CheckingExerciseReleaseFileDto
@@ -161,6 +162,12 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             .Where(w => w.Id == id)
             .Select(w => new CheckingWindowDto
             {
+                // #938: the admin pages compare this list with each exercise's live release.
+                SampleLaestabs = dbContext.CheckingWindowSampleSchools
+                    .Where(s => s.CheckingWindowId == w.Id)
+                    .OrderBy(s => s.Laestab)
+                    .Select(s => s.Laestab)
+                    .ToList(),
                 StartDate = w.StartDate,
                 EndDate = w.EndDate,
                 KeyStage = w.KeyStage,
@@ -203,6 +210,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 PublishedAt = r.PublishedAt,
                                 PublishedBy = r.PublishedBy,
                                 FilesWritten = r.FilesWritten,
+                                SampleLaestabs = r.SampleLaestabs,
                                 Files = r.Files
                                     .OrderBy(f => f.SortOrder)
                                     .Select(f => new CheckingExerciseReleaseFileDto
@@ -589,6 +597,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                             PublishedAt = r.PublishedAt,
                             PublishedBy = r.PublishedBy,
                             FilesWritten = r.FilesWritten,
+                            SampleLaestabs = r.SampleLaestabs,
                             Files = r.Files
                                 .OrderBy(f => f.SortOrder)
                                 .Select(f => new CheckingExerciseReleaseFileDto

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -20,7 +21,7 @@ public sealed class CheckingExerciseIngressTests
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(new DateTime(2026, 6, 1), TimeSpan.Zero));
 
     private CheckingExerciseIngress Ingress(IIngressSummaryStore? summaryStore = null) =>
-        new(_definitions, _processor, _clock, summaryStore);
+        new(_definitions, _processor, _clock, DfE.CheckPerformanceData.Application.UnitTests.Common.NoSampleSchools.Repository(), summaryStore);
 
     private static CheckingExerciseDto Complete(Guid id) => new()
     {
@@ -70,7 +71,7 @@ public sealed class CheckingExerciseIngressTests
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
                 Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
-                Arg.Any<IngressSummaryCapture?>())
+                Arg.Any<IngressSummaryCapture?>(), Arg.Any<IReadOnlyList<SampleSchool>?>())
             .Returns(Progress(progress));
 
     [Fact]
@@ -97,6 +98,36 @@ public sealed class CheckingExerciseIngressTests
     }
 
     [Fact]
+    public async Task ARun_GivesTheWindowsSampleSchoolsToTheProcessor_AndTheReleaseRecordsThem()
+    {
+        // #938: the list is read once, so the rows the run writes and the list the release
+        // records are the same.
+        var id = Guid.NewGuid();
+        var windowId = Guid.NewGuid();
+        _definitions.GetAsync(id, Arg.Any<CancellationToken>())
+            .Returns(new CheckingExerciseDefinition(windowId, Complete(id)));
+        var sampleSchools = Substitute.For<ISampleSchoolRepository>();
+        sampleSchools.ListAsync(windowId, Arg.Any<CancellationToken>()).Returns(
+        [
+            new SampleSchoolDto(Guid.NewGuid(), windowId, "9334290", "123456", DateTime.UtcNow, "Ada Admin"),
+            new SampleSchoolDto(Guid.NewGuid(), windowId, "9334291", "654321", DateTime.UtcNow, "Ada Admin")
+        ]);
+        IReadOnlyList<SampleSchool>? given = null;
+        _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
+                Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
+                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
+                Arg.Any<IngressSummaryCapture?>(), Arg.Do<IReadOnlyList<SampleSchool>?>(l => given = l))
+            .Returns(Progress(new("Done", "", 1, 1, 1, 0, true, false)));
+
+        await new CheckingExerciseIngress(_definitions, _processor, _clock, sampleSchools).ProcessAsync(id).ToListAsync();
+
+        Assert.Equal([new SampleSchool("9334290", "123456"), new SampleSchool("9334291", "654321")], given);
+        await _definitions.Received(1).PublishReleaseAsync(id,
+            Arg.Is<CheckingExerciseReleaseDto>(r => r.SampleLaestabs.SequenceEqual(new[] { "9334290", "9334291" })),
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ARun_WritesUnderTheSameNewReleaseItThenPublishes()
     {
         // The output prefix and the release row must name the same release, or the exercise would
@@ -108,7 +139,7 @@ public sealed class CheckingExerciseIngressTests
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
                 Arg.Any<CancellationToken>(), id, Arg.Any<CheckingDataType?>(), Arg.Do<Guid?>(r => written = r),
-                Arg.Any<IngressSummaryCapture?>())
+                Arg.Any<IngressSummaryCapture?>(), Arg.Any<IReadOnlyList<SampleSchool>?>())
             .Returns(Progress(new("Done", "", 1, 1, 1, 0, true, false)));
 
         await Ingress().ProcessAsync(id).ToListAsync();
@@ -129,7 +160,7 @@ public sealed class CheckingExerciseIngressTests
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
                 Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Do<Guid?>(releases.Add),
-                Arg.Any<IngressSummaryCapture?>())
+                Arg.Any<IngressSummaryCapture?>(), Arg.Any<IReadOnlyList<SampleSchool>?>())
             .Returns(_ => Progress(new("Done", "", 1, 1, 1, 0, true, false)));
 
         await Ingress().ProcessAsync(id).ToListAsync();
@@ -155,7 +186,7 @@ public sealed class CheckingExerciseIngressTests
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
                 Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Do<Guid?>(r => written = r),
-                Arg.Any<IngressSummaryCapture?>())
+                Arg.Any<IngressSummaryCapture?>(), Arg.Any<IReadOnlyList<SampleSchool>?>())
             .Returns(Progress(new("Done", "", 1, 1, 1, 0, true, false)));
 
         await Ingress().ProcessAsync(id).ToListAsync();
@@ -175,7 +206,7 @@ public sealed class CheckingExerciseIngressTests
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
                 Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
-                Arg.Any<IngressSummaryCapture?>())
+                Arg.Any<IngressSummaryCapture?>(), Arg.Any<IReadOnlyList<SampleSchool>?>())
             .Returns(Progress(new("Failed", "bad row", 1, 0, 1, 1, true, true)));
 
         await Ingress().ProcessAsync(id).ToListAsync();
@@ -210,7 +241,7 @@ public sealed class CheckingExerciseIngressTests
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Do<IReadOnlyList<IngressDataset>>(d => inputs = d), Arg.Any<bool>(), Arg.Any<bool>(),
                 Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
-                Arg.Any<IngressSummaryCapture?>())
+                Arg.Any<IngressSummaryCapture?>(), Arg.Any<IReadOnlyList<SampleSchool>?>())
             .Returns(Progress(new("Done", "", 1, 1, 1, 0, true, false)));
 
         await Ingress().ProcessAsync(id).ToListAsync();
@@ -240,7 +271,7 @@ public sealed class CheckingExerciseIngressTests
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
                 Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
-                Arg.Do<IngressSummaryCapture?>(capture => receivedCapture = capture))
+                Arg.Do<IngressSummaryCapture?>(capture => receivedCapture = capture), Arg.Any<IReadOnlyList<SampleSchool>?>())
             .Returns(Progress(new("Done", "", 1, 1, 1, 0, true, false)));
 
         var progress = await Ingress(summaryStore).ProcessAsync(id, publishedBy: "admin@example.gov.uk").ToListAsync();

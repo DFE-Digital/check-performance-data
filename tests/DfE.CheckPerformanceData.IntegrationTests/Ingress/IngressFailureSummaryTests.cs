@@ -103,7 +103,7 @@ public sealed class IngressFailureSummaryTests(AzuriteFixture fixture)
         IReadOnlyList<IngressDataset> datasets = [Dataset(Csv, Schema)];
         var capture = new IngressSummaryCapture(Guid.NewGuid(), Guid.NewGuid(), datasets, DateTime.UtcNow);
         var processor = new CsvSchemaFileProcessor(NullLogger<CsvSchemaFileProcessor>.Instance,
-            new Dictionary<string, BlobServiceClient>());
+            new Dictionary<string, BlobServiceClient>(), new DfE.CheckPerformanceData.Infrastructure.Ingress.SampleData.SampleDataGenerators([]));
 
         await DrainAsync(processor, Guid.NewGuid(), datasets, capture);
 
@@ -180,7 +180,7 @@ public sealed class IngressFailureSummaryTests(AzuriteFixture fixture)
 
     private static CsvSchemaFileProcessor Processor(BlobServiceClient client) => new(
         NullLogger<CsvSchemaFileProcessor>.Instance,
-        new Dictionary<string, BlobServiceClient> { ["app"] = client });
+        new Dictionary<string, BlobServiceClient> { ["app"] = client }, new DfE.CheckPerformanceData.Infrastructure.Ingress.SampleData.SampleDataGenerators([]));
 
     private BlobServiceClient Client() => new(fixture.ConnectionString);
 

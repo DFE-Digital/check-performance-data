@@ -151,8 +151,8 @@ public sealed class CheckingExerciseReleaseTests(AzuriteFixture azurite) : IAsyn
         var ingress = new CheckingExerciseIngress(
             new CheckingExerciseDefinitionRepository(ctx, new WindowRepository(ctx)),
             new CsvSchemaFileProcessor(NullLogger<CsvSchemaFileProcessor>.Instance,
-                new Dictionary<string, BlobServiceClient> { ["app"] = _blobs }),
-            TimeProvider.System);
+                new Dictionary<string, BlobServiceClient> { ["app"] = _blobs }, new DfE.CheckPerformanceData.Infrastructure.Ingress.SampleData.SampleDataGenerators([])),
+            TimeProvider.System, new SampleSchoolRepository(ctx));
 
         ValidationProgress? last = null;
         await foreach (var progress in ingress.ProcessAsync(_exerciseId, publishedBy: "admin@example.gov.uk"))

@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 
@@ -41,6 +42,11 @@ public interface ICsvSchemaFileProcessor
     /// output. Needs <paramref name="checkingExerciseId"/>. The caller makes the release current
     /// only after the run finishes clean, so schools never see a half-written release.
     /// </param>
+    /// <param name="sampleSchools">
+    /// #938: the schools of the window that see sample data. Ingress removes their rows from each
+    /// file and adds the rows of the generator that the dataset's schema names
+    /// (<c>x-ingress.sample</c>). When the schema names no generator that exists, the run fails.
+    /// </param>
     IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
         CheckingExerciseType? exercise,
@@ -49,5 +55,6 @@ public interface ICsvSchemaFileProcessor
         bool clearExistingFiles = false,
         CancellationToken cancellationToken = default,
         Guid? checkingExerciseId = null, CheckingDataType? dataType = null, Guid? releaseId = null,
-        IngressSummaryCapture? summaryCapture = null);
+        IngressSummaryCapture? summaryCapture = null,
+        IReadOnlyList<SampleSchool>? sampleSchools = null);
 }

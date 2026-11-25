@@ -25,6 +25,12 @@ public sealed class CheckingExerciseRelease
     public string PublishedBy { get; init; } = string.Empty;
     public int FilesWritten { get; init; }
 
+    /// <summary>
+    /// #938: the LAESTABs (digits) of the schools that the run gave sample data, in LAESTAB order.
+    /// A copy of the window's list at run time, so the release says what each school saw.
+    /// </summary>
+    public List<string> SampleLaestabs { get; init; } = [];
+
     /// <summary>A copy of each dataset slot as the run read it.</summary>
     public List<CheckingExerciseReleaseFile> Files { get; init; } = [];
 }
@@ -61,6 +67,7 @@ public sealed class CheckingExerciseReleaseConfiguration : IEntityTypeConfigurat
 
         builder.Property(x => x.PublishedAt).HasColumnType("timestamp without time zone");
         builder.Property(x => x.PublishedBy).HasMaxLength(320);
+        builder.Property(x => x.SampleLaestabs).IsRequired().HasDefaultValueSql("'{}'::text[]");
 
         builder.HasIndex(x => new { x.CheckingExerciseId, x.Number }).IsUnique();
 

@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
 using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -17,7 +18,8 @@ public interface ICheckingExerciseIngress
 }
 
 public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepository definitions,
-    ICsvSchemaFileProcessor processor, TimeProvider clock, IIngressSummaryStore? summaryStore = null,
+    ICsvSchemaFileProcessor processor, TimeProvider clock, ISampleSchoolRepository sampleSchoolList,
+    IIngressSummaryStore? summaryStore = null,
     ILogger<CheckingExerciseIngress>? logger = null) : ICheckingExerciseIngress
 {
     public async IAsyncEnumerable<ValidationProgress> ProcessAsync(Guid exerciseId,
@@ -60,6 +62,11 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
         var ingressChecksum = exercise.CurrentIngressChecksum;
         var schemaChecksum = exercise.CurrentSchemaChecksum;
 
+        // #938: read once, so the rows the run writes and the list the release records agree.
+        IReadOnlyList<SampleSchool> sampleSchools = (await sampleSchoolList.ListAsync(definition.WindowId, cancellationToken))
+            .Select(s => new SampleSchool(s.Laestab, s.Urn))
+            .ToList();
+
         // A legacy row (UsesExerciseStorage = false) keeps its kind-based paths and has no
         // releases: its readers do not know the release prefix.
         Guid? releaseId = exercise.UsesExerciseStorage ? Guid.NewGuid() : null;
@@ -67,7 +74,7 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
         await using var enumerator = processor.ProcessAsync(definition.WindowId, exercise.ExerciseType, inputs,
             cancellationToken: cancellationToken,
             checkingExerciseId: exercise.UsesExerciseStorage ? exercise.Id : null, releaseId: releaseId,
-            summaryCapture: summaryCapture).GetAsyncEnumerator(cancellationToken);
+            summaryCapture: summaryCapture, sampleSchools: sampleSchools).GetAsyncEnumerator(cancellationToken);
         while (true)
         {
             ValidationProgress? currentProgress = null;
@@ -119,6 +126,7 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
                             PublishedAt = now,
                             PublishedBy = publishedBy,
                             FilesWritten = progress.FilesWritten,
+                            SampleLaestabs = [.. sampleSchools.Select(s => s.Laestab)],
                             Files = [.. toIngest.Select(d => new CheckingExerciseReleaseFileDto
                             {
                                 DatasetId = d.Id,

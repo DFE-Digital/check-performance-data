@@ -77,7 +77,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
 
     private CsvSchemaFileProcessor Processor() => new(
         NullLogger<CsvSchemaFileProcessor>.Instance,
-        new Dictionary<string, BlobServiceClient> { ["app"] = _blobs });
+        new Dictionary<string, BlobServiceClient> { ["app"] = _blobs }, new DfE.CheckPerformanceData.Infrastructure.Ingress.SampleData.SampleDataGenerators([]));
 
     private static async Task<List<ValidationProgress>> DrainAsync(IAsyncEnumerable<ValidationProgress> stream)
     {

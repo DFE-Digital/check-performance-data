@@ -72,6 +72,7 @@ public static class DependencyManager
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
         services.AddScoped<IWindowRepository, WindowRepository>();
         services.AddScoped<IExerciseExtensionRepository, ExerciseExtensionRepository>();
+        services.AddScoped<Application.WindowManagement.SampleData.ISampleSchoolRepository, SampleSchoolRepository>();
         services.AddScoped<IWindowDeletionRepository, WindowDeletionRepository>();
         services.AddScoped<IExerciseDeletionRepository, ExerciseDeletionRepository>();
         services.AddScoped<ICheckingDataCatalogue, CheckingDataCatalogue>();

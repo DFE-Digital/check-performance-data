@@ -40,6 +40,20 @@
   </div>
 }
 
+@* #937: outcome of a sample school add or remove, stashed by SampleSchoolsController. *@
+@if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.SampleSchoolsController.TempDataKey] is string sampleOutcome)
+{
+  <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+       aria-labelledby="sample-school-outcome-title" data-module="govuk-notification-banner">
+    <div class="govuk-notification-banner__header">
+      <h2 class="govuk-notification-banner__title" id="sample-school-outcome-title">Success</h2>
+    </div>
+    <div class="govuk-notification-banner__content">
+      <p class="govuk-notification-banner__heading">@sampleOutcome</p>
+    </div>
+  </div>
+}
+
 @* Outcome of an exercise delete, stashed by DeleteExerciseController. *@
 @if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.DeleteExerciseController.TempDataKey] is string deleteOutcome)
 {
@@ -164,6 +178,11 @@
         else
         {
           <strong class="govuk-tag govuk-tag--red">Not validated</strong>
+        }
+        @* #938: the sample school list is applied at ingress, so a change needs a new validation. *@
+        @if (exercise.SampleSchoolsChanged)
+        {
+          <strong class="govuk-tag govuk-tag--yellow">Sample schools changed since validation</strong>
         }
       </p>
 
@@ -356,6 +375,46 @@
 }
 
 <govuk-button-link href="@Model.AddExerciseLink">Add checking exercise</govuk-button-link>
+
+@* #937: schools that see made-up data, not their real data, for example in user research.
+   Ingress applies the list, so a change has an effect only after each exercise is validated again. *@
+<h2 class="govuk-heading-m">Schools that use sample data</h2>
+<p class="govuk-body">
+  These schools see made-up data in every exercise of this window, not their real data.
+  After you change this list, validate each exercise again.
+</p>
+@if (Model.SampleSchools.Count == 0)
+{
+  <p class="govuk-body">No schools use sample data.</p>
+}
+else
+{
+  <table class="govuk-table">
+    <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Schools that use sample data</caption>
+    <thead class="govuk-table__head">
+      <tr class="govuk-table__row">
+        <th scope="col" class="govuk-table__header">LAESTAB</th>
+        <th scope="col" class="govuk-table__header">URN</th>
+        <th scope="col" class="govuk-table__header">Added (UTC)</th>
+        <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+      @foreach (var school in Model.SampleSchools)
+      {
+        <tr class="govuk-table__row">
+          <th scope="row" class="govuk-table__header">@school.LaestabDisplay</th>
+          <td class="govuk-table__cell">@school.Urn</td>
+          <td class="govuk-table__cell">@school.AddedAt.ToString("dd/MM/yyyy HH:mm") by @school.AddedBy</td>
+          <td class="govuk-table__cell">
+            <a class="govuk-link" href="@school.RemoveLink">Remove<span class="govuk-visually-hidden"> @school.LaestabDisplay</span></a>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
+<govuk-button-link class="govuk-button--secondary" href="@Model.AddSampleSchoolLink">Add school</govuk-button-link>
 
 <h2 class="govuk-heading-m">Delete this window</h2>
 <p class="govuk-body">

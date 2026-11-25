@@ -8,6 +8,7 @@
   "x-ingress": {
     "collection": "pupils",
     "pageTab": "pupils",
+    "sample": "ks4-pupils",
     "institutionKey": "LAESTAB",
     "inclusion": {
       "field": "P_INCL",

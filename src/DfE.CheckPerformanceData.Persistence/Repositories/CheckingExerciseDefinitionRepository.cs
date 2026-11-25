@@ -49,6 +49,7 @@ public sealed class CheckingExerciseDefinitionRepository(PortalDbContext db, IWi
             PublishedAt = DateTime.SpecifyKind(release.PublishedAt, DateTimeKind.Unspecified),
             PublishedBy = release.PublishedBy,
             FilesWritten = release.FilesWritten,
+            SampleLaestabs = [.. release.SampleLaestabs],
             Files = release.Files.Select(f => new CheckingExerciseReleaseFile
             {
                 Id = Guid.NewGuid(),
@@ -86,6 +87,7 @@ public sealed class CheckingExerciseDefinitionRepository(PortalDbContext db, IWi
             PublishedAt = entity.PublishedAt,
             PublishedBy = entity.PublishedBy,
             FilesWritten = entity.FilesWritten,
+            SampleLaestabs = release.SampleLaestabs,
             Files = release.Files
         };
     }

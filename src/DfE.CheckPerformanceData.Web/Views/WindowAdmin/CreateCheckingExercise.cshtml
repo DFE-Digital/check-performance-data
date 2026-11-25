@@ -305,6 +305,13 @@
        stay in storage, so an admin can put one back without a re-upload. Times are UTC, as on
        every admin page. *@
     <h2 class="govuk-heading-m" id="releases">Data releases</h2>
+    @if (Model.SampleSchoolsChanged)
+    {
+        @* #938: ingress applies the window's sample school list, so the live release still has the old list. *@
+        <govuk-warning-text icon-fallback-text="Warning">
+            The schools that use sample data changed since the live release. Validate the data again to apply the change.
+        </govuk-warning-text>
+    }
     @if (dataExercise.Releases.Count == 0)
     {
         <p class="govuk-body">This exercise has no releases. Validate the data to make the first release.</p>
@@ -319,6 +326,7 @@
                     <th scope="col" class="govuk-table__header">Release</th>
                     <th scope="col" class="govuk-table__header">Published (UTC)</th>
                     <th scope="col" class="govuk-table__header">Files</th>
+                    <th scope="col" class="govuk-table__header">Sample data</th>
                     <th scope="col" class="govuk-table__header">Status</th>
                 </tr>
             </thead>
@@ -340,6 +348,8 @@
                                 <div>@DatasetLabels.For(file.DatasetName): @System.IO.Path.GetFileName(file.IngressFile)</div>
                             }
                         </td>
+                        @* #938: how many schools this release gave sample data. *@
+                        <td class="govuk-table__cell">@(release.SampleLaestabs.Count switch { 0 => "None", 1 => "1 school", var n => $"{n} schools" })</td>
                         <td class="govuk-table__cell">
                             @if (release.Id == dataExercise.CurrentReleaseId)
                             {

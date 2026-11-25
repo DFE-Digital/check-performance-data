@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -30,9 +31,19 @@ public class ValidateWindowControllerTests
         _urlHelper.Action(Arg.Any<UrlActionContext>()).Returns("/dummy-url");
     }
 
+    private readonly ISampleSchoolService _sampleSchools = SampleSchoolsOf("9334290");
+
+    private static ISampleSchoolService SampleSchoolsOf(string laestab)
+    {
+        var service = Substitute.For<ISampleSchoolService>();
+        service.ListAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns([new SampleSchoolDto(Guid.NewGuid(), Guid.Empty, laestab, "123456", DateTime.UtcNow, "Ada Admin")]);
+        return service;
+    }
+
     private ValidateWindowController Controller()
     {
-        var controller = new ValidateWindowController(_windowService, _processor, _ingress, _currentUser)
+        var controller = new ValidateWindowController(_windowService, _processor, _ingress, _currentUser, _sampleSchools)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
             Url = _urlHelper
@@ -192,7 +203,8 @@ public class ValidateWindowControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(legacy));
         _processor.ProcessAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<IReadOnlyList<IngressDataset>>(),
                 Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>(), Arg.Any<Guid?>(),
-                Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>())
+                Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(), Arg.Any<IngressSummaryCapture?>(),
+                Arg.Any<IReadOnlyList<SampleSchool>?>())
             .Returns(Progress(new ValidationProgress("Done", "ok", 1, 1, 1, 0, true, false)));
 
         var result = await Controller().Validate(WindowId, CheckingExerciseType.PupilData, CancellationToken.None);
@@ -200,7 +212,10 @@ public class ValidateWindowControllerTests
         Assert.IsType<ViewResult>(result);
         _processor.Received(1).ProcessAsync(WindowId, CheckingExerciseType.PupilData,
             Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
-            Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>());
+            Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
+            Arg.Any<IngressSummaryCapture?>(),
+            // #938: the legacy route gives sample data too.
+            Arg.Is<IReadOnlyList<SampleSchool>?>(l => l!.Single() == new SampleSchool("9334290", "123456")));
         _ingress.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default!);
     }
 

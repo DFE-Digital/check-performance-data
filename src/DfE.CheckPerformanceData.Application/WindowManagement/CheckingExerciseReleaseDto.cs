@@ -26,6 +26,12 @@ public sealed class CheckingExerciseReleaseDto
     /// <summary>The number of per-school files the run wrote.</summary>
     public int FilesWritten { get; init; }
 
+    /// <summary>
+    /// #938: the LAESTABs (digits) of the schools that the run gave sample data, in LAESTAB order.
+    /// Empty when no school of the window used sample data.
+    /// </summary>
+    public IReadOnlyList<string> SampleLaestabs { get; init; } = [];
+
     /// <summary>The file and schema of each dataset slot that the run read, in slot order.</summary>
     public List<CheckingExerciseReleaseFileDto> Files { get; init; } = [];
 }

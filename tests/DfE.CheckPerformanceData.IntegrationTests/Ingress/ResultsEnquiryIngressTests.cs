@@ -85,7 +85,7 @@ public sealed class ResultsEnquiryIngressTests(AzuriteFixture fixture)
     {
         var processor = new CsvSchemaFileProcessor(
             NullLogger<CsvSchemaFileProcessor>.Instance,
-            new Dictionary<string, BlobServiceClient> { ["app"] = _blobs });
+            new Dictionary<string, BlobServiceClient> { ["app"] = _blobs }, new DfE.CheckPerformanceData.Infrastructure.Ingress.SampleData.SampleDataGenerators([]));
 
         ValidationProgress? last = null;
         await foreach (var progress in processor.ProcessAsync(

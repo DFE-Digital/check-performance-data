@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -35,7 +36,7 @@ public sealed class CheckingExerciseIngressSummaryTokenTests
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
                 Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
-                Arg.Any<IngressSummaryCapture?>())
+                Arg.Any<IngressSummaryCapture?>(), Arg.Any<IReadOnlyList<SampleSchool>?>())
             .Returns(_ => Yields(CleanRun));
         _summaryStore.ArchiveCurrentAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(true);
@@ -51,7 +52,7 @@ public sealed class CheckingExerciseIngressSummaryTokenTests
 
     private async Task RunAsync(CancellationToken token)
     {
-        var ingress = new CheckingExerciseIngress(_definitions, _processor, TimeProvider.System, _summaryStore);
+        var ingress = new CheckingExerciseIngress(_definitions, _processor, TimeProvider.System, DfE.CheckPerformanceData.Application.UnitTests.Common.NoSampleSchools.Repository(), _summaryStore);
 
         await ingress.ProcessAsync(_exerciseId, token).ToListAsync();
     }

@@ -97,6 +97,8 @@
             summary.appendChild(panel);
 
             if (data.schoolSummary && data.schoolSummary.length) {
+                var note = buildSampleNote(data.schoolSummary);
+                if (note) { summary.appendChild(note); }
                 summary.appendChild(buildSummaryTable(data.schoolSummary));
             }
 
@@ -108,6 +110,37 @@
         // leave mid-run.
         function showDone() {
             if (done) { done.classList.remove('govuk-!-display-none'); }
+        }
+
+        // #936: says how many schools use sample data, as the no-JS summary does. Null when none do.
+        function buildSampleNote(schoolSummary) {
+            var count = 0;
+            for (var i = 0; i < schoolSummary.length; i++) {
+                if (schoolSummary[i].usesSampleData) { count++; }
+            }
+            if (count === 0) { return null; }
+
+            var note = document.createElement('div');
+            note.className = 'govuk-inset-text';
+            note.setAttribute('data-validate-sample-note', '');
+            note.textContent = (count === 1 ? '1 school uses' : count + ' schools use') +
+                ' sample data. The table marks ' + (count === 1 ? 'it' : 'them') +
+                '. Their records are generated, not from the supplier file.';
+            return note;
+        }
+
+        // #936: the LAESTAB cell, with a "Sample data" tag when the school uses sample data.
+        function laestabCell(school) {
+            var cell = document.createElement('td');
+            cell.className = 'govuk-table__cell';
+            cell.appendChild(document.createTextNode(school.laestab));
+            if (school.usesSampleData) {
+                var tag = document.createElement('strong');
+                tag.className = 'govuk-tag govuk-tag--yellow govuk-!-margin-left-2';
+                tag.textContent = 'Sample data';
+                cell.appendChild(tag);
+            }
+            return cell;
         }
 
         // Records-processed-per-LAESTAB table with a totals footer, mirroring the server-rendered
@@ -135,10 +168,11 @@
             for (var i = 0; i < schoolSummary.length; i++) {
                 var school = schoolSummary[i];
                 total += school.recordCount;
-                tbody.appendChild(row('td', [
-                    { text: school.laestab, className: 'govuk-table__cell' },
+                var tr = row('td', [
                     { text: school.recordCount, className: 'govuk-table__cell govuk-table__cell--numeric' }
-                ]));
+                ]);
+                tr.insertBefore(laestabCell(school), tr.firstChild);
+                tbody.appendChild(tr);
             }
             table.appendChild(tbody);
 

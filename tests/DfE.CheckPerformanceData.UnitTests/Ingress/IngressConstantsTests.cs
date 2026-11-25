@@ -45,6 +45,7 @@ public sealed class IngressConstantsTests
             ["SchemaInvalid"] = "schema_invalid",
             ["IdentifierMappingInvalid"] = "identifier_mapping_invalid",
             ["IncludableNotDeclared"] = "includable_not_declared",
+            ["SampleDataGeneratorMissing"] = "sample_data_generator_missing",
             ["MalformedHeader"] = "malformed_header",
             ["MalformedRow"] = "malformed_row",
             ["RecordValidationFailed"] = "record_validation_failed",
@@ -67,6 +68,7 @@ public sealed class IngressConstantsTests
             ["CodeDescriptions"] = "codeDescriptions",
             ["InstitutionKey"] = "institutionKey",
             ["UrnKey"] = "urnKey",
+            ["Sample"] = "sample",
             ["Source"] = "source",
             ["Separator"] = "separator",
             ["Field"] = "field",
@@ -76,7 +78,8 @@ public sealed class IngressConstantsTests
             ["Descriptions"] = "descriptions",
             ["InclusionPath"] = "x-ingress.inclusion",
             ["IncludablePath"] = "x-ingress.includable",
-            ["CodeDescriptionsPath"] = "x-ingress.codeDescriptions"
+            ["CodeDescriptionsPath"] = "x-ingress.codeDescriptions",
+            ["SamplePath"] = "x-ingress.sample"
         };
 
         Assert.Equal(expected, ConstantsOf(typeof(IngressSchemaKeys)));

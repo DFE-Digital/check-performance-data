@@ -7,7 +7,11 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using CsvHelper;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Dashboard;
+using DfE.CheckPerformanceData.Application.WindowManagement.Extensions;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
+using DfE.CheckPerformanceData.Infrastructure.Ingress.SampleData;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -16,7 +20,8 @@ using Newtonsoft.Json.Schema;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 
-public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IReadOnlyDictionary<string, BlobServiceClient> blobClients) : ICsvSchemaFileProcessor
+public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IReadOnlyDictionary<string, BlobServiceClient> blobClients,
+    ISampleDataGenerators sampleGenerators) : ICsvSchemaFileProcessor
 {
     public async IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
@@ -26,7 +31,8 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         bool clearExistingFiles = false,
         [EnumeratorCancellation] CancellationToken cancellationToken = default,
         Guid? checkingExerciseId = null, CheckingDataType? dataType = null, Guid? releaseId = null,
-        IngressSummaryCapture? summaryCapture = null)
+        IngressSummaryCapture? summaryCapture = null,
+        IReadOnlyList<SampleSchool>? sampleSchools = null)
     {
         if (releaseId is not null && checkingExerciseId is null)
             throw new ArgumentException("A release belongs to an exercise, so it needs the exercise id.", nameof(releaseId));
@@ -263,10 +269,6 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             summaryCapture?.MarkFileRead(currentDatasetSlot);
 
-            recordsRead += records.Count;
-
-            yield return new ValidationProgress("Counting", $"{records.Count} records found{label}", recordsRead, recordsValidated, 0, totalErrors, false, false);
-
             // Every feed keys its rows to a school by a DfE number column, which is what lets one
             // supplier file be split into one blob per school. The column is LAESTAB unless the
             // schema's x-ingress.institutionKey names another (the previously published file has
@@ -282,6 +284,44 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                     "cannot be grouped by school.");
                 yield break;
             }
+
+            // #938: the schools of the window that see sample data. Their supplier rows go, and
+            // generated rows take their place, also for a school that the file does not have.
+            // The generated rows then go through the same steps as supplier rows. When the schema
+            // names no generator that exists, the run fails: supplier rows must never pass through.
+            if (sampleSchools is { Count: > 0 })
+            {
+                var generatorName = SampleGeneratorName(schema);
+                var generator = generatorName is null ? null : sampleGenerators.Find(generatorName);
+                if (generator is null)
+                {
+                    summaryCapture?.SetFailure(IngressFailureStage.Schema, IngressFailureCode.SampleDataGeneratorMissing);
+                    yield return Failed(generatorName is null
+                        ? $"Schema '{dataset.SchemaFile}' names no sample data generator ({IngressSchemaKeys.SamplePath}). " +
+                          $"{sampleSchools.Count} schools in this window use sample data, so the run cannot continue."
+                        : $"Schema '{dataset.SchemaFile}' names the sample data generator '{generatorName}', which does not exist.");
+                    yield break;
+                }
+
+                institutionColumn ??= institutionKey;
+                var swap = SampleRows.Replace(records, institutionColumn, sampleSchools, generator, SampleSchemaShape.From(schema));
+                logger.LogInformation(
+                    "Ingress gave sample data to {SchoolCount} schools in dataset {DatasetId}: {RowsRemoved} rows removed, {RowsAdded} rows added",
+                    sampleSchools.Count, dataset.DatasetId, swap.Removed, swap.Added);
+            }
+
+            // #936: the admin sees, during the run, which schools get sample data. A LAESTAB is not
+            // personal data.
+            if (sampleSchools is { Count: > 0 })
+            {
+                yield return new ValidationProgress("Sample data",
+                    $"Sample data for {string.Join(", ", sampleSchools.Select(s => LaestabList.Display(s.Laestab)))}{label}",
+                    recordsRead, recordsValidated, 0, totalErrors, false, false);
+            }
+
+            recordsRead += records.Count;
+
+            yield return new ValidationProgress("Counting", $"{records.Count} records found{label}", recordsRead, recordsValidated, 0, totalErrors, false, false);
 
             List<IGrouping<string, IDictionary<string, object>>> groupedSchools = records
                 .GroupBy(r => institutionColumn is not null && r.TryGetValue(institutionColumn, out object? laestab)
@@ -448,7 +488,8 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         // Per-school record counts for the summary CSV and the on-screen table, across every
         // dataset. Built from all groups so the summary is complete whether the run passes or fails.
         IReadOnlyList<SchoolRecordCount> schoolSummary = recordCountBySchool
-            .Select(kv => new SchoolRecordCount(kv.Key, kv.Value))
+            .Select(kv => new SchoolRecordCount(kv.Key, kv.Value,
+                sampleSchools is { Count: > 0 } && sampleSchools.Any(s => s.Laestab == LaestabNormaliser.Normalise(kv.Key))))
             .ToList();
 
         if (recordsRead == 0)
@@ -806,6 +847,14 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
     {
         public string Code { get; } = code;
     }
+
+    /// <summary>#938: <c>"x-ingress": { "sample": "ks2-pupils" }</c> at the schema's root, or null.</summary>
+    private static string? SampleGeneratorName(JSchema schema) =>
+        schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) &&
+        ingress[IngressSchemaKeys.Sample] is JValue { Type: JTokenType.String } name &&
+        !string.IsNullOrWhiteSpace(name.Value<string>())
+            ? name.Value<string>()!.Trim()
+            : null;
 
     private static string InstitutionKey(JSchema schema) =>
         schema.ExtensionData.TryGetValue(IngressSchemaKeys.Extension, out JToken? ingress) &&

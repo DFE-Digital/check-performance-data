@@ -17,6 +17,7 @@ internal static class IngressFailureCode
     public const string SchemaInvalid = "schema_invalid";
     public const string IdentifierMappingInvalid = "identifier_mapping_invalid";
     public const string IncludableNotDeclared = "includable_not_declared";
+    public const string SampleDataGeneratorMissing = "sample_data_generator_missing";
     public const string MalformedHeader = "malformed_header";
     public const string MalformedRow = "malformed_row";
     public const string RecordValidationFailed = "record_validation_failed";

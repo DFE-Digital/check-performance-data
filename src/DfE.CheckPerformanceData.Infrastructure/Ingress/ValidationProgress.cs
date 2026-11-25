@@ -20,4 +20,6 @@ public sealed record ValidationProgress(
 /// <summary>
 /// Number of records processed for a single school (LAESTAB), used to build the run summary.
 /// </summary>
-public sealed record SchoolRecordCount(string Laestab, int RecordCount);
+/// <param name="UsesSampleData">#936: the window lists the school for sample data, so the run
+/// replaced its rows with generated rows. The validation page highlights it.</param>
+public sealed record SchoolRecordCount(string Laestab, int RecordCount, bool UsesSampleData = false);

@@ -69,6 +69,7 @@ public static class AuditActivities
         [WindowAdmin] = "Window admin",
         ["CheckingExercise"] = "Checking exercise",
         ["CheckingWindowDataset"] = "Checking window dataset",
+        ["CheckingWindowSampleSchool"] = "Sample data school",
         ["ChangeRequest"] = "Amendment request",
         ["ContentBundle"] = "Content import",
         ["PageNode"] = "Content page",

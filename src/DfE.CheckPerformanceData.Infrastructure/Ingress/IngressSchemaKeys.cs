@@ -14,6 +14,9 @@ internal static class IngressSchemaKeys
     public const string InstitutionKey = "institutionKey";
     public const string UrnKey = "urnKey";
 
+    /// <summary>#938: the name of the generator that makes the sample rows of a school.</summary>
+    public const string Sample = "sample";
+
     public const string Source = "source";
     public const string Separator = "separator";
 
@@ -26,4 +29,5 @@ internal static class IngressSchemaKeys
     public const string InclusionPath = Extension + "." + Inclusion;
     public const string IncludablePath = Extension + "." + Includable;
     public const string CodeDescriptionsPath = Extension + "." + CodeDescriptions;
+    public const string SamplePath = Extension + "." + Sample;
 }

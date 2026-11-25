@@ -87,6 +87,12 @@ public class WindowEditItem : AdminPage
     /// <summary>The "are you sure" page of <see cref="Controllers.WindowAdmin.DeleteWindowController"/>.</summary>
     public string DeleteLink => $"{BaseEditUrl}/delete";
 
+    /// <summary>#937: the schools in this window that see sample data, in LAESTAB order.</summary>
+    public IReadOnlyList<SampleSchoolRow> SampleSchools { get; init; } = [];
+
+    /// <summary>The add form of <see cref="Controllers.WindowAdmin.SampleSchoolsController"/>.</summary>
+    public string AddSampleSchoolLink => $"{BaseEditUrl}/sample-schools/add";
+
     public string? OutputPath { get; set; }
     public Guid? PublishedId { get; set; }
 }
@@ -130,6 +136,9 @@ public sealed class ExerciseSummarySection
 
     /// <summary>Validated once, but not against the files it holds now — a stale stamp.</summary>
     public bool IsStale { get; init; }
+
+    /// <summary>#938: the window's sample schools changed since this exercise's live release.</summary>
+    public bool SampleSchoolsChanged { get; init; }
 
     /// <summary>Everything about this exercise — name, tab, kind, dates, visibility, data files —
     /// is edited on the one page (<c>EditCheckingExerciseController.Edit</c>), so the summary has a

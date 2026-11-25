@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using System.Runtime.CompilerServices;
@@ -28,7 +29,8 @@ public class ValidateWindowController(
     IWindowService windowService,
     ICsvSchemaFileProcessor processor,
     ICheckingExerciseIngress ingress,
-    ICurrentUserService currentUser): Controller
+    ICurrentUserService currentUser,
+    ISampleSchoolService sampleSchoolList): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/Validate.cshtml";
 
@@ -216,11 +218,17 @@ public class ValidateWindowController(
                 d.SourceFile))
             .ToList();
 
+        // #938: a legacy row gives sample data too, so no route lets a sample school's real rows through.
+        IReadOnlyList<SampleSchool> sampleSchools = (await sampleSchoolList.ListAsync(window.Id, cancellationToken))
+            .Select(s => new SampleSchool(s.Laestab, s.Urn))
+            .ToList();
+
         await foreach (ValidationProgress progress in processor.ProcessAsync(
                            window.Id,
                            exercise,
                            datasets,
-                           cancellationToken: cancellationToken))
+                           cancellationToken: cancellationToken,
+                           sampleSchools: sampleSchools))
         {
             if (progress is { IsComplete: true, IsError: false })
             {

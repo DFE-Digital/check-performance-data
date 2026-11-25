@@ -329,6 +329,13 @@ and egress then sends the changed value. See [data-egress.md](./data-egress.md#2
 
 ---
 
+**Sample data tickets (#936).** Before the ticket-creation claim, `ZendeskConsumer` checks the
+release that the request names (`ChangeRequest.CheckingExerciseReleaseId`). When the release's
+`SampleLaestabs` holds the school's LAESTAB, the ticket gets the tag `cpd_sample_data`
+(`ZendeskConsumer.SampleDataTag`) and the subject prefix `[SAMPLE DATA] `. Agents use the tag to find
+and leave these tickets. A failed read throws before the claim, so the queue retries and no
+unmarked ticket goes out.
+
 ## Going deeper
 
 - **Analytics** — every decision emits a `request_decision` event. See [bigquery-analytics.md](./bigquery-analytics.md).

@@ -8,6 +8,7 @@
   "x-ingress": {
     "collection": "summary",
     "pageTab": "summary",
+    "sample": "post16-summary",
     "institutionKey": "LAESTAB"
   },
   "x-download": {

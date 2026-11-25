@@ -8,6 +8,7 @@
   "x-ingress": {
     "collection": "students-value-added-revised",
     "pageTab": "students",
+    "sample": "post16-students",
     "institutionKey": "Laestab"
   },
   "x-download": {

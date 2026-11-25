@@ -103,7 +103,7 @@ public sealed class IngressSummaryLogTests
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromException<bool>(new InvalidOperationException("storage is down")));
         var ingress = new CheckingExerciseIngress(definitions, Substitute.For<ICsvSchemaFileProcessor>(),
-            TimeProvider.System, summaryStore, ingressLog);
+            TimeProvider.System, DfE.CheckPerformanceData.Application.UnitTests.Common.NoSampleSchools.Repository(), summaryStore, ingressLog);
 
         await ingress.ProcessAsync(_exerciseId).ToListAsync();
 

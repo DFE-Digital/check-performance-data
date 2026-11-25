@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
@@ -23,7 +24,9 @@ public sealed class SummaryControllerTests
 
     private readonly ICheckingExerciseService _checkingExercises = Substitute.For<ICheckingExerciseService>();
 
-    private SummaryController Controller() => new(_windowService, _checkingExercises);
+    private readonly ISampleSchoolService _sampleSchools = Substitute.For<ISampleSchoolService>();
+
+    private SummaryController Controller() => new(_windowService, _checkingExercises, _sampleSchools);
 
     private static WindowEditItem Model(IActionResult result) =>
         Assert.IsType<WindowEditItem>(Assert.IsType<ViewResult>(result).Model);
@@ -45,6 +48,22 @@ public sealed class SummaryControllerTests
         Id = Guid.NewGuid(), Name = name, ExerciseType = type, TabOrder = tabOrder,
         StartDate = Start, EndDate = End, IsEnabled = enabled
     };
+
+    [Fact]
+    public async Task ListsTheSampleSchoolsWithASlashAndARemoveLinkForEach()
+    {
+        var schoolId = Guid.NewGuid();
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise("Autumn release")));
+        _sampleSchools.ListAsync(WindowId, Arg.Any<CancellationToken>()).Returns(
+            [new SampleSchoolDto(schoolId, WindowId, "9334290", "123456", new DateTime(2026, 11, 25, 9, 0, 0), "Ada Admin")]);
+
+        var model = Model(await Controller().Index(WindowId, CancellationToken.None));
+
+        var row = Assert.Single(model.SampleSchools);
+        Assert.Equal("933/4290", row.LaestabDisplay);
+        Assert.Equal("123456", row.Urn);
+        Assert.Equal($"/admin/windows/{WindowId}/sample-schools/{schoolId}/remove", row.RemoveLink);
+    }
 
     [Fact]
     public async Task ListsEveryExerciseIncludingTheDisabledOnes()

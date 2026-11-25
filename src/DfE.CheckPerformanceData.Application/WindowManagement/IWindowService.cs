@@ -59,6 +59,20 @@ public sealed class CheckingWindowDto
     /// <summary>AB#298317: the next chance to review data, shown to schools as month + year. Null = not set.</summary>
     public DateTime? NextOpportunity { get; set; }
 
+    /// <summary>
+    /// #938: the LAESTABs (digits) of the schools in this window that see sample data, in LAESTAB
+    /// order. Only the admin load (<c>IWindowService.GetByIdAsync</c>) fills it. Change the list
+    /// through <c>ISampleSchoolService</c>, not here.
+    /// </summary>
+    public IReadOnlyList<string> SampleLaestabs { get; init; } = [];
+
+    /// <summary>
+    /// #938: the exercise has a live release, and that release gave sample data to other schools
+    /// than this window lists now. The exercise must validate again before the change has an effect.
+    /// </summary>
+    public bool SampleSchoolsChangedSinceLiveRelease(CheckingExerciseDto exercise) =>
+        exercise.CurrentRelease is { } live && !live.SampleLaestabs.Order().SequenceEqual(SampleLaestabs.Order());
+
     // #319: Validated / ValidatedAt are gone from here. A window is not validated as a whole — ask
     // a CheckingExerciseDto, or fold the answer across Exercises.
 

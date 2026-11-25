@@ -131,6 +131,8 @@ public static class DependencyManager
         services.AddScoped<WindowManagement.IExerciseEarlyClosureService, WindowManagement.ExerciseEarlyClosureService>();
         // AB#307773: adds, edits and closes early the extensions that give named schools more time.
         services.AddScoped<WindowManagement.Extensions.IExerciseExtensionService, WindowManagement.Extensions.ExerciseExtensionService>();
+        // #937: the schools in a window that see sample data, not their real data.
+        services.AddScoped<WindowManagement.SampleData.ISampleSchoolService, WindowManagement.SampleData.SampleSchoolService>();
         // AB#302158: runs ICloseExerciseService by itself two hours after an exercise ends. The
         // web host's ExerciseHandOverJob drives it; nothing in a request path calls it.
         services.AddScoped<WindowManagement.IAutomaticExerciseHandOver, WindowManagement.AutomaticExerciseHandOver>();

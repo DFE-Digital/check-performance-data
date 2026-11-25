@@ -35,6 +35,15 @@
 
     @if (Model.ProcessingResult.SchoolSummary is { Count: > 0 } schoolSummary)
     {
+        var sampleCount = schoolSummary.Count(s => s.UsesSampleData);
+        if (sampleCount > 0)
+        {
+            @* #936: the rows of these schools are generated, not the supplier's. *@
+            <div class="govuk-inset-text" data-validate-sample-note>
+                @(sampleCount == 1 ? "1 school uses" : $"{sampleCount} schools use") sample data. The table marks
+                @(sampleCount == 1 ? "it" : "them"). Their records are generated, not from the supplier file.
+            </div>
+        }
         <table class="govuk-table">
             <caption class="govuk-table__caption govuk-table__caption--m">Records processed per LAESTAB</caption>
             <thead class="govuk-table__head">
@@ -47,7 +56,13 @@
                 @foreach (var school in schoolSummary)
                 {
                     <tr class="govuk-table__row">
-                        <td class="govuk-table__cell">@school.Laestab</td>
+                        <td class="govuk-table__cell">
+                            @school.Laestab
+                            @if (school.UsesSampleData)
+                            {
+                                <strong class="govuk-tag govuk-tag--yellow govuk-!-margin-left-2">Sample data</strong>
+                            }
+                        </td>
                         <td class="govuk-table__cell govuk-table__cell--numeric">@school.RecordCount</td>
                     </tr>
                 }

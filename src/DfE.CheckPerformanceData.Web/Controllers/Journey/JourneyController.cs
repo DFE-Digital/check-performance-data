@@ -539,7 +539,7 @@ public sealed class JourneyController(
         // holds the enquiry back; a later page re-resolves it while it is still null
         // (HealSelectedResultQualificationAsync). A resolved entry is a snapshot for the rest of the
         // journey — a reference refreshed mid-journey shows through only when the result is re-picked.
-        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        var lookup = await qualificationReferenceClient.GetLookupAsync(QualificationReferenceSet.Post16, HttpContext.RequestAborted);
         var qualification = lookup.Find(resolved.Qan);
         if (qualification is null)
             logger.LogWarning(
@@ -584,7 +584,7 @@ public sealed class JourneyController(
         if (nav is RedirectToJourneyPage { PageId: var navPageId })
             return RedirectToJourneyAction(config, windowId, navPageId);
 
-        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        var lookup = await qualificationReferenceClient.GetLookupAsync(QualificationReferenceSet.Post16, HttpContext.RequestAborted);
         return View("QualificationSearch", viewModelBuilder.BuildQualificationSearchVm(
             windowId, pageId, page, journey, config, lookup, fromSummary: fromSummary));
     }
@@ -604,7 +604,7 @@ public sealed class JourneyController(
         var page = flowService.GetPage(config, pageId);
         if (page is null || page.Type != PageType.QualificationSearch) return NotFound();
 
-        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        var lookup = await qualificationReferenceClient.GetLookupAsync(QualificationReferenceSet.Post16, HttpContext.RequestAborted);
 
         // Resolve server-side and fail closed: the QAN must exist AND belong to the posted AO —
         // the client-side cascade is presentation only, and a tampered pair would otherwise record
@@ -780,7 +780,7 @@ public sealed class JourneyController(
     {
         if (journey.SelectedResult is null || journey.SelectedResultQualification is not null) return journey;
 
-        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        var lookup = await qualificationReferenceClient.GetLookupAsync(QualificationReferenceSet.Post16, HttpContext.RequestAborted);
         var qualification = lookup.Find(journey.SelectedResult.Qan);
         if (qualification is null) return journey;
 

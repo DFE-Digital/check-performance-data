@@ -95,7 +95,7 @@ public sealed class JourneyControllerQualificationSearchTests
         _flowService.GetPage(Flow, "qualification-details").Returns(DetailsPage);
         _flowService.GetNavigationGuard(Arg.Any<QuestionFlowConfig>(), Arg.Any<RequestState>(), Arg.Any<string>())
             .Returns((JourneyNavigation?)null);
-        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+        _qualificationReference.GetLookupAsync(Arg.Any<QualificationReferenceSet>(), Arg.Any<CancellationToken>())
             .Returns(QualificationReferenceLookup.Parse(Sample));
         _requestService.FindDuplicateResultsEnquiryAsync(
                 Arg.Any<Guid>(), Arg.Any<RequestState>(), Arg.Any<EnquirySubject>(), Arg.Any<CancellationToken>())

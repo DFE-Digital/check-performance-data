@@ -23,7 +23,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 /// </summary>
 public sealed class QualificationReferenceBlobClient : IQualificationReferenceClient
 {
-    private const string CacheKey = "qualification-reference";
+    private const string CacheKeyPrefix = "qualification-reference:";
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(5);
 
     private readonly BlobServiceClient _blobServiceClient;
@@ -46,13 +46,17 @@ public sealed class QualificationReferenceBlobClient : IQualificationReferenceCl
     /// <summary>Public so tests bind fixture JSON exactly as production does.</summary>
     public static JsonSerializerOptions JsonOptions => ResultsEnquiryJson.Options;
 
-    public async Task<QualificationReferenceLookup> GetLookupAsync(CancellationToken ct = default)
+    /// <inheritdoc cref="IQualificationReferenceClient.GetLookupAsync(QualificationReferenceSet, CancellationToken)" />
+    public async Task<QualificationReferenceLookup> GetLookupAsync(
+        QualificationReferenceSet set, CancellationToken ct = default)
     {
-        if (_cache.TryGetValue(CacheKey, out QualificationReferenceLookup? cached) && cached is not null)
+        var blobName = ResultsEnquiryBlobPaths.QualificationReferenceBlobNameFor(set);
+        var cacheKey = CacheKeyPrefix + blobName;
+        if (_cache.TryGetValue(cacheKey, out QualificationReferenceLookup? cached) && cached is not null)
             return cached;
 
-        var lookup = await DownloadAsync(ct);
-        _cache.Set(CacheKey, lookup, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheExpiry });
+        var lookup = await DownloadAsync(blobName, ct);
+        _cache.Set(cacheKey, lookup, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheExpiry });
         return lookup;
     }
 
@@ -62,14 +66,15 @@ public sealed class QualificationReferenceBlobClient : IQualificationReferenceCl
     /// storage failure is logged, not thrown, because the qualification search page degrading is far
     /// better than the whole app failing to start.
     /// </summary>
-    public async Task SeedIfMissingAsync(string json, CancellationToken ct = default)
+    public async Task SeedIfMissingAsync(QualificationReferenceSet set, string json, CancellationToken ct = default)
     {
+        var blobName = ResultsEnquiryBlobPaths.QualificationReferenceBlobNameFor(set);
         try
         {
             var container = _blobServiceClient.GetBlobContainerClient(_options.RulesBlobContainer);
             await container.CreateIfNotExistsAsync(cancellationToken: ct);
 
-            var blob = container.GetBlobClient(ResultsEnquiryBlobPaths.QualificationReferenceBlobName);
+            var blob = container.GetBlobClient(blobName);
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             await blob.UploadAsync(
                 stream,
@@ -79,17 +84,17 @@ public sealed class QualificationReferenceBlobClient : IQualificationReferenceCl
                 },
                 ct);
 
-            _cache.Remove(CacheKey);
+            _cache.Remove(CacheKeyPrefix + blobName);
             _logger.LogInformation(
                 "Seeded qualification reference '{Blob}' into container '{Container}'.",
-                ResultsEnquiryBlobPaths.QualificationReferenceBlobName, _options.RulesBlobContainer);
+                blobName, _options.RulesBlobContainer);
         }
         catch (RequestFailedException ex) when (ex.Status == 409)
         {
             // Already present (or another instance won the race) — the whole point of the guard.
             _logger.LogInformation(
                 "Qualification reference '{Blob}' already present; skipping seed.",
-                ResultsEnquiryBlobPaths.QualificationReferenceBlobName);
+                blobName);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -99,15 +104,15 @@ public sealed class QualificationReferenceBlobClient : IQualificationReferenceCl
         {
             _logger.LogError(ex,
                 "Failed to seed qualification reference '{Blob}'; the qualification search page will " +
-                "have no options until the blob is provisioned.", ResultsEnquiryBlobPaths.QualificationReferenceBlobName);
+                "have no options until the blob is provisioned.", blobName);
         }
     }
 
-    private async Task<QualificationReferenceLookup> DownloadAsync(CancellationToken ct)
+    private async Task<QualificationReferenceLookup> DownloadAsync(string blobName, CancellationToken ct)
     {
         var blob = _blobServiceClient
             .GetBlobContainerClient(_options.RulesBlobContainer)
-            .GetBlobClient(ResultsEnquiryBlobPaths.QualificationReferenceBlobName);
+            .GetBlobClient(blobName);
 
         try
         {
@@ -121,7 +126,7 @@ public sealed class QualificationReferenceBlobClient : IQualificationReferenceCl
             _logger.LogWarning(
                 "Qualification reference '{Blob}' is not present in container '{Container}'; no " +
                 "qualification will be selectable until it is seeded.",
-                ResultsEnquiryBlobPaths.QualificationReferenceBlobName, _options.RulesBlobContainer);
+                blobName, _options.RulesBlobContainer);
             return QualificationReferenceLookup.Empty;
         }
     }

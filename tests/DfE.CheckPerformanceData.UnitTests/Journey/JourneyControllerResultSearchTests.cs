@@ -114,7 +114,7 @@ public sealed class JourneyControllerResultSearchTests
             .Returns((JourneyNavigation?)null);
         _results.GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>())
             .Returns([BusStuds, French]);
-        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+        _qualificationReference.GetLookupAsync(Arg.Any<QualificationReferenceSet>(), Arg.Any<CancellationToken>())
             .Returns(QualificationReferenceLookup.Parse(QualificationReferenceJson));
         _requestService.FindDuplicateResultsEnquiryAsync(
                 Arg.Any<Guid>(), Arg.Any<RequestState>(), Arg.Any<EnquirySubject>(), Arg.Any<CancellationToken>())

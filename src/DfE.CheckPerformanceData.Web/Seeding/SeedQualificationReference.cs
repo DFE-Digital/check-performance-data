@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 
 namespace DfE.CheckPerformanceData.Web.Seeding;
@@ -14,9 +15,13 @@ public static class SeedQualificationReference
     public static async Task ExecuteSeedAsync(
         QualificationReferenceBlobClient client, string contentRootPath, CancellationToken ct = default)
     {
-        var path = Path.Combine(contentRootPath, "Data", "QualificationReference", "qualification-reference.json");
-        if (!File.Exists(path)) return;
+        foreach (var set in Enum.GetValues<QualificationReferenceSet>())
+        {
+            var path = Path.Combine(contentRootPath, "Data", "QualificationReference",
+                ResultsEnquiryBlobPaths.QualificationReferenceBlobNameFor(set));
+            if (!File.Exists(path)) continue;
 
-        await client.SeedIfMissingAsync(await File.ReadAllTextAsync(path, ct), ct);
+            await client.SeedIfMissingAsync(set, await File.ReadAllTextAsync(path, ct), ct);
+        }
     }
 }

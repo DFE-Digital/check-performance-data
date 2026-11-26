@@ -99,7 +99,7 @@ public sealed class JourneyControllerResultDetailsTests
 
         // The lookup is a sealed class NSubstitute cannot auto-fake, so an unstubbed call would hand
         // the controller a null. Empty is the honest default: nothing resolves unless a fact says so.
-        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>()).Returns(QualificationReferenceLookup.Empty);
+        _qualificationReference.GetLookupAsync(Arg.Any<QualificationReferenceSet>(), Arg.Any<CancellationToken>()).Returns(QualificationReferenceLookup.Empty);
         _results.GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>())
             .Returns([Result()]);
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
@@ -347,7 +347,7 @@ public sealed class JourneyControllerResultDetailsTests
         // A session that picked its result before AB#301903 shipped, or while the reference blob was
         // still seeding (a 404 is cached as an empty lookup for five minutes), has a result and no
         // qualification. The page heals it rather than dead-ending on an empty picker.
-        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+        _qualificationReference.GetLookupAsync(Arg.Any<QualificationReferenceSet>(), Arg.Any<CancellationToken>())
             .Returns(QualificationReferenceLookup.Parse("""
                 { "60370683": { "qan": "60370683", "qualificationTitle": "Pearson BTEC Level 3 National Extended Certificate in Sport",
                   "awardingOrganisation": "Pearson", "grades": ["*", "D", "F", "M", "P", "Q", "R", "U", "X"], "syllabusCodes": [] } }
@@ -375,7 +375,7 @@ public sealed class JourneyControllerResultDetailsTests
 
         Assert.True(qm.GradeOptionsUnavailable);
         Assert.Null(_session.GetRequestState(WindowId).SelectedResultQualification);
-        await _qualificationReference.Received(1).GetLookupAsync(Arg.Any<CancellationToken>());
+        await _qualificationReference.Received(1).GetLookupAsync(Arg.Any<QualificationReferenceSet>(), Arg.Any<CancellationToken>());
     }
 
     // ── POST ─────────────────────────────────────────────────────────────────
@@ -538,7 +538,7 @@ public sealed class JourneyControllerResultDetailsTests
     {
         // A user already on the grade page when this deployed posts straight into validation: the
         // heal must run before ValidateGradeSelect, or the post is refused against an empty scale.
-        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+        _qualificationReference.GetLookupAsync(Arg.Any<QualificationReferenceSet>(), Arg.Any<CancellationToken>())
             .Returns(QualificationReferenceLookup.Parse("""
                 { "60370683": { "qan": "60370683", "qualificationTitle": "Pearson BTEC Level 3 National Extended Certificate in Sport",
                   "awardingOrganisation": "Pearson", "grades": ["*", "D", "F", "M", "P", "Q", "R", "U", "X"], "syllabusCodes": [] } }

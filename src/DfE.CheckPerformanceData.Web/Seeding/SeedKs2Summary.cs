@@ -24,7 +24,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <list type="bullet">
 /// <item>September: <c>summary/summary.csv</c> → <c>summary_schema.json</c></item>
 /// <item>December: <c>summary/summary-december.csv</c> → <c>summary-december_schema.json</c>, the
-/// September columns plus the four disadvantaged pupil fields</item>
+/// September columns, the four disadvantaged pupil fields and the 15 progress measure fields</item>
 /// </list>
 /// <para>
 /// Each file has every column of its schema, one row per KS2 school (<see cref="Schools"/>). The

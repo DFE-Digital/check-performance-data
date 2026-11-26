@@ -240,6 +240,18 @@ public static class Ks2SampleData
             ["PTRWM_HIGH_FSM6CLA1A"] = suppressDisadvantaged ? "+" : Pct(2 + school)
         };
 
+        // December file only: each progress score as separate fields, which agree with the
+        // *PROG_WEB value above.
+        foreach (var (code, subject) in new[] { ("READ", 0), ("WRIT", 1), ("MAT", 2) })
+        {
+            var (score, lower, upper) = ProgressScore(school, subject);
+            row[$"{code}PROG_DESCR"] = ProgressBand(score, lower, upper);
+            row[$"{code}PROG"] = TwoPlaces(score);
+            row[$"{code}PROG_SIGNIFICANCE"] = lower > 0 || upper < 0 ? "1" : "0";
+            row[$"{code}PROG_LOWER"] = TwoPlaces(lower);
+            row[$"{code}PROG_UPPER"] = TwoPlaces(upper);
+        }
+
         // Each subject: expected standard, higher standard, and absent or unable to access.
         // Writing is teacher assessed, so its third measure is absent or disapplied.
         foreach (var code in Subjects.Skip(1))
@@ -267,10 +279,21 @@ public static class Ks2SampleData
     // READPROG + " (" + READPROG_LOWER + " to " + READPROG_UPPER + ")".
     private static string Progress(int school, int subject)
     {
-        var score = ((school * 37 + subject * 13) % 41 - 20) / 10m;
-        return string.Create(CultureInfo.InvariantCulture,
-            $"{score:0.00} ({score - 1.25m:0.00} to {score + 1.25m:0.00})");
+        var (score, lower, upper) = ProgressScore(school, subject);
+        return $"{TwoPlaces(score)} ({TwoPlaces(lower)} to {TwoPlaces(upper)})";
     }
+
+    private static (decimal Score, decimal Lower, decimal Upper) ProgressScore(int school, int subject)
+    {
+        var score = ((school * 37 + subject * 13) % 41 - 20) / 10m;
+        return (score, score - 1.25m, score + 1.25m);
+    }
+
+    // A made-up band from 1 (well below average) to 5 (well above average).
+    private static string ProgressBand(decimal score, decimal lower, decimal upper) =>
+        upper < 0 ? (score < -1m ? "1" : "2") : lower > 0 ? (score > 1m ? "5" : "4") : "3";
+
+    private static string TwoPlaces(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
 }
 
 /// <summary>#939: the KS2 pupil file of September (<c>ks2-pupils</c>) or December (<c>ks2-pupils-december</c>).</summary>

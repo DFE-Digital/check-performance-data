@@ -33,7 +33,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $outFileNames = @{ '1619' = 'qualification-reference.json'; 'KS4' = 'qualification-reference-ks4.json' }
-$otherKeyStageFlags = @{ '1619' = 'Included in 16-19'; 'KS4' = 'Included in KS4' }
+$wrongSheetColumn = @{ '1619' = 'Included in 16-19'; 'KS4' = 'Included in KS4' }
 if (-not $OutFile) {
     $OutFile = "$PSScriptRoot/../src/DfE.CheckPerformanceData.Web/Data/QualificationReference/$($outFileNames[$KeyStage])"
 }
@@ -101,12 +101,11 @@ foreach ($k in @($syllabusByQuid.Keys)) {
     $syllabusByQuid[$k] = @($syllabusByQuid[$k] | Sort-Object { $_.code })
 }
 
-# One row per QAN+grade; grade order is the scale's own. A sheet for one key stage has a column
-# that flags the other key stage, so a column that flags this key stage means the wrong sheet.
+# One row per QAN+grade; grade order is the scale's own.
 $qualRows = @(Read-Sheet $QualList $QualListSheet)
 $qualHeader = $qualRows[0]
-if (@($qualHeader.Values | Where-Object { ('' + $_).Trim() -eq $otherKeyStageFlags[$KeyStage] }).Count -gt 0) {
-    throw "This sheet has the column '$($otherKeyStageFlags[$KeyStage])', so it is not the $KeyStage list. Name the right sheet with -QualListSheet."
+if (@($qualHeader.Values | Where-Object { ('' + $_).Trim() -eq $wrongSheetColumn[$KeyStage] }).Count -gt 0) {
+    throw "This sheet has the column '$($wrongSheetColumn[$KeyStage])', so it is not the $KeyStage list. Name the right sheet with -QualListSheet."
 }
 $qanColumn = Find-Column $qualHeader 'Qualification Number'
 $qualTitleColumn = Find-Column $qualHeader 'Qualification Title'

@@ -793,9 +793,9 @@ public sealed class JourneyController(
 
     /// <summary>
     /// The grade scale for the page's picker, or null when the page has no grade picker or the
-    /// qualification is not in the 16-19 reference. No blob read happens here: both enquiry
+    /// qualification is not in a reference document of the window. No blob read happens here: both enquiry
     /// journeys resolve their qualification when it is chosen (AB#297848 at qualification search,
-    /// AB#301903 at result search) and carry the QualList entry in session. A gap is a normal
+    /// AB#301903 at result search) and carry the reference entry in session. A gap is a normal
     /// state — the page tells the user grades cannot be listed yet, and validation holds the
     /// enquiry back.
     /// </summary>

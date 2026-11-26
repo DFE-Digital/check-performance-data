@@ -162,6 +162,7 @@ public sealed class JourneyViewModelBuilder(
         {
             DfeNumber = EstablishmentLaestab,
             KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
+            LearnerNoun = journey.LearnerNoun,
             StudentName = pupilName,
             IsCohortWide = string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
             CohortCount = Answer(CohortCountQuestionId),
@@ -414,6 +415,7 @@ public sealed class JourneyViewModelBuilder(
             Page = page,
             PupilName = pupilName,
             CypmdId = journey.SelectedPupil?.Cypmd_Id,
+            LearnerNoun = journey.LearnerNoun,
             AwardingOrganisations = lookup.AwardingOrganisations,
             Qualifications = [.. lookup.AwardingOrganisations.SelectMany(lookup.ForAwardingOrganisation)],
             SelectedAo = selectedAo ?? journey.SelectedQualification?.AwardingOrganisation,

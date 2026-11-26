@@ -2,8 +2,9 @@
 
 This project contains a reusable k6 performance and journey-testing framework for validating CYPMD amendment and Results Enquiry journeys.
 
-The suite currently contains 25 registered journeys covering:
+The suite currently contains 36 registered journeys covering:
 
+- KS2 Remove requests
 - KS4 amendments
 - 16 to 19 amendments
 - 16 to 19 Results Enquiries
@@ -52,7 +53,7 @@ k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=ks4-add-pu
 
 ## Full regression
 
-The regression profile runs all 25 registered journeys sequentially:
+The regression profile runs all 36 registered journeys sequentially:
 
 ```bash
 k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=regression -e RUN_ID=reg-01 tests/journey.ts
@@ -88,7 +89,7 @@ Six execution profiles are supported.
 | --- | --- | --- | --- |
 | `smoke` | `ks4-remove-pupil-died` | 1 VU, 1 iteration | Check that the framework and target environment are working |
 | `single` | Journey specified by `JOURNEY` | 1 VU, 1 iteration | Run and debug one journey |
-| `regression` | All 25 registered journeys | Sequential, each journey once | Full functional regression of the performance-test journeys |
+| `regression` | All 36 registered journeys | Sequential, each journey once | Full functional regression of the performance-test journeys |
 | `sequential` | Repeating weighted journey schedule | 1 VU, configured iteration count and pause | Repeated journeys without overlap within this test instance |
 | `concurrent` | Weighted journey schedule | One iteration per VU, started together | Run a fixed number of journeys concurrently |
 | `load` | Weighted journey schedule | Constant arrival rate | Generate a workload at a target arrival rate |
@@ -389,6 +390,26 @@ The registry contains every journey available to the test runner.
 - journey classification
 - weighted workload selection
 
+## KS2 journeys
+
+```text
+ks2-remove-added-after-summer-term
+ks2-remove-assessments-deferred
+ks2-remove-child-missing-education
+ks2-remove-elective-home-education
+ks2-remove-english-not-first-language
+ks2-remove-life-limiting-illness
+ks2-remove-permanent-exclusion
+ks2-remove-permanently-excluded
+ks2-remove-permanently-left-england
+ks2-remove-pupil-died
+ks2-remove-social-care-involvement
+```
+
+The KS2 journeys are configured in `journey-config/ks2/remove/`. They use the `ks2` window profile and the shared `isIncluded` pupil filter, which reads the `INCLUDED` stamp. The Confirm journey is not included.
+
+KS2 has one change type, so the What to change page redirects straight to pupil search. `tests/journey.ts` follows that redirect (see `journeys/start-amendment.ts`).
+
 ## KS4 journeys
 
 ```text
@@ -424,7 +445,7 @@ post16-results-enquiry-missing-qualification-whole-cohort
 post16-results-enquiry-result-does-not-belong
 ```
 
-There are currently 25 registered journeys.
+There are currently 36 registered journeys.
 
 ---
 
@@ -490,6 +511,7 @@ Current profiles:
 | Key | Window | Data files | Headings |
 | --- | --- | --- | --- |
 | `ks4` | KS4 | `8604070_pupils.json` | "Check your pupil data" / "What pupil data would you like to amend?" |
+| `ks2` | KS2 | `8604070_pupils.json` | "Check your pupil data" (no What to change heading: the window auto-starts its only change type) |
 | `post16` | 16 to 19 | `8604070_pupils.json`, `8604070_results.json` | "Check your student data" / "What student data would you like to amend?" |
 
 The profiles hold no release or exercise GUIDs. Seeding creates new GUIDs each time, so `setup()` resolves the file paths at run time. See `lib/release-lookup.ts` under [Shared libraries](#shared-libraries).
@@ -1028,8 +1050,8 @@ limit is provisional and is not an agreed service-level target.
 The current full sequential regression baseline is:
 
 ```text
-25 journeys
-1792 checks
+36 journeys
+2598 checks
 0 failed checks
 0 unexpected failed HTTP requests
 ```
@@ -1038,7 +1060,7 @@ This baseline was established using sequential execution, with one regression ru
 
 It does not demonstrate concurrent behaviour. Use the `concurrent` profile to run a fixed number of journeys together, or the `load` profile to measure a constant arrival rate.
 
-Changes to the number of configured checks may legitimately change the expected `1792` total. Journey completion and threshold results remain the primary regression criteria.
+Changes to the number of configured checks may legitimately change the expected `2598` total. Journey completion and threshold results remain the primary regression criteria.
 
 ---
 

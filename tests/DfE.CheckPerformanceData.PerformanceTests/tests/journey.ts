@@ -150,6 +150,16 @@ export function setup(): TestData {
     );
 
     const pupilsByWindow: Record<WindowKey, Pupil[]> = {
+        ks2:
+            loadPupils(
+                BASE_URL,
+                "ks2",
+                resolveWindowBlobs(
+                    BASE_URL,
+                    WINDOW_PROFILES.ks2
+                )
+            ),
+
         ks4:
             loadPupils(
                 BASE_URL,

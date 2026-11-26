@@ -3,9 +3,12 @@
  *
  * ks4:    Key Stage 4 checking window. Records are pupils.
  *
+ * ks2:    Key Stage 2 checking window. Records are pupils.
+ *
  * post16: 16 to 19 checking window. Records are students.
  */
 export type WindowKey =
+    | "ks2"
     | "ks4"
     | "post16";
 
@@ -50,7 +53,9 @@ export interface WindowProfile {
     checkPupilDataHeading: string;
 
     /*
-     * Heading of the What to change page.
+     * Heading of the What to change page. Omit for a
+     * window that auto-starts its only change type, so
+     * that no What to change page is shown.
      */
-    whatToChangeHeading: string;
+    whatToChangeHeading?: string;
 }

@@ -63,6 +63,50 @@ import {
 } from "./ks4/add/add-pupil.ts";
 
 import {
+    removeKs2PermanentExclusion,
+} from "./ks2/remove/remove-permanent-exclusion.ts";
+
+import {
+    removeKs2EnglishNotFirstLanguage,
+} from "./ks2/remove/remove-english-not-first-language.ts";
+
+import {
+    removeKs2ChildMissingEducation,
+} from "./ks2/remove/remove-child-missing-education.ts";
+
+import {
+    removeKs2ElectiveHomeEducation,
+} from "./ks2/remove/remove-elective-home-education.ts";
+
+import {
+    removeKs2AssessmentsDeferred,
+} from "./ks2/remove/remove-assessments-deferred.ts";
+
+import {
+    removeKs2PermanentlyExcluded,
+} from "./ks2/remove/remove-permanently-excluded.ts";
+
+import {
+    removeKs2PermanentlyLeftEngland,
+} from "./ks2/remove/remove-permanently-left-england.ts";
+
+import {
+    removeKs2AddedAfterSummerTerm,
+} from "./ks2/remove/remove-added-after-summer-term.ts";
+
+import {
+    removeKs2PupilDied,
+} from "./ks2/remove/remove-pupil-died.ts";
+
+import {
+    removeKs2SocialCareInvolvement,
+} from "./ks2/remove/remove-social-care-involvement.ts";
+
+import {
+    removeKs2LifeLimitingIllness,
+} from "./ks2/remove/remove-life-limiting-illness.ts";
+
+import {
     post16RemoveStudentDied,
 } from "./post16/remove/remove-student-died.ts";
 
@@ -127,6 +171,17 @@ export const journeyRegistry: JourneyConfig[] = [
     mergeDuplicatePupils,
     includePupil,
     addPupil,
+    removeKs2PermanentExclusion,
+    removeKs2EnglishNotFirstLanguage,
+    removeKs2ChildMissingEducation,
+    removeKs2ElectiveHomeEducation,
+    removeKs2AssessmentsDeferred,
+    removeKs2PermanentlyExcluded,
+    removeKs2PermanentlyLeftEngland,
+    removeKs2AddedAfterSummerTerm,
+    removeKs2PupilDied,
+    removeKs2SocialCareInvolvement,
+    removeKs2LifeLimitingIllness,
     post16RemoveStudentDied,
     post16RemoveNotAtEnd,
     post16RemoveNotOnRoll,

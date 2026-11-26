@@ -19,7 +19,45 @@
     "tab": "summary",
     "section": "Summary",
     "selectorOrder": 0,
-    "layout": "vertical"
+    "layout": "vertical",
+    "groups": [
+      {
+        "key": "cohort",
+        "title": "Cohort information for pupils at the end of key stage 4"
+      },
+      {
+        "key": "headline",
+        "title": "Headline measures"
+      },
+      {
+        "key": "additional",
+        "title": "Additional measures"
+      },
+      {
+        "key": "progress-8",
+        "title": "Progress 8 metadata"
+      },
+      {
+        "key": "attainment-8",
+        "title": "Attainment 8 metadata"
+      },
+      {
+        "key": "low-prior-attainers",
+        "title": "Measures by pupil type - Low prior attainers"
+      },
+      {
+        "key": "middle-prior-attainers",
+        "title": "Measures by pupil type - Middle prior attainers"
+      },
+      {
+        "key": "high-prior-attainers",
+        "title": "Measures by pupil type - High prior attainers"
+      },
+      {
+        "key": "disadvantaged",
+        "title": "Disadvantaged"
+      }
+    ]
   },
   "properties": {
     "LAESTAB": {
@@ -55,7 +93,8 @@
       "x-display": {
         "label": "Number of pupils at the end of Key Stage 4",
         "visible": true,
-        "order": 2
+        "order": 2,
+        "group": "cohort"
       }
     },
     "TNMOB": {
@@ -73,7 +112,8 @@
       "x-display": {
         "label": "Number of key stage 4 pupils who are non-mobile",
         "visible": true,
-        "order": 3
+        "order": 3,
+        "group": "cohort"
       }
     },
     "PTNMOB": {
@@ -91,7 +131,8 @@
       "x-display": {
         "label": "% of key stage 4 pupils who are non-mobile",
         "visible": true,
-        "order": 4
+        "order": 4,
+        "group": "cohort"
       }
     },
     "TFSM6CLA1A": {
@@ -109,7 +150,8 @@
       "x-display": {
         "label": "Number of disadvantaged pupils",
         "visible": true,
-        "order": 5
+        "order": 5,
+        "group": "cohort"
       }
     },
     "PTFSM6CLA1A": {
@@ -127,7 +169,8 @@
       "x-display": {
         "label": "% of disadvantaged pupils",
         "visible": true,
-        "order": 6
+        "order": 6,
+        "group": "cohort"
       }
     },
     "TPRIORLO": {
@@ -145,7 +188,8 @@
       "x-display": {
         "label": "Low prior attainment band: number of pupils",
         "visible": true,
-        "order": 7
+        "order": 7,
+        "group": "cohort"
       }
     },
     "PTPRIORLO": {
@@ -163,7 +207,8 @@
       "x-display": {
         "label": "Low prior attainment band: % of pupils",
         "visible": true,
-        "order": 8
+        "order": 8,
+        "group": "cohort"
       }
     },
     "TPRIORAV": {
@@ -181,7 +226,8 @@
       "x-display": {
         "label": "Middle prior attainment band: number of pupils",
         "visible": true,
-        "order": 9
+        "order": 9,
+        "group": "cohort"
       }
     },
     "PTPRIORAV": {
@@ -199,7 +245,8 @@
       "x-display": {
         "label": "Middle prior attainment band: % of pupils",
         "visible": true,
-        "order": 10
+        "order": 10,
+        "group": "cohort"
       }
     },
     "TPRIORHI": {
@@ -217,7 +264,8 @@
       "x-display": {
         "label": "High prior attainment band: number of pupils",
         "visible": true,
-        "order": 11
+        "order": 11,
+        "group": "cohort"
       }
     },
     "PTPRIORHI": {
@@ -235,7 +283,8 @@
       "x-display": {
         "label": "High prior attainment band: % of pupils",
         "visible": true,
-        "order": 12
+        "order": 12,
+        "group": "cohort"
       }
     },
     "TEALGRP2": {
@@ -253,7 +302,8 @@
       "x-display": {
         "label": "Number of pupils with English as an additional language",
         "visible": true,
-        "order": 13
+        "order": 13,
+        "group": "cohort"
       }
     },
     "PTEALGRP2": {
@@ -271,7 +321,8 @@
       "x-display": {
         "label": "% of pupils with English as an additional language",
         "visible": true,
-        "order": 14
+        "order": 14,
+        "group": "cohort"
       }
     },
     "SENE4": {
@@ -289,7 +340,8 @@
       "x-display": {
         "label": "Number of KS4 pupils who have SEN with an EHC plan",
         "visible": true,
-        "order": 15
+        "order": 15,
+        "group": "cohort"
       }
     },
     "PSENE4": {
@@ -307,7 +359,8 @@
       "x-display": {
         "label": "% of KS4 pupils who have SEN with an EHC plan",
         "visible": true,
-        "order": 16
+        "order": 16,
+        "group": "cohort"
       }
     },
     "SENK4": {
@@ -325,7 +378,8 @@
       "x-display": {
         "label": "Number of KS4 pupils who have SEN without an EHC plan",
         "visible": true,
-        "order": 17
+        "order": 17,
+        "group": "cohort"
       }
     },
     "PSENK4": {
@@ -343,7 +397,8 @@
       "x-display": {
         "label": "% of KS4 pupils who have SEN without an EHC plan",
         "visible": true,
-        "order": 18
+        "order": 18,
+        "group": "cohort"
       }
     },
     "P8MEA": {
@@ -361,7 +416,8 @@
       "x-display": {
         "label": "Progress 8 score after adjustment for extreme pupil scores",
         "visible": true,
-        "order": 19
+        "order": 19,
+        "group": "headline"
       }
     },
     "P8CILOW": {
@@ -379,7 +435,8 @@
       "x-display": {
         "label": "Progress 8 lower confidence interval for adjusted score",
         "visible": true,
-        "order": 20
+        "order": 20,
+        "group": "headline"
       }
     },
     "P8CIUPP": {
@@ -397,7 +454,8 @@
       "x-display": {
         "label": "Progress 8 upper confidence interval for adjusted score",
         "visible": true,
-        "order": 21
+        "order": 21,
+        "group": "headline"
       }
     },
     "ATT8SCR": {
@@ -415,7 +473,8 @@
       "x-display": {
         "label": "Average attainment 8 score per pupil",
         "visible": true,
-        "order": 22
+        "order": 22,
+        "group": "headline"
       }
     },
     "PTL2BASICS_95": {
@@ -433,7 +492,8 @@
       "x-display": {
         "label": "% achieving grade 5 or above in English and maths",
         "visible": true,
-        "order": 23
+        "order": 23,
+        "group": "headline"
       }
     },
     "PTL2BASICS_97": {
@@ -451,7 +511,8 @@
       "x-display": {
         "label": "% achieving grade 7 or above in English and maths",
         "visible": true,
-        "order": 24
+        "order": 24,
+        "group": "additional"
       }
     },
     "PTL2BASICS_94": {
@@ -469,7 +530,8 @@
       "x-display": {
         "label": "% achieving grade 4 or above in English and maths",
         "visible": true,
-        "order": 25
+        "order": 25,
+        "group": "additional"
       }
     },
     "PTmultiLan_E": {
@@ -487,7 +549,8 @@
       "x-display": {
         "label": "% entering more than one language",
         "visible": true,
-        "order": 26
+        "order": 26,
+        "group": "additional"
       }
     },
     "PTtripleSci_E": {
@@ -505,7 +568,8 @@
       "x-display": {
         "label": "% entering three single sciences",
         "visible": true,
-        "order": 27
+        "order": 27,
+        "group": "additional"
       }
     },
     "P8PUP": {
@@ -523,7 +587,8 @@
       "x-display": {
         "label": "Number of pupils included in the Progress 8 score",
         "visible": true,
-        "order": 28
+        "order": 28,
+        "group": "progress-8"
       }
     },
     "P8MEACOV": {
@@ -541,7 +606,8 @@
       "x-display": {
         "label": "% of pupils included in the Progress 8 score",
         "visible": true,
-        "order": 29
+        "order": 29,
+        "group": "progress-8"
       }
     },
     "TP8ADJ": {
@@ -559,7 +625,8 @@
       "x-display": {
         "label": "Number of pupils who have had P8 score adjusted in measure",
         "visible": true,
-        "order": 30
+        "order": 30,
+        "group": "progress-8"
       }
     },
     "P8MEA_ORIG": {
@@ -577,7 +644,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 score",
         "visible": true,
-        "order": 31
+        "order": 31,
+        "group": "progress-8"
       }
     },
     "P8CILOW_ORIG": {
@@ -595,7 +663,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 lower 95% confidence interval",
         "visible": true,
-        "order": 32
+        "order": 32,
+        "group": "progress-8"
       }
     },
     "P8CIUPP_ORIG": {
@@ -613,7 +682,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 upper 95% confidence interval",
         "visible": true,
-        "order": 33
+        "order": 33,
+        "group": "progress-8"
       }
     },
     "P8MEAENG": {
@@ -631,7 +701,8 @@
       "x-display": {
         "label": "Progress 8 score for English element (all Progress 8 elements are unadjusted)",
         "visible": true,
-        "order": 34
+        "order": 34,
+        "group": "progress-8"
       }
     },
     "P8MEAMAT": {
@@ -649,7 +720,8 @@
       "x-display": {
         "label": "Progress 8 score for maths element (all Progress 8 elements are unadjusted)",
         "visible": true,
-        "order": 35
+        "order": 35,
+        "group": "progress-8"
       }
     },
     "P8MEAEBAC": {
@@ -667,7 +739,8 @@
       "x-display": {
         "label": "Progress 8 score for English Baccalaureate element (all Progress 8 elements are unadjusted)",
         "visible": true,
-        "order": 36
+        "order": 36,
+        "group": "progress-8"
       }
     },
     "P8MEAOPEN": {
@@ -685,7 +758,8 @@
       "x-display": {
         "label": "Progress 8 score for Open element (all Progress 8 elements are unadjusted)",
         "visible": true,
-        "order": 37
+        "order": 37,
+        "group": "progress-8"
       }
     },
     "ATT8SCRENG": {
@@ -703,7 +777,8 @@
       "x-display": {
         "label": "Attainment 8 score for English element",
         "visible": true,
-        "order": 38
+        "order": 38,
+        "group": "attainment-8"
       }
     },
     "ATT8SCRMAT": {
@@ -721,7 +796,8 @@
       "x-display": {
         "label": "Attainment 8 score for maths element",
         "visible": true,
-        "order": 39
+        "order": 39,
+        "group": "attainment-8"
       }
     },
     "ATT8SCREBAC": {
@@ -739,7 +815,8 @@
       "x-display": {
         "label": "Attainment 8 score for English Baccalaureate element",
         "visible": true,
-        "order": 40
+        "order": 40,
+        "group": "attainment-8"
       }
     },
     "ATT8SCROPEN": {
@@ -757,7 +834,8 @@
       "x-display": {
         "label": "Attainment 8 score for Open element",
         "visible": true,
-        "order": 41
+        "order": 41,
+        "group": "attainment-8"
       }
     },
     "ATT8SCROPENG": {
@@ -775,7 +853,8 @@
       "x-display": {
         "label": "Open element - GCSE only",
         "visible": true,
-        "order": 42
+        "order": 42,
+        "group": "attainment-8"
       }
     },
     "ATT8SCROPENNG": {
@@ -793,7 +872,8 @@
       "x-display": {
         "label": "Open element – Non-GCSE only",
         "visible": true,
-        "order": 43
+        "order": 43,
+        "group": "attainment-8"
       }
     },
     "P8PUP_LO": {
@@ -811,7 +891,8 @@
       "x-display": {
         "label": "Number of pupils with low prior attainment in the Progress 8 score",
         "visible": true,
-        "order": 44
+        "order": 44,
+        "group": "low-prior-attainers"
       }
     },
     "P8MEA_LO": {
@@ -829,7 +910,8 @@
       "x-display": {
         "label": "Progress 8 score for pupils with low prior attainment",
         "visible": true,
-        "order": 45
+        "order": 45,
+        "group": "low-prior-attainers"
       }
     },
     "P8CILOW_LO": {
@@ -847,7 +929,8 @@
       "x-display": {
         "label": "Progress 8 lower 95% confidence interval for pupils with low prior attainment",
         "visible": true,
-        "order": 46
+        "order": 46,
+        "group": "low-prior-attainers"
       }
     },
     "P8CIUPP_LO": {
@@ -865,7 +948,8 @@
       "x-display": {
         "label": "Progress 8 upper 95% confidence interval for pupils with low prior attainment",
         "visible": true,
-        "order": 47
+        "order": 47,
+        "group": "low-prior-attainers"
       }
     },
     "P8MEA_LO_ORIG": {
@@ -883,7 +967,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 score for pupils with low prior attainment",
         "visible": true,
-        "order": 48
+        "order": 48,
+        "group": "low-prior-attainers"
       }
     },
     "P8CILOW_LO_ORIG": {
@@ -901,7 +986,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 lower 95% confidence interval for pupils with low prior attainment",
         "visible": true,
-        "order": 49
+        "order": 49,
+        "group": "low-prior-attainers"
       }
     },
     "P8CIUPP_LO_ORIG": {
@@ -919,7 +1005,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 upper 95% confidence interval for pupils with low prior attainment",
         "visible": true,
-        "order": 50
+        "order": 50,
+        "group": "low-prior-attainers"
       }
     },
     "ATT8SCR_LO": {
@@ -937,7 +1024,8 @@
       "x-display": {
         "label": "Average Attainment 8 score per pupils with low prior attainment pupil",
         "visible": true,
-        "order": 51
+        "order": 51,
+        "group": "low-prior-attainers"
       }
     },
     "PTBASICSLO_97": {
@@ -955,7 +1043,8 @@
       "x-display": {
         "label": "% of pupils with low prior attainment achieving grade 7 or above in English and maths",
         "visible": true,
-        "order": 52
+        "order": 52,
+        "group": "low-prior-attainers"
       }
     },
     "PTBASICSLO_95": {
@@ -973,7 +1062,8 @@
       "x-display": {
         "label": "% of pupils with low prior attainment achieving grade 5 or above in English and maths",
         "visible": true,
-        "order": 53
+        "order": 53,
+        "group": "low-prior-attainers"
       }
     },
     "P8PUP_MID": {
@@ -991,7 +1081,8 @@
       "x-display": {
         "label": "Number of pupils with middle prior attainment in the Progress 8 score",
         "visible": true,
-        "order": 54
+        "order": 54,
+        "group": "middle-prior-attainers"
       }
     },
     "P8MEA_MID": {
@@ -1009,7 +1100,8 @@
       "x-display": {
         "label": "Progress 8 score for pupils with middle prior attainment",
         "visible": true,
-        "order": 55
+        "order": 55,
+        "group": "middle-prior-attainers"
       }
     },
     "P8CILOW_MID": {
@@ -1027,7 +1119,8 @@
       "x-display": {
         "label": "Progress 8 lower 95% confidence interval for pupils with middle prior attainment",
         "visible": true,
-        "order": 56
+        "order": 56,
+        "group": "middle-prior-attainers"
       }
     },
     "P8CIUPP_MID": {
@@ -1045,7 +1138,8 @@
       "x-display": {
         "label": "Progress 8 upper 95% confidence interval for pupils with middle prior attainment",
         "visible": true,
-        "order": 57
+        "order": 57,
+        "group": "middle-prior-attainers"
       }
     },
     "P8MEA_MID_ORIG": {
@@ -1063,7 +1157,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 score for pupils with middle prior attainment",
         "visible": true,
-        "order": 58
+        "order": 58,
+        "group": "middle-prior-attainers"
       }
     },
     "P8CILOW_MID_ORIG": {
@@ -1081,7 +1176,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 lower 95% confidence interval for pupils with middle prior attainment",
         "visible": true,
-        "order": 59
+        "order": 59,
+        "group": "middle-prior-attainers"
       }
     },
     "P8CIUPP_MID_ORIG": {
@@ -1099,7 +1195,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 upper 95% confidence interval for pupils with middle prior attainment",
         "visible": true,
-        "order": 60
+        "order": 60,
+        "group": "middle-prior-attainers"
       }
     },
     "ATT8SCR_MID": {
@@ -1117,7 +1214,8 @@
       "x-display": {
         "label": "Average Attainment 8 score per pupils with middle prior attainment pupil",
         "visible": true,
-        "order": 61
+        "order": 61,
+        "group": "middle-prior-attainers"
       }
     },
     "PTBASICSAV_97": {
@@ -1135,7 +1233,8 @@
       "x-display": {
         "label": "% of pupils with middle prior attainment achieving grade 7 or above in English and maths",
         "visible": true,
-        "order": 62
+        "order": 62,
+        "group": "middle-prior-attainers"
       }
     },
     "PTBASICSAV_95": {
@@ -1153,7 +1252,8 @@
       "x-display": {
         "label": "% of pupils with middle prior attainment achieving grade 5 or above in English and maths",
         "visible": true,
-        "order": 63
+        "order": 63,
+        "group": "middle-prior-attainers"
       }
     },
     "P8PUP_HI": {
@@ -1171,7 +1271,8 @@
       "x-display": {
         "label": "Number of pupils with high prior attainment in the Progress 8 score",
         "visible": true,
-        "order": 64
+        "order": 64,
+        "group": "high-prior-attainers"
       }
     },
     "P8MEA_HI": {
@@ -1189,7 +1290,8 @@
       "x-display": {
         "label": "Progress 8 score for pupils with high prior attainment",
         "visible": true,
-        "order": 65
+        "order": 65,
+        "group": "high-prior-attainers"
       }
     },
     "P8CILOW_HI": {
@@ -1207,7 +1309,8 @@
       "x-display": {
         "label": "Progress 8 lower 95% confidence interval for pupils with high prior attainment",
         "visible": true,
-        "order": 66
+        "order": 66,
+        "group": "high-prior-attainers"
       }
     },
     "P8CIUPP_HI": {
@@ -1225,7 +1328,8 @@
       "x-display": {
         "label": "Progress 8 upper 95% confidence interval for pupils with high prior attainment",
         "visible": true,
-        "order": 67
+        "order": 67,
+        "group": "high-prior-attainers"
       }
     },
     "P8MEA_HI_ORIG": {
@@ -1243,7 +1347,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 score for pupils with high prior attainment",
         "visible": true,
-        "order": 68
+        "order": 68,
+        "group": "high-prior-attainers"
       }
     },
     "P8CILOW_HI_ORIG": {
@@ -1261,7 +1366,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 lower 95% confidence interval for pupils with high prior attainment",
         "visible": true,
-        "order": 69
+        "order": 69,
+        "group": "high-prior-attainers"
       }
     },
     "P8CIUPP_HI_ORIG": {
@@ -1279,7 +1385,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 upper 95% confidence interval for pupils with high prior attainment",
         "visible": true,
-        "order": 70
+        "order": 70,
+        "group": "high-prior-attainers"
       }
     },
     "ATT8SCR_HI": {
@@ -1297,7 +1404,8 @@
       "x-display": {
         "label": "Average Attainment 8 score per pupils with high prior attainment pupil",
         "visible": true,
-        "order": 71
+        "order": 71,
+        "group": "high-prior-attainers"
       }
     },
     "PTBASICSHI_97": {
@@ -1315,7 +1423,8 @@
       "x-display": {
         "label": "% of pupils with high prior attainment achieving grade 7 or above in English and maths",
         "visible": true,
-        "order": 72
+        "order": 72,
+        "group": "high-prior-attainers"
       }
     },
     "PTBASICSHI_95": {
@@ -1333,7 +1442,8 @@
       "x-display": {
         "label": "% of pupils with high prior attainment achieving grade 5 or above in English and maths",
         "visible": true,
-        "order": 73
+        "order": 73,
+        "group": "high-prior-attainers"
       }
     },
     "P8PUP_FSM6CLA1A": {
@@ -1351,7 +1461,8 @@
       "x-display": {
         "label": "Number of disadvantaged pupils in the Progress 8 score",
         "visible": true,
-        "order": 74
+        "order": 74,
+        "group": "disadvantaged"
       }
     },
     "P8MEA_FSM6CLA1A": {
@@ -1369,7 +1480,8 @@
       "x-display": {
         "label": "Progress 8 score for disadvantaged pupils",
         "visible": true,
-        "order": 75
+        "order": 75,
+        "group": "disadvantaged"
       }
     },
     "P8CILOW_FSM6CLA1A": {
@@ -1387,7 +1499,8 @@
       "x-display": {
         "label": "Progress 8 lower 95% confidence interval for disadvantaged pupils",
         "visible": true,
-        "order": 76
+        "order": 76,
+        "group": "disadvantaged"
       }
     },
     "P8CIUPP_FSM6CLA1A": {
@@ -1405,7 +1518,8 @@
       "x-display": {
         "label": "Progress 8 upper 95% confidence interval for disadvantaged pupils",
         "visible": true,
-        "order": 77
+        "order": 77,
+        "group": "disadvantaged"
       }
     },
     "P8MEA_FSM6CLA1A_ORIG": {
@@ -1423,7 +1537,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 score for disadvantaged pupils",
         "visible": true,
-        "order": 78
+        "order": 78,
+        "group": "disadvantaged"
       }
     },
     "P8CILOW_FSM6CLA1A_ORIG": {
@@ -1441,7 +1556,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 lower 95% confidence interval for disadvantaged pupils",
         "visible": true,
-        "order": 79
+        "order": 79,
+        "group": "disadvantaged"
       }
     },
     "P8CIUPP_FSM6CLA1A_ORIG": {
@@ -1459,7 +1575,8 @@
       "x-display": {
         "label": "Unadjusted Progress 8 upper 95% confidence interval for disadvantaged pupils",
         "visible": true,
-        "order": 80
+        "order": 80,
+        "group": "disadvantaged"
       }
     },
     "P8MEAENG_FSM6CLA1A": {
@@ -1477,7 +1594,8 @@
       "x-display": {
         "label": "Progress 8 score for disadvantaged - English element",
         "visible": true,
-        "order": 81
+        "order": 81,
+        "group": "disadvantaged"
       }
     },
     "P8MEAMAT_FSM6CLA1A": {
@@ -1495,7 +1613,8 @@
       "x-display": {
         "label": "Progress 8 score for disadvantaged - maths element",
         "visible": true,
-        "order": 82
+        "order": 82,
+        "group": "disadvantaged"
       }
     },
     "P8MEAEBAC_FSM6CLA1A": {
@@ -1513,7 +1632,8 @@
       "x-display": {
         "label": "Progress 8 score for disadvantaged - Ebacc element",
         "visible": true,
-        "order": 83
+        "order": 83,
+        "group": "disadvantaged"
       }
     },
     "P8MEAOPEN_FSM6CLA1A": {
@@ -1531,7 +1651,8 @@
       "x-display": {
         "label": "Progress 8 score for disadvantaged - open element",
         "visible": true,
-        "order": 84
+        "order": 84,
+        "group": "disadvantaged"
       }
     },
     "ATT8SCR_FSM6CLA1A": {
@@ -1549,7 +1670,8 @@
       "x-display": {
         "label": "Average Attainment 8 score per disadvantaged pupil",
         "visible": true,
-        "order": 85
+        "order": 85,
+        "group": "disadvantaged"
       }
     },
     "ATT8SCRENG_FSM6CLA1A": {
@@ -1567,7 +1689,8 @@
       "x-display": {
         "label": "Attainment 8 score for disadvantaged - English element",
         "visible": true,
-        "order": 86
+        "order": 86,
+        "group": "disadvantaged"
       }
     },
     "ATT8SCRMAT_FSM6CLA1A": {
@@ -1585,7 +1708,8 @@
       "x-display": {
         "label": "Attainment 8 score for disadvantaged - mathematics element",
         "visible": true,
-        "order": 87
+        "order": 87,
+        "group": "disadvantaged"
       }
     },
     "ATT8SCREBAC_FSM6CLA1A": {
@@ -1603,7 +1727,8 @@
       "x-display": {
         "label": "Attainment 8 score for disadvantaged - EBacc element",
         "visible": true,
-        "order": 88
+        "order": 88,
+        "group": "disadvantaged"
       }
     },
     "ATT8SCROPEN_FSM6CLA1A": {
@@ -1621,7 +1746,8 @@
       "x-display": {
         "label": "Attainment 8 score for disadvantaged - Open element",
         "visible": true,
-        "order": 89
+        "order": 89,
+        "group": "disadvantaged"
       }
     },
     "ATT8SCROPENG_FSM6CLA1A": {
@@ -1639,7 +1765,8 @@
       "x-display": {
         "label": "Open element - GCSE only - disadvantaged pupils",
         "visible": true,
-        "order": 90
+        "order": 90,
+        "group": "disadvantaged"
       }
     },
     "ATT8SCROPENNG_FSM6CLA1A": {
@@ -1657,7 +1784,8 @@
       "x-display": {
         "label": "Open element - non-GCSE only - disadvantaged pupils",
         "visible": true,
-        "order": 91
+        "order": 91,
+        "group": "disadvantaged"
       }
     },
     "PTFSM6CLA1ABASICS_97": {
@@ -1675,7 +1803,8 @@
       "x-display": {
         "label": "% of disadvantaged pupils achieving grade 7 or above in English and maths",
         "visible": true,
-        "order": 92
+        "order": 92,
+        "group": "disadvantaged"
       }
     },
     "PTFSM6CLA1ABASICS_95": {
@@ -1693,7 +1822,8 @@
       "x-display": {
         "label": "% of disadvantaged pupils achieving grade 5 or above in English and maths",
         "visible": true,
-        "order": 93
+        "order": 93,
+        "group": "disadvantaged"
       }
     }
   }

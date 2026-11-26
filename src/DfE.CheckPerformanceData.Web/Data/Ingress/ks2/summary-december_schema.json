@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "summary-december_schema.json",
   "title": "KS2 summary (December)",
-  "description": "One row per school of the supplier's KS2 December school summary file, transcribed from the KS2 Summary data share specification. It replaces the September file (summary_schema.json): it has the September fields plus the four disadvantaged pupil fields at the end. Field references are the CSV headers. Values are strings, because a suppressed value is sent as 'NA' or '+'.",
+  "description": "One row per school of the supplier's KS2 December school summary file, transcribed from the KS2 Summary data share specification. It replaces the September file (summary_schema.json): it has the September fields, then the four disadvantaged pupil fields, then the 15 progress measure fields (READPROG_DESCR to MATPROG_UPPER). The progress measure fields are in the download only. Field references are the CSV headers. Values are strings, because a suppressed value is sent as 'NA' or '+'.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
@@ -1442,6 +1442,276 @@
         "label": "Percentage of disadvantaged pupils achieving a higher standard in reading, writing TA and mathematics",
         "visible": true,
         "order": 79
+      }
+    },
+    "READPROG_DESCR": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: 1 to 5, or blank.",
+      "x-csv": {
+        "columns": {
+          "december": "CB"
+        },
+        "heading": "Reading progress measure description"
+      },
+      "x-display": {
+        "label": "Reading progress measure description",
+        "visible": false,
+        "order": 80
+      }
+    },
+    "READPROG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: -22.1 to 13.8, SUPP, NA, LOWCOV, or blank.",
+      "x-csv": {
+        "columns": {
+          "december": "CC"
+        },
+        "heading": "Reading progress measure"
+      },
+      "x-display": {
+        "label": "Reading progress measure",
+        "visible": false,
+        "order": 81
+      }
+    },
+    "READPROG_SIGNIFICANCE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: 0 or 1, NA, or blank.",
+      "x-csv": {
+        "columns": {
+          "december": "CD"
+        },
+        "heading": "Reading progress measure significance"
+      },
+      "x-display": {
+        "label": "Reading progress measure significance",
+        "visible": false,
+        "order": 82
+      }
+    },
+    "READPROG_LOWER": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: -26.1 to 12.0, or the same as READPROG.",
+      "x-csv": {
+        "columns": {
+          "december": "CE"
+        },
+        "heading": "Reading progress measure - lower confidence"
+      },
+      "x-display": {
+        "label": "Reading progress measure - lower confidence",
+        "visible": false,
+        "order": 83
+      }
+    },
+    "READPROG_UPPER": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: -18.3 to 15.5, or the same as READPROG.",
+      "x-csv": {
+        "columns": {
+          "december": "CF"
+        },
+        "heading": "Reading progress measure - upper confidence"
+      },
+      "x-display": {
+        "label": "Reading progress measure - upper confidence",
+        "visible": false,
+        "order": 84
+      }
+    },
+    "WRITPROG_DESCR": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: 1 to 5, or blank.",
+      "x-csv": {
+        "columns": {
+          "december": "CG"
+        },
+        "heading": "Writing progress measure description"
+      },
+      "x-display": {
+        "label": "Writing progress measure description",
+        "visible": false,
+        "order": 85
+      }
+    },
+    "WRITPROG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: -22.2 to 12.0, SUPP, NA, LOWCOV, or blank.",
+      "x-csv": {
+        "columns": {
+          "december": "CH"
+        },
+        "heading": "Writing progress measure"
+      },
+      "x-display": {
+        "label": "Writing progress measure",
+        "visible": false,
+        "order": 86
+      }
+    },
+    "WRITPROG_SIGNIFICANCE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: 0 or 1, NA, or blank.",
+      "x-csv": {
+        "columns": {
+          "december": "CI"
+        },
+        "heading": "Writing progress measure significance"
+      },
+      "x-display": {
+        "label": "Writing progress measure significance",
+        "visible": false,
+        "order": 87
+      }
+    },
+    "WRITPROG_LOWER": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: -24.1 to 10.2, or the same as WRITPROG.",
+      "x-csv": {
+        "columns": {
+          "december": "CJ"
+        },
+        "heading": "Writing progress measure - lower confidence"
+      },
+      "x-display": {
+        "label": "Writing progress measure - lower confidence",
+        "visible": false,
+        "order": 88
+      }
+    },
+    "WRITPROG_UPPER": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: -20.4 to 14.7, or the same as WRITPROG.",
+      "x-csv": {
+        "columns": {
+          "december": "CK"
+        },
+        "heading": "Writing progress measure - upper confidence"
+      },
+      "x-display": {
+        "label": "Writing progress measure - upper confidence",
+        "visible": false,
+        "order": 89
+      }
+    },
+    "MATPROG_DESCR": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: 1 to 5, or blank.",
+      "x-csv": {
+        "columns": {
+          "december": "CL"
+        },
+        "heading": "Maths progress measure description"
+      },
+      "x-display": {
+        "label": "Maths progress measure description",
+        "visible": false,
+        "order": 90
+      }
+    },
+    "MATPROG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: -21.8 to 11.7, SUPP, NA, LOWCOV, or blank.",
+      "x-csv": {
+        "columns": {
+          "december": "CM"
+        },
+        "heading": "Maths progress measure"
+      },
+      "x-display": {
+        "label": "Maths progress measure",
+        "visible": false,
+        "order": 91
+      }
+    },
+    "MATPROG_SIGNIFICANCE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: 0 or 1, NA, or blank.",
+      "x-csv": {
+        "columns": {
+          "december": "CN"
+        },
+        "heading": "Maths progress measure significance"
+      },
+      "x-display": {
+        "label": "Maths progress measure significance",
+        "visible": false,
+        "order": 92
+      }
+    },
+    "MATPROG_LOWER": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: -25.8 to 10.0, or the same as MATPROG.",
+      "x-csv": {
+        "columns": {
+          "december": "CO"
+        },
+        "heading": "Maths progress measure - lower confidence"
+      },
+      "x-display": {
+        "label": "Maths progress measure - lower confidence",
+        "visible": false,
+        "order": 93
+      }
+    },
+    "MATPROG_UPPER": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "No website heading: in the December download only. Values: -18.2 to 13.6, or the same as MATPROG.",
+      "x-csv": {
+        "columns": {
+          "december": "CP"
+        },
+        "heading": "Maths progress measure - upper confidence"
+      },
+      "x-display": {
+        "label": "Maths progress measure - upper confidence",
+        "visible": false,
+        "order": 94
       }
     }
   }

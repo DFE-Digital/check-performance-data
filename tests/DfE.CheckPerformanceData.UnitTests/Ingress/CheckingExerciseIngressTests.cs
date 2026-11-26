@@ -127,6 +127,74 @@ public sealed class CheckingExerciseIngressTests
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// #905: one clean run whose terminal progress holds the given per-school summary. Returns
+    /// the release DTO the run published, or null when the run published nothing.
+    /// </summary>
+    private async Task<CheckingExerciseReleaseDto?> RunCleanAsync(IReadOnlyList<SchoolRecordCount>? summary)
+    {
+        var id = Guid.NewGuid();
+        _definitions.GetAsync(id, Arg.Any<CancellationToken>())
+            .Returns(new CheckingExerciseDefinition(Guid.NewGuid(), Complete(id)));
+        CheckingExerciseReleaseDto? published = null;
+        _definitions.PublishReleaseAsync(id, Arg.Any<CheckingExerciseReleaseDto>(), Arg.Any<string>(),
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(ci => { published = ci.ArgAt<CheckingExerciseReleaseDto>(1); return Task.FromResult(new CheckingExerciseReleaseDto()); });
+        _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
+                Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
+                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
+                Arg.Any<IngressSummaryCapture?>(), Arg.Any<IReadOnlyList<SampleSchool>?>())
+            .Returns(Progress(new("Done", "", 1, 1, 1, 0, true, false, summary)));
+
+        await Ingress().ProcessAsync(id).ToListAsync();
+        return published;
+    }
+
+    [Fact]
+    public async Task ACleanRun_PublishesARelease_ThatListsTheSchoolsItWrote()
+    {
+        // #905: the list comes from the run's own per-school summary, in digits, in LAESTAB order.
+        var released = await RunCleanAsync(
+        [
+            new SchoolRecordCount("8604070", 2),
+            new SchoolRecordCount("933/4290", 1),
+            new SchoolRecordCount("1234567", 3)
+        ]);
+
+        Assert.NotNull(released);
+        Assert.Equal(["1234567", "8604070", "9334290"], released!.WrittenLaestabs);
+    }
+
+    [Fact]
+    public async Task ACleanRun_ListsEachSchoolOnce_AsDigits_InLaestabOrder()
+    {
+        // The supplier spells one school two ways and lists the schools out of order.
+        var released = await RunCleanAsync(
+        [
+            new SchoolRecordCount("933/4290", 1),
+            new SchoolRecordCount("8604070", 2),
+            new SchoolRecordCount("9334290", 1),
+            new SchoolRecordCount("1234567", 3)
+        ]);
+
+        Assert.NotNull(released);
+        Assert.Equal(["1234567", "8604070", "9334290"], released!.WrittenLaestabs);
+    }
+
+    [Fact]
+    public async Task ACleanRun_AddsNoEntryForARowWithoutAReadableSchool()
+    {
+        var released = await RunCleanAsync(
+        [
+            new SchoolRecordCount("9334290", 1),
+            new SchoolRecordCount("UnknownSchool", 1),
+            new SchoolRecordCount("12a3", 1)
+        ]);
+
+        Assert.NotNull(released);
+        Assert.Equal(["9334290"], released!.WrittenLaestabs);
+    }
+
     [Fact]
     public async Task ARun_WritesUnderTheSameNewReleaseItThenPublishes()
     {

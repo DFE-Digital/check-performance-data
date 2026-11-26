@@ -75,4 +75,26 @@ public sealed class LaestabListTests
     {
         Assert.Equal("933/4290\n860/4070", LaestabList.DisplayLines(["9334290", "8604070"]));
     }
+
+    [Theory]
+    [InlineData("9334290", "9334290")]
+    [InlineData("933/4290", "9334290")]
+    [InlineData(" 933/4290 ", "9334290")]
+    public void The_digit_form_of_both_laestab_forms_is_the_digits(string value, string digits)
+    {
+        Assert.Equal(digits, LaestabList.Digits(value));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("UnknownSchool")]
+    [InlineData("12a3")]
+    [InlineData("933429")]
+    [InlineData("93342901")]
+    [InlineData("933-4290")]
+    public void A_value_that_is_not_a_laestab_has_no_digit_form(string? value)
+    {
+        Assert.Null(LaestabList.Digits(value));
+    }
 }

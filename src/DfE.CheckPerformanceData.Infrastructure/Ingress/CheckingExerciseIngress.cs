@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
+using DfE.CheckPerformanceData.Application.WindowManagement.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -127,6 +128,16 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
                             PublishedBy = publishedBy,
                             FilesWritten = progress.FilesWritten,
                             SampleLaestabs = [.. sampleSchools.Select(s => s.Laestab)],
+                            // #905: the LAESTABs of the schools the run wrote output for, in LAESTAB order.
+                            WrittenLaestabs = progress.SchoolSummary is not null
+                                ? progress.SchoolSummary
+                                    .Select(s => LaestabList.Digits(s.Laestab))
+                                    .Where(l => l is not null)
+                                    .Select(l => l!)
+                                    .Distinct()
+                                    .OrderBy(l => l)
+                                    .ToList()
+                                : [],
                             Files = [.. toIngest.Select(d => new CheckingExerciseReleaseFileDto
                             {
                                 DatasetId = d.Id,

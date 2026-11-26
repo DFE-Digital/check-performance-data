@@ -32,6 +32,12 @@ public sealed class CheckingExerciseReleaseDto
     /// </summary>
     public IReadOnlyList<string> SampleLaestabs { get; init; } = [];
 
+    /// <summary>
+    /// #905: the LAESTABs (digits) of the schools the run wrote per-school output for, in LAESTAB
+    /// order. Each school once. A school the run gave sample data is in the list too.
+    /// </summary>
+    public IReadOnlyList<string> WrittenLaestabs { get; init; } = [];
+
     /// <summary>The file and schema of each dataset slot that the run read, in slot order.</summary>
     public List<CheckingExerciseReleaseFileDto> Files { get; init; } = [];
 }

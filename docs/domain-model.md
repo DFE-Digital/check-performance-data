@@ -204,8 +204,9 @@ Session readiness for the journey requires only `SelectedWhatToChange` and `Chec
   their own (KS2 shows LAESTAB and URN this way). A group with no field in that file is left out.
   The schema shows ungrouped, in one list, when a field names a group the schema does not declare,
   or a field with no group comes after a grouped field. Then a typo cannot hide a field.
-  `ShippedSchemaGroupTests` checks the shipped schemas. Only the KS2 summary schemas declare
-  groups. Their groups are the website headings of the KS2 Summary data specification.
+  `ShippedSchemaGroupTests` checks the shipped schemas. Only the KS2 summary schemas and the KS4
+  Autumn summary schema declare groups. Their groups are the "Summary Report Heading" values of
+  the summary data specification for that key stage.
 - `ExerciseDisplayService.DatasetFor` resolves which dataset a row belongs to by `DATASET`, then
   then `INCLUDED`, then best field match — and **refuses to guess on a tie**. Picking
   the first would show a school another dataset's records; a test pins the refusal. It names no

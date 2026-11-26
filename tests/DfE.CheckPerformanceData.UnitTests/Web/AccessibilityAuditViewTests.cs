@@ -136,7 +136,7 @@ public sealed class AccessibilityAuditViewTests
 		var view = ReadView("Views", "Shared", "_DfeHeader.cshtml");
 
 		Assert.Contains(
-			"<img src=\"~/images/department-for-education_white.png\" alt=\"Department for Education\" class=\"govuk-header__logotype\">",
+			"<img src=\"~/images/department-for-education_white.png\" alt=\"Department for Education\" class=\"govuk-header__logotype\" width=\"276\" height=\"30\">",
 			view);
 	}
 

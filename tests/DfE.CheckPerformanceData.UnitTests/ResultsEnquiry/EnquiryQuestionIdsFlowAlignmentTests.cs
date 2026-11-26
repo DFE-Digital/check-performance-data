@@ -64,6 +64,19 @@ public sealed class EnquiryQuestionIdsFlowAlignmentTests
     }
 
     [Theory]
+    [MemberData(nameof(FlowFiles), "MissingQualification")]
+    public void Each_missing_qualification_flow_has_the_ids_that_the_code_reads(string file)
+    {
+        var flow = Load(file);
+        var questionIds = QuestionIds(flow).ToList();
+
+        Assert.All(
+            new[] { "q-cohort-scope", "q-cohort-count", "q-syllabus-code", "q-award-date", EnquiryQuestionIds.MissingGrade, "q-ncn", "q-additional-info" },
+            id => Assert.Contains(id, questionIds));
+        Assert.Single(flow.Pages, p => p.Type == PageType.QualificationSearch);
+    }
+
+    [Theory]
     [MemberData(nameof(FlowFiles), "ResultDoesNotBelong")]
     public void Each_result_does_not_belong_flow_has_the_ids_that_the_code_reads(string file)
         => Assert.Contains("q-additional-info", QuestionIds(Load(file)));

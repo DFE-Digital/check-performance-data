@@ -80,6 +80,16 @@ public sealed class RequestLogEnrichmentTests
         Assert.Null(RequestLogEnrichment.UserId(context));
     }
 
+    [Fact]
+    public void IsImpersonating_UsesTheRequestContextMarker()
+    {
+        var context = new DefaultHttpContext();
+
+        Assert.False(RequestLogEnrichment.IsImpersonating(context));
+        context.Items[DfE.CheckPerformanceData.Web.Middleware.ImpersonationContextMiddleware.ReadOnlyItemKey] = true;
+        Assert.True(RequestLogEnrichment.IsImpersonating(context));
+    }
+
     private static HttpResponse Response(int status, string? location)
     {
         var context = new DefaultHttpContext();

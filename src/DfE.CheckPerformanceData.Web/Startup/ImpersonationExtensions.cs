@@ -15,6 +15,7 @@ public static class ImpersonationExtensions
         services.AddScoped<IEstablishmentViewContext>(sp => sp.GetRequiredService<ImpersonationSessionService>());
         services.AddScoped<IImpersonationWriteGuard>(sp => sp.GetRequiredService<ImpersonationSessionService>());
         services.AddScoped<IImpersonationSessionStore, DistributedImpersonationSessionStore>();
+        services.AddSingleton<IImpersonationPreviewStore, InMemoryImpersonationPreviewStore>();
         services.AddScoped<IImpersonationSessionLock, PostgresImpersonationSessionLock>();
         services.AddScoped<IImpersonationAuditWriter, ImpersonationAuditWriter>();
         return services;

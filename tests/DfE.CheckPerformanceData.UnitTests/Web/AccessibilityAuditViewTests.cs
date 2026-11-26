@@ -28,6 +28,17 @@ public sealed class AccessibilityAuditViewTests
 		return File.ReadAllText(Path.Combine(repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "css", "site.css"));
 	}
 
+	[Fact]
+	public void CheckYourPupilData_ShowsJourneyOptionsDuringImpersonationPreview()
+	{
+		var view = ReadView("Views", "CheckYourPupilData", "Index.cshtml");
+
+		Assert.Contains("@if (Model.OffersEnquiryOnly)", view);
+		Assert.Contains("else if (Model.AvailableNextSteps.Count == 1)", view);
+		Assert.Contains("else if (Model.AvailableNextSteps.Count > 1)", view);
+		Assert.Contains("@if (!Impersonation.IsImpersonating)", view);
+	}
+
 	// ── #374 Page regions not identified with ARIA landmarks ──────────────────────────
 
 	[Theory]

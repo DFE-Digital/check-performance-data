@@ -23,8 +23,10 @@ public sealed class ResultIssueController(
     ILateResultsWarning lateResults,
     ICheckingExerciseService checkingExercises,
     ICurrentUserService currentUserService,
-    IAnalyticsService analytics) : Controller
+    IAnalyticsService analytics,
+    DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : Controller
 {
+    private string EstablishmentLaestab => viewContext?.OrganisationLaestab ?? currentUserService.OrganisationLaestab;
     // #318: this is the results-enquiry entry point, so it gates on that exercise rather than on
     // the outer window. A 16-19 window runs results enquiry on its own dates, and was previously
     // reachable here for as long as the window itself was open. AB#307773: open for the signed-in
@@ -44,7 +46,7 @@ public sealed class ResultIssueController(
     public async Task<IActionResult> Index(Guid windowId)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, EstablishmentLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         // Never pre-selects: the confirmation page's "Report another issue" link lands here, and the
@@ -58,7 +60,7 @@ public sealed class ResultIssueController(
     public async Task<IActionResult> Confirm(Guid windowId, ResultIssueViewModel vm, CancellationToken ct = default)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, EstablishmentLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         // Fail closed on anything that is not one of the options this page renders, so a forged or

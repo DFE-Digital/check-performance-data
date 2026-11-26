@@ -532,13 +532,14 @@ public sealed class JourneyController(
         // change, so the grade survives back-navigation.
         var resultChanged = journey.SelectedResult?.CompositeKey != resolved.CompositeKey;
 
-        // AB#301903: the grade page and the summary describe the qualification from the qualification
-        // reference (title, AO, grade scale), so it is resolved once here, beside the result. The
-        // lookup is the cached QualList document — a keystroke-cheap read. A QAN the reference does
-        // not hold stores null: the grade page then says grades cannot be listed and validation
-        // holds the enquiry back; a later page re-resolves it while it is still null
-        // (HealSelectedResultQualificationAsync). A resolved entry is a snapshot for the rest of the
-        // journey — a reference refreshed mid-journey shows through only when the result is re-picked.
+        // AB#301903: the grade page and the summary describe the result's qualification from the
+        // qualification reference documents of the window (title, AO, grade scale), so it is resolved
+        // once here, beside the result. Each lookup is a cached document — a keystroke-cheap read.
+        // A QAN the reference does not hold stores null: the grade page then says grades cannot be
+        // listed and validation holds the enquiry back; a later page re-resolves it while it is
+        // still null (HealSelectedResultQualificationAsync). A resolved entry is a snapshot for the
+        // rest of the journey — a reference refreshed mid-journey shows through only when the
+        // result is re-picked.
         var qualification = await qualificationReferenceClient.FindHeldResultAsync(
             journey.CheckingWindow?.CheckingWindowType, resolved.Qan, HttpContext.RequestAborted);
         if (qualification is null)

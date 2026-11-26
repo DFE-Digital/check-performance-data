@@ -4,8 +4,8 @@ using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
-/// Uploads the image-bundled QualList qualification reference document to the rules-config
-/// container when the blob is absent. AB#297848.
+/// Uploads each image-bundled qualification reference document to the rules-config
+/// container when its blob is absent. AB#297848.
 ///
 /// Seed-if-missing, never overwrite: once the real QualList export has been loaded into an
 /// environment, a redeploy of an older bundled copy must not undo it.

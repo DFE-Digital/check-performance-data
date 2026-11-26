@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
-/// Seeds the qualification reference blob on web startup in every environment. AB#297848.
+/// Seeds the qualification reference blobs on web startup in every environment. AB#297848.
 ///
 /// Unlike the rest of the dev-data seeding — which only runs in Development or behind
 /// <c>SeedDevelopmentData</c> — the qualification reference is real reference data every

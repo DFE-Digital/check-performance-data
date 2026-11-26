@@ -15,8 +15,8 @@ namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 /// The layout itself is no longer described here. #316 moved it to
 /// <see cref="CheckingExerciseBlobPaths"/>, which every exercise's reader and writer shares, so the
 /// prefix cannot be changed in one place and missed in another. What is left here is the
-/// results-enquiry flavour of those paths, plus the qualification-reference blob, which lives in the
-/// rules-config container and is not part of a window's layout at all.
+/// results-enquiry flavour of those paths, plus the qualification reference blobs, which live in the
+/// rules-config container and are not part of a window's layout at all.
 /// </summary>
 public static class ResultsEnquiryBlobPaths
 {

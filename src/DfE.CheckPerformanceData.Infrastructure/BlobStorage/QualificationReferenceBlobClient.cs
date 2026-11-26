@@ -11,12 +11,12 @@ using Microsoft.Extensions.Options;
 namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 
 /// <summary>
-/// Reads the QualList qualification reference document from the rules-config container, and
-/// self-seeds it from the bundled copy when absent — Terraform provisions an empty
+/// Reads the qualification reference documents from the rules-config container, and
+/// self-seeds each from its bundled copy when absent — Terraform provisions an empty
 /// container and the storage account has no public network access, so nothing outside the cluster
 /// can upload the blob.
 ///
-/// The document is shared by every school and every window and changes rarely, so it is cached for
+/// Each document is shared by every school and changes rarely, so it is cached for
 /// five minutes. A missing blob caches as an empty lookup rather than throwing: the qualification
 /// search page degrades to empty dropdowns instead of erroring, and a five-minute retry picks the
 /// blob up once it lands.

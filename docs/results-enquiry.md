@@ -631,13 +631,15 @@ writes the 16-19 file as before. The two example commands are in the help text o
 
 ```
 pwsh scripts/Convert-QualListToReference.ps1 `
-    -QualList 'C:\Repos\Contracts\DfE\Tasks\QualList.xlsx' `
-    -SyllabusCodes 'C:\Repos\Contracts\DfE\Tasks\SyllabusCodes.xlsx'
+    -QualList '<folder>\QualList.xlsx' `
+    -SyllabusCodes '<folder>\SyllabusCodes.xlsx'
 
 pwsh scripts/Convert-QualListToReference.ps1 -KeyStage KS4 -QualListSheet KS4 `
-    -QualList 'C:\Repos\Contracts\DfE\Tasks\Dynamic form QAN list 2026 v1.xlsx' `
-    -SyllabusCodes 'C:\Repos\Contracts\DfE\Tasks\CYPMD Syllabus Codes 2026 Final.xlsx'
+    -QualList '<folder>\Dynamic form QAN list 2026 v1.xlsx' `
+    -SyllabusCodes '<folder>\CYPMD Syllabus Codes 2026 Final.xlsx'
 ```
+
+The script refuses a sheet that is the list of the other key stage, and it finds each column by its header.
 
 ### Qualification search — AO then QAN, resolved server-side
 
@@ -662,7 +664,7 @@ field.
 Both enquiry journeys' grade pickers get their scale without a blob call on the page: the
 missing-qualification picker (`q-missing-grade`, `QuestionType.GradeSelect`) reuses the existing
 `GradeSelect` engine machinery, but its scale comes from `QualificationReference.
-ToGradeReference()` — the QAN's grades from the QualList entry already resolved at qualification
+ToGradeReference()` — the QAN's grades from the qualification reference entry already resolved at qualification
 selection. Every grade is offered as a "pass" grade (the QualList export has no pass/fail split, and
 the missing grade is the user's claim, not a ranked correction against a held result), and the
 must-differ rule does not apply — there is no current grade to differ from.
@@ -839,6 +841,7 @@ Decided by the lead developer on 25 Nov 2026:
 
 - The result page stays a dropdown with no type-ahead.
 - The KS4 learner noun is "pupil", in the inset on the result page too.
+- The issue page kept Missing qualification before #900 added its flow.
 - No rule reads the calendar to choose the files.
 - KS4 June shows file labels, not tags.
 - Main results is one file.

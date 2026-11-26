@@ -4,21 +4,24 @@ Merges a supplier qualification list (AO / QAN / grades) and the supplier syllab
 (QUID -> syllabus codes) into a qualification reference file under
 Web/Data/QualificationReference. Run it again when a supplier file changes.
 
--KeyStage 1619 (the default) writes qualification-reference.json (AB#297848). It reads the first
-sheet of the qualification list and the syllabus rows where the 1619 column is 1.
+-KeyStage 1619 (the default) writes qualification-reference.json (AB#297848) from the syllabus
+rows where the 1619 column is 1.
 
--KeyStage KS4 writes qualification-reference-ks4.json (#900). It reads the syllabus rows where
-the KS4 column is 1. Name the KS4 sheet with -QualListSheet.
+-KeyStage KS4 writes qualification-reference-ks4.json from the syllabus rows where the KS4
+column is 1.
+
+-QualListSheet names the sheet of the qualification list. With no name the script reads the
+first sheet.
 
 .EXAMPLE
 pwsh scripts/Convert-QualListToReference.ps1 `
-    -QualList 'C:\Repos\Contracts\DfE\Tasks\QualList.xlsx' `
-    -SyllabusCodes 'C:\Repos\Contracts\DfE\Tasks\SyllabusCodes.xlsx'
+    -QualList '<folder>\QualList.xlsx' `
+    -SyllabusCodes '<folder>\SyllabusCodes.xlsx'
 
 .EXAMPLE
 pwsh scripts/Convert-QualListToReference.ps1 -KeyStage KS4 -QualListSheet KS4 `
-    -QualList 'C:\Repos\Contracts\DfE\Tasks\Dynamic form QAN list 2026 v1.xlsx' `
-    -SyllabusCodes 'C:\Repos\Contracts\DfE\Tasks\CYPMD Syllabus Codes 2026 Final.xlsx'
+    -QualList '<folder>\Dynamic form QAN list 2026 v1.xlsx' `
+    -SyllabusCodes '<folder>\CYPMD Syllabus Codes 2026 Final.xlsx'
 #>
 param(
     [Parameter(Mandatory)] [string] $QualList,
@@ -30,6 +33,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $outFileNames = @{ '1619' = 'qualification-reference.json'; 'KS4' = 'qualification-reference-ks4.json' }
+$otherKeyStageFlags = @{ '1619' = 'Included in 16-19'; 'KS4' = 'Included in KS4' }
 if (-not $OutFile) {
     $OutFile = "$PSScriptRoot/../src/DfE.CheckPerformanceData.Web/Data/QualificationReference/$($outFileNames[$KeyStage])"
 }
@@ -37,8 +41,7 @@ if (-not $OutFile) {
 # An xlsx is a zip: shared strings + one part per sheet. No Excel/COM dependency, so this runs in CI too.
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
-# The part of the named sheet, or of the first sheet when no name is given. A sheet's part comes
-# from the workbook relationships, not from its position.
+# A sheet's part comes from the workbook relationships, not from its position.
 function Resolve-SheetPart([string] $Root, [string] $SheetName) {
     [xml]$workbook = Get-Content (Join-Path $Root 'xl/workbook.xml') -Raw
     $sheets = @($workbook.workbook.sheets.sheet)
@@ -71,24 +74,24 @@ function Read-Sheet([string] $Path, [string] $SheetName) {
     finally { Remove-Item -Recurse -Force $tmp }
 }
 
-# The column letter of a header, so a supplier file with its columns in another order still reads.
 function Find-Column([hashtable] $Header, [string] $Name) {
     $column = $Header.Keys | Where-Object { ('' + $Header[$_]).Trim() -eq $Name } | Select-Object -First 1
     if (-not $column) { throw "No column has the header '$Name'." }
     $column
 }
 
-# Syllabus codes: awarding_organisation_code, qualification_number, quid, syllabus_code,
-# syllabus_title, KS4, 1619. quid is the un-slashed QAN — the join key to the qualification list.
-# Only the rows flagged for the key stage apply. A code that a QUID repeats is kept once.
+# quid is the un-slashed QAN — the join key to the qualification list.
 $syllabusRows = @(Read-Sheet $SyllabusCodes)
 $flagColumn = Find-Column $syllabusRows[0] $KeyStage
+$quidColumn = Find-Column $syllabusRows[0] 'quid'
+$codeColumn = Find-Column $syllabusRows[0] 'syllabus_code'
+$titleColumn = Find-Column $syllabusRows[0] 'syllabus_title'
 $syllabusByQuid = @{}
 foreach ($r in ($syllabusRows | Select-Object -Skip 1)) {
     if (('' + $r[$flagColumn]).Trim() -ne '1') { continue }
-    $quid = ('' + $r['C']).Trim()
-    $code = ('' + $r['D']).Trim()
-    $title = ('' + $r['E']).Trim()
+    $quid = ('' + $r[$quidColumn]).Trim()
+    $code = ('' + $r[$codeColumn]).Trim()
+    $title = ('' + $r[$titleColumn]).Trim()
     if (-not $quid -or -not $code) { continue }
     if (-not $syllabusByQuid.ContainsKey($quid)) { $syllabusByQuid[$quid] = [System.Collections.Generic.List[object]]::new() }
     if (@($syllabusByQuid[$quid] | Where-Object { $_.code -ceq $code }).Count -gt 0) { continue }
@@ -98,21 +101,26 @@ foreach ($k in @($syllabusByQuid.Keys)) {
     $syllabusByQuid[$k] = @($syllabusByQuid[$k] | Sort-Object { $_.code })
 }
 
-# Qualification list: A=Qualification Number B=Title C=AO D=Grade E=an "Included in ..." flag
-# (ignored: the sheet is the list). One row per QAN+grade; grade order is the scale's own.
+# One row per QAN+grade; grade order is the scale's own. A sheet for one key stage has a column
+# that flags the other key stage, so a column that flags this key stage means the wrong sheet.
 $qualRows = @(Read-Sheet $QualList $QualListSheet)
-if ($KeyStage -eq 'KS4' -and ('' + $qualRows[0]['E']).Trim() -eq 'Included in KS4') {
-    throw "This sheet is the 16-19 list (it has the column 'Included in KS4'). Name the KS4 sheet with -QualListSheet."
+$qualHeader = $qualRows[0]
+if (@($qualHeader.Values | Where-Object { ('' + $_).Trim() -eq $otherKeyStageFlags[$KeyStage] }).Count -gt 0) {
+    throw "This sheet has the column '$($otherKeyStageFlags[$KeyStage])', so it is not the $KeyStage list. Name the right sheet with -QualListSheet."
 }
+$qanColumn = Find-Column $qualHeader 'Qualification Number'
+$qualTitleColumn = Find-Column $qualHeader 'Qualification Title'
+$aoColumn = Find-Column $qualHeader 'AO'
+$gradeColumn = Find-Column $qualHeader 'Grade'
 $quals = [ordered]@{}
 foreach ($r in ($qualRows | Select-Object -Skip 1)) {
-    $qan = ('' + $r['A']).Trim()
+    $qan = ('' + $r[$qanColumn]).Trim()
     if (-not $qan) { continue }
     if (-not $quals.Contains($qan)) {
         $quals[$qan] = [ordered]@{
             qan = $qan
-            qualificationTitle = ('' + $r['B']).Trim()
-            awardingOrganisation = ('' + $r['C']).Trim()
+            qualificationTitle = ('' + $r[$qualTitleColumn]).Trim()
+            awardingOrganisation = ('' + $r[$aoColumn]).Trim()
             grades = [System.Collections.Generic.List[string]]::new()
             # @(...) forces the if/else result into an array even when empty — an unwrapped @()
             # else-branch collapses to $null under ConvertTo-Json, turning "no syllabus codes"
@@ -120,11 +128,14 @@ foreach ($r in ($qualRows | Select-Object -Skip 1)) {
             syllabusCodes = @(if ($syllabusByQuid.ContainsKey($qan)) { $syllabusByQuid[$qan] } else { @() })
         }
     }
-    $grade = ('' + $r['D']).Trim()
+    $grade = ('' + $r[$gradeColumn]).Trim()
     if ($grade -and -not $quals[$qan].grades.Contains($grade)) { $quals[$qan].grades.Add($grade) }
 }
 
+# LF line ends and no BOM on each platform, so a run on Windows does not change the whole file.
+$OutFile = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutFile)
 New-Item -ItemType Directory -Force (Split-Path $OutFile) | Out-Null
-$quals | ConvertTo-Json -Depth 6 | Set-Content $OutFile -Encoding utf8NoBOM
+$json = ($quals | ConvertTo-Json -Depth 6) -replace "`r`n", "`n"
+[IO.File]::WriteAllText($OutFile, $json + "`n", [Text.UTF8Encoding]::new($false))
 $covered = @($quals.Values | Where-Object { $_.syllabusCodes.Count -gt 0 }).Count
 Write-Host "Wrote $($quals.Count) qualifications ($covered with syllabus codes) to $OutFile"

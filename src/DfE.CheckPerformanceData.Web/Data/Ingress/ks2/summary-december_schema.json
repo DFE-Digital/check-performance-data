@@ -19,7 +19,53 @@
     "tab": "summary",
     "section": "Summary (December)",
     "selectorOrder": 0,
-    "layout": "vertical"
+    "layout": "vertical",
+    "groups": [
+      {
+        "key": "cohort",
+        "title": "Key stage 2 cohort information"
+      },
+      {
+        "key": "rwm-attainment",
+        "title": "Reading, writing TA and mathematics - attainment"
+      },
+      {
+        "key": "progress",
+        "title": "Progress measures: KS1 to KS2"
+      },
+      {
+        "key": "subject-attainment",
+        "title": "Individual subjects - attainment"
+      },
+      {
+        "key": "average-scaled-score",
+        "title": "Average scaled score per pupil"
+      },
+      {
+        "key": "prior-attainers-rwm",
+        "title": "Attainment of low/middle/high prior attainers - reading, writing TA and mathematics"
+      },
+      {
+        "key": "prior-attainers-reading",
+        "title": "Attainment of low/middle/high prior attainers - reading"
+      },
+      {
+        "key": "prior-attainers-writing",
+        "title": "Attainment of low/middle/high prior attainers - writing TA"
+      },
+      {
+        "key": "prior-attainers-mathematics",
+        "title": "Attainment of low/middle/high prior attainers - mathematics"
+      },
+      {
+        "key": "prior-attainers-gps",
+        "title": "Attainment of low/middle/high prior attainers - grammar, punctuation and spelling"
+      },
+      {
+        "key": "disadvantaged",
+        "title": "Attainment of disadvantaged pupils at end of key stage 2"
+      }
+    ]
   },
   "properties": {
     "LAESTAB": {
@@ -73,7 +119,8 @@
       "x-display": {
         "label": "Number of pupils eligible for KS2 assessment",
         "visible": true,
-        "order": 3
+        "order": 3,
+        "group": "cohort"
       }
     },
     "BELIG": {
@@ -91,7 +138,8 @@
       "x-display": {
         "label": "Number of boys",
         "visible": true,
-        "order": 4
+        "order": 4,
+        "group": "cohort"
       }
     },
     "GELIG": {
@@ -109,7 +157,8 @@
       "x-display": {
         "label": "Number of girls",
         "visible": true,
-        "order": 5
+        "order": 5,
+        "group": "cohort"
       }
     },
     "PBELIG": {
@@ -127,7 +176,8 @@
       "x-display": {
         "label": "Percentage of boys",
         "visible": true,
-        "order": 6
+        "order": 6,
+        "group": "cohort"
       }
     },
     "PGELIG": {
@@ -145,7 +195,8 @@
       "x-display": {
         "label": "Percentage of girls",
         "visible": true,
-        "order": 7
+        "order": 7,
+        "group": "cohort"
       }
     },
     "TKS1AVERAGE": {
@@ -163,7 +214,8 @@
       "x-display": {
         "label": "Cohort KS1 average points score",
         "visible": true,
-        "order": 8
+        "order": 8,
+        "group": "cohort"
       }
     },
     "TKS1GROUP_L": {
@@ -181,7 +233,8 @@
       "x-display": {
         "label": "Low prior attainment band: number of all eligible pupils",
         "visible": true,
-        "order": 9
+        "order": 9,
+        "group": "cohort"
       }
     },
     "PTKS1GROUP_L": {
@@ -199,7 +252,8 @@
       "x-display": {
         "label": "Low prior attainment band: Percentage of all eligible pupils",
         "visible": true,
-        "order": 10
+        "order": 10,
+        "group": "cohort"
       }
     },
     "TKS1GROUP_M": {
@@ -217,7 +271,8 @@
       "x-display": {
         "label": "Middle prior attainment band: number of all eligible pupils",
         "visible": true,
-        "order": 11
+        "order": 11,
+        "group": "cohort"
       }
     },
     "PTKS1GROUP_M": {
@@ -235,7 +290,8 @@
       "x-display": {
         "label": "Middle prior attainment band: Percentage of all eligible pupils",
         "visible": true,
-        "order": 12
+        "order": 12,
+        "group": "cohort"
       }
     },
     "TKS1GROUP_H": {
@@ -253,7 +309,8 @@
       "x-display": {
         "label": "High prior attainment band: number of all eligible pupils",
         "visible": true,
-        "order": 13
+        "order": 13,
+        "group": "cohort"
       }
     },
     "PTKS1GROUP_H": {
@@ -271,7 +328,8 @@
       "x-display": {
         "label": "High prior attainment band: Percentage of all eligible pupils",
         "visible": true,
-        "order": 14
+        "order": 14,
+        "group": "cohort"
       }
     },
     "TMOBN": {
@@ -289,7 +347,8 @@
       "x-display": {
         "label": "Number of pupils who are non-mobile",
         "visible": true,
-        "order": 15
+        "order": 15,
+        "group": "cohort"
       }
     },
     "PTMOBN": {
@@ -307,7 +366,8 @@
       "x-display": {
         "label": "Percentage of pupils who are non-mobile",
         "visible": true,
-        "order": 16
+        "order": 16,
+        "group": "cohort"
       }
     },
     "TEALGRP2": {
@@ -325,7 +385,8 @@
       "x-display": {
         "label": "Number of pupils with English as an additional language",
         "visible": true,
-        "order": 17
+        "order": 17,
+        "group": "cohort"
       }
     },
     "PTEALGRP2": {
@@ -343,7 +404,8 @@
       "x-display": {
         "label": "Percentage of pupils with English as an additional language",
         "visible": true,
-        "order": 18
+        "order": 18,
+        "group": "cohort"
       }
     },
     "TSENELE": {
@@ -361,7 +423,8 @@
       "x-display": {
         "label": "Number of pupils with an EHC plan",
         "visible": true,
-        "order": 19
+        "order": 19,
+        "group": "cohort"
       }
     },
     "PSENELE": {
@@ -379,7 +442,8 @@
       "x-display": {
         "label": "Percentage of pupils with an EHC plan",
         "visible": true,
-        "order": 20
+        "order": 20,
+        "group": "cohort"
       }
     },
     "TSENELK": {
@@ -397,7 +461,8 @@
       "x-display": {
         "label": "Number of pupils on SEN support",
         "visible": true,
-        "order": 21
+        "order": 21,
+        "group": "cohort"
       }
     },
     "PSENELK": {
@@ -415,7 +480,8 @@
       "x-display": {
         "label": "Percentage of pupils on SEN support",
         "visible": true,
-        "order": 22
+        "order": 22,
+        "group": "cohort"
       }
     },
     "PTRWM_EXP": {
@@ -433,7 +499,8 @@
       "x-display": {
         "label": "Reading, writing TA and mathematics: Percentage of pupils achieving the expected standard",
         "visible": true,
-        "order": 23
+        "order": 23,
+        "group": "rwm-attainment"
       }
     },
     "PTRWM_HIGH": {
@@ -451,7 +518,8 @@
       "x-display": {
         "label": "Reading, writing TA and mathematics: Percentage of pupils achieving a high score",
         "visible": true,
-        "order": 24
+        "order": 24,
+        "group": "rwm-attainment"
       }
     },
     "READPROG_WEB": {
@@ -464,12 +532,13 @@
         "columns": {
           "december": "Y"
         },
-        "heading": "Reading progress score (confidence interval in brackets)"
+        "heading": "Reading progress score"
       },
       "x-display": {
-        "label": "Reading progress score (confidence interval in brackets)",
+        "label": "Reading progress score",
         "visible": true,
-        "order": 25
+        "order": 25,
+        "group": "progress"
       }
     },
     "READCOV": {
@@ -487,7 +556,8 @@
       "x-display": {
         "label": "Percentage of eligible pupils included in the reading progress measure",
         "visible": true,
-        "order": 26
+        "order": 26,
+        "group": "progress"
       }
     },
     "WRITPROG_WEB": {
@@ -500,12 +570,13 @@
         "columns": {
           "december": "AA"
         },
-        "heading": "Writing TA progress score (confidence interval in brackets)"
+        "heading": "Writing TA progress score"
       },
       "x-display": {
-        "label": "Writing TA progress score (confidence interval in brackets)",
+        "label": "Writing TA progress score",
         "visible": true,
-        "order": 27
+        "order": 27,
+        "group": "progress"
       }
     },
     "WRITCOV": {
@@ -523,7 +594,8 @@
       "x-display": {
         "label": "Percentage of eligible pupils included in the writing TA progress measure",
         "visible": true,
-        "order": 28
+        "order": 28,
+        "group": "progress"
       }
     },
     "MATPROG_WEB": {
@@ -536,12 +608,13 @@
         "columns": {
           "december": "AC"
         },
-        "heading": "mathematics progress score (confidence interval in brackets)"
+        "heading": "mathematics progress score"
       },
       "x-display": {
-        "label": "mathematics progress score (confidence interval in brackets)",
+        "label": "mathematics progress score",
         "visible": true,
-        "order": 29
+        "order": 29,
+        "group": "progress"
       }
     },
     "MATCOV": {
@@ -559,7 +632,8 @@
       "x-display": {
         "label": "Percentage of eligible pupils included in the mathematics progress measure",
         "visible": true,
-        "order": 30
+        "order": 30,
+        "group": "progress"
       }
     },
     "PTREAD_EXP": {
@@ -577,7 +651,8 @@
       "x-display": {
         "label": "Reading: Percentage of pupils achieving expected standard",
         "visible": true,
-        "order": 31
+        "order": 31,
+        "group": "subject-attainment"
       }
     },
     "PTREAD_HIGH": {
@@ -595,7 +670,8 @@
       "x-display": {
         "label": "Reading: Percentage of pupils achieving a higher standard",
         "visible": true,
-        "order": 32
+        "order": 32,
+        "group": "subject-attainment"
       }
     },
     "PTREAD_AT": {
@@ -613,7 +689,8 @@
       "x-display": {
         "label": "Reading: percentage of pupils absent or working at the standard of the test but who are unable to access it",
         "visible": true,
-        "order": 33
+        "order": 33,
+        "group": "subject-attainment"
       }
     },
     "PTWRITTA_EXP": {
@@ -631,7 +708,8 @@
       "x-display": {
         "label": "Writing TA: Percentage of pupils achieving expected standard",
         "visible": true,
-        "order": 34
+        "order": 34,
+        "group": "subject-attainment"
       }
     },
     "PTWRITTA_HIGH": {
@@ -649,7 +727,8 @@
       "x-display": {
         "label": "Writing TA: Percentage of pupils working at greater depth within expected standard",
         "visible": true,
-        "order": 35
+        "order": 35,
+        "group": "subject-attainment"
       }
     },
     "PTWRITTA_AD": {
@@ -667,7 +746,8 @@
       "x-display": {
         "label": "Writing TA: Percentage of pupils absent or disapplied",
         "visible": true,
-        "order": 36
+        "order": 36,
+        "group": "subject-attainment"
       }
     },
     "PTMAT_EXP": {
@@ -685,7 +765,8 @@
       "x-display": {
         "label": "Mathematics: Percentage of pupils achieving expected standard",
         "visible": true,
-        "order": 37
+        "order": 37,
+        "group": "subject-attainment"
       }
     },
     "PTMAT_HIGH": {
@@ -703,7 +784,8 @@
       "x-display": {
         "label": "Mathematics: Percentage of pupils achieving a higher standard",
         "visible": true,
-        "order": 38
+        "order": 38,
+        "group": "subject-attainment"
       }
     },
     "PTMAT_AT": {
@@ -721,7 +803,8 @@
       "x-display": {
         "label": "Mathematics: percentage of pupils absent or working at the standard of the test but who are unable to access it",
         "visible": true,
-        "order": 39
+        "order": 39,
+        "group": "subject-attainment"
       }
     },
     "PTGPS_EXP": {
@@ -739,7 +822,8 @@
       "x-display": {
         "label": "Grammar, punctuation and spelling: Percentage of pupils achieving expected standard",
         "visible": true,
-        "order": 40
+        "order": 40,
+        "group": "subject-attainment"
       }
     },
     "PTGPS_HIGH": {
@@ -757,7 +841,8 @@
       "x-display": {
         "label": "Grammar, punctuation and spelling: Percentage of pupils achieving a higher standard",
         "visible": true,
-        "order": 41
+        "order": 41,
+        "group": "subject-attainment"
       }
     },
     "PTGPS_AT": {
@@ -775,7 +860,8 @@
       "x-display": {
         "label": "Grammar, punctuation and spelling: Percentage of pupils absent or working at the standard of the test but unable to access it",
         "visible": true,
-        "order": 42
+        "order": 42,
+        "group": "subject-attainment"
       }
     },
     "READ_AVERAGE": {
@@ -793,7 +879,8 @@
       "x-display": {
         "label": "Average scaled score in reading",
         "visible": true,
-        "order": 43
+        "order": 43,
+        "group": "average-scaled-score"
       }
     },
     "GPS_AVERAGE": {
@@ -811,7 +898,8 @@
       "x-display": {
         "label": "Average scaled score in grammar, punctuation and spelling",
         "visible": true,
-        "order": 44
+        "order": 44,
+        "group": "average-scaled-score"
       }
     },
     "MAT_AVERAGE": {
@@ -829,7 +917,8 @@
       "x-display": {
         "label": "Average scaled score in mathematics",
         "visible": true,
-        "order": 45
+        "order": 45,
+        "group": "average-scaled-score"
       }
     },
     "PTRWM_EXP_L": {
@@ -847,7 +936,8 @@
       "x-display": {
         "label": "Percentage of pupils with low prior attainment reaching the expected standard in reading, writing TA and mathematics",
         "visible": true,
-        "order": 46
+        "order": 46,
+        "group": "prior-attainers-rwm"
       }
     },
     "PTRWM_HIGH_L": {
@@ -865,7 +955,8 @@
       "x-display": {
         "label": "Percentage of pupils with low prior attainment achieving a higher standard in reading, writing TA and mathematics",
         "visible": true,
-        "order": 47
+        "order": 47,
+        "group": "prior-attainers-rwm"
       }
     },
     "PTRWM_EXP_M": {
@@ -883,7 +974,8 @@
       "x-display": {
         "label": "Percentage of pupils with medium prior attainment reaching the expected standard in reading, writing TA and mathematics",
         "visible": true,
-        "order": 48
+        "order": 48,
+        "group": "prior-attainers-rwm"
       }
     },
     "PTRWM_HIGH_M": {
@@ -901,7 +993,8 @@
       "x-display": {
         "label": "Percentage of pupils with medium prior attainment achieving a higher standard in reading, writing TA and mathematics",
         "visible": true,
-        "order": 49
+        "order": 49,
+        "group": "prior-attainers-rwm"
       }
     },
     "PTRWM_EXP_H": {
@@ -919,7 +1012,8 @@
       "x-display": {
         "label": "Percentage of pupils with high prior attainment reaching the expected standard in reading, writing TA and mathematics",
         "visible": true,
-        "order": 50
+        "order": 50,
+        "group": "prior-attainers-rwm"
       }
     },
     "PTRWM_HIGH_H": {
@@ -937,7 +1031,8 @@
       "x-display": {
         "label": "Percentage of pupils with high prior attainment achieving a higher standard in reading, writing TA and mathematics",
         "visible": true,
-        "order": 51
+        "order": 51,
+        "group": "prior-attainers-rwm"
       }
     },
     "PTREAD_EXP_L": {
@@ -955,7 +1050,8 @@
       "x-display": {
         "label": "Percentage of pupils with low prior attainment reaching the expected standard in reading",
         "visible": true,
-        "order": 52
+        "order": 52,
+        "group": "prior-attainers-reading"
       }
     },
     "PTREAD_HIGH_L": {
@@ -973,7 +1069,8 @@
       "x-display": {
         "label": "Percentage of pupils with low prior attainment achieving a high score in reading",
         "visible": true,
-        "order": 53
+        "order": 53,
+        "group": "prior-attainers-reading"
       }
     },
     "PTREAD_EXP_M": {
@@ -991,7 +1088,8 @@
       "x-display": {
         "label": "Percentage of pupils with medium prior attainment reaching the expected standard in reading",
         "visible": true,
-        "order": 54
+        "order": 54,
+        "group": "prior-attainers-reading"
       }
     },
     "PTREAD_HIGH_M": {
@@ -1009,7 +1107,8 @@
       "x-display": {
         "label": "Percentage of pupils with medium prior attainment achieving a high score in reading",
         "visible": true,
-        "order": 55
+        "order": 55,
+        "group": "prior-attainers-reading"
       }
     },
     "PTREAD_EXP_H": {
@@ -1027,7 +1126,8 @@
       "x-display": {
         "label": "Percentage of pupils with high prior attainment reaching the expected standard in reading",
         "visible": true,
-        "order": 56
+        "order": 56,
+        "group": "prior-attainers-reading"
       }
     },
     "PTREAD_HIGH_H": {
@@ -1045,7 +1145,8 @@
       "x-display": {
         "label": "Percentage of pupils with high prior attainment achieving a high score in reading",
         "visible": true,
-        "order": 57
+        "order": 57,
+        "group": "prior-attainers-reading"
       }
     },
     "PTWRITTA_EXP_L": {
@@ -1063,7 +1164,8 @@
       "x-display": {
         "label": "Percentage of pupils with low prior attainment reaching the expected standard in writing TA",
         "visible": true,
-        "order": 58
+        "order": 58,
+        "group": "prior-attainers-writing"
       }
     },
     "PTWRITTA_HIGH_L": {
@@ -1081,7 +1183,8 @@
       "x-display": {
         "label": "Percentage of pupils with low prior attainment working at greater depth in writing TA",
         "visible": true,
-        "order": 59
+        "order": 59,
+        "group": "prior-attainers-writing"
       }
     },
     "PTWRITTA_EXP_M": {
@@ -1099,7 +1202,8 @@
       "x-display": {
         "label": "Percentage of pupils with medium prior attainment reaching the expected standard in writing TA",
         "visible": true,
-        "order": 60
+        "order": 60,
+        "group": "prior-attainers-writing"
       }
     },
     "PTWRITTA_HIGH_M": {
@@ -1117,7 +1221,8 @@
       "x-display": {
         "label": "Percentage of pupils with medium prior attainment working at greater depth in writing TA",
         "visible": true,
-        "order": 61
+        "order": 61,
+        "group": "prior-attainers-writing"
       }
     },
     "PTWRITTA_EXP_H": {
@@ -1135,7 +1240,8 @@
       "x-display": {
         "label": "Percentage of pupils with high prior attainment reaching the expected standard in writing TA",
         "visible": true,
-        "order": 62
+        "order": 62,
+        "group": "prior-attainers-writing"
       }
     },
     "PTWRITTA_HIGH_H": {
@@ -1153,7 +1259,8 @@
       "x-display": {
         "label": "Percentage of pupils with high prior attainment working at greater depth in writing TA",
         "visible": true,
-        "order": 63
+        "order": 63,
+        "group": "prior-attainers-writing"
       }
     },
     "PTMAT_EXP_L": {
@@ -1171,7 +1278,8 @@
       "x-display": {
         "label": "Percentage of pupils with low prior attainment reaching the expected standard in mathematics",
         "visible": true,
-        "order": 64
+        "order": 64,
+        "group": "prior-attainers-mathematics"
       }
     },
     "PTMAT_HIGH_L": {
@@ -1189,7 +1297,8 @@
       "x-display": {
         "label": "Percentage of pupils with low prior attainment achieving a high score in mathematics",
         "visible": true,
-        "order": 65
+        "order": 65,
+        "group": "prior-attainers-mathematics"
       }
     },
     "PTMAT_EXP_M": {
@@ -1207,7 +1316,8 @@
       "x-display": {
         "label": "Percentage of pupils with medium prior attainment reaching the expected standard in mathematics",
         "visible": true,
-        "order": 66
+        "order": 66,
+        "group": "prior-attainers-mathematics"
       }
     },
     "PTMAT_HIGH_M": {
@@ -1225,7 +1335,8 @@
       "x-display": {
         "label": "Percentage of pupils with medium prior attainment achieving a high score in mathematics",
         "visible": true,
-        "order": 67
+        "order": 67,
+        "group": "prior-attainers-mathematics"
       }
     },
     "PTMAT_EXP_H": {
@@ -1243,7 +1354,8 @@
       "x-display": {
         "label": "Percentage of pupils with high prior attainment reaching the expected standard in mathematics",
         "visible": true,
-        "order": 68
+        "order": 68,
+        "group": "prior-attainers-mathematics"
       }
     },
     "PTMAT_HIGH_H": {
@@ -1261,7 +1373,8 @@
       "x-display": {
         "label": "Percentage of pupils with high prior attainment achieving a high score in mathematics",
         "visible": true,
-        "order": 69
+        "order": 69,
+        "group": "prior-attainers-mathematics"
       }
     },
     "PTGPS_EXP_L": {
@@ -1279,7 +1392,8 @@
       "x-display": {
         "label": "Percentage of pupils with low prior attainment reaching the expected standard in grammar, punctuation and spelling",
         "visible": true,
-        "order": 70
+        "order": 70,
+        "group": "prior-attainers-gps"
       }
     },
     "PTGPS_HIGH_L": {
@@ -1297,7 +1411,8 @@
       "x-display": {
         "label": "Percentage of pupils with low prior attainment achieving a high score in grammar, punctuation and spelling",
         "visible": true,
-        "order": 71
+        "order": 71,
+        "group": "prior-attainers-gps"
       }
     },
     "PTGPS_EXP_M": {
@@ -1315,7 +1430,8 @@
       "x-display": {
         "label": "Percentage of pupils with medium prior attainment reaching the expected standard in grammar, punctuation and spelling",
         "visible": true,
-        "order": 72
+        "order": 72,
+        "group": "prior-attainers-gps"
       }
     },
     "PTGPS_HIGH_M": {
@@ -1333,7 +1449,8 @@
       "x-display": {
         "label": "Percentage of pupils with medium prior attainment achieving a high score in grammar, punctuation and spelling",
         "visible": true,
-        "order": 73
+        "order": 73,
+        "group": "prior-attainers-gps"
       }
     },
     "PTGPS_EXP_H": {
@@ -1351,7 +1468,8 @@
       "x-display": {
         "label": "Percentage of pupils with high prior attainment reaching the expected standard in grammar, punctuation and spelling",
         "visible": true,
-        "order": 74
+        "order": 74,
+        "group": "prior-attainers-gps"
       }
     },
     "PTGPS_HIGH_H": {
@@ -1369,7 +1487,8 @@
       "x-display": {
         "label": "Percentage of pupils with high prior attainment achieving a high score in grammar, punctuation and spelling",
         "visible": true,
-        "order": 75
+        "order": 75,
+        "group": "prior-attainers-gps"
       }
     },
     "TFSM6CLA1A": {
@@ -1387,7 +1506,8 @@
       "x-display": {
         "label": "Number of disadvantaged pupils",
         "visible": true,
-        "order": 76
+        "order": 76,
+        "group": "disadvantaged"
       }
     },
     "PTFSM6CLA1A": {
@@ -1405,7 +1525,8 @@
       "x-display": {
         "label": "Percentage of disadvantaged pupils",
         "visible": true,
-        "order": 77
+        "order": 77,
+        "group": "disadvantaged"
       }
     },
     "PTRWM_EXP_FSM6CLA1A": {
@@ -1423,7 +1544,8 @@
       "x-display": {
         "label": "Percentage of disadvantaged pupils reaching the expected standard in reading, writing TA and mathematics",
         "visible": true,
-        "order": 78
+        "order": 78,
+        "group": "disadvantaged"
       }
     },
     "PTRWM_HIGH_FSM6CLA1A": {
@@ -1441,7 +1563,8 @@
       "x-display": {
         "label": "Percentage of disadvantaged pupils achieving a higher standard in reading, writing TA and mathematics",
         "visible": true,
-        "order": 79
+        "order": 79,
+        "group": "disadvantaged"
       }
     }
   }

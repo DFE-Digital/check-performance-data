@@ -417,6 +417,17 @@ public sealed class AccessibilityAuditViewTests
 		Assert.DoesNotContain("href=\"#\"", view);
 	}
 
+	[Fact]
+	public void VerticalSummary_GroupTitlesAreHeadingsBelowTheDatasetHeading()
+	{
+		// The dataset title is the h2. Each group's title is a real heading one level down, so a
+		// screen reader user can move between the groups.
+		var view = ReadView("Views", "CheckYourPupilData", "_VerticalSummary.cshtml");
+
+		Assert.Contains("<h2 class=\"govuk-heading-l\">@summary.Label</h2>", view);
+		Assert.Contains("<h3 class=\"govuk-heading-m\">@group.Title</h3>", view);
+	}
+
 	[Theory]
 	[InlineData("_ExerciseTable.cshtml")]
 	[InlineData("_RawExerciseTable.cshtml")]

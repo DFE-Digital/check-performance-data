@@ -272,6 +272,87 @@ public class ExerciseDisplayServiceTests
     }
 
     [Fact]
+    public void Vertical_view_shows_the_fields_under_the_schemas_groups_in_group_order()
+    {
+        var definition = GroupedDefinition(
+            ("LAESTAB", null), ("PUPILS", "cohort"), ("SCORE", "progress"), ("BOYS", "cohort"));
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["LAESTAB"] = "8412009", ["PUPILS"] = "30", ["SCORE"] = "1.10", ["BOYS"] = "14" }
+        };
+
+        var view = Service().BuildVertical(rows, definition);
+
+        Assert.Equal([null, "Cohort", "Progress"], view.Sections.Select(s => s.Title));
+        Assert.Equal(["LAESTAB"], view.Sections[0].Fields.Select(f => f.Label));
+        Assert.Equal(["PUPILS", "BOYS"], view.Sections[1].Fields.Select(f => f.Label));
+        Assert.Equal([("SCORE", "1.10")], view.Sections[2].Fields.Select(f => (f.Label, f.Value)));
+    }
+
+    [Fact]
+    public void Vertical_view_leaves_out_a_group_with_no_field()
+    {
+        var definition = GroupedDefinition(("PUPILS", "cohort"));
+
+        var view = Service().BuildVertical([new() { ["PUPILS"] = "30" }], definition);
+
+        Assert.Equal(["Cohort"], view.Sections.Select(s => s.Title));
+    }
+
+    [Fact]
+    public void Vertical_view_is_ungrouped_when_a_field_names_a_group_the_schema_does_not_declare()
+    {
+        // Fail closed: a typo in a group key must not hide the field.
+        var definition = GroupedDefinition(("PUPILS", "cohort"), ("SCORE", "progres"));
+
+        var view = Service().BuildVertical([new() { ["PUPILS"] = "30", ["SCORE"] = "1.10" }], definition);
+
+        Assert.Empty(definition.Groups);
+        Assert.Empty(view.Sections);
+        Assert.Equal(["PUPILS", "SCORE"], view.Fields.Select(f => f.Label));
+    }
+
+    [Fact]
+    public void Vertical_view_is_ungrouped_when_a_field_with_no_group_comes_after_a_grouped_field()
+    {
+        // A field with no group shows above the first group. One placed later has lost its group.
+        var definition = GroupedDefinition(("PUPILS", "cohort"), ("SCORE", null));
+
+        var view = Service().BuildVertical([new() { ["PUPILS"] = "30", ["SCORE"] = "1.10" }], definition);
+
+        Assert.Empty(view.Sections);
+        Assert.Equal(["PUPILS", "SCORE"], view.Fields.Select(f => f.Label));
+    }
+
+    [Fact]
+    public void Vertical_view_has_no_sections_when_a_school_has_no_record()
+    {
+        var view = Service().BuildVertical([], GroupedDefinition(("PUPILS", "cohort")));
+
+        Assert.Empty(view.Sections);
+    }
+
+    // Each field's label is its name. The fields are in display order.
+    private static ExerciseDataset GroupedDefinition(params (string Field, string? Group)[] fields)
+    {
+        var properties = string.Join(",", fields.Select((f, i) =>
+            $$"""
+              "{{f.Field}}": { "x-display": { "label": "{{f.Field}}", "order": {{i}}{{(f.Group is null ? "" : $", \"group\": \"{f.Group}\"")}} } }
+              """));
+        var schema = $$"""
+            {
+              "x-ingress": { "collection": "summary" },
+              "x-display": { "section": "Summary", "groups": [
+                { "key": "cohort", "title": "Cohort" },
+                { "key": "progress", "title": "Progress" } ] },
+              "properties": { {{properties}} }
+            }
+            """;
+        using var json = JsonDocument.Parse(schema);
+        return Service().ParseDefinition("summary", null, json.RootElement);
+    }
+
+    [Fact]
     public void Csv_columns_fall_back_to_the_sheets_own_variant_when_there_is_no_default()
     {
         // The students sheets key their columns "provisional-revised"/"retention" with no

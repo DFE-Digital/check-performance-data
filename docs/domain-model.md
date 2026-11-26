@@ -197,13 +197,15 @@ Session readiness for the journey requires only `SelectedWhatToChange` and `Chec
   `x-download.columnVariant` exports only the fields that have a column letter under that key.
   All of this lives in Application — the controller reads session, calls the service, returns the
   view. Do not move it back into Web.
-- **A summary list is paged by group, not by row.** A schema's `x-display.groups` (`[{key, title}]`,
-  in show order) and each property's `x-display.group` split the one record into sections, shown
-  as a GOV.UK multi-page guide: contents list, the current group (`section` query value), block
-  pagination labelled with the group titles. A group with no field in that file is left out. If
-  any visible field names no declared group, the schema is shown ungrouped on one page, so a typo
-  never hides a field; `ShippedSchemaGroupTests` checks the shipped schemas. The KS2 groups are the
-  supplier's website headings; the 16-19 groups were proposed from the labels.
+- **A summary list can show its fields in groups, on one page.** A schema's `x-display.groups`
+  (`[{key, title}]`, in show order) and each property's `x-display.group` split the one record
+  into sections. Each section has an `h3` heading (below the dataset's `h2`) and its own summary
+  list. Fields with no group can come first, and show above the first heading with no heading of
+  their own (KS2 shows LAESTAB and URN this way). A group with no field in that file is left out.
+  The schema shows ungrouped, in one list, when a field names a group the schema does not declare,
+  or a field with no group comes after a grouped field. Then a typo cannot hide a field.
+  `ShippedSchemaGroupTests` checks the shipped schemas. Only the KS2 summary schemas declare
+  groups. Their groups are the website headings of the KS2 Summary data specification.
 - `ExerciseDisplayService.DatasetFor` resolves which dataset a row belongs to by `DATASET`, then
   then `INCLUDED`, then best field match — and **refuses to guess on a tie**. Picking
   the first would show a school another dataset's records; a test pins the refusal. It names no

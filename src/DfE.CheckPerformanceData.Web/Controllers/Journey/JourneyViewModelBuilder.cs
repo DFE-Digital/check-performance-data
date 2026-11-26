@@ -363,6 +363,7 @@ public sealed class JourneyViewModelBuilder(
             Filter = page.PupilFilter ?? PupilFilter.Included,
             RequireResults = page.RequireResults,
             SearchField = page.PupilSearchField ?? PupilSearchField.All,
+            SuggestionStyle = PupilSuggestionStyles.For(journey.SelectedWhatToChange),
             ExcludePupilId = excludeId,
             SelectedPupilId = existingId,
             SelectedPupilLabel = existingLabel,

@@ -171,12 +171,16 @@ All flow configs begin with one or more `PupilSearch` pages. These are full-page
 
 `pupilSearchField` does not change the suggestion text. Each KS4 suggestion shows the CYPMD ID, UPN, date of birth and inclusion status (#623), so two duplicate records with the same name and date of birth can be told apart on every page.
 
-**Suggestions endpoint:** `GET /pupils/suggestions?windowId={id}&query={q}&filter=Included|All|Includable|NotIncludable&excludePupilId={guid}&requireResults=true&pupilSearchField=All|CypmdId`  
+A results enquiry page asks for the results enquiry row (#902): `Forename, Surname, (CYPMD ID:…, UPN:…, DOB:…, INCLUDED)`, or `NOT INCLUDED`. `JourneyViewModelBuilder` takes the style from the journey type (`PupilSuggestionStyles.For`). No flow file sets it. On a 16-19 window each page shows this row, with `ULN`.
+
+**Suggestions endpoint:** `GET /pupils/suggestions?windowId={id}&query={q}&filter=Included|All|Includable|NotIncludable&excludePupilId={guid}&requireResults=true&pupilSearchField=All|CypmdId&suggestionStyle=Standard|ResultsEnquiry`  
 Served by `PupilSuggestionsController`. Reads the school's pupils from the cached per-school-window blob through `ICheckYourPupilDataService.GetPupilSuggestionsAsync` (`CheckYourPupilDataRepository`); it does **not** query PostgreSQL — the `Pupils` table was dropped when pupil data moved to blob storage. The `match` pupil page automatically passes the primary pupil's ID as `excludePupilId` so the same pupil cannot be selected twice.
 
 `requireResults` is sent only when the page config sets it. The service resolves the school's set of CYPMD ids with results (`IResultsClient.GetCypmdIdsWithResultsAsync`, served from the same cached results file the enquiry itself reads) and passes it to `SearchPupilsAsync` as an allow-list, which applies it **before** the ten-suggestion cap — filtering afterwards would drop the one student who holds results whenever ten who do not sort ahead of them. It is a search restriction, never a permission: it can reach no pupil outside the signed-in school's own file. With it on, the autocomplete's no-match text becomes "No students found with results" (or "No pupils found with results": the window's learner noun), so a school can tell a typo from a student who holds nothing.
 
 `pupilSearchField` is sent only when the page config narrows the search; the endpoint defaults to `All`, so omitting it leaves every unconfigured page on the historical matching. It is a search restriction, not a permission — like `requireResults`, it cannot reach a pupil outside the signed-in school's own file, and the primary pupil's `excludePupilId` is still applied, so the first record can never be offered as its own match.
+
+`suggestionStyle` is sent only on a results enquiry page; the endpoint defaults to `Standard`. It changes the text of each row and nothing else: the search returns the same pupils with or without it.
 
 **On successful pupil selection (`PupilSearchPost`):**
 

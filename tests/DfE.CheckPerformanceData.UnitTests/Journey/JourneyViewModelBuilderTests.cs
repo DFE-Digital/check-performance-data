@@ -547,6 +547,32 @@ public class JourneyViewModelBuilderTests
         Assert.False(vm.RequireResults);
     }
 
+    [Theory]
+    [InlineData(WhatToChange.IncorrectGrade)]
+    [InlineData(WhatToChange.MissingQualification)]
+    [InlineData(WhatToChange.ResultDoesNotBelong)]
+    public void BuildPupilSearchVm_OnAResultsEnquiry_AsksForTheResultsEnquiryRow(WhatToChange change)
+    {
+        var journey = JourneyWithHistory([], CheckingWindowType.KS4Autumn);
+        journey.SelectedWhatToChange = change;
+
+        var vm = _sut.BuildPupilSearchVm(WindowId, "select-pupil", PupilSearchPageConfig, journey, Config);
+
+        Assert.Equal(PupilSuggestionStyle.ResultsEnquiry, vm.SuggestionStyle);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    [InlineData(CheckingWindowType.Post16)]
+    public void BuildPupilSearchVm_OnAnAmendment_AsksForTheStandardRow(CheckingWindowType windowType)
+    {
+        var journey = JourneyWithHistory([], windowType);
+
+        var vm = _sut.BuildPupilSearchVm(WindowId, "select-pupil", PupilSearchPageConfig, journey, Config);
+
+        Assert.Equal(PupilSuggestionStyle.Standard, vm.SuggestionStyle);
+    }
+
     [Fact]
     public void BuildPupilSearchVm_ForMatchKey_SetsExcludePupilIdFromSelectedPupil()
     {

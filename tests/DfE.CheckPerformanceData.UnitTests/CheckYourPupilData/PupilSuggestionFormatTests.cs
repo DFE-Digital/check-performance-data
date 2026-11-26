@@ -100,6 +100,57 @@ public sealed class PupilSuggestionFormatTests
         Assert.Contains("DOB: 01/01/2010", label);
     }
 
+    private const string EnquiryLabel =
+        "Jane, Smith, (CYPMD ID:800001, UPN:A8604070001B, DOB:01/01/2010, INCLUDED)";
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    [InlineData(CheckingWindowType.KS4June)]
+    [InlineData(CheckingWindowType.KS2)]
+    public void A_results_enquiry_row_has_the_forename_first_and_names_the_upn(CheckingWindowType windowType)
+    {
+        var label = PupilSuggestionFormat.Label(
+            CypmdIdPupil, windowType, PupilSearchField.All, PupilSuggestionStyle.ResultsEnquiry);
+
+        Assert.Equal(EnquiryLabel, label);
+    }
+
+    [Fact]
+    public void A_results_enquiry_row_marks_a_pupil_who_is_not_included()
+    {
+        var label = PupilSuggestionFormat.Label(
+            Ks4(cypmdId: "800001", included: false), CheckingWindowType.KS4Autumn,
+            PupilSearchField.All, PupilSuggestionStyle.ResultsEnquiry);
+
+        Assert.EndsWith("DOB:01/01/2010, NOT INCLUDED)", label);
+    }
+
+    [Theory]
+    [InlineData(PupilSuggestionStyle.Standard)]
+    [InlineData(PupilSuggestionStyle.ResultsEnquiry)]
+    public void A_16_19_row_is_the_same_under_both_styles(PupilSuggestionStyle style)
+    {
+        Assert.Equal("Billy, B, (CYPMD ID:500001, ULN:9900000001, DOB:12/03/2007, INCLUDED)",
+            PupilSuggestionFormat.Label(Post16(), CheckingWindowType.Post16, PupilSearchField.All, style));
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    [InlineData(CheckingWindowType.KS4June)]
+    [InlineData(CheckingWindowType.KS2)]
+    public void The_standard_style_keeps_the_ks4_row(CheckingWindowType windowType)
+    {
+        Assert.Equal(Ks4Label, PupilSuggestionFormat.Label(
+            CypmdIdPupil, windowType, PupilSearchField.All, PupilSuggestionStyle.Standard));
+    }
+
+    [Fact]
+    public void A_style_that_is_not_defined_gives_the_standard_row()
+    {
+        Assert.Equal(Ks4Label, PupilSuggestionFormat.Label(
+            CypmdIdPupil, CheckingWindowType.KS4Autumn, PupilSearchField.All, (PupilSuggestionStyle)99));
+    }
+
     // ── Matching — PupilSearchField.CypmdId (AB#304118) ───────────────────────
     // A page narrowed to the CYPMD ID must not match a name. Everything below is one pupil record: any case that returns true is the
     // CypmdId prefix, and any that returns false is proof the other fields were dropped rather than

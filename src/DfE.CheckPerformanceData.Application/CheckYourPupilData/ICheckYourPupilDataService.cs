@@ -35,10 +35,14 @@ public interface ICheckYourPupilDataService
     /// <paramref name="searchField"/> narrows what a query is compared against. It is opt-in per
     /// page for the same reason: a page whose label names a specific identifier should not also match
     /// on names (see <see cref="PupilSearchField"/>).
+    ///
+    /// <paramref name="style"/> chooses the layout of the text of each row. It does not change
+    /// which pupils return (see <see cref="PupilSuggestionStyle"/>).
     /// </summary>
     Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query,
         PupilFilter filter, Guid? excludeId = null, bool requireResults = false,
-        PupilSearchField searchField = PupilSearchField.All);
+        PupilSearchField searchField = PupilSearchField.All,
+        PupilSuggestionStyle style = PupilSuggestionStyle.Standard);
 
     Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId);
 

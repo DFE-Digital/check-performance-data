@@ -17,12 +17,12 @@ public sealed class PupilSuggestionsController(ICheckYourPupilDataService servic
     // restriction, because model binding ignores an unrecognised key and the default then applies —
     // AB#304118's CYPMD-ID-only page searched by name again with no error. PupilSearchViewSourceTests
     // reflects this signature against the keys the view emits, so the two cannot drift apart again.
-    public async Task<IActionResult> Suggestions(Guid windowId, string? query, PupilFilter filter, Guid? excludePupilId, bool requireResults = false, PupilSearchField pupilSearchField = PupilSearchField.All)
+    public async Task<IActionResult> Suggestions(Guid windowId, string? query, PupilFilter filter, Guid? excludePupilId, bool requireResults = false, PupilSearchField pupilSearchField = PupilSearchField.All, PupilSuggestionStyle suggestionStyle = PupilSuggestionStyle.Standard)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2 || query.Length > 100)
             return Json(Array.Empty<object>());
 
-        var suggestions = await service.GetPupilSuggestionsAsync(windowId, query, filter, excludePupilId, requireResults, pupilSearchField);
+        var suggestions = await service.GetPupilSuggestionsAsync(windowId, query, filter, excludePupilId, requireResults, pupilSearchField, suggestionStyle);
         return Json(suggestions.Select(s => new { id = s.Id, label = s.Label }));
     }
 }

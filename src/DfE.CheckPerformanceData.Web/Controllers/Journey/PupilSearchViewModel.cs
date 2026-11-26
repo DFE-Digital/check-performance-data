@@ -25,6 +25,10 @@ public sealed class PupilSearchViewModel
     /// <summary>Which pupil fields this page's query is matched against. See
     /// <see cref="Application.Journey.JourneyPage.PupilSearchField"/>.</summary>
     public PupilSearchField SearchField { get; set; } = PupilSearchField.All;
+
+    /// <summary>The row layout that this page asks the suggestions endpoint for. See
+    /// <see cref="PupilSuggestionStyles.For"/>.</summary>
+    public PupilSuggestionStyle SuggestionStyle { get; set; } = PupilSuggestionStyle.Standard;
     public string? SelectedPupilId { get; set; }
     public string? SelectedPupilLabel { get; set; }
     public string? Hint { get; set; }

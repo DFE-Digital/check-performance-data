@@ -27,6 +27,8 @@ The layout triggers the prefix on `!ModelState.IsValid`. When a page's errors li
 
 In particular, do not set `is-page-heading="true"` on a `govuk-radios-fieldset-legend` when the page already has an `<h1>` (typically an `EditableTitle`). Use `class="govuk-fieldset__legend--l"` instead — same visual size, no second page heading. `Views/CheckYourPupilData/Index.cshtml` is the worked example.
 
+**Do not skip a heading level.** On a summary tab (`_VerticalSummary.cshtml`) the dataset title is an `<h2>`. When the schema groups its fields, each group title is an `<h3>`, so a screen reader user can move between the groups. `AccessibilityAuditViewTests.VerticalSummary_GroupTitlesAreHeadingsBelowTheDatasetHeading` pins the two levels.
+
 ## Labels
 
 **Every form control has a real `<label for="…">`.** `aria-describedby` is not an accessible name, and neither is a nearby `<h1>`.

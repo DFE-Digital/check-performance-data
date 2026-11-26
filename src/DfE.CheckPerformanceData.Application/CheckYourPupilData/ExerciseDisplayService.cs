@@ -63,13 +63,28 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
 
     /// <summary>Pivots a school's single record into label/value rows. A file with more than one
     /// record is a data fault; the first is shown so the caller can log it rather than lose the tab.</summary>
+    /// <remarks>When the schema groups its fields, the rows are also split into one section per
+    /// group, in the schema's group order. The fields with no group come first, with no title. A
+    /// group with no field is left out.</remarks>
     public VerticalExerciseView BuildVertical(IReadOnlyList<Dictionary<string, string>> rows,
         ExerciseDataset definition)
     {
         var record = rows.Count > 0 ? rows[0] : null;
         var fields = record is null ? [] : definition.Columns
             .Select(c => new VerticalField(c.Label, Value(record, c.Field))).ToList();
-        return new VerticalExerciseView(definition with { Rows = rows }, fields);
+        var view = new VerticalExerciseView(definition with { Rows = rows }, fields);
+        if (record is null || definition.Groups.Count == 0) return view;
+
+        // The first entry is the fields with no group. They show with no title.
+        IEnumerable<(string? Key, string? Title)> groups =
+            [(null, null), .. definition.Groups.Select(g => ((string?)g.Key, (string?)g.Title))];
+        var sections = groups
+            .Select(g => new VerticalSection(g.Title, definition.Columns
+                .Where(c => c.Group == g.Key)
+                .Select(c => new VerticalField(c.Label, Value(record, c.Field))).ToList()))
+            .Where(s => s.Fields.Count > 0)
+            .ToList();
+        return view with { Sections = sections };
     }
 
     // The supplier sends dates as YYYY-MM-DD; schools read them, on screen and in a download, as
@@ -161,7 +176,7 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
             var searchable = display.ValueKind == JsonValueKind.Object &&
                 display.TryGetProperty("searchable", out var search) && search.GetBoolean();
             return new DisplayColumn(property.Name,
-                Text(display, "label") ?? property.Name, order, searchable);
+                Text(display, "label") ?? property.Name, order, searchable, Text(display, "group"));
         }).Where(c => c is not null).Select(c => c!).OrderBy(c => c.Order).ToList();
         // A sheet with more than one column set (the 16-18 pupil sheet: provisional/revised and
         // retention) has one schema, and the schema says which set its file uses. A field with no
@@ -189,7 +204,30 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
         }).Where(c => c is not null).Select(c => c!).OrderBy(c => c.Order).ToList();
         // x-display.layout in a schema is ignored: the exercise sets the layout (see ExerciseLayout).
         return new ExerciseDataset(key, label, fileName, columns, csvColumns, [], included,
-            new HashSet<string>(properties.Select(p => p.Name), StringComparer.OrdinalIgnoreCase), selectorOrder);
+            new HashSet<string>(properties.Select(p => p.Name), StringComparer.OrdinalIgnoreCase), selectorOrder)
+        {
+            Groups = Groups(root, columns)
+        };
+    }
+
+    // x-display.groups lists each group's key and title, in the order they show. Fields with no
+    // group may come first (the school's identifiers), and show above the first group. The schema
+    // shows ungrouped when a field names an undeclared group, or a field with no group comes after
+    // a grouped one. Then a typo cannot hide a field. ShippedSchemaGroupTests checks shipped schemas.
+    private static IReadOnlyList<DisplayGroup> Groups(JsonElement root, IReadOnlyList<DisplayColumn> columns)
+    {
+        if (!root.TryGetProperty("x-display", out var display) || display.ValueKind != JsonValueKind.Object ||
+            !display.TryGetProperty("groups", out var list) || list.ValueKind != JsonValueKind.Array) return [];
+        var groups = list.EnumerateArray()
+            .Select(g => (Key: Text(g, "key"), Title: Text(g, "title")))
+            .Where(g => !string.IsNullOrWhiteSpace(g.Key) && !string.IsNullOrWhiteSpace(g.Title))
+            .Select(g => new DisplayGroup(g.Key!, g.Title!))
+            .DistinctBy(g => g.Key)
+            .ToList();
+        var keys = groups.Select(g => g.Key).ToHashSet();
+        var ungroupedLead = columns.TakeWhile(c => c.Group is null).Count();
+        var valid = columns.Skip(ungroupedLead).All(c => c.Group is not null && keys.Contains(c.Group));
+        return groups.Count > 0 && valid ? groups : [];
     }
 
     private static string? Text(JsonElement element, params string[] path)

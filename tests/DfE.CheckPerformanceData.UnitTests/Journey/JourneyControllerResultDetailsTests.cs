@@ -137,6 +137,20 @@ public sealed class JourneyControllerResultDetailsTests
     /// <summary>The QAN-not-in-the-16-19-reference state: a result with no qualification beside it.</summary>
     private void ReadyUnresolved(ResultRecord result) => ReadyWith(result, null, null);
 
+    private void ReadyUnresolvedOnKs4Autumn(ResultRecord result)
+    {
+        _flowService.GetConfigAsync(WhatToChange.IncorrectGrade, CheckingWindowType.KS4Autumn).Returns(Flow);
+        ReadyUnresolved(result);
+        var state = _session.GetRequestState(WindowId);
+        state.CheckingWindow = new CheckingWindowDto
+        {
+            Title = "KS4 Autumn", KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4Autumn,
+            StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+        };
+        _session.SetRequestState(WindowId, state);
+    }
+
     private void ReadyWith(
         ResultRecord result,
         Dictionary<string, QuestionAnswer>? answers,
@@ -361,6 +375,25 @@ public sealed class JourneyControllerResultDetailsTests
         Assert.Equal(["*", "D", "F", "P", "Q", "R", "U", "X"],
             vm.NonFileUploadModels.Single().VisibleOptions.Select(o => o.Value).ToArray());
         Assert.NotNull(_session.GetRequestState(WindowId).SelectedResultQualification);
+    }
+
+    [Fact]
+    public async Task Get_on_a_ks4_autumn_window_re_resolves_a_result_from_the_ks4_list()
+    {
+        _qualificationReference.GetLookupAsync(QualificationReferenceSet.Post16, Arg.Any<CancellationToken>())
+            .Returns(QualificationReferenceLookup.Empty);
+        _qualificationReference.GetLookupAsync(QualificationReferenceSet.Ks4, Arg.Any<CancellationToken>())
+            .Returns(QualificationReferenceLookup.Parse("""
+                { "60370683": { "qan": "60370683", "qualificationTitle": "From the KS4 list",
+                  "awardingOrganisation": "KS4 AO", "grades": ["1", "2", "3"], "syllabusCodes": [] } }
+                """));
+        ReadyUnresolvedOnKs4Autumn(Result(grade: "2"));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var vm = Assert.IsType<PageViewModel>(view.Model);
+
+        Assert.Equal("KS4 AO", vm.SelectedResultQualification!.AwardingOrganisation);
+        Assert.Equal("From the KS4 list", _session.GetRequestState(WindowId).SelectedResultQualification?.QualificationTitle);
     }
 
     [Fact]

@@ -809,18 +809,6 @@ public class JourneyViewModelBuilderTests
         Assert.Equal(expected, vm.LearnerNoun.Singular);
     }
 
-    [Fact]
-    public void BuildQualificationSearchVm_OnA16To19Window_SaysStudent()
-    {
-        var journey = JourneyWithHistory(["select-pupil"], CheckingWindowType.Post16);
-        var page = new JourneyPage { Id = "select-qualification", Type = PageType.QualificationSearch };
-
-        var vm = _sut.BuildQualificationSearchVm(
-            WindowId, "select-qualification", page, journey, Config, QualificationReferenceLookup.Empty);
-
-        Assert.Equal("student", vm.LearnerNoun.Singular);
-    }
-
     [Theory]
     [InlineData(CheckingWindowType.Post16, "student")]
     [InlineData(CheckingWindowType.KS4Autumn, "pupil")]
@@ -833,17 +821,6 @@ public class JourneyViewModelBuilderTests
         var vm = _sut.BuildSummaryVm(WindowId, journey, Config);
 
         Assert.Equal(expected, vm.MissingQualification!.LearnerNoun.Singular);
-    }
-
-    [Fact]
-    public void BuildSummaryVm_OnA16To19MissingQualification_SaysStudent()
-    {
-        var journey = JourneyWithHistory(["select-pupil"], CheckingWindowType.Post16);
-        journey.SelectedWhatToChange = WhatToChange.MissingQualification;
-
-        var vm = _sut.BuildSummaryVm(WindowId, journey, Config);
-
-        Assert.Equal("student", vm.MissingQualification!.LearnerNoun.Singular);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

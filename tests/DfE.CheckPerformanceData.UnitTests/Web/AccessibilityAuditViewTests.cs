@@ -28,6 +28,17 @@ public sealed class AccessibilityAuditViewTests
 		return File.ReadAllText(Path.Combine(repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "css", "site.css"));
 	}
 
+	[Fact]
+	public void CheckYourPupilData_ShowsJourneyOptionsDuringImpersonationPreview()
+	{
+		var view = ReadView("Views", "CheckYourPupilData", "Index.cshtml");
+
+		Assert.Contains("@if (Model.OffersEnquiryOnly)", view);
+		Assert.Contains("else if (Model.AvailableNextSteps.Count == 1)", view);
+		Assert.Contains("else if (Model.AvailableNextSteps.Count > 1)", view);
+		Assert.Contains("@if (!Impersonation.IsImpersonating)", view);
+	}
+
 	// ── #374 Page regions not identified with ARIA landmarks ──────────────────────────
 
 	[Theory]
@@ -415,6 +426,17 @@ public sealed class AccessibilityAuditViewTests
 		var view = ReadView("Views", "CheckYourPupilData", partial);
 
 		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Fact]
+	public void VerticalSummary_GroupTitlesAreHeadingsBelowTheDatasetHeading()
+	{
+		// The dataset title is the h2. Each group's title is a real heading one level down, so a
+		// screen reader user can move between the groups.
+		var view = ReadView("Views", "CheckYourPupilData", "_VerticalSummary.cshtml");
+
+		Assert.Contains("<h2 class=\"govuk-heading-l\">@summary.Label</h2>", view);
+		Assert.Contains("<h3 class=\"govuk-heading-m\">@group.Title</h3>", view);
 	}
 
 	[Theory]

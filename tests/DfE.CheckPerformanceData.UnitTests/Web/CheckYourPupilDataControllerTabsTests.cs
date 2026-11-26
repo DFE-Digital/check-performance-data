@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.Impersonation;
 // WindowManagement is imported in full, not aliased: IExerciseTabBuilder.BuildAsync takes its
 // CheckingWindowDto (the one carrying TabName/Datasets), which is what Arg.Any<CheckingWindowDto>
 // below must match. The service-facing DTO (ICheckYourPupilDataService.GetCheckingWindowAsync)
@@ -46,14 +47,14 @@ public sealed class CheckYourPupilDataControllerTabsTests
         _currentUser.OrganisationUrn.Returns("123456");
     }
 
-    private CheckYourPupilDataController Controller()
+    private CheckYourPupilDataController Controller(IEstablishmentViewContext? viewContext = null)
     {
         _httpContext = new DefaultHttpContext();
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(new FakeSession()));
 
         var checkingExercises = new CheckingExerciseService(TimeProvider.System);
         return new CheckYourPupilDataController(_service, _currentUser, _analytics,
-            new NextStepsService(checkingExercises), checkingExercises, _tabBuilder, _display)
+            new NextStepsService(checkingExercises), checkingExercises, _tabBuilder, _display, viewContext)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext }
         };
@@ -130,6 +131,25 @@ public sealed class CheckYourPupilDataControllerTabsTests
 
         Assert.Equal("application/json", result.ContentType);
         Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task ImpersonatedAdminDownloadsRawJsonForSelectedEstablishment()
+    {
+        _currentUser.OrganisationLaestab.Returns("");
+        var viewContext = Substitute.For<IEstablishmentViewContext>();
+        viewContext.OrganisationLaestab.Returns("933/4290");
+        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(),
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns([ATab()]);
+        _tabBuilder.ReadRawAsync(Arg.Any<ExerciseTab>(), "933/4290", Arg.Any<CancellationToken>())
+            .Returns(Encoding.UTF8.GetBytes("[]"));
+
+        var result = Assert.IsType<FileContentResult>(await Controller(viewContext)
+            .DownloadExerciseJson(WindowId, ExerciseId, CancellationToken.None));
+
+        Assert.Equal("application/json", result.ContentType);
+        await _tabBuilder.Received(1).ReadRawAsync(Arg.Any<ExerciseTab>(), "933/4290", Arg.Any<CancellationToken>());
     }
 
     [Fact]

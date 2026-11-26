@@ -20,8 +20,10 @@ public sealed class ConfirmCorrectController(
     IRequestService requestService,
     ICheckingExerciseService checkingExercises,
     ICurrentUserService currentUserService,
-    IAnalyticsService analytics) : Controller
+    IAnalyticsService analytics,
+    DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : Controller
 {
+    private string EstablishmentLaestab => viewContext?.OrganisationLaestab ?? currentUserService.OrganisationLaestab;
     // #318: confirming the data is correct is a pupil-data-checking action, so it closes with that
     // exercise even while the outer window (and any other exercise on it) is still running.
     // AB#307773: it closes for the signed-in school, whose extension may run past the exercise's
@@ -35,7 +37,7 @@ public sealed class ConfirmCorrectController(
     public async Task<IActionResult> Index(Guid windowId)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, EstablishmentLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         var confirmVw = new ConfirmCorrectViewModel(windowId, DeadlineLabel(Deadline(window.Exercises, window.EndDate)));
@@ -46,7 +48,7 @@ public sealed class ConfirmCorrectController(
     public async Task<IActionResult> Confirm(Guid windowId)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, EstablishmentLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         var reference = journeyService.GenerateReference(window.CheckingWindowType);
@@ -64,7 +66,7 @@ public sealed class ConfirmCorrectController(
     }
 
     private DateTime Deadline(IReadOnlyList<CheckingExerciseDto> exercises, DateTime outerEnd) =>
-        checkingExercises.EndDateFor(exercises, Exercise, currentUserService.OrganisationLaestab) ?? outerEnd;
+        checkingExercises.EndDateFor(exercises, Exercise, EstablishmentLaestab) ?? outerEnd;
 
     // The time shows its minutes when the end date has some (DeadlineTime); the date and the
     // letter case are as this page has always printed them.

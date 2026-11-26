@@ -31,3 +31,5 @@ The spec gives dates (`DOB`, `ENTRYDAT`) as DD/MM/YYYY. The schema sets no date 
 ## Summary
 
 The fields are the state schools report, in its order, with `LAESTAB` first. The reports for independent schools, FE colleges and non-maintained special schools are subsets, and each field's description names the reports it is in. The label schools see is the spec's "Summary Report CE website description". Values are strings, because a suppressed value is sent as `NA` or `+`.
+
+The summary tab shows the fields in groups. Each group is a "Summary Report Heading" from the spec, in the spec's order (`x-display.groups`). Each field names its group in `x-display.group`. `LAESTAB` has no group, so it shows above the first heading.

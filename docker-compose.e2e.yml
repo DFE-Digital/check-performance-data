@@ -12,6 +12,10 @@
 # unchanged. The `web` dependency, the `cypd` network and the `cpd-nuget-cache`
 # volume all resolve from docker-compose.yaml on merge.
 services:
+  web:
+    environment:
+      - E2E__TestAdminAuthenticationEnabled=true
+
   e2e-tests:
     profiles: [e2e]
     container_name: cypd_e2e_tests
@@ -34,6 +38,7 @@ services:
       # localhost:5432, which inside this container is the container itself — every probe-backed
       # test then fails on connect. Point them at the compose db service explicitly.
       - CPD_E2E_DB=${CPD_E2E_DB:-Host=db;Port=5432;Database=cypd;Username=postgres;Password=postgres}
+      - CPD_E2E_AZURE_STORAGE=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       - NUGET_PACKAGES=/root/.nuget/packages
       - DOTNET_NOLOGO=1
       - DOTNET_CLI_TELEMETRY_OPTOUT=1

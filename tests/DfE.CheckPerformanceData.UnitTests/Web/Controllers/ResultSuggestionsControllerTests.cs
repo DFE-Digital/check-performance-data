@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -140,6 +141,26 @@ public sealed class ResultSuggestionsControllerTests
         var payload = Payload(await _sut.Suggestions(WindowId, "french", default));
 
         Assert.Equal([("60181576|S2024|16to19_LR1", "GCSE (9-1) French, QAN: 60181576, Session: S2024, Grade: 5, File: Late results 1")], payload);
+    }
+
+    [Fact]
+    public async Task Results_are_read_for_the_selected_impersonated_establishment()
+    {
+        SelectPupil();
+        var viewContext = Substitute.For<IEstablishmentViewContext>();
+        viewContext.OrganisationLaestab.Returns("8604070");
+        _results.GetResultsAsync(WindowId, "8604070", CypmdId, Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<ResultRecord>());
+        var httpContext = new DefaultHttpContext();
+        httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
+        var controller = new ResultSuggestionsController(_results, _currentUser, viewContext)
+        {
+            ControllerContext = new ControllerContext { HttpContext = httpContext }
+        };
+
+        await controller.Suggestions(WindowId, "GCSE", default);
+
+        await _results.Received(1).GetResultsAsync(WindowId, "8604070", CypmdId, Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -4,6 +4,8 @@
 @{
     // One record per school, pivoted: a label/value row per visible schema field. No dataset
     // selector, search or paging — there is one record, and each would only add tab stops.
+    // When the schema groups its fields, each group shows under an h3 with its own summary list.
+    // The fields with no group show first, with no heading.
     var summary = Model.Vertical!;
 }
 
@@ -21,15 +23,18 @@
 {
     <p class="govuk-body">There is no data available for this exercise.</p>
 }
+else if (summary.Sections.Count == 0)
+{
+    <partial name="_VerticalSummaryList" model="summary.Fields" />
+}
 else
 {
-    <dl class="govuk-summary-list cpd-summary-measures">
-        @foreach (var field in summary.Fields)
+    @foreach (var group in summary.Sections)
+    {
+        @if (group.Title is not null)
         {
-            <div class="govuk-summary-list__row">
-                <dt class="govuk-summary-list__key">@field.Label</dt>
-                <dd class="govuk-summary-list__value">@field.Value</dd>
-            </div>
+            <h3 class="govuk-heading-m">@group.Title</h3>
         }
-    </dl>
+        <partial name="_VerticalSummaryList" model="group.Fields" />
+    }
 }

@@ -142,8 +142,8 @@ public static partial class EmbeddedImageContent
         foreach (Match tag in ImgTag().Matches(html))
         {
             var attributes = Attributes(tag.Value);
-            if (EmbeddedSrc(attributes) is not { } src) continue;
-            found.Add(new EmbeddedImage(src.Value, Value(attributes, "alt"), Value(attributes, "title")));
+            if (EmbeddedSrc(attributes) is not { Value: { } srcValue }) continue;
+            found.Add(new EmbeddedImage(srcValue, Value(attributes, "alt"), Value(attributes, "title")));
         }
         return found;
     }
@@ -155,7 +155,7 @@ public static partial class EmbeddedImageContent
         foreach (Match tag in ImgTag().Matches(html))
         {
             var attributes = Attributes(tag.Value);
-            if (EmbeddedSrc(attributes) is not { } src || !bySrc.TryGetValue(src.Value, out var image)) continue;
+            if (EmbeddedSrc(attributes) is not { Value: { } srcValue } src || !bySrc.TryGetValue(srcValue, out var image)) continue;
 
             result ??= new StringBuilder(html.Length);
             result.Append(html, copied, tag.Index - copied);

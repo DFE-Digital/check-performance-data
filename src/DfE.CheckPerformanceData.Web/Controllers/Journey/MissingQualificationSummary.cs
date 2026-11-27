@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
+
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 /// <summary>
@@ -14,6 +16,7 @@ public sealed class MissingQualificationSummary
 {
     public required string DfeNumber { get; init; }
     public required string KeyStageLabel { get; init; }
+    public required LearnerNoun LearnerNoun { get; init; }
     public required string StudentName { get; init; }
 
     /// <summary>True when the enquiry covers a whole cohort, which adds the count row and changes
@@ -60,11 +63,11 @@ public sealed class MissingQualificationSummary
             };
 
             if (IsCohortWide)
-                lines.Add(Fixed("Number of students in affected cohort", CohortCount ?? string.Empty));
+                lines.Add(Fixed($"Number of {LearnerNoun.Plural} in affected cohort", CohortCount ?? string.Empty));
 
             // The label is how the summary conveys the cohort answer — there is no separate yes/no
             // row on the Figma screens.
-            lines.Add(Fixed(IsCohortWide ? "Name of a student in cohort" : "Name of student", StudentName));
+            lines.Add(Fixed(IsCohortWide ? $"Name of a {LearnerNoun.Singular} in cohort" : $"Name of {LearnerNoun.Singular}", StudentName));
 
             lines.Add(Fixed("CYPMD ID", CypmdId ?? string.Empty));
 

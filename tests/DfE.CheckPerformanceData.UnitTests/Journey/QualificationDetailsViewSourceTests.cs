@@ -53,6 +53,15 @@ public sealed class QualificationDetailsViewSourceTests
         // qualification is entirely absent from the data, so no late-results file could contain it.
         => Assert.DoesNotContain("second late results", DetailsView());
 
+    [Fact]
+    public void The_name_row_takes_its_noun_from_the_window()
+    {
+        var view = DetailsView();
+
+        Assert.Contains("@Model.LearnerNoun.SingularCapitalised name", view);
+        Assert.DoesNotContain("Student name", view);
+    }
+
     private static string RepoRoot
     {
         get

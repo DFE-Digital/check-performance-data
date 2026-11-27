@@ -67,6 +67,15 @@ public sealed class QualificationSearchViewSourceTests
     }
 
     [Fact]
+    public void The_name_row_takes_its_noun_from_the_window()
+    {
+        var view = ViewSource();
+
+        Assert.Contains("@Model.LearnerNoun.SingularCapitalised name", view);
+        Assert.DoesNotContain("Student name", view);
+    }
+
+    [Fact]
     public void The_headings_come_from_the_flow_config_not_hardcoded_copy()
     {
         // The title, pageTitle and validationFailure on the select-qualification page were dead

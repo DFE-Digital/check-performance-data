@@ -28,11 +28,13 @@ kind-based ones.
 
 **Every clean run of a new-storage exercise is a release.** The run writes under
 `exercises/{id}/releases/{releaseId}/data/`, never over the live output. `PublishReleaseAsync` then
-records the release (with a copy of each slot's files) and makes it current in one save. Readers
-follow `CurrentReleaseId` (null = the unversioned `exercises/{id}/data/`, where seeders write). An
-admin can make an earlier release live (`ExerciseReleaseController`). `ChangeRequest` records
-`CheckingExerciseReleaseId`. Neither release pointer is a foreign key (EF cannot order the cycle).
-Full design: `docs/checking-exercise-releases.md`.
+records the release (with a copy of each slot's files) and makes it current in one save. The
+release also records the schools the run wrote per-school output for
+(`CheckingExerciseRelease.WrittenLaestabs`): the LAESTABs in digits, each once, in LAESTAB order.
+Readers follow `CurrentReleaseId` (null = the unversioned `exercises/{id}/data/`, where seeders
+write). An admin can make an earlier release live (`ExerciseReleaseController`). `ChangeRequest`
+records `CheckingExerciseReleaseId`. Neither release pointer is a foreign key (EF cannot order the
+cycle). Full design: `docs/checking-exercise-releases.md`.
 
 - **The display reads schemas from `CheckingExerciseDto.PublishedDatasets`** (the current release's
   files, or the complete slots when there is no release), **never** from `DatasetsToIngest`. An

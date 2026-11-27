@@ -54,7 +54,7 @@ public sealed class PageViewModel
     /// </summary>
     public Application.ResultsEnquiry.QualificationReference? SelectedResultQualification { get; init; }
 
-    /// <summary>The qualification name the ResultDetails page shows: the 16-19 reference title
+    /// <summary>The qualification name the ResultDetails page shows: the reference title
     /// when the QAN resolved, otherwise the results file's own name.</summary>
     public string SelectedResultQualificationName =>
         SelectedResultQualification?.QualificationTitle ?? SelectedResult?.QualificationName ?? string.Empty;

@@ -50,7 +50,7 @@ ChangeRequest
 
 | Table | Purpose |
 |---|---|
-| `CheckingExerciseReleases` | One row for each clean run. `Number` is 1, 2, 3 and so on in each exercise, with a unique index on (exercise, number). |
+| `CheckingExerciseReleases` | One row for each clean run. `Number` is 1, 2, 3 and so on in each exercise, with a unique index on (exercise, number). `SampleLaestabs` names the schools the run gave sample data. `WrittenLaestabs` names the schools the run wrote per-school output for. |
 | `CheckingExerciseReleaseFiles` | For each slot, the slot id (`DatasetId`), the CSV and schema that the run read, with their checksums, `Included`, `SourceFile` and `FeedsJourney`. This is a **copy**. The slot can take a new file after the run, and the release must still name its own files. |
 
 `CheckingExercise.CurrentReleaseId` and `ChangeRequest.CheckingExerciseReleaseId` have **no foreign
@@ -59,7 +59,7 @@ is a cycle that EF cannot order when it deletes an exercise. Only
 `CheckingExerciseDefinitionRepository` writes `CurrentReleaseId`, and it always sets it to a
 release of the same exercise.
 
-Two migrations:
+Four migrations:
 
 - `AddCheckingExerciseReleases` adds the two tables and the two nullable pointers. It changes no
   data. Every existing exercise starts with no release.
@@ -68,6 +68,9 @@ Two migrations:
   marks every existing slot on an exercise with a kind as a journey slot, and sets `Layout =
   Vertical` on the display-only `Summary` exercises (the only ones whose schemas asked for it). It
   does not backfill `DatasetId`: see "Releases from before per-dataset files" below.
+- `AddReleaseSampleLaestabs` (#938) adds `SampleLaestabs` to `CheckingExerciseReleases`: a `text[]`
+  column, not null, with default `'{}'::text[]`. It changes no existing data.
+- `AddReleaseWrittenLaestabs` (#905) adds `WrittenLaestabs` the same way.
 
 ## The storage layout
 

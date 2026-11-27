@@ -1,0 +1,8542 @@
+{
+  "60364117": {
+    "qan": "60364117",
+    "qualificationTitle": "ABRSM Level 3 Certificate in Practical Music (Grade 6)",
+    "awardingOrganisation": "ABRSM",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "01/06",
+        "title": "Piano"
+      },
+      {
+        "code": "02/06",
+        "title": "Organ"
+      },
+      {
+        "code": "03/06",
+        "title": "Violin"
+      },
+      {
+        "code": "04/06",
+        "title": "Viola"
+      },
+      {
+        "code": "05/06",
+        "title": "Cello"
+      },
+      {
+        "code": "06/06",
+        "title": "Double Bass"
+      },
+      {
+        "code": "07/06",
+        "title": "Guitar"
+      },
+      {
+        "code": "09/06",
+        "title": "Flute"
+      },
+      {
+        "code": "10/06",
+        "title": "Oboe"
+      },
+      {
+        "code": "11/02",
+        "title": "Clarinet"
+      },
+      {
+        "code": "11/06",
+        "title": "Clarinet"
+      },
+      {
+        "code": "12/06",
+        "title": "Bassoon"
+      },
+      {
+        "code": "13/06",
+        "title": "Horn"
+      },
+      {
+        "code": "14/06",
+        "title": "Trumpet"
+      },
+      {
+        "code": "20/06",
+        "title": "B Flat Cornet"
+      },
+      {
+        "code": "22/06",
+        "title": "Flugelhorn"
+      },
+      {
+        "code": "23/06",
+        "title": "E Flat Horn"
+      },
+      {
+        "code": "24/06",
+        "title": "Baritone"
+      },
+      {
+        "code": "32/06",
+        "title": "Trombone"
+      },
+      {
+        "code": "33/06",
+        "title": "Bass Trombone"
+      },
+      {
+        "code": "34/06",
+        "title": "Tuba"
+      },
+      {
+        "code": "35/06",
+        "title": "Euphonium"
+      },
+      {
+        "code": "36/06",
+        "title": "Alto Saxophone"
+      },
+      {
+        "code": "37/06",
+        "title": "Tenor Saxophone"
+      },
+      {
+        "code": "39/06",
+        "title": "Treble Recorder"
+      },
+      {
+        "code": "40/02",
+        "title": "Singing"
+      },
+      {
+        "code": "40/06",
+        "title": "Singing"
+      },
+      {
+        "code": "41/06",
+        "title": "Harpsichord"
+      },
+      {
+        "code": "54/06",
+        "title": "Soprano Saxophone"
+      },
+      {
+        "code": "55/06",
+        "title": "Baritone Saxophone"
+      },
+      {
+        "code": "61/06",
+        "title": "Singing for Musical Theatre"
+      },
+      {
+        "code": "62/06",
+        "title": "Harp (Pedal)"
+      },
+      {
+        "code": "65/06",
+        "title": "Harp (Non-pedal)"
+      },
+      {
+        "code": "66/06",
+        "title": "Snare Drum"
+      },
+      {
+        "code": "68/06",
+        "title": "Tuned Percussion"
+      },
+      {
+        "code": "69/06",
+        "title": "Percussion (Combined)"
+      }
+    ]
+  },
+  "60364129": {
+    "qan": "60364129",
+    "qualificationTitle": "ABRSM Level 3 Certificate in Practical Music (Grade 7)",
+    "awardingOrganisation": "ABRSM",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "01/07",
+        "title": "Piano"
+      },
+      {
+        "code": "01/08",
+        "title": "Piano"
+      },
+      {
+        "code": "02/07",
+        "title": "Organ"
+      },
+      {
+        "code": "03/07",
+        "title": "Violin"
+      },
+      {
+        "code": "04/06",
+        "title": "Viola"
+      },
+      {
+        "code": "04/07",
+        "title": "Viola"
+      },
+      {
+        "code": "05/07",
+        "title": "Cello"
+      },
+      {
+        "code": "06/07",
+        "title": "Double Bass"
+      },
+      {
+        "code": "07/07",
+        "title": "Guitar"
+      },
+      {
+        "code": "09/07",
+        "title": "Flute"
+      },
+      {
+        "code": "10/07",
+        "title": "Oboe"
+      },
+      {
+        "code": "11/07",
+        "title": "Clarinet"
+      },
+      {
+        "code": "12/07",
+        "title": "Bassoon"
+      },
+      {
+        "code": "13/07",
+        "title": "Horn"
+      },
+      {
+        "code": "14/07",
+        "title": "Trumpet"
+      },
+      {
+        "code": "20/07",
+        "title": "B Flat Cornet"
+      },
+      {
+        "code": "22/07",
+        "title": "Flugelhorn"
+      },
+      {
+        "code": "23/07",
+        "title": "E Flat Horn"
+      },
+      {
+        "code": "24/07",
+        "title": "Baritone"
+      },
+      {
+        "code": "32/07",
+        "title": "Trombone"
+      },
+      {
+        "code": "33/07",
+        "title": "Bass Trombone"
+      },
+      {
+        "code": "34/07",
+        "title": "Tuba"
+      },
+      {
+        "code": "35/07",
+        "title": "Euphonium"
+      },
+      {
+        "code": "36/07",
+        "title": "Alto Saxophone"
+      },
+      {
+        "code": "37/07",
+        "title": "Tenor Saxophone"
+      },
+      {
+        "code": "39/07",
+        "title": "Treble Recorder"
+      },
+      {
+        "code": "40/07",
+        "title": "Singing"
+      },
+      {
+        "code": "41/07",
+        "title": "Harpsichord"
+      },
+      {
+        "code": "54/07",
+        "title": "Soprano Saxophone"
+      },
+      {
+        "code": "61/07",
+        "title": "Singing for Musical Theatre"
+      },
+      {
+        "code": "62/07",
+        "title": "Harp (Pedal)"
+      },
+      {
+        "code": "65/07",
+        "title": "Harp (Non-pedal)"
+      },
+      {
+        "code": "66/07",
+        "title": "Snare Drum"
+      },
+      {
+        "code": "67/07",
+        "title": "Timpani"
+      },
+      {
+        "code": "68/07",
+        "title": "Tuned Percussion"
+      },
+      {
+        "code": "69/07",
+        "title": "Percussion (Combined)"
+      }
+    ]
+  },
+  "60364130": {
+    "qan": "60364130",
+    "qualificationTitle": "ABRSM Level 3 Certificate in Practical Music (Grade 8)",
+    "awardingOrganisation": "ABRSM",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "01/07",
+        "title": "Piano"
+      },
+      {
+        "code": "01/08",
+        "title": "Piano"
+      },
+      {
+        "code": "02/08",
+        "title": "Organ"
+      },
+      {
+        "code": "03/08",
+        "title": "Violin"
+      },
+      {
+        "code": "04/08",
+        "title": "Viola"
+      },
+      {
+        "code": "05/08",
+        "title": "Cello"
+      },
+      {
+        "code": "06/08",
+        "title": "Double Bass"
+      },
+      {
+        "code": "07/08",
+        "title": "Guitar"
+      },
+      {
+        "code": "09/08",
+        "title": "Flute"
+      },
+      {
+        "code": "10/08",
+        "title": "Oboe"
+      },
+      {
+        "code": "11/08",
+        "title": "Clarinet"
+      },
+      {
+        "code": "12/08",
+        "title": "Bassoon"
+      },
+      {
+        "code": "13/08",
+        "title": "Horn"
+      },
+      {
+        "code": "14/08",
+        "title": "Trumpet"
+      },
+      {
+        "code": "20/08",
+        "title": "B Flat Cornet"
+      },
+      {
+        "code": "22/08",
+        "title": "Flugelhorn"
+      },
+      {
+        "code": "23/08",
+        "title": "E Flat Horn"
+      },
+      {
+        "code": "24/08",
+        "title": "Baritone"
+      },
+      {
+        "code": "32/08",
+        "title": "Trombone"
+      },
+      {
+        "code": "33/08",
+        "title": "Bass Trombone"
+      },
+      {
+        "code": "34/08",
+        "title": "Tuba"
+      },
+      {
+        "code": "35/08",
+        "title": "Euphonium"
+      },
+      {
+        "code": "36/08",
+        "title": "Alto Saxophone"
+      },
+      {
+        "code": "37/08",
+        "title": "Tenor Saxophone"
+      },
+      {
+        "code": "39/08",
+        "title": "Treble Recorder"
+      },
+      {
+        "code": "40/08",
+        "title": "Singing"
+      },
+      {
+        "code": "41/08",
+        "title": "Harpsichord"
+      },
+      {
+        "code": "54/08",
+        "title": "Soprano Saxophone"
+      },
+      {
+        "code": "55/08",
+        "title": "Baritone Saxophone"
+      },
+      {
+        "code": "61/08",
+        "title": "Singing for Musical Theatre"
+      },
+      {
+        "code": "62/08",
+        "title": "Harp (Pedal)"
+      },
+      {
+        "code": "65/08",
+        "title": "Harp (Non-pedal)"
+      },
+      {
+        "code": "66/08",
+        "title": "Snare Drum"
+      },
+      {
+        "code": "67/08",
+        "title": "Timpani"
+      },
+      {
+        "code": "68/08",
+        "title": "Tuned Percussion"
+      },
+      {
+        "code": "69/08",
+        "title": "Percussion (Combined)"
+      }
+    ]
+  },
+  "60364191": {
+    "qan": "60364191",
+    "qualificationTitle": "ABRSM Level 3 Certificate in Music Theory (Grade 6)",
+    "awardingOrganisation": "ABRSM",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60364208": {
+    "qan": "60364208",
+    "qualificationTitle": "ABRSM Level 3 Certificate in Music Theory (Grade 7)",
+    "awardingOrganisation": "ABRSM",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60364221": {
+    "qan": "60364221",
+    "qualificationTitle": "ABRSM Level 3 Certificate in Music Theory (Grade 8)",
+    "awardingOrganisation": "ABRSM",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6013995X": {
+    "qan": "6013995X",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Sociology",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60142923": {
+    "qan": "60142923",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in English Language",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6014337X": {
+    "qan": "6014337X",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Business",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60143721": {
+    "qan": "60143721",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Economics",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60144476": {
+    "qan": "60144476",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in English Literature",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60146084": {
+    "qan": "60146084",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Mathematics",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8300F",
+        "title": "Mathematics Foundation Tier"
+      },
+      {
+        "code": "8300H",
+        "title": "Mathematics Higher Tier"
+      }
+    ]
+  },
+  "60146242": {
+    "qan": "60146242",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Biology",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60146990": {
+    "qan": "60146990",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Computer Science",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60147465": {
+    "qan": "60147465",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Physics",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60148378": {
+    "qan": "60148378",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Psychology",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60148469": {
+    "qan": "60148469",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in English Language",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60149747": {
+    "qan": "60149747",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in History",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60152576": {
+    "qan": "60152576",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in English Literature B",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6015259X": {
+    "qan": "6015259X",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in English Literature A",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60157306": {
+    "qan": "60157306",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Chemistry",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60180882": {
+    "qan": "60180882",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Art and Design",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8201",
+        "title": "Art, Craft and Design"
+      },
+      {
+        "code": "8202",
+        "title": "Art and Design: Fine Art"
+      },
+      {
+        "code": "8203",
+        "title": "Art and Design: Graphic Communication"
+      },
+      {
+        "code": "8204",
+        "title": "Art and Design: Textile Design"
+      },
+      {
+        "code": "8205",
+        "title": "Art and Design: Three-Dimensional Design"
+      },
+      {
+        "code": "8206",
+        "title": "Art and Design: Photography"
+      }
+    ]
+  },
+  "60181576": {
+    "qan": "60181576",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in French",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8658F",
+        "title": "French Foundation Tier"
+      },
+      {
+        "code": "8658H",
+        "title": "French Higher Tier"
+      }
+    ]
+  },
+  "6018159X": {
+    "qan": "6018159X",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in German",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8668F",
+        "title": "German Foundation Tier"
+      },
+      {
+        "code": "8668H",
+        "title": "German Higher Tier"
+      }
+    ]
+  },
+  "60181606": {
+    "qan": "60181606",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Spanish",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8698F",
+        "title": "Spanish Foundation Tier"
+      },
+      {
+        "code": "8698H",
+        "title": "Spanish Higher Tier"
+      }
+    ]
+  },
+  "60182179": {
+    "qan": "60182179",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in History",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60182799": {
+    "qan": "60182799",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Physical Education",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60183019": {
+    "qan": "60183019",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Computer Science",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60183615": {
+    "qan": "60183615",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Music",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184000": {
+    "qan": "60184000",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Religious Studies Specification A",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184012": {
+    "qan": "60184012",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Religious Studies Specification B",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184103": {
+    "qan": "60184103",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Geography",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184218": {
+    "qan": "60184218",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Food Preparation and Nutrition",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60185491": {
+    "qan": "60185491",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Dance",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60185752": {
+    "qan": "60185752",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Drama",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60185958": {
+    "qan": "60185958",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Citizenship Studies",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60187165": {
+    "qan": "60187165",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Religious Studies",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60187268": {
+    "qan": "60187268",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in French",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60187281": {
+    "qan": "60187281",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in German",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6018730X": {
+    "qan": "6018730X",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Spanish",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60187517": {
+    "qan": "60187517",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Physics",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8463F",
+        "title": "Physics Foundation Tier"
+      },
+      {
+        "code": "8463H",
+        "title": "Physics Higher Tier"
+      }
+    ]
+  },
+  "60187529": {
+    "qan": "60187529",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Biology",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8461F",
+        "title": "Biology Foundation Tier"
+      },
+      {
+        "code": "8461H",
+        "title": "Biology Higher Tier"
+      }
+    ]
+  },
+  "60187578": {
+    "qan": "60187578",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Chemistry",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8462F",
+        "title": "Chemistry Foundation Tier"
+      },
+      {
+        "code": "8462H",
+        "title": "Chemistry Higher Tier"
+      }
+    ]
+  },
+  "6018758X": {
+    "qan": "6018758X",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Combined Science: Trilogy",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "11",
+      "21",
+      "22",
+      "32",
+      "33",
+      "43",
+      "44",
+      "54",
+      "55",
+      "65",
+      "66",
+      "76",
+      "77",
+      "87",
+      "88",
+      "98",
+      "99",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8464F",
+        "title": "Combined Science: Trilogy Foundation Tier"
+      },
+      {
+        "code": "8464H",
+        "title": "Combined Science: Trilogy Higher Tier"
+      }
+    ]
+  },
+  "60187608": {
+    "qan": "60187608",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Combined Science: Synergy",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "11",
+      "21",
+      "22",
+      "32",
+      "33",
+      "43",
+      "44",
+      "54",
+      "55",
+      "65",
+      "66",
+      "76",
+      "77",
+      "87",
+      "88",
+      "98",
+      "99",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8465F",
+        "title": "Combined Science: Synergy Foundation Tier"
+      },
+      {
+        "code": "8465H",
+        "title": "Combined Science: Synergy Higher Tier"
+      }
+    ]
+  },
+  "6018971X": {
+    "qan": "6018971X",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Geography",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60301260": {
+    "qan": "60301260",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Economics",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60303049": {
+    "qan": "60303049",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Business",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60307195": {
+    "qan": "60307195",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Engineering",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60307985": {
+    "qan": "60307985",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Sociology",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60309325": {
+    "qan": "60309325",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Psychology",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60309842": {
+    "qan": "60309842",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Design and Technology",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60309854": {
+    "qan": "60309854",
+    "qualificationTitle": "AQA Level 1 / Level 2 GCSE (9-1) in Italian",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8633F",
+        "title": "Italian Foundation Tier"
+      },
+      {
+        "code": "8633H",
+        "title": "Italian Higher Tier"
+      }
+    ]
+  },
+  "60310741": {
+    "qan": "60310741",
+    "qualificationTitle": "AQA Level 1 / Level 2 GCSE (9-1) in Panjabi",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8683F",
+        "title": "Panjabi Foundation Tier"
+      },
+      {
+        "code": "8683H",
+        "title": "Panjabi Higher Tier"
+      }
+    ]
+  },
+  "60311198": {
+    "qan": "60311198",
+    "qualificationTitle": "AQA Level 1 / Level 2 GCSE (9-1) in Urdu",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8648F",
+        "title": "Urdu Foundation Tier"
+      },
+      {
+        "code": "8648H",
+        "title": "Urdu Higher Tier"
+      }
+    ]
+  },
+  "60311307": {
+    "qan": "60311307",
+    "qualificationTitle": "AQA Level 1 / Level 2 GCSE (9-1) in Bengali",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8638F",
+        "title": "Bengali Foundation Tier"
+      },
+      {
+        "code": "8638H",
+        "title": "Bengali Higher Tier"
+      }
+    ]
+  },
+  "60311654": {
+    "qan": "60311654",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Mathematics",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60311770": {
+    "qan": "60311770",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Statistics",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8382F",
+        "title": "Statistics Foundation Tier"
+      },
+      {
+        "code": "8382H",
+        "title": "Statistics Higher Tier"
+      }
+    ]
+  },
+  "60311836": {
+    "qan": "60311836",
+    "qualificationTitle": "AQA Level 1 / Level 2 GCSE (9-1) in Modern Hebrew",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8678F",
+        "title": "Modern Hebrew Foundation Tier"
+      },
+      {
+        "code": "8678H",
+        "title": "Modern Hebrew Higher Tier"
+      }
+    ]
+  },
+  "6031185X": {
+    "qan": "6031185X",
+    "qualificationTitle": "AQA Level 1 / Level 2 GCSE (9-1) in Polish",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8688F",
+        "title": "Polish Foundation Tier"
+      },
+      {
+        "code": "8688H",
+        "title": "Polish Higher Tier"
+      }
+    ]
+  },
+  "60312105": {
+    "qan": "60312105",
+    "qualificationTitle": "AQA Level 1 / Level 2 GCSE (9-1) in Chinese (Spoken Mandarin)",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8673F",
+        "title": "Chinese (Spoken Mandarin) Foundation Tier"
+      },
+      {
+        "code": "8673H",
+        "title": "Chinese (Spoken Mandarin) Higher Tier"
+      }
+    ]
+  },
+  "60316044": {
+    "qan": "60316044",
+    "qualificationTitle": "AQA Level 3 Advanced Subsidiary GCE in Further Mathematics",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60321052": {
+    "qan": "60321052",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE 9-1 in Media Studies",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6102790X": {
+    "qan": "6102790X",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in French",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8652F",
+        "title": "French Foundation Tier"
+      },
+      {
+        "code": "8652H",
+        "title": "French Higher Tier"
+      }
+    ]
+  },
+  "61035300": {
+    "qan": "61035300",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in Spanish",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8692F",
+        "title": "Spanish Foundation Tier"
+      },
+      {
+        "code": "8692H",
+        "title": "Spanish Higher Tier"
+      }
+    ]
+  },
+  "61035312": {
+    "qan": "61035312",
+    "qualificationTitle": "AQA Level 1/Level 2 GCSE (9-1) in German",
+    "awardingOrganisation": "AQA",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "8662F",
+        "title": "German Foundation Tier"
+      },
+      {
+        "code": "8662H",
+        "title": "German Higher Tier"
+      }
+    ]
+  },
+  "6100652X": {
+    "qan": "6100652X",
+    "qualificationTitle": "City & Guilds Level 2 Technical Award in Land Based Studies",
+    "awardingOrganisation": "City & Guilds",
+    "grades": [
+      "*",
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "61006567": {
+    "qan": "61006567",
+    "qualificationTitle": "City & Guilds Level 2 Technical Award in Hair and Beauty Studies",
+    "awardingOrganisation": "City & Guilds",
+    "grades": [
+      "*",
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "61006579": {
+    "qan": "61006579",
+    "qualificationTitle": "City & Guilds Level 2 Technical Award in Constructing and Maintaining the Built Environment",
+    "awardingOrganisation": "City & Guilds",
+    "grades": [
+      "*",
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60373222": {
+    "qan": "60373222",
+    "qualificationTitle": "LIBF Level 1/2 Technical Award in Finance",
+    "awardingOrganisation": "LIBF",
+    "grades": [
+      "*1",
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60339767": {
+    "qan": "60339767",
+    "qualificationTitle": "MTB Level 3 Award in Music Performance - Grade 6",
+    "awardingOrganisation": "MTB Exams",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60339779": {
+    "qan": "60339779",
+    "qualificationTitle": "MTB Level 3 Award in Music Performance - Grade 7",
+    "awardingOrganisation": "MTB Exams",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60339780": {
+    "qan": "60339780",
+    "qualificationTitle": "MTB Level 3 Award in Music Performance - Grade 8",
+    "awardingOrganisation": "MTB Exams",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370038": {
+    "qan": "60370038",
+    "qualificationTitle": "NCFE Level 1/2 Technical Award in Creative Design and Production",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6037004X": {
+    "qan": "6037004X",
+    "qualificationTitle": "NCFE Level 1/2 Technical Award in Business and Enterprise",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370051": {
+    "qan": "60370051",
+    "qualificationTitle": "NCFE Level 1/2 Technical Award in Interactive Media",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370063": {
+    "qan": "60370063",
+    "qualificationTitle": "NCFE Level 1/2 Technical Award in Engineering",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370075": {
+    "qan": "60370075",
+    "qualificationTitle": "NCFE Level 1/2 Technical Award in Health and Fitness",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370087": {
+    "qan": "60370087",
+    "qualificationTitle": "NCFE Level 1/2 Technical Award in Music Technology",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370105": {
+    "qan": "60370105",
+    "qualificationTitle": "NCFE Level 1/2 Technical Award in Sports Studies",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370117": {
+    "qan": "60370117",
+    "qualificationTitle": "NCFE Level 1/2 Technical Award in Graphic Design",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370129": {
+    "qan": "60370129",
+    "qualificationTitle": "NCFE CACHE Level 1/2 Technical Award in Child Development and Care in the Early Years",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370130": {
+    "qan": "60370130",
+    "qualificationTitle": "NCFE CACHE Level 1/2 Technical Award in Health and Social Care",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370142": {
+    "qan": "60370142",
+    "qualificationTitle": "NCFE Level 1/2 Technical Award in Food and Cookery",
+    "awardingOrganisation": "NCFE",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "10025480": {
+    "qan": "10025480",
+    "qualificationTitle": "Cambridge OCR Level 3 Free Standing Mathematics Qualification: Additional Maths",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60139961": {
+    "qan": "60139961",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Sociology",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60142613": {
+    "qan": "60142613",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Biology A",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60145754": {
+    "qan": "60145754",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in English Language",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60146060": {
+    "qan": "60146060",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Mathematics",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J560F",
+        "title": "Mathematics Foundation Tier"
+      },
+      {
+        "code": "J560H",
+        "title": "Mathematics Higher Tier"
+      }
+    ]
+  },
+  "60146746": {
+    "qan": "60146746",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Business",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60147039": {
+    "qan": "60147039",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in English Language",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60147052": {
+    "qan": "60147052",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in English Language and Literature (EMC)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60147210": {
+    "qan": "60147210",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Biology B (Advancing Biology)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6014726X": {
+    "qan": "6014726X",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in English Literature",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60147428": {
+    "qan": "60147428",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Physics A",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60147441": {
+    "qan": "60147441",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Physics B (Advancing Physics)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60148019": {
+    "qan": "60148019",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Economics",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60148433": {
+    "qan": "60148433",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in History A",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6014872X": {
+    "qan": "6014872X",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in English Literature",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60150300": {
+    "qan": "60150300",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Computer Science",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60150877": {
+    "qan": "60150877",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Art and Design (Art, Craft and Design / Fine Art / Graphic Communication / Photography / Textile Design / Three-Dimensional Design / Critical and Contextual Studies)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "H200",
+        "title": "Art, Craft and Design"
+      },
+      {
+        "code": "H201",
+        "title": "Art and Design: Fine Art"
+      },
+      {
+        "code": "H202",
+        "title": "Art and Design: Graphic Communication"
+      },
+      {
+        "code": "H203",
+        "title": "Art and Design: Photography"
+      },
+      {
+        "code": "H204",
+        "title": "Art and Design: Textile Design"
+      },
+      {
+        "code": "H205",
+        "title": "Art and Design: Three-Dimensional Design"
+      },
+      {
+        "code": "H206",
+        "title": "Art and Design: Critical and Contextual Studies"
+      }
+    ]
+  },
+  "60152564": {
+    "qan": "60152564",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Chemistry A",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6015312X": {
+    "qan": "6015312X",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Psychology",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60154469": {
+    "qan": "60154469",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Chemistry B (Salters)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60180869": {
+    "qan": "60180869",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Art and Design (Art, Craft and Design / Fine Art / Graphic Communication / Photography / Textile Design / Three-Dimensional Design / Critical and Contextual Studies)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J170",
+        "title": "Art, Craft and Design"
+      },
+      {
+        "code": "J171",
+        "title": "Art and Design: Fine Art"
+      },
+      {
+        "code": "J172",
+        "title": "Art and Design: Graphic Communication"
+      },
+      {
+        "code": "J173",
+        "title": "Art and Design: Photography"
+      },
+      {
+        "code": "J174",
+        "title": "Art and Design: Textile Design"
+      },
+      {
+        "code": "J175",
+        "title": "Art and Design: Three-Dimensional Design"
+      },
+      {
+        "code": "J176",
+        "title": "Art and Design: Critical and Contextual Studies"
+      }
+    ]
+  },
+  "60180912": {
+    "qan": "60180912",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in History A (Explaining the Modern World)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60181230": {
+    "qan": "60181230",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Classical Greek",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60181242": {
+    "qan": "60181242",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Latin",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60182167": {
+    "qan": "60182167",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Music",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60182246": {
+    "qan": "60182246",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Geography B (Geography for Enquiring Minds)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60182416": {
+    "qan": "60182416",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Music",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60182714": {
+    "qan": "60182714",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Drama and Theatre",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6018310X": {
+    "qan": "6018310X",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Geography A (Geographical Themes)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60183238": {
+    "qan": "60183238",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Physical Education",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6018355X": {
+    "qan": "6018355X",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Computer Science",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60183792": {
+    "qan": "60183792",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Food Preparation and Nutrition",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60183822": {
+    "qan": "60183822",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Classical Greek",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60183846": {
+    "qan": "60183846",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Latin",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184085": {
+    "qan": "60184085",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in History B (Schools History Project)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184188": {
+    "qan": "60184188",
+    "qualificationTitle": "Cambridge OCR Level 1/ Level 2 GCSE (9-1) in Citizenship Studies",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184425": {
+    "qan": "60184425",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Physical Education",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60185065": {
+    "qan": "60185065",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Biology B (Twenty First Century Science)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J257F",
+        "title": "Biology B (Twenty First Century Science) Foundation Tier"
+      },
+      {
+        "code": "J257H",
+        "title": "Biology B (Twenty First Century Science) Higher Tier"
+      }
+    ]
+  },
+  "60185892": {
+    "qan": "60185892",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Biology A (Gateway Science)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J247F",
+        "title": "Biology A (Gateway Science) Foundation Tier"
+      },
+      {
+        "code": "J247H",
+        "title": "Biology A (Gateway Science) Higher Tier"
+      }
+    ]
+  },
+  "60185946": {
+    "qan": "60185946",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Religious Studies",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60186057": {
+    "qan": "60186057",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Chemistry B (Twenty First Century Science)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J258F",
+        "title": "Chemistry B (21st Century Science) Foundation Tier"
+      },
+      {
+        "code": "J258H",
+        "title": "Chemistry B (21st Century Science) Higher Tier"
+      }
+    ]
+  },
+  "60186513": {
+    "qan": "60186513",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Physics A (Gateway Science)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J249F",
+        "title": "Physics A (Gateway Science) Foundation Tier"
+      },
+      {
+        "code": "J249H",
+        "title": "Physics A (Gateway Science) Higher Tier"
+      }
+    ]
+  },
+  "6018663X": {
+    "qan": "6018663X",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Chemistry A (Gateway Science)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J248F",
+        "title": "Chemistry A (Gateway Science) Foundation Tier"
+      },
+      {
+        "code": "J248H",
+        "title": "Chemistry A (Gateway Science) Higher Tier"
+      }
+    ]
+  },
+  "60186653": {
+    "qan": "60186653",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Geography",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60186859": {
+    "qan": "60186859",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Physics B (Twenty First Century Science)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J259F",
+        "title": "Physics B (21st Century Science) Foundation Tier"
+      },
+      {
+        "code": "J259H",
+        "title": "Physics B (21st Century Science) Higher Tier"
+      }
+    ]
+  },
+  "60186872": {
+    "qan": "60186872",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Combined Science A (Gateway Science)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "11",
+      "21",
+      "22",
+      "32",
+      "33",
+      "43",
+      "44",
+      "54",
+      "55",
+      "65",
+      "66",
+      "76",
+      "77",
+      "87",
+      "88",
+      "98",
+      "99",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J250F",
+        "title": "Combined Science A (Gateway Science) Foundation Tier"
+      },
+      {
+        "code": "J250H",
+        "title": "Combined Science A (Gateway Science) Higher Tier"
+      }
+    ]
+  },
+  "60186902": {
+    "qan": "60186902",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Combined Science B (Twenty First Century Science)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "11",
+      "21",
+      "22",
+      "32",
+      "33",
+      "43",
+      "44",
+      "54",
+      "55",
+      "65",
+      "66",
+      "76",
+      "77",
+      "87",
+      "88",
+      "98",
+      "99",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J260F",
+        "title": "Combined Science B (21st Century Science) Foundation Tier"
+      },
+      {
+        "code": "J260H",
+        "title": "Combined Science B (21st Century Science) Higher Tier"
+      }
+    ]
+  },
+  "60188698": {
+    "qan": "60188698",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Religious Studies",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60189757": {
+    "qan": "60189757",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Drama",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60301430": {
+    "qan": "60301430",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Economics",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60302951": {
+    "qan": "60302951",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Business",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60306634": {
+    "qan": "60306634",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Design and Technology",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60306646": {
+    "qan": "60306646",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Ancient History",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60306713": {
+    "qan": "60306713",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Classical Civilisation",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60307079": {
+    "qan": "60307079",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Law",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60307602": {
+    "qan": "60307602",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Design and Technology (Design Engineering / Fashion and Textiles / Product Design)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "H004",
+        "title": "Design and Technology: Design Engineering"
+      },
+      {
+        "code": "H006",
+        "title": "Design and Technology: Product Design"
+      }
+    ]
+  },
+  "60307687": {
+    "qan": "60307687",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Classical Civilisation",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60307833": {
+    "qan": "60307833",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Geology",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60308060": {
+    "qan": "60308060",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Ancient History",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60309337": {
+    "qan": "60309337",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Mathematics A",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60309714": {
+    "qan": "60309714",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Film Studies",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60311095": {
+    "qan": "60311095",
+    "qualificationTitle": "Cambridge OCR Level 1/ Level 2 GCSE (9-1) in Psychology",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60313298": {
+    "qan": "60313298",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Further Mathematics A",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60313900": {
+    "qan": "60313900",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Further Mathematics B (MEI)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60319434": {
+    "qan": "60319434",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Media Studies",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60320692": {
+    "qan": "60320692",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 GCSE (9-1) in Media Studies",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370865": {
+    "qan": "60370865",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 Cambridge National in Engineering Design",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370877": {
+    "qan": "60370877",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 Cambridge National in Engineering Manufacture",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370889": {
+    "qan": "60370889",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 Cambridge National in Engineering Programmable Systems",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370907": {
+    "qan": "60370907",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 Cambridge National in Creative iMedia",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370932": {
+    "qan": "60370932",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 Cambridge National in Enterprise and Marketing",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60371067": {
+    "qan": "60371067",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 Cambridge National in Sport Science",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60371079": {
+    "qan": "60371079",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 Cambridge National in Sport Studies",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60371146": {
+    "qan": "60371146",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 Cambridge National in Child Development",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60371158": {
+    "qan": "60371158",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 Cambridge National in IT",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6037116X": {
+    "qan": "6037116X",
+    "qualificationTitle": "Cambridge OCR Level 1/Level 2 Cambridge National in Health and Social Care",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6030991X": {
+    "qan": "6030991X",
+    "qualificationTitle": "Cambridge OCR Level 3 Advanced Subsidiary GCE in Mathematics B (MEI)",
+    "awardingOrganisation": "OCR",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60141062": {
+    "qan": "60141062",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Economics A",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60146722": {
+    "qan": "60146722",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Business",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6014676X": {
+    "qan": "6014676X",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in History",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60147003": {
+    "qan": "60147003",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Mathematics",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60147891": {
+    "qan": "60147891",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in English Literature",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60148366": {
+    "qan": "60148366",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in English Language",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60148470": {
+    "qan": "60148470",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Physics",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60148494": {
+    "qan": "60148494",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in English Language",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60149139": {
+    "qan": "60149139",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in English Language and Literature",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60150476": {
+    "qan": "60150476",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in English Literature",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60152989": {
+    "qan": "60152989",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Biology A (Salters-Nuffield)",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60153003": {
+    "qan": "60153003",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Biology B",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60155723": {
+    "qan": "60155723",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Psychology",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60156478": {
+    "qan": "60156478",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Chemistry",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60180584": {
+    "qan": "60180584",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Computer Science",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60180699": {
+    "qan": "60180699",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Art and Design",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "1AD0",
+        "title": "Art, Craft and Design"
+      },
+      {
+        "code": "1FA0",
+        "title": "Art and Design: Fine Art"
+      },
+      {
+        "code": "1GC0",
+        "title": "Art and Design: Graphic Communication"
+      },
+      {
+        "code": "1PY0",
+        "title": "Art and Design: Photography"
+      },
+      {
+        "code": "1TD0",
+        "title": "Art and Design: Three-Dimensional Design"
+      },
+      {
+        "code": "1TE0",
+        "title": "Art and Design: Textile Design"
+      }
+    ]
+  },
+  "60180924": {
+    "qan": "60180924",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in History",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60181345": {
+    "qan": "60181345",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Geography A",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60181357": {
+    "qan": "60181357",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Geography B",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60181618": {
+    "qan": "60181618",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Physical Education",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60182040": {
+    "qan": "60182040",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Music",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60182441": {
+    "qan": "60182441",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Citizenship Studies",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184164": {
+    "qan": "60184164",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Geography",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184917": {
+    "qan": "60184917",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Drama",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60186094": {
+    "qan": "60186094",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Physics",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60186100": {
+    "qan": "60186100",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Biology",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60186112": {
+    "qan": "60186112",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Chemistry",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60186124": {
+    "qan": "60186124",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Combined Science",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "11",
+      "21",
+      "22",
+      "32",
+      "33",
+      "43",
+      "44",
+      "54",
+      "55",
+      "65",
+      "66",
+      "76",
+      "77",
+      "87",
+      "88",
+      "98",
+      "99",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60187086": {
+    "qan": "60187086",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in French",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60187098": {
+    "qan": "60187098",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in German",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60187104": {
+    "qan": "60187104",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Spanish",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60187669": {
+    "qan": "60187669",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Religious Studies",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60300632": {
+    "qan": "60300632",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Religious Studies B",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60300796": {
+    "qan": "60300796",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Religious Studies A",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60301211": {
+    "qan": "60301211",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Business",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60301892": {
+    "qan": "60301892",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Music Technology",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60302446": {
+    "qan": "60302446",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Astronomy",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60306981": {
+    "qan": "60306981",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Design and Technology",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60308904": {
+    "qan": "60308904",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Psychology",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60309866": {
+    "qan": "60309866",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Italian",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60310480": {
+    "qan": "60310480",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Chinese (spoken Mandarin/spoken Cantonese)",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60310844": {
+    "qan": "60310844",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Statistics",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60311058": {
+    "qan": "60311058",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Japanese",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60311149": {
+    "qan": "60311149",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Urdu",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60311721": {
+    "qan": "60311721",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Arabic",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60311848": {
+    "qan": "60311848",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Greek",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60312002": {
+    "qan": "60312002",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Russian",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60312269": {
+    "qan": "60312269",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Politics",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60313079": {
+    "qan": "60313079",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Mathematics",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60313456": {
+    "qan": "60313456",
+    "qualificationTitle": "Pearson Edexcel Level 3 Advanced Subsidiary GCE in Further Mathematics",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6032482X": {
+    "qan": "6032482X",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Portuguese",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60326232": {
+    "qan": "60326232",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Gujarati",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60326700": {
+    "qan": "60326700",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Persian",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60326918": {
+    "qan": "60326918",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Turkish",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60331835": {
+    "qan": "60331835",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Biblical Hebrew",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370476": {
+    "qan": "60370476",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Health and Social Care",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370488": {
+    "qan": "60370488",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Travel and Tourism",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370506": {
+    "qan": "60370506",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Digital Information Technology",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370518": {
+    "qan": "60370518",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Construction and the Built Environment",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370531": {
+    "qan": "60370531",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Creative Media Production",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370543": {
+    "qan": "60370543",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Performing Arts",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "CPA01",
+        "title": "Performing Arts"
+      },
+      {
+        "code": "CPD01",
+        "title": "Performing Arts (Dance)"
+      }
+    ]
+  },
+  "60370555": {
+    "qan": "60370555",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Music Practice",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370567": {
+    "qan": "60370567",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Art and Design Practice",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370579": {
+    "qan": "60370579",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Animal Care",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370580": {
+    "qan": "60370580",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Child Development",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370634": {
+    "qan": "60370634",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Enterprise",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370683": {
+    "qan": "60370683",
+    "qualificationTitle": "Pearson BTEC Level 1/Level 2 Tech Award in Sport",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "*2",
+      "D1",
+      "D2",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60372230": {
+    "qan": "60372230",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) English Language 2.0",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "61027182": {
+    "qan": "61027182",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE in French",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "61034691": {
+    "qan": "61034691",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE in Spanish",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "61034733": {
+    "qan": "61034733",
+    "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE in German",
+    "awardingOrganisation": "Pearson",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "50120979": {
+    "qan": "50120979",
+    "qualificationTitle": "TCL Level 3 Certificate in Graded Examination in Music Performance (Grade 6)",
+    "awardingOrganisation": "TCL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "06AGR",
+        "title": "Acoustic Guitar Grade 6"
+      },
+      {
+        "code": "06BBB",
+        "title": "B flat Bass Grade 6"
+      },
+      {
+        "code": "06BSN",
+        "title": "Bassoon Grade 6"
+      },
+      {
+        "code": "06BT",
+        "title": "Bass Trombone Grade 6"
+      },
+      {
+        "code": "06BTN",
+        "title": "Baritone Grade 6"
+      },
+      {
+        "code": "06CL",
+        "title": "Clarinet Grade 6"
+      },
+      {
+        "code": "06COR",
+        "title": "Cornet Grade 6"
+      },
+      {
+        "code": "06DB",
+        "title": "Double Bass Grade 6"
+      },
+      {
+        "code": "06DRM",
+        "title": "Drum Kit Grade 6"
+      },
+      {
+        "code": "06EBB",
+        "title": "E flat Bass Grade 6"
+      },
+      {
+        "code": "06EK",
+        "title": "Electronic Keyboard Grade 6"
+      },
+      {
+        "code": "06EUP",
+        "title": "Euphonium Grade 6"
+      },
+      {
+        "code": "06FL",
+        "title": "Flute Grade 6"
+      },
+      {
+        "code": "06FLG",
+        "title": "Flugelhorn Grade 6"
+      },
+      {
+        "code": "06GTR",
+        "title": "Classical Guitar Grade 6"
+      },
+      {
+        "code": "06HRN",
+        "title": "French Horn Grade 6"
+      },
+      {
+        "code": "06JCL",
+        "title": "Jazz Clarinet Grade 6"
+      },
+      {
+        "code": "06JFL",
+        "title": "Jazz Flute Grade 6"
+      },
+      {
+        "code": "06JSX",
+        "title": "Jazz Saxophone Grade 6"
+      },
+      {
+        "code": "06NHP",
+        "title": "Non-pedal Harp Grade 6"
+      },
+      {
+        "code": "06OB",
+        "title": "Oboe Grade 6"
+      },
+      {
+        "code": "06OGN",
+        "title": "Organ Grade 6"
+      },
+      {
+        "code": "06ORC",
+        "title": "Orchestral Percussion Grade 6"
+      },
+      {
+        "code": "06PAC",
+        "title": "Piano Accompanying Grade 6"
+      },
+      {
+        "code": "06PHP",
+        "title": "Pedal Harp Grade 6"
+      },
+      {
+        "code": "06PNO",
+        "title": "Piano Grade 6"
+      },
+      {
+        "code": "06REC",
+        "title": "Recorder Grade 6"
+      },
+      {
+        "code": "06SAX",
+        "title": "Saxophone Grade 6"
+      },
+      {
+        "code": "06SND",
+        "title": "Snare Drum Grade 6"
+      },
+      {
+        "code": "06SNG",
+        "title": "Singing Grade 6"
+      },
+      {
+        "code": "06SPC",
+        "title": "Soprano Cornet Grade 6"
+      },
+      {
+        "code": "06STF",
+        "title": "Scottish Traditional Fiddle Grade 6"
+      },
+      {
+        "code": "06TBA",
+        "title": "Tuba Grade 6"
+      },
+      {
+        "code": "06TBN",
+        "title": "Trombone Grade 6"
+      },
+      {
+        "code": "06TEN",
+        "title": "Tenor Horn Grade 6"
+      },
+      {
+        "code": "06TMP",
+        "title": "Timpani Grade 6"
+      },
+      {
+        "code": "06TPT",
+        "title": "Trumpet Grade 6"
+      },
+      {
+        "code": "06TUN",
+        "title": "Tuned Percussion Grade 6"
+      },
+      {
+        "code": "06VCL",
+        "title": "Cello Grade 6"
+      },
+      {
+        "code": "06VLA",
+        "title": "Viola Grade 6"
+      },
+      {
+        "code": "06VLN",
+        "title": "Violin Grade 6"
+      },
+      {
+        "code": "CAJ06",
+        "title": "Classical and Jazz Technical Grade 6"
+      },
+      {
+        "code": "CJR06",
+        "title": "Classical and Jazz Repertoire Grade 6"
+      },
+      {
+        "code": "SNGD06",
+        "title": "Singing Technical Grade 6"
+      },
+      {
+        "code": "SNGR06",
+        "title": "Singing Repertoire Grade 6"
+      }
+    ]
+  },
+  "50120980": {
+    "qan": "50120980",
+    "qualificationTitle": "TCL Level 3 Certificate in Graded Examination in Music Performance (Grade 7)",
+    "awardingOrganisation": "TCL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "07AGR",
+        "title": "Acoustic Guitar Grade 7"
+      },
+      {
+        "code": "07BSN",
+        "title": "Bassoon Grade 7"
+      },
+      {
+        "code": "07BT",
+        "title": "Bass Trombone Grade 7"
+      },
+      {
+        "code": "07BTN",
+        "title": "Baritone Grade 7"
+      },
+      {
+        "code": "07CL",
+        "title": "Clarinet Grade 7"
+      },
+      {
+        "code": "07COR",
+        "title": "Cornet Grade 7"
+      },
+      {
+        "code": "07DB",
+        "title": "Double Bass Grade 7"
+      },
+      {
+        "code": "07DRM",
+        "title": "Drum Kit Grade 7"
+      },
+      {
+        "code": "07EBB",
+        "title": "E flat Bass Grade 7"
+      },
+      {
+        "code": "07EK",
+        "title": "Electronic Keyboard Grade 7"
+      },
+      {
+        "code": "07EUP",
+        "title": "Euphonium Grade 7"
+      },
+      {
+        "code": "07FL",
+        "title": "Flute Grade 7"
+      },
+      {
+        "code": "07FLG",
+        "title": "Flugelhorn Grade 7"
+      },
+      {
+        "code": "07GTR",
+        "title": "Classical Guitar Grade 7"
+      },
+      {
+        "code": "07HRN",
+        "title": "French Horn Grade 7"
+      },
+      {
+        "code": "07JCL",
+        "title": "Jazz Clarinet Grade 7"
+      },
+      {
+        "code": "07JFL",
+        "title": "Jazz Flute Grade 7"
+      },
+      {
+        "code": "07JSX",
+        "title": "Jazz Saxophone Grade 7"
+      },
+      {
+        "code": "07NHP",
+        "title": "Lever Harp Grade 7"
+      },
+      {
+        "code": "07OB",
+        "title": "Oboe Grade 7"
+      },
+      {
+        "code": "07OGN",
+        "title": "Organ Grade 7"
+      },
+      {
+        "code": "07ORC",
+        "title": "Orchestral Percussion Grade 7"
+      },
+      {
+        "code": "07PHP",
+        "title": "Pedal Harp Grade 7"
+      },
+      {
+        "code": "07PNO",
+        "title": "Piano Grade 7"
+      },
+      {
+        "code": "07REC",
+        "title": "Recorder Grade 7"
+      },
+      {
+        "code": "07SAX",
+        "title": "Saxophone Grade 7"
+      },
+      {
+        "code": "07SNG",
+        "title": "Singing Grade 7"
+      },
+      {
+        "code": "07STF",
+        "title": "Scottish Traditional Fiddle Grade 7"
+      },
+      {
+        "code": "07TBA",
+        "title": "Tuba Grade 7"
+      },
+      {
+        "code": "07TBN",
+        "title": "Trombone Grade 7"
+      },
+      {
+        "code": "07TEN",
+        "title": "Tenor Horn Grade 7"
+      },
+      {
+        "code": "07TPT",
+        "title": "Trumpet Grade 7"
+      },
+      {
+        "code": "07TUN",
+        "title": "Tuned Percussion Grade 7"
+      },
+      {
+        "code": "07VCL",
+        "title": "Cello Grade 7"
+      },
+      {
+        "code": "07VLA",
+        "title": "Viola Grade 7"
+      },
+      {
+        "code": "07VLN",
+        "title": "Violin Grade 7"
+      },
+      {
+        "code": "CAJ07",
+        "title": "Classical and Jazz Technical Grade 7"
+      },
+      {
+        "code": "CJR07",
+        "title": "Classical and Jazz Repertoire Grade 7"
+      },
+      {
+        "code": "SNGD07",
+        "title": "Singing Technical Grade 7"
+      },
+      {
+        "code": "SNGR07",
+        "title": "Singing Repertoire Grade 7"
+      }
+    ]
+  },
+  "50120992": {
+    "qan": "50120992",
+    "qualificationTitle": "TCL Level 3 Certificate in Graded Examination in Music Performance (Grade 8)",
+    "awardingOrganisation": "TCL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "08AGR",
+        "title": "Acoustic Guitar Grade 8"
+      },
+      {
+        "code": "08BSN",
+        "title": "Bassoon Grade 8"
+      },
+      {
+        "code": "08BT",
+        "title": "Bass Trombone Grade 8"
+      },
+      {
+        "code": "08BTN",
+        "title": "Baritone Grade 8"
+      },
+      {
+        "code": "08CL",
+        "title": "Clarinet Grade 8"
+      },
+      {
+        "code": "08COR",
+        "title": "Cornet Grade 8"
+      },
+      {
+        "code": "08DB",
+        "title": "Double Bass Grade 8"
+      },
+      {
+        "code": "08DRM",
+        "title": "Drum Kit Grade 8"
+      },
+      {
+        "code": "08EBB",
+        "title": "E flat Bass Grade 8"
+      },
+      {
+        "code": "08EK",
+        "title": "Electronic Keyboard Grade 8"
+      },
+      {
+        "code": "08EUP",
+        "title": "Euphonium Grade 8"
+      },
+      {
+        "code": "08FL",
+        "title": "Flute Grade 8"
+      },
+      {
+        "code": "08FLG",
+        "title": "Flugelhorn Grade 8"
+      },
+      {
+        "code": "08GTR",
+        "title": "Classical Guitar Grade 8"
+      },
+      {
+        "code": "08HRN",
+        "title": "French Horn Grade 8"
+      },
+      {
+        "code": "08JCL",
+        "title": "Jazz Clarinet Grade 8"
+      },
+      {
+        "code": "08JFL",
+        "title": "Jazz Flute Grade 8"
+      },
+      {
+        "code": "08JSX",
+        "title": "Jazz Saxophone Grade 8"
+      },
+      {
+        "code": "08NHP",
+        "title": "Non-pedal Harp Grade 8"
+      },
+      {
+        "code": "08OB",
+        "title": "Oboe Grade 8"
+      },
+      {
+        "code": "08OGN",
+        "title": "Organ Grade 8"
+      },
+      {
+        "code": "08ORC",
+        "title": "Orchestral Percussion Grade 8"
+      },
+      {
+        "code": "08PAC",
+        "title": "Piano Accompanying Grade 8"
+      },
+      {
+        "code": "08PHP",
+        "title": "Pedal Harp Grade 8"
+      },
+      {
+        "code": "08PNO",
+        "title": "Piano Grade 8"
+      },
+      {
+        "code": "08REC",
+        "title": "Recorder Grade 8"
+      },
+      {
+        "code": "08SAX",
+        "title": "Saxophone Grade 8"
+      },
+      {
+        "code": "08SND",
+        "title": "Snare Drum Grade 8"
+      },
+      {
+        "code": "08SNG",
+        "title": "Singing Grade 8"
+      },
+      {
+        "code": "08STF",
+        "title": "Scottish Traditional Fiddle Grade 8"
+      },
+      {
+        "code": "08TBA",
+        "title": "Tuba Grade 8"
+      },
+      {
+        "code": "08TBN",
+        "title": "Trombone Grade 8"
+      },
+      {
+        "code": "08TEN",
+        "title": "Tenor Horn Grade 8"
+      },
+      {
+        "code": "08TMP",
+        "title": "Timpani Grade 8"
+      },
+      {
+        "code": "08TPT",
+        "title": "Trumpet Grade 8"
+      },
+      {
+        "code": "08TUN",
+        "title": "Tuned Percussion Grade 8"
+      },
+      {
+        "code": "08VCL",
+        "title": "Cello Grade 8"
+      },
+      {
+        "code": "08VLA",
+        "title": "Viola Grade 8"
+      },
+      {
+        "code": "08VLN",
+        "title": "Violin Grade 8"
+      },
+      {
+        "code": "CAJ08",
+        "title": "Classical and Jazz Technical Grade 8"
+      },
+      {
+        "code": "CJR08",
+        "title": "Classical and Jazz Repertoire Grade 8"
+      },
+      {
+        "code": "SNGD08",
+        "title": "Singing Technical Grade 8"
+      },
+      {
+        "code": "SNGR08",
+        "title": "Singing Repertoire Grade 8"
+      }
+    ]
+  },
+  "50121108": {
+    "qan": "50121108",
+    "qualificationTitle": "TCL Level 3 Certificate in Graded Examination in Music Theory (Grade 6)",
+    "awardingOrganisation": "TCL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "50121133": {
+    "qan": "50121133",
+    "qualificationTitle": "TCL Level 3 Certificate in Graded Examination in Music Theory (Grade 7)",
+    "awardingOrganisation": "TCL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "50121145": {
+    "qan": "50121145",
+    "qualificationTitle": "TCL Level 3 Certificate in Graded Examination in Music Theory (Grade 8)",
+    "awardingOrganisation": "TCL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60035936": {
+    "qan": "60035936",
+    "qualificationTitle": "TCL Level 3 Certificate In Graded Examination in Rock and Pop (Grade 6)",
+    "awardingOrganisation": "TCL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "06RAP",
+        "title": "Rock and Pop Grade 6"
+      },
+      {
+        "code": "06RPB",
+        "title": "Rock and Pop Bass Grade 6"
+      },
+      {
+        "code": "06RPD",
+        "title": "Rock and Pop Drums Grade 6"
+      },
+      {
+        "code": "06RPG",
+        "title": "Rock and Pop Guitar Grade 6"
+      },
+      {
+        "code": "06RPK",
+        "title": "Rock and Pop Keyboards Grade 6"
+      },
+      {
+        "code": "06RPV",
+        "title": "Rock and Pop Vocals Grade 6"
+      }
+    ]
+  },
+  "60035948": {
+    "qan": "60035948",
+    "qualificationTitle": "TCL Level 3 Certificate In Graded Examination in Rock and Pop (Grade 7)",
+    "awardingOrganisation": "TCL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "07RAP",
+        "title": "Rock and Pop Grade 7"
+      },
+      {
+        "code": "07RPB",
+        "title": "Rock and Pop Bass Grade 7"
+      },
+      {
+        "code": "07RPD",
+        "title": "Rock and Pop Drums Grade 7"
+      },
+      {
+        "code": "07RPG",
+        "title": "Rock and Pop Guitar Grade 7"
+      },
+      {
+        "code": "07RPK",
+        "title": "Rock and Pop Keyboards Grade 7"
+      },
+      {
+        "code": "07RPV",
+        "title": "Rock and Pop Vocals Grade 7"
+      }
+    ]
+  },
+  "6003595X": {
+    "qan": "6003595X",
+    "qualificationTitle": "TCL Level 3 Certificate In Graded Examination in Rock and Pop (Grade 8)",
+    "awardingOrganisation": "TCL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "08RAP",
+        "title": "Rock and Pop Grade 8"
+      },
+      {
+        "code": "08RPB",
+        "title": "Rock and Pop Bass Grade 8"
+      },
+      {
+        "code": "08RPD",
+        "title": "Rock and Pop Drums Grade 8"
+      },
+      {
+        "code": "08RPG",
+        "title": "Rock and Pop Guitar Grade 8"
+      },
+      {
+        "code": "08RPK",
+        "title": "Rock and Pop Keyboards Grade 8"
+      },
+      {
+        "code": "08RPV",
+        "title": "Rock and Pop Vocals Grade 8"
+      }
+    ]
+  },
+  "50120669": {
+    "qan": "50120669",
+    "qualificationTitle": "UWLQ Level 3 Certificate in Graded Examination in Music Performance (Grade 8)",
+    "awardingOrganisation": "UWL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "A/503/8569",
+        "title": "Electronic Keyboard - Recital Grade 8"
+      },
+      {
+        "code": "A/503/8586",
+        "title": "Classical Singing - Recital Grade 8"
+      },
+      {
+        "code": "A/506/5108",
+        "title": "Ukulele - Grade 8"
+      },
+      {
+        "code": "A/602/3242",
+        "title": "Clarinet - Grade 8"
+      },
+      {
+        "code": "A/602/3340",
+        "title": "Tuned Percussion - Grade 8"
+      },
+      {
+        "code": "A/602/3354",
+        "title": "Scottish Traditional Fiddle - Grade 8"
+      },
+      {
+        "code": "A/602/3838",
+        "title": "Irish Traditional Button Accordion - Grade 8"
+      },
+      {
+        "code": "A/602/3841",
+        "title": "Irish Traditional Concertina - Grade 8"
+      },
+      {
+        "code": "A/616/0035",
+        "title": "Harp - Grade 8 Leisure Play"
+      },
+      {
+        "code": "A/616/1086",
+        "title": "Jazz Piano - Grade 8 Leisure Play"
+      },
+      {
+        "code": "A/616/1556",
+        "title": "Trumpet - Grade 8 Leisure Play"
+      },
+      {
+        "code": "D/503/8564",
+        "title": "Classical Saxophone - Recital Grade 8"
+      },
+      {
+        "code": "D/503/8581",
+        "title": "Piano - Recital Grade 8 (Recorded)"
+      },
+      {
+        "code": "D/503/8595",
+        "title": "Euphonium - Recital Grade 8"
+      },
+      {
+        "code": "D/602/326",
+        "title": "Recorder - Grade 8"
+      },
+      {
+        "code": "D/602/3279",
+        "title": "Trumpet - Grade 8"
+      },
+      {
+        "code": "D/602/3301",
+        "title": "Jazz Saxophone - Grade 8"
+      },
+      {
+        "code": "D/602/3329",
+        "title": "Bass Guitar - Grade 8"
+      },
+      {
+        "code": "D/602/3332",
+        "title": "Rock Guitar - Grade 8"
+      },
+      {
+        "code": "D/616/1405",
+        "title": "Recorder - Grade 8 Leisure Play"
+      },
+      {
+        "code": "F/602/3260",
+        "title": "Flute - Grade 8"
+      },
+      {
+        "code": "F/602/3842",
+        "title": "Irish Traditional Piano - Grade 8"
+      },
+      {
+        "code": "F/615/9677",
+        "title": "Clarinet - Grade 8 Leisure Play"
+      },
+      {
+        "code": "F/616/0005",
+        "title": "Flute - Grade 8 Leisure Play"
+      },
+      {
+        "code": "F/616/1347",
+        "title": "Jazz Trumpet - Grade 8 Leisure Play"
+      },
+      {
+        "code": "F/616/1588",
+        "title": "Violin - Grade 8 Leisure Play"
+      },
+      {
+        "code": "H/503/8565",
+        "title": "Cornet - Recital Grade 8"
+      },
+      {
+        "code": "H/503/8579",
+        "title": "Jazz Piano - Recital Grade 8"
+      },
+      {
+        "code": "H/503/8582",
+        "title": "Percussion - Recital Grade 8"
+      },
+      {
+        "code": "H/602/3302",
+        "title": "Jazz Flute - Grade 8"
+      },
+      {
+        "code": "H/602/3848",
+        "title": "Irish Traditional Tin Whistle - Grade 8"
+      },
+      {
+        "code": "H/615/9610",
+        "title": "Piano - Grade 8 Leisure Play"
+      },
+      {
+        "code": "H/615/9624",
+        "title": "Popular Music Vocals - Grade 8 Leisure Play (Recorded)"
+      },
+      {
+        "code": "H/615/9980",
+        "title": "Drum Kit - Grade 8 Leisure Play"
+      },
+      {
+        "code": "J/503/8560",
+        "title": "Classical Guitar - Recital Grade 8"
+      },
+      {
+        "code": "J/602/3244",
+        "title": "Cornet - Grade 8"
+      },
+      {
+        "code": "J/602/3308",
+        "title": "Jazz Piano - Grade 8"
+      },
+      {
+        "code": "J/602/3325",
+        "title": "Classical Guitar - Grade 8"
+      },
+      {
+        "code": "J/615/9664",
+        "title": "Church Music - Grade 8 Leisure Play"
+      },
+      {
+        "code": "J/615/9695",
+        "title": "Classical Saxophone - Grade 8 Leisure Play"
+      },
+      {
+        "code": "J/616/0250",
+        "title": "Irish Traditional Fiddle - Grade 8 Leisure Play"
+      },
+      {
+        "code": "K/503/8583",
+        "title": "Popular Music Vocals - Recital Grade 8 (Recorded)"
+      },
+      {
+        "code": "K/508/4219",
+        "title": "Irish Traditional Electronic Keyboard - Grade 8"
+      },
+      {
+        "code": "K/602/1969",
+        "title": "Piano - Grade 8 (Recorded)"
+      },
+      {
+        "code": "K/602/3253",
+        "title": "Violin - Grade 8"
+      },
+      {
+        "code": "K/602/3317",
+        "title": "Classical Singing - Grade 8"
+      },
+      {
+        "code": "K/602/3849",
+        "title": "Irish Traditional Flute - Grade 8"
+      },
+      {
+        "code": "K/617/267",
+        "title": "Tenor Horn - Recital Grade 8"
+      },
+      {
+        "code": "L/503/8561",
+        "title": "Clarinet - Recital Grade 8"
+      },
+      {
+        "code": "L/602/3231",
+        "title": "Euphonium - Grade 8"
+      },
+      {
+        "code": "L/602/3293",
+        "title": "Church Music - Grade 8"
+      },
+      {
+        "code": "L/602/3844",
+        "title": "Irish Traditional Uilleann Pipes - Grade 8"
+      },
+      {
+        "code": "M/503/857",
+        "title": "Electronic Organ - Recital Grade 8"
+      },
+      {
+        "code": "M/602/3240",
+        "title": "Cello - Grade 8"
+      },
+      {
+        "code": "M/602/3352",
+        "title": "Irish Traditional Fiddle - Grade 8"
+      },
+      {
+        "code": "M/615/9660",
+        "title": "Cello - Grade 8 Leisure Play"
+      },
+      {
+        "code": "M/616/0016",
+        "title": "French Horn - Grade 8 Leisure Play"
+      },
+      {
+        "code": "M/616/1151",
+        "title": "Jazz Saxophone - Grade 8 Leisure Play"
+      },
+      {
+        "code": "M/616/1389",
+        "title": "Percussion - Grade 8 Leisure Play"
+      },
+      {
+        "code": "R/503/8562",
+        "title": "Church Music - Recital Grade 8"
+      },
+      {
+        "code": "R/503/8576",
+        "title": "Jazz Saxophone - Recital Grade 8"
+      },
+      {
+        "code": "R/503/8593",
+        "title": "Violin - Recital Grade 8"
+      },
+      {
+        "code": "R/508/2626",
+        "title": "Irish Traditional Bodhran - Grade 8"
+      },
+      {
+        "code": "R/602/3294",
+        "title": "Electronic Organ - Grade 8"
+      },
+      {
+        "code": "R/602/3327",
+        "title": "Acoustic Guitar - Grade 8"
+      },
+      {
+        "code": "R/602/3330",
+        "title": "Electric Guitar - Grade 8 (Recorded)"
+      },
+      {
+        "code": "R/602/3845",
+        "title": "Irish Traditional Harp - Grade 8"
+      },
+      {
+        "code": "T/503/8568",
+        "title": "Drum Kit - Recital Grade 8"
+      },
+      {
+        "code": "T/503/8571",
+        "title": "Flute - Recital Grade 8"
+      },
+      {
+        "code": "T/602/3305",
+        "title": "Jazz Trumpet - Grade 8"
+      },
+      {
+        "code": "T/602/3319",
+        "title": "Popular Music Vocals - Grade 8 (Recorded)"
+      },
+      {
+        "code": "T/602/3336",
+        "title": "Percussion - Grade 8"
+      },
+      {
+        "code": "T/615/999",
+        "title": "Electronic Organ - Grade 8 Leisure Play"
+      },
+      {
+        "code": "T/616/097",
+        "title": "Irish Traditional Tin Whistle - Grade 8 Leisure Play"
+      },
+      {
+        "code": "Y/503/8563",
+        "title": "Cello - Recital Grade 8"
+      },
+      {
+        "code": "Y/503/8580",
+        "title": "Oboe - Recital Grade 8"
+      },
+      {
+        "code": "Y/503/8594",
+        "title": "Viola - Recital Grade 8"
+      },
+      {
+        "code": "Y/602/3295",
+        "title": "Electronic Keyboard - Grade 8"
+      },
+      {
+        "code": "Y/602/3314",
+        "title": "Classical Saxophone - Grade 8"
+      },
+      {
+        "code": "Y/602/3345",
+        "title": "Drum Kit - Grade 8 (Recorded)"
+      },
+      {
+        "code": "Y/602/3846",
+        "title": "Irish Traditional Banjo - Grade 8"
+      },
+      {
+        "code": "Y/615/9703",
+        "title": "Classical Singing - Grade 8 Leisure Play"
+      },
+      {
+        "code": "Y/615/9989",
+        "title": "Electronic Keyboard - Grade 8 Leisure Play"
+      }
+    ]
+  },
+  "50120785": {
+    "qan": "50120785",
+    "qualificationTitle": "UWLQ Level 3 Certificate in Graded Examination in Theory of Music (Grade 6)",
+    "awardingOrganisation": "UWL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "J/602/1980",
+        "title": "Theory of Music - Grade 6"
+      }
+    ]
+  },
+  "50120797": {
+    "qan": "50120797",
+    "qualificationTitle": "UWLQ Level 3 Certificate in Graded Examination in Theory of Music (Grade 7)",
+    "awardingOrganisation": "UWL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "Y/602/1983",
+        "title": "Theory of Music - Grade 7"
+      }
+    ]
+  },
+  "50120815": {
+    "qan": "50120815",
+    "qualificationTitle": "UWLQ Level 3 Certificate in Graded Examination in Theory of Music (Grade 8)",
+    "awardingOrganisation": "UWL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "D/602/1984",
+        "title": "Theory of Music - Grade 8"
+      }
+    ]
+  },
+  "50120827": {
+    "qan": "50120827",
+    "qualificationTitle": "UWLQ Level 3 Certificate in Graded Examination in Music Performance (Grade 7)",
+    "awardingOrganisation": "UWL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "A/503/8538",
+        "title": "Jazz Piano - Recital Grade 7"
+      },
+      {
+        "code": "A/503/8541",
+        "title": "Percussion - Recital Grade 7"
+      },
+      {
+        "code": "A/602/3418",
+        "title": "Classical Guitar - Grade 7"
+      },
+      {
+        "code": "A/602/3421",
+        "title": "Oboe - Grade 7"
+      },
+      {
+        "code": "A/615/9676",
+        "title": "Clarinet - Grade 7 Leisure Play"
+      },
+      {
+        "code": "A/616/0004",
+        "title": "Flute - Grade 7 Leisure Play"
+      },
+      {
+        "code": "A/616/1587",
+        "title": "Violin - Grade 7 Leisure Play"
+      },
+      {
+        "code": "D/508/2631",
+        "title": "Irish Traditional Fiddle - Grade 7"
+      },
+      {
+        "code": "D/602/3380",
+        "title": "Euphonium - Grade 7"
+      },
+      {
+        "code": "D/602/3444",
+        "title": "Electronic Keyboard - Grade 7"
+      },
+      {
+        "code": "D/615/9623",
+        "title": "Popular Music Vocals - Grade 7 Leisure Play"
+      },
+      {
+        "code": "F/503/8542",
+        "title": "Popular Music Vocals - Recital Grade 7"
+      },
+      {
+        "code": "F/506/5109",
+        "title": "Ukulele - Grade 7"
+      },
+      {
+        "code": "F/602/3453",
+        "title": "Jazz Saxophone - Grade 7"
+      },
+      {
+        "code": "F/615/9694",
+        "title": "Classical Saxophone - Grade 7 Leisure Play"
+      },
+      {
+        "code": "F/616/1056",
+        "title": "Jazz Flute - Grade 7 Leisure Play"
+      },
+      {
+        "code": "F/617/7550",
+        "title": "Accordion - Grade 7 Leisure Play"
+      },
+      {
+        "code": "H/503/8520",
+        "title": "Clarinet - Recital Grade 7"
+      },
+      {
+        "code": "H/602/1968",
+        "title": "Piano - Grade 7 (Recorded)"
+      },
+      {
+        "code": "H/602/3400",
+        "title": "Flute - Grade 7"
+      },
+      {
+        "code": "H/602/341",
+        "title": "Bass Guitar - Grade 7"
+      },
+      {
+        "code": "H/602/3445",
+        "title": "Jazz Trumpet - Grade 7"
+      },
+      {
+        "code": "H/602/3817",
+        "title": "Irish Traditional Uilleann Pipes - Grade 7"
+      },
+      {
+        "code": "H/617/2678",
+        "title": "Tenor Horn - Recital Grade 7"
+      },
+      {
+        "code": "H/617/7850",
+        "title": "Scottish Traditional Fiddle - Grade 7"
+      },
+      {
+        "code": "J/602/3390",
+        "title": "Drum Kit - Grade 7"
+      },
+      {
+        "code": "J/602/3423",
+        "title": "Trumpet - Grade 7"
+      },
+      {
+        "code": "J/602/3440",
+        "title": "Jazz Piano - Grade 7"
+      },
+      {
+        "code": "J/615/991",
+        "title": "Cornet - Grade 7 Leisure Play"
+      },
+      {
+        "code": "J/616/0247",
+        "title": "Irish Traditional Fiddle - Grade 7 Leisure Play"
+      },
+      {
+        "code": "K/503/8535",
+        "title": "Jazz Saxophone - Recital Grade 7"
+      },
+      {
+        "code": "K/503/8552",
+        "title": "Violin - Recital Grade 7"
+      },
+      {
+        "code": "K/602/3396",
+        "title": "Violin - Grade 7"
+      },
+      {
+        "code": "K/602/3785",
+        "title": "Irish Traditional Button Accordion - Grade 7"
+      },
+      {
+        "code": "K/602/3818",
+        "title": "Irish Traditional Harp - Grade 7"
+      },
+      {
+        "code": "K/602/3821",
+        "title": "Irish Traditional Tin Whistle - Grade 7"
+      },
+      {
+        "code": "L/503/8527",
+        "title": "Drum Kit - Recital Grade 7"
+      },
+      {
+        "code": "L/503/8530",
+        "title": "Flute - Recital Grade 7"
+      },
+      {
+        "code": "L/602/3388",
+        "title": "Clarinet - Grade 7"
+      },
+      {
+        "code": "L/602/3407",
+        "title": "Percussion - Grade 7"
+      },
+      {
+        "code": "L/602/3410",
+        "title": "Rock Guitar - Grade 7"
+      },
+      {
+        "code": "L/602/3424",
+        "title": "Popular Music Vocals - Grade 7"
+      },
+      {
+        "code": "M/503/8519",
+        "title": "Classical Guitar - Recital Grade 7"
+      },
+      {
+        "code": "M/503/8522",
+        "title": "Cello - Recital Grade 7"
+      },
+      {
+        "code": "M/503/8553",
+        "title": "Viola - Recital Grade 7"
+      },
+      {
+        "code": "M/602/3416",
+        "title": "Acoustic Guitar - Grade 7"
+      },
+      {
+        "code": "M/602/3819",
+        "title": "Irish Traditional Banjo - Grade 7"
+      },
+      {
+        "code": "M/602/3822",
+        "title": "Irish Traditional Flute - Grade 7"
+      },
+      {
+        "code": "M/615/9609",
+        "title": "Piano - Grade 7 Leisure Play"
+      },
+      {
+        "code": "M/615/9979",
+        "title": "Drum Kit - Grade 7 Leisure Play"
+      },
+      {
+        "code": "M/616/1084",
+        "title": "Jazz Piano - Grade 7 Leisure Play"
+      },
+      {
+        "code": "R/503/8528",
+        "title": "Electronic Keyboard - Recital Grade 7"
+      },
+      {
+        "code": "R/503/8545",
+        "title": "Classical Singing - Recital Grade 7"
+      },
+      {
+        "code": "R/602/3425",
+        "title": "Trombone - Grade 7"
+      },
+      {
+        "code": "R/602/344",
+        "title": "Electronic Organ - Grade 7"
+      },
+      {
+        "code": "R/602/3814",
+        "title": "Irish Traditional Concertina - Grade 7"
+      },
+      {
+        "code": "R/615/9702",
+        "title": "Classical Singing - Grade 7 Leisure Play"
+      },
+      {
+        "code": "R/615/9988",
+        "title": "Electronic Keyboard - Grade 7 Leisure Play"
+      },
+      {
+        "code": "R/616/1403",
+        "title": "Recorder - Grade 7 Leisure Play"
+      },
+      {
+        "code": "T/503/8540",
+        "title": "Piano - Recital Grade 7"
+      },
+      {
+        "code": "T/602/3451",
+        "title": "Jazz Flute - Grade 7"
+      },
+      {
+        "code": "T/616/0034",
+        "title": "Harp - Grade 7 Leisure Play"
+      },
+      {
+        "code": "T/616/1555",
+        "title": "Trumpet - Grade 7 Leisure Play"
+      },
+      {
+        "code": "Y/503/852",
+        "title": "Electronic Organ - Recital Grade 7"
+      },
+      {
+        "code": "Y/602/3409",
+        "title": "Recorder - Grade 7"
+      },
+      {
+        "code": "Y/602/3412",
+        "title": "Electric Guitar - Grade 7"
+      },
+      {
+        "code": "Y/602/3426",
+        "title": "Classical Singing - Grade 7"
+      },
+      {
+        "code": "Y/615/968",
+        "title": "Classical Guitar - Grade 7 Leisure Play"
+      }
+    ]
+  },
+  "50120839": {
+    "qan": "50120839",
+    "qualificationTitle": "UWLQ Level 3 Certificate in Graded Examination in Music Performance (Grade 6)",
+    "awardingOrganisation": "UWL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "A/602/3337",
+        "title": "Jazz Clarinet - Grade 6"
+      },
+      {
+        "code": "A/602/3368",
+        "title": "Percussion - Grade 6"
+      },
+      {
+        "code": "A/602/337",
+        "title": "Snare Drum - Grade 6"
+      },
+      {
+        "code": "A/602/3788",
+        "title": "Irish Traditional Concertina - Grade 6"
+      },
+      {
+        "code": "A/602/3791",
+        "title": "Irish Traditional Uilleann Pipes - Grade 6"
+      },
+      {
+        "code": "A/615/969",
+        "title": "Classical Saxophone - Grade 6 Leisure Play"
+      },
+      {
+        "code": "A/616/024",
+        "title": "Irish Traditional Fiddle - Grade 6 Leisure Play"
+      },
+      {
+        "code": "D/503/8497",
+        "title": "Jazz Piano - Recital Grade 6"
+      },
+      {
+        "code": "D/503/8502",
+        "title": "Recorder - Recital Grade 6"
+      },
+      {
+        "code": "D/508/4217",
+        "title": "Irish Traditional Electronic Keyboard - Grade 6"
+      },
+      {
+        "code": "D/602/3234",
+        "title": "Cello - Grade 6"
+      },
+      {
+        "code": "D/602/3363",
+        "title": "Acoustic Guitar - Grade 6 (Recorded)"
+      },
+      {
+        "code": "D/602/3377",
+        "title": "Scottish Traditional Fiddle - Grade 6"
+      },
+      {
+        "code": "D/616/1386",
+        "title": "Percussion - Grade 6 Leisure Play"
+      },
+      {
+        "code": "F/503/8489",
+        "title": "Flute - Recital Grade 6"
+      },
+      {
+        "code": "F/503/8511",
+        "title": "Violin - Recital Grade 6"
+      },
+      {
+        "code": "F/602/3341",
+        "title": "Jazz Trumpet - Grade 6"
+      },
+      {
+        "code": "F/602/3792",
+        "title": "Irish Traditional Harp - Grade 6"
+      },
+      {
+        "code": "F/615/6598",
+        "title": "Pipe Organ - Grade 6"
+      },
+      {
+        "code": "F/615/9663",
+        "title": "Church Music - Grade 6 Leisure Play"
+      },
+      {
+        "code": "F/615/9713",
+        "title": "Cornet - Grade 6 Leisure Play"
+      },
+      {
+        "code": "H/602/3235",
+        "title": "Clarinet - Grade 6"
+      },
+      {
+        "code": "H/602/3316",
+        "title": "Church Music - Grade 6"
+      },
+      {
+        "code": "H/602/3333",
+        "title": "Jazz Saxophone - Grade 6"
+      },
+      {
+        "code": "H/602/3347",
+        "title": "Jazz Piano - Grade 6"
+      },
+      {
+        "code": "H/602/3364",
+        "title": "Bass Guitar - Grade 6"
+      },
+      {
+        "code": "H/615/9607",
+        "title": "Piano - Grade 6 Leisure Play"
+      },
+      {
+        "code": "H/616/1082",
+        "title": "Jazz Piano - Grade 6 Leisure Play"
+      },
+      {
+        "code": "H/650/9703",
+        "title": "Irish Traditional Fiddle - Recital Grade 6"
+      },
+      {
+        "code": "J/503/8512",
+        "title": "Viola - Recital Grade 6"
+      },
+      {
+        "code": "J/602/327",
+        "title": "Oboe - Grade 6"
+      },
+      {
+        "code": "J/602/3339",
+        "title": "Jazz Trombone - Grade 6"
+      },
+      {
+        "code": "J/602/3356",
+        "title": "Classical Saxophone - Grade 6"
+      },
+      {
+        "code": "J/602/3373",
+        "title": "Drum Kit - Grade 6"
+      },
+      {
+        "code": "J/602/3793",
+        "title": "Irish Traditional Banjo - Grade 6"
+      },
+      {
+        "code": "J/616/1401",
+        "title": "Recorder - Grade 6 Leisure Play"
+      },
+      {
+        "code": "J/616/153",
+        "title": "Timpani - Grade 6 Leisure Play"
+      },
+      {
+        "code": "K/503/8499",
+        "title": "Piano - Recital Grade 6 (Recorded)"
+      },
+      {
+        "code": "K/503/8504",
+        "title": "Classical Singing - Recital Grade 6"
+      },
+      {
+        "code": "K/602/3320",
+        "title": "Electronic Keyboard - Grade 6"
+      },
+      {
+        "code": "K/602/3365",
+        "title": "Electric Guitar - Grade 6"
+      },
+      {
+        "code": "K/615/9978",
+        "title": "Drum Kit - Grade 6 Leisure Play"
+      },
+      {
+        "code": "K/615/9995",
+        "title": "Electronic Organ - Grade 6 Leisure Play"
+      },
+      {
+        "code": "L/503/849",
+        "title": "Jazz Saxophone - Recital Grade 6"
+      },
+      {
+        "code": "L/602/3245",
+        "title": "Violin - Grade 6 (Recorded)"
+      },
+      {
+        "code": "L/602/3715",
+        "title": "Irish Traditional Accordion - Grade 6"
+      },
+      {
+        "code": "L/615/9701",
+        "title": "Classical Singing - Grade 6 Leisure Play"
+      },
+      {
+        "code": "L/615/9987",
+        "title": "Electronic Keyboard - Grade 6 Leisure Play"
+      },
+      {
+        "code": "L/650/9904",
+        "title": "Irish Traditional Tin Whistle - Recital Grade 6"
+      },
+      {
+        "code": "M/503/8486",
+        "title": "Drum Kit - Recital Grade 6"
+      },
+      {
+        "code": "M/503/850",
+        "title": "Trombone - Recital Grade 6"
+      },
+      {
+        "code": "M/508/2620",
+        "title": "Irish Traditional Bodhran - Grade 6"
+      },
+      {
+        "code": "M/602/3254",
+        "title": "Flute - Grade 6"
+      },
+      {
+        "code": "M/602/3318",
+        "title": "Electronic Organ - Grade 6"
+      },
+      {
+        "code": "M/602/3335",
+        "title": "Jazz Flute - Grade 6"
+      },
+      {
+        "code": "M/602/3366",
+        "title": "Rock Guitar - Grade 6"
+      },
+      {
+        "code": "M/602/3786",
+        "title": "Irish Traditional Piano Accordion - Grade 6"
+      },
+      {
+        "code": "M/616/1554",
+        "title": "Trumpet - Grade 6 Leisure Play"
+      },
+      {
+        "code": "R/503/8478",
+        "title": "Classical Guitar - Recital Grade 6"
+      },
+      {
+        "code": "R/503/8481",
+        "title": "Cello - Recital Grade 6"
+      },
+      {
+        "code": "R/503/8500",
+        "title": "Percussion - Recital Grade 6"
+      },
+      {
+        "code": "R/602/326",
+        "title": "Recorder - Grade 6"
+      },
+      {
+        "code": "R/602/3277",
+        "title": "Trumpet - Grade 6"
+      },
+      {
+        "code": "R/602/3358",
+        "title": "Classical Singing - Grade 6"
+      },
+      {
+        "code": "R/602/3795",
+        "title": "Irish Traditional Tin Whistle - Grade 6"
+      },
+      {
+        "code": "R/615/9683",
+        "title": "Classical Guitar - Grade 6 Leisure Play"
+      },
+      {
+        "code": "R/616/1546",
+        "title": "Trombone - Grade 6 Leisure Play"
+      },
+      {
+        "code": "T/503/8487",
+        "title": "Electronic Keyboard - Recital Grade 6"
+      },
+      {
+        "code": "T/506/5110",
+        "title": "Ukulele - Grade 6"
+      },
+      {
+        "code": "T/602/380",
+        "title": "Scottish Traditional Highland Pipes - Grade 6"
+      },
+      {
+        "code": "T/615/9658",
+        "title": "Cello - Grade 6 Leisure Play"
+      },
+      {
+        "code": "T/615/9675",
+        "title": "Clarinet - Grade 6 Leisure Play"
+      },
+      {
+        "code": "T/616/0003",
+        "title": "Flute - Grade 6 Leisure Play"
+      },
+      {
+        "code": "T/616/1054",
+        "title": "Jazz Flute - Grade 6 Leisure Play"
+      },
+      {
+        "code": "T/616/1345",
+        "title": "Jazz Trumpet - Grade 6 Leisure Play"
+      },
+      {
+        "code": "T/616/1586",
+        "title": "Violin - Grade 6 Leisure Play"
+      },
+      {
+        "code": "Y/503/8479",
+        "title": "Clarinet - Recital Grade 6"
+      },
+      {
+        "code": "Y/503/8482",
+        "title": "Classical Saxophone - Recital Grade 6"
+      },
+      {
+        "code": "Y/503/8501",
+        "title": "Popular Music Vocals - Recital Grade 6"
+      },
+      {
+        "code": "Y/602/1966",
+        "title": "Piano - Grade 6 (Recorded)"
+      },
+      {
+        "code": "Y/602/3278",
+        "title": "Trombone - Grade 6"
+      },
+      {
+        "code": "Y/602/3359",
+        "title": "Electronic Keyboard - Grade 6"
+      },
+      {
+        "code": "Y/602/3362",
+        "title": "Classical Guitar - Grade 6 (Recorded)"
+      },
+      {
+        "code": "Y/602/3376",
+        "title": "Irish Traditional Fiddle - Grade 6"
+      },
+      {
+        "code": "Y/602/3796",
+        "title": "Irish Traditional Flute - Grade 6"
+      },
+      {
+        "code": "Y/615/9622",
+        "title": "Popular Music Vocals - Grade 6 Leisure Play"
+      },
+      {
+        "code": "Y/616/1578",
+        "title": "Viola - Grade 6 Leisure Play"
+      }
+    ]
+  },
+  "50121066": {
+    "qan": "50121066",
+    "qualificationTitle": "UWLQ Level 3 Certificate in Graded Examination in Popular Music Theory (Grade 6)",
+    "awardingOrganisation": "UWL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "A/103/0379",
+        "title": "Popular Music Theory - Grade 6"
+      }
+    ]
+  },
+  "50121078": {
+    "qan": "50121078",
+    "qualificationTitle": "UWLQ Level 3 Certificate in Graded Examination in Popular Music Theory (Grade 7)",
+    "awardingOrganisation": "UWL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "M/103/0380",
+        "title": "Popular Music Theory - Grade 7"
+      }
+    ]
+  },
+  "5012108X": {
+    "qan": "5012108X",
+    "qualificationTitle": "UWLQ Level 3 Certificate in Graded Examination in Popular Music Theory (Grade 8)",
+    "awardingOrganisation": "UWL",
+    "grades": [
+      "D",
+      "F",
+      "M",
+      "P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "T/103/0381",
+        "title": "Popular Music Theory - Grade 8"
+      }
+    ]
+  },
+  "60371286": {
+    "qan": "60371286",
+    "qualificationTitle": "VTCT Skills Level 1/2 Technical Award in the Study of Hair and Beauty",
+    "awardingOrganisation": "VTCT",
+    "grades": [
+      "F",
+      "L1D",
+      "L1M",
+      "L1P",
+      "L2*",
+      "L2D",
+      "L2M",
+      "L2P",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60141049": {
+    "qan": "60141049",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Economics",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60145055": {
+    "qan": "60145055",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in English Language",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60146047": {
+    "qan": "60146047",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Sociology",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6014869X": {
+    "qan": "6014869X",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Business",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60148718": {
+    "qan": "60148718",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in English Literature",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60148925": {
+    "qan": "60148925",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Art and Design",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "B650QS",
+        "title": "Art, Craft and Design"
+      },
+      {
+        "code": "B651QS",
+        "title": "Art and Design: Fine Art"
+      },
+      {
+        "code": "B652QS",
+        "title": "Art and Design: Critical and Contextual Studies"
+      },
+      {
+        "code": "B653QS",
+        "title": "Art and Design: Textile Design"
+      },
+      {
+        "code": "B654QS",
+        "title": "Art and Design: Graphic Communication"
+      },
+      {
+        "code": "B655QS",
+        "title": "Art and Design: Three-Dimensional Design"
+      },
+      {
+        "code": "B656QS",
+        "title": "Art and Design: Photography"
+      }
+    ]
+  },
+  "60149061": {
+    "qan": "60149061",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in English Language and Literature",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60150440": {
+    "qan": "60150440",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in English Language",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60152461": {
+    "qan": "60152461",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in English Literature",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60153027": {
+    "qan": "60153027",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Computer Science",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60155012": {
+    "qan": "60155012",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Chemistry",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60155036": {
+    "qan": "60155036",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Mathematics",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "C300PF",
+        "title": "Mathematics Foundation Tier"
+      },
+      {
+        "code": "C300PH",
+        "title": "Mathematics Higher Tier"
+      }
+    ]
+  },
+  "60155218": {
+    "qan": "60155218",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Physics",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60157057": {
+    "qan": "60157057",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Biology",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60160457": {
+    "qan": "60160457",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Psychology",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60178115": {
+    "qan": "60178115",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Latin",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60180870": {
+    "qan": "60180870",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Art and Design",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "C650QS",
+        "title": "Art, Craft and Design"
+      },
+      {
+        "code": "C651QS",
+        "title": "Art and Design: Fine Art"
+      },
+      {
+        "code": "C653QS",
+        "title": "Art and Design: Textile Design"
+      },
+      {
+        "code": "C654QS",
+        "title": "Art and Design: Graphic Communication"
+      },
+      {
+        "code": "C655QS",
+        "title": "Art and Design: Three-Dimensional Design"
+      },
+      {
+        "code": "C656QS",
+        "title": "Art and Design: Photography"
+      }
+    ]
+  },
+  "60180936": {
+    "qan": "60180936",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Food Preparation and Nutrition",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6018131X": {
+    "qan": "6018131X",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Music",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60181473": {
+    "qan": "60181473",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Music",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60181527": {
+    "qan": "60181527",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Geography A",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60181539": {
+    "qan": "60181539",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Geography B",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60182398": {
+    "qan": "60182398",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in History",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6018291X": {
+    "qan": "6018291X",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Computer Science",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184206": {
+    "qan": "60184206",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Drama",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60184449": {
+    "qan": "60184449",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Physical Education",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60185557": {
+    "qan": "60185557",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Drama and Theatre",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60187712": {
+    "qan": "60187712",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary in Religious Studies",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6018839X": {
+    "qan": "6018839X",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Physical Education",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60188480": {
+    "qan": "60188480",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Geography",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60188790": {
+    "qan": "60188790",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Religious Studies",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60189009": {
+    "qan": "60189009",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in French",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "C800PF",
+        "title": "French Foundation Tier"
+      },
+      {
+        "code": "C800PH",
+        "title": "French Higher Tier"
+      }
+    ]
+  },
+  "60189010": {
+    "qan": "60189010",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Spanish",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "C810PF",
+        "title": "Spanish Foundation Tier"
+      },
+      {
+        "code": "C810PH",
+        "title": "Spanish Higher Tier"
+      }
+    ]
+  },
+  "60189277": {
+    "qan": "60189277",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in German",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "C820PF",
+        "title": "German Foundation Tier"
+      },
+      {
+        "code": "C820PH",
+        "title": "German Higher Tier"
+      }
+    ]
+  },
+  "60300644": {
+    "qan": "60300644",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in French",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60300656": {
+    "qan": "60300656",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in German",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60300668": {
+    "qan": "60300668",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Spanish",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60303050": {
+    "qan": "60303050",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Business",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60305988": {
+    "qan": "60305988",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Geology",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60307766": {
+    "qan": "60307766",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Electronics",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6030778X": {
+    "qan": "6030778X",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Electronics",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60308606": {
+    "qan": "60308606",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Geology",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60308898": {
+    "qan": "60308898",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Film Studies",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60309301": {
+    "qan": "60309301",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Law",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60309726": {
+    "qan": "60309726",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Film Studies",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60310455": {
+    "qan": "60310455",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Sociology",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60311150": {
+    "qan": "60311150",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Media Studies",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60311216": {
+    "qan": "60311216",
+    "qualificationTitle": "WJEC Eduqas Level 1/Level 2 GCSE (9-1) in Design and Technology",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60311502": {
+    "qan": "60311502",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Media Studies",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60311745": {
+    "qan": "60311745",
+    "qualificationTitle": "WJEC Eduqas Level 3 Advanced Subsidiary GCE in Design and Technology (Fashion and Textiles/Product Design)",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "N",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": [
+      {
+        "code": "B601QS",
+        "title": "Design and Technology: Fashion and Textiles"
+      },
+      {
+        "code": "B602QS",
+        "title": "Design and Technology: Product Design"
+      }
+    ]
+  },
+  "60370154": {
+    "qan": "60370154",
+    "qualificationTitle": "WJEC Level 1/2 Vocational Award in Construction and the Built Environment (Technical Award)",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "*1",
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370178": {
+    "qan": "60370178",
+    "qualificationTitle": "WJEC Level 1/2 Vocational Award in Sport and Coaching Principles (Technical Award)",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "*1",
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6037018X": {
+    "qan": "6037018X",
+    "qualificationTitle": "WJEC Level 1/2 Vocational Award in ICT (Technical Award)",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "*1",
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370191": {
+    "qan": "60370191",
+    "qualificationTitle": "WJEC Level 1/2 Vocational Award in Engineering  (Technical Award)",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "*1",
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370208": {
+    "qan": "60370208",
+    "qualificationTitle": "WJEC Level 1/2 Vocational Award in Performing Arts (Technical Award)",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "*1",
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "6037021X": {
+    "qan": "6037021X",
+    "qualificationTitle": "WJEC Level 1/2 Vocational Award in Retail Business (Technical Award)",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "*1",
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370221": {
+    "qan": "60370221",
+    "qualificationTitle": "WJEC Level 1/2 Vocational Award in Hospitality and Catering (Technical Award)",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "*1",
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  },
+  "60370233": {
+    "qan": "60370233",
+    "qualificationTitle": "WJEC Level 1/2 Vocational Award in Health and Social Care (Technical Award)",
+    "awardingOrganisation": "WJEC",
+    "grades": [
+      "*1",
+      "*2",
+      "D1",
+      "D2",
+      "F",
+      "M1",
+      "M2",
+      "P1",
+      "P2",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ],
+    "syllabusCodes": []
+  }
+}

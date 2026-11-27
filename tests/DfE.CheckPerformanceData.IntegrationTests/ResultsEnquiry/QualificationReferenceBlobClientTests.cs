@@ -63,15 +63,15 @@ public sealed class QualificationReferenceBlobClientTests(AzuriteFixture azurite
         // clobbered by a pod restart.
         var (client, _, _) = NewClient();
 
-        await client.SeedIfMissingAsync(SeedJson);
-        var qualification = (await client.GetLookupAsync()).Find("60146084");
+        await client.SeedIfMissingAsync(QualificationReferenceSet.Post16, SeedJson);
+        var qualification = (await client.GetLookupAsync(QualificationReferenceSet.Post16)).Find("60146084");
         Assert.NotNull(qualification);
         Assert.Equal("AQA", qualification.AwardingOrganisation);
 
-        await client.SeedIfMissingAsync(ReplacementJson);
+        await client.SeedIfMissingAsync(QualificationReferenceSet.Post16, ReplacementJson);
 
-        Assert.NotNull((await client.GetLookupAsync()).Find("60146084"));
-        Assert.Null((await client.GetLookupAsync()).Find("99999999"));
+        Assert.NotNull((await client.GetLookupAsync(QualificationReferenceSet.Post16)).Find("60146084"));
+        Assert.Null((await client.GetLookupAsync(QualificationReferenceSet.Post16)).Find("99999999"));
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class QualificationReferenceBlobClientTests(AzuriteFixture azurite
         // The qualification page degrades to empty dropdowns rather than a 500.
         var (client, _, _) = NewClient();
 
-        var lookup = await client.GetLookupAsync();
+        var lookup = await client.GetLookupAsync(QualificationReferenceSet.Post16);
 
         Assert.Same(QualificationReferenceLookup.Empty, lookup);
     }
@@ -90,7 +90,7 @@ public sealed class QualificationReferenceBlobClientTests(AzuriteFixture azurite
     {
         var (client, service, container) = NewClient();
 
-        await client.SeedIfMissingAsync(SeedJson);
+        await client.SeedIfMissingAsync(QualificationReferenceSet.Post16, SeedJson);
 
         var blob = service.GetBlobContainerClient(container).GetBlobClient("qualification-reference.json");
         Assert.True(await blob.ExistsAsync());
@@ -100,16 +100,16 @@ public sealed class QualificationReferenceBlobClientTests(AzuriteFixture azurite
     public async Task The_document_is_downloaded_once_and_then_served_from_cache()
     {
         var (client, service, container) = NewClient();
-        await client.SeedIfMissingAsync(SeedJson);
-        Assert.NotNull((await client.GetLookupAsync()).Find("60146084"));
+        await client.SeedIfMissingAsync(QualificationReferenceSet.Post16, SeedJson);
+        Assert.NotNull((await client.GetLookupAsync(QualificationReferenceSet.Post16)).Find("60146084"));
 
         // Overwriting out-of-band and still seeing the old content proves the second read never
         // went to storage.
         await service.GetBlobContainerClient(container).GetBlobClient("qualification-reference.json")
             .UploadAsync(BinaryData.FromString(ReplacementJson), overwrite: true);
 
-        Assert.NotNull((await client.GetLookupAsync()).Find("60146084"));
-        Assert.Null((await client.GetLookupAsync()).Find("99999999"));
+        Assert.NotNull((await client.GetLookupAsync(QualificationReferenceSet.Post16)).Find("60146084"));
+        Assert.Null((await client.GetLookupAsync(QualificationReferenceSet.Post16)).Find("99999999"));
     }
 
     [Fact]
@@ -118,11 +118,11 @@ public sealed class QualificationReferenceBlobClientTests(AzuriteFixture azurite
         // Startup order matters: if anything reads the reference before the seeder runs, the empty
         // result must not stick around for five minutes and leave every dropdown blank.
         var (client, _, _) = NewClient();
-        Assert.Same(QualificationReferenceLookup.Empty, await client.GetLookupAsync());
+        Assert.Same(QualificationReferenceLookup.Empty, await client.GetLookupAsync(QualificationReferenceSet.Post16));
 
-        await client.SeedIfMissingAsync(SeedJson);
+        await client.SeedIfMissingAsync(QualificationReferenceSet.Post16, SeedJson);
 
-        Assert.NotNull((await client.GetLookupAsync()).Find("60146084"));
+        Assert.NotNull((await client.GetLookupAsync(QualificationReferenceSet.Post16)).Find("60146084"));
     }
 
     [Fact]
@@ -133,6 +133,55 @@ public sealed class QualificationReferenceBlobClientTests(AzuriteFixture azurite
         await containerClient.CreateAsync();
         await containerClient.UploadBlobAsync("qualification-reference.json", BinaryData.FromString("{not json"));
 
-        await Assert.ThrowsAnyAsync<System.Text.Json.JsonException>(() => client.GetLookupAsync());
+        await Assert.ThrowsAnyAsync<System.Text.Json.JsonException>(() => client.GetLookupAsync(QualificationReferenceSet.Post16));
+    }
+
+    [Fact]
+    public async Task Each_reference_set_has_its_own_blob_and_its_own_cache_entry()
+    {
+        var (client, service, container) = NewClient();
+        await client.SeedIfMissingAsync(QualificationReferenceSet.Post16, SeedJson);
+        await client.SeedIfMissingAsync(QualificationReferenceSet.Ks4, ReplacementJson);
+
+        var post16 = await client.GetLookupAsync(QualificationReferenceSet.Post16);
+        var ks4 = await client.GetLookupAsync(QualificationReferenceSet.Ks4);
+
+        Assert.NotNull(post16.Find("60146084"));
+        Assert.Null(post16.Find("99999999"));
+        Assert.NotNull(ks4.Find("99999999"));
+        Assert.Null(ks4.Find("60146084"));
+        Assert.True(await service.GetBlobContainerClient(container)
+            .GetBlobClient("qualification-reference-ks4.json").ExistsAsync());
+    }
+
+    [Fact]
+    public async Task A_missing_ks4_blob_reads_as_the_empty_lookup_when_the_16_19_blob_is_there()
+    {
+        var (client, _, _) = NewClient();
+        await client.SeedIfMissingAsync(QualificationReferenceSet.Post16, SeedJson);
+
+        Assert.Same(QualificationReferenceLookup.Empty, await client.GetLookupAsync(QualificationReferenceSet.Ks4));
+    }
+
+    [Fact]
+    public async Task The_seeder_uploads_each_bundled_reference_file()
+    {
+        var (client, service, container) = NewClient();
+        var root = Directory.CreateTempSubdirectory("qualification-reference-").FullName;
+        try
+        {
+            var folder = Directory.CreateDirectory(Path.Combine(root, "Data", "QualificationReference")).FullName;
+            await File.WriteAllTextAsync(Path.Combine(folder, "qualification-reference.json"), SeedJson);
+            await File.WriteAllTextAsync(Path.Combine(folder, "qualification-reference-ks4.json"), ReplacementJson);
+
+            await DfE.CheckPerformanceData.Web.Seeding.SeedQualificationReference.ExecuteSeedAsync(client, root);
+
+            Assert.NotNull((await client.GetLookupAsync(QualificationReferenceSet.Post16)).Find("60146084"));
+            Assert.NotNull((await client.GetLookupAsync(QualificationReferenceSet.Ks4)).Find("99999999"));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 }

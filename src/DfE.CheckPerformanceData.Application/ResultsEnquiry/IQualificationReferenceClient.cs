@@ -1,14 +1,17 @@
 namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
 /// <summary>
-/// Reads the QualList 16-19 qualification reference (AB#297848) from the rules-config container,
-/// blob qualification-reference.json — beside rules.json because it is the same kind of thing:
-/// slow-moving reference data from another team, shared by every window, self-seeded from a bundled
-/// copy. Since AB#301903 it is the single source of qualification titles, awarding organisations and
-/// grade scales for every results-enquiry journey. The whole lookup is returned (not find-by-QAN)
-/// because the qualification search page needs the AO list and each AO's QANs, not one record.
+/// Reads the qualification reference documents of the results enquiry journeys. Each document is a
+/// blob in the rules-config container.
 /// </summary>
 public interface IQualificationReferenceClient
 {
-    Task<QualificationReferenceLookup> GetLookupAsync(CancellationToken ct = default);
+    /// <summary>Gets the whole lookup of one reference document.</summary>
+    /// <param name="set">The document to read.</param>
+    /// <param name="ct">Cancels the read.</param>
+    /// <returns>The lookup. <see cref="QualificationReferenceLookup.Empty"/> when the document is not in storage.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The value of <paramref name="set"/> is not a defined document.</exception>
+    /// <exception cref="System.Text.Json.JsonException">The document is not valid JSON.</exception>
+    /// <remarks>A storage failure other than a missing document is not caught. It reaches the caller.</remarks>
+    Task<QualificationReferenceLookup> GetLookupAsync(QualificationReferenceSet set, CancellationToken ct = default);
 }

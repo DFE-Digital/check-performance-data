@@ -2,11 +2,9 @@ using System.Text.RegularExpressions;
 
 namespace DfE.CheckPerformanceData.Application.WindowManagement.Extensions;
 
-/// <summary>
-/// AB#307773: the schools an extension names, as an admin pastes them — one LAESTAB per line, with
+/// <summary>AB#307773: the schools an extension names, as an admin pastes them — one LAESTAB per line, with
 /// or without its slash. Stored and compared as digits only, the form
-/// <see cref="Dashboard.LaestabNormaliser"/> and every blob name use; shown with the slash.
-/// </summary>
+/// <see cref="Dashboard.LaestabNormaliser"/> and every blob name use; shown with the slash.</summary>
 public static partial class LaestabList
 {
     public static LaestabListResult Parse(string? text)
@@ -44,6 +42,15 @@ public static partial class LaestabList
 
     /// <summary>One LAESTAB per line, for a textarea read back to the admin.</summary>
     public static string DisplayLines(IEnumerable<string> digits) => string.Join("\n", digits.Select(Display));
+
+    /// <summary>The digit form of a LAESTAB, or null when the trimmed value is not a LAESTAB.</summary>
+    public static string? Digits(string? value)
+    {
+        if (value is null) return null;
+        var trimmed = value.Trim();
+        var match = LaestabPattern().Match(trimmed);
+        return match.Success ? match.Groups[1].Value + match.Groups[2].Value : null;
+    }
 
     // ECMAScript keeps \d to 0-9: .NET's \d alone also matches other scripts' digits, which no
     // LAESTAB holds.

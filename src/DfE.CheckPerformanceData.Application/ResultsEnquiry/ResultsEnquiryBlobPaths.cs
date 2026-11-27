@@ -15,8 +15,8 @@ namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 /// The layout itself is no longer described here. #316 moved it to
 /// <see cref="CheckingExerciseBlobPaths"/>, which every exercise's reader and writer shares, so the
 /// prefix cannot be changed in one place and missed in another. What is left here is the
-/// results-enquiry flavour of those paths, plus the qualification-reference blob, which lives in the
-/// rules-config container and is not part of a window's layout at all.
+/// results-enquiry flavour of those paths, plus the qualification reference blobs, which live in the
+/// rules-config container and are not part of a window's layout at all.
 /// </summary>
 public static class ResultsEnquiryBlobPaths
 {
@@ -25,6 +25,18 @@ public static class ResultsEnquiryBlobPaths
 
     /// <summary>The QualList 16-19 qualification reference blob (AB#297848), beside rules.json in the rules-config container.</summary>
     public const string QualificationReferenceBlobName = "qualification-reference.json";
+
+    /// <summary>The key stage 4 qualification reference blob, beside the 16-19 one.</summary>
+    public const string Ks4QualificationReferenceBlobName = "qualification-reference-ks4.json";
+
+    /// <summary>The blob name of a qualification reference document. Its bundled seed file has the same name.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not a defined set.</exception>
+    public static string QualificationReferenceBlobNameFor(QualificationReferenceSet set) => set switch
+    {
+        QualificationReferenceSet.Post16 => QualificationReferenceBlobName,
+        QualificationReferenceSet.Ks4 => Ks4QualificationReferenceBlobName,
+        _ => throw new ArgumentOutOfRangeException(nameof(set), set, "No blob is defined for this qualification reference.")
+    };
 
     /// <summary>e.g. "933/4070" -> "results-enquiry/data/9334070_results.json".</summary>
     public static string ResultsBlobName(string laestab)

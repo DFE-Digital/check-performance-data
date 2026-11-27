@@ -36,7 +36,7 @@
         </govuk-summary-list-row>
         @if (Model.SelectedResultQualification is not null)
         {
-            @* AB#301903: the awarding organisation is known only from the 16-19 reference, so the
+            @* AB#301903: the awarding organisation is known only from the qualification reference, so the
                row appears only when the QAN resolved. One label — "Awarding Organisation (AO) name" —
                on every enquiry details page and summary. *@
             <govuk-summary-list-row>
@@ -50,7 +50,7 @@
         </govuk-summary-list-row>
         <govuk-summary-list-row>
             <govuk-summary-list-row-key>Qualification name and subject</govuk-summary-list-row-key>
-            @* AB#301903: the 16-19 reference's title, falling back to the results file's name. *@
+            @* AB#301903: the reference's title, falling back to the results file's name. *@
             <govuk-summary-list-row-value>@Model.SelectedResultQualificationName</govuk-summary-list-row-value>
         </govuk-summary-list-row>
         <govuk-summary-list-row>

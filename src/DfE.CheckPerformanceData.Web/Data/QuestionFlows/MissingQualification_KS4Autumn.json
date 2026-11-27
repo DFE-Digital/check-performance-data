@@ -1,0 +1,148 @@
+{
+  "firstPageId": "cohort-scope",
+  "pages": [
+    {
+      "id": "cohort-scope",
+      "questions": [
+        {
+          "id": "q-cohort-scope",
+          "type": "Radio",
+          "role": "Enquiry.CohortScope",
+          "title": "Does the missing qualification affect the whole cohort?",
+          "hint": "Select one option",
+          "validationFailure": "Select if the missing qualification affects the whole cohort",
+          "summaryTitle": "Affects the whole cohort",
+          "options": [
+            {
+              "value": "yes",
+              "meaning": "Yes",
+              "label": "Yes",
+              "subLabel": "Provide an example of one pupil",
+              "nextPageId": "cohort-count"
+            },
+            {
+              "value": "no",
+              "meaning": "No",
+              "label": "No",
+              "subLabel": "Complete a separate enquiry for each pupil affected",
+              "nextPageId": "select-pupil-single"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cohort-count",
+      "nextPageId": "select-pupil-cohort",
+      "questions": [
+        {
+          "id": "q-cohort-count",
+          "type": "FreeText",
+          "role": "Enquiry.CohortCount",
+          "title": "How many pupils are missing this qualification?",
+          "hint": "Enter the number of pupils who are missing this qualification",
+          "validator": "WholeNumber",
+          "validationFailure": "Enter how many pupils are missing this qualification",
+          "formatFailure": "Enter how many pupils are missing this qualification",
+          "summaryTitle": "Number of pupils in affected cohort"
+        }
+      ]
+    },
+    {
+      "id": "select-pupil-cohort",
+      "type": "PupilSearch",
+      "pupilFilter": "All",
+      "pupilKey": "primary",
+      "title": "What is the name of one of the pupils from the affected cohort?",
+      "subheading": "Start typing to search by name, UPN, CYPMD ID or date of birth",
+      "validationFailure": "Enter the name of one of the pupils from the affected cohort",
+      "nextPageId": "select-qualification"
+    },
+    {
+      "id": "select-pupil-single",
+      "type": "PupilSearch",
+      "pupilFilter": "All",
+      "pupilKey": "primary",
+      "title": "What is the name of the pupil missing this qualification?",
+      "subheading": "Start typing to search by name, UPN, CYPMD ID or date of birth",
+      "validationFailure": "Enter the name of the pupil missing this qualification",
+      "nextPageId": "select-qualification"
+    },
+    {
+      "id": "select-qualification",
+      "type": "QualificationSearch",
+      "title": "Provide the missing qualification details for {pupilName}",
+      "pageTitle": "Provide the missing qualification details",
+      "validationFailure": "Select the Qualification Number (QAN)",
+      "nextPageId": "qualification-details"
+    },
+    {
+      "id": "qualification-details",
+      "type": "QualificationDetails",
+      "title": "Provide the missing qualification details for {pupilName}",
+      "pageTitle": "Provide the missing qualification details",
+      "nextPageId": "additional-info",
+      "questions": [
+        {
+          "id": "q-syllabus-code",
+          "type": "SyllabusSelect",
+          "role": "Enquiry.SyllabusCode",
+          "title": "Select syllabus code",
+          "hint": "Also known as specification code, entry code or cash-in code",
+          "selectPlaceholder": "Select",
+          "validationFailure": "Select the syllabus code",
+          "summaryTitle": "Syllabus code",
+          "visibleWhen": [{ "fact": "qualification.hasSyllabusCodes", "is": true }]
+        },
+        {
+          "id": "q-award-date",
+          "type": "Date",
+          "role": "Enquiry.AwardDate",
+          "title": "Provide award date",
+          "hint": "For example, 20 8 2026. If you don't know the exact day enter 01.",
+          "validationFailure": "Provide the award date",
+          "summaryTitle": "Award date",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Award date must be today or in the past" },
+            { "check": "onOrAfter", "date": "2023-09-01",
+              "message": "We are only able to allow results enquiries for results awarded during the 2023/24 and 2024/25 academic years" }
+          ]
+        },
+        {
+          "id": "q-missing-grade",
+          "type": "GradeSelect",
+          "role": "Enquiry.Grade",
+          "title": "Select the missing grade {pupilName} achieved",
+          "selectPlaceholder": "Select",
+          "validationFailure": "Select the missing grade this pupil achieved",
+          "summaryTitle": "Grade achieved"
+        },
+        {
+          "id": "q-ncn",
+          "type": "FreeText",
+          "role": "Enquiry.Ncn",
+          "title": "Provide National Centre Number (NCN) where exam was taken",
+          "optional": true,
+          "validator": "Ncn",
+          "summaryTitle": "National Centre Number (NCN)"
+        }
+      ]
+    },
+    {
+      "id": "additional-info",
+      "pageTitle": "Additional information",
+      "questions": [
+        {
+          "id": "q-additional-info",
+          "type": "TextArea",
+          "role": "Enquiry.AdditionalComments",
+          "title": "Additional information",
+          "hint": "You can provide us with any additional information to support your query if you need to.",
+          "optional": true,
+          "characterLimit": 250,
+          "summaryTitle": "Additional information"
+        }
+      ]
+    }
+  ]
+}

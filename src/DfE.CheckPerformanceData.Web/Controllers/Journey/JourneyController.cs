@@ -532,18 +532,19 @@ public sealed class JourneyController(
         // change, so the grade survives back-navigation.
         var resultChanged = journey.SelectedResult?.CompositeKey != resolved.CompositeKey;
 
-        // AB#301903: the grade page and the summary describe the qualification from the 16-19
-        // reference (title, AO, grade scale), so it is resolved once here, beside the result. The
-        // lookup is the cached QualList document — a keystroke-cheap read. A QAN the reference does
-        // not hold stores null: the grade page then says grades cannot be listed and validation
-        // holds the enquiry back; a later page re-resolves it while it is still null
-        // (HealSelectedResultQualificationAsync). A resolved entry is a snapshot for the rest of the
-        // journey — a reference refreshed mid-journey shows through only when the result is re-picked.
-        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
-        var qualification = lookup.Find(resolved.Qan);
+        // AB#301903: the grade page and the summary describe the result's qualification from the
+        // qualification reference documents of the window (title, AO, grade scale), so it is resolved
+        // once here, beside the result. Each lookup is a cached document — a keystroke-cheap read.
+        // A QAN the reference does not hold stores null: the grade page then says grades cannot be
+        // listed and validation holds the enquiry back; a later page re-resolves it while it is
+        // still null (HealSelectedResultQualificationAsync). A resolved entry is a snapshot for the
+        // rest of the journey — a reference refreshed mid-journey shows through only when the
+        // result is re-picked.
+        var qualification = await qualificationReferenceClient.FindHeldResultAsync(
+            journey.CheckingWindow?.CheckingWindowType, resolved.Qan, HttpContext.RequestAborted);
         if (qualification is null)
             logger.LogWarning(
-                "QAN {Qan} is not in the 16-19 qualification reference; the revised-grade picker will be " +
+                "QAN {Qan} is not in a qualification reference of this window; the revised-grade picker will be " +
                 "empty and the enquiry cannot be submitted until the reference covers it.",
                 resolved.Qan);
 
@@ -584,7 +585,8 @@ public sealed class JourneyController(
         if (nav is RedirectToJourneyPage { PageId: var navPageId })
             return RedirectToJourneyAction(config, windowId, navPageId);
 
-        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        var lookup = await qualificationReferenceClient.GetLookupAsync(
+            QualificationReferenceSets.ForSelection(journey.CheckingWindow?.CheckingWindowType), HttpContext.RequestAborted);
         return View("QualificationSearch", viewModelBuilder.BuildQualificationSearchVm(
             windowId, pageId, page, journey, config, lookup, fromSummary: fromSummary));
     }
@@ -604,7 +606,8 @@ public sealed class JourneyController(
         var page = flowService.GetPage(config, pageId);
         if (page is null || page.Type != PageType.QualificationSearch) return NotFound();
 
-        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        var lookup = await qualificationReferenceClient.GetLookupAsync(
+            QualificationReferenceSets.ForSelection(journey.CheckingWindow?.CheckingWindowType), HttpContext.RequestAborted);
 
         // Resolve server-side and fail closed: the QAN must exist AND belong to the posted AO —
         // the client-side cascade is presentation only, and a tampered pair would otherwise record
@@ -780,8 +783,8 @@ public sealed class JourneyController(
     {
         if (journey.SelectedResult is null || journey.SelectedResultQualification is not null) return journey;
 
-        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
-        var qualification = lookup.Find(journey.SelectedResult.Qan);
+        var qualification = await qualificationReferenceClient.FindHeldResultAsync(
+            journey.CheckingWindow?.CheckingWindowType, journey.SelectedResult.Qan, HttpContext.RequestAborted);
         if (qualification is null) return journey;
 
         HttpContext.Session.SaveRequestState(windowId, s => s.SelectedResultQualification = qualification);
@@ -790,9 +793,9 @@ public sealed class JourneyController(
 
     /// <summary>
     /// The grade scale for the page's picker, or null when the page has no grade picker or the
-    /// qualification is not in the 16-19 reference. No blob read happens here: both enquiry
+    /// qualification is not in a reference document of the window. No blob read happens here: both enquiry
     /// journeys resolve their qualification when it is chosen (AB#297848 at qualification search,
-    /// AB#301903 at result search) and carry the QualList entry in session. A gap is a normal
+    /// AB#301903 at result search) and carry the reference entry in session. A gap is a normal
     /// state — the page tells the user grades cannot be listed yet, and validation holds the
     /// enquiry back.
     /// </summary>

@@ -34,7 +34,7 @@ public sealed class ResultsEnquirySummary
 
     public ResultRecord? Result { get; init; }
 
-    /// <summary>AB#301903: the 16-19 reference entry for <see cref="Result"/>'s QAN, when it
+    /// <summary>AB#301903: the reference entry for <see cref="Result"/>'s QAN, when it
     /// resolved. Supplies the awarding organisation row and the qualification's title; null keeps
     /// the results file's own name and no AO row, exactly as the details page does.</summary>
     public QualificationReference? Qualification { get; init; }
@@ -72,7 +72,7 @@ public sealed class ResultsEnquirySummary
                 StudentName));
 
             lines.Add(Fixed("CYPMD ID", Result?.CypmdId ?? string.Empty));
-            // AB#301903: the AO is known only from the 16-19 reference, so the row appears only
+            // AB#301903: the AO is known only from the qualification reference, so the row appears only
             // when the QAN resolved — labelled as the missing-qualification summary labels it.
             if (Qualification is not null)
                 lines.Add(Fixed("Awarding Organisation (AO) name", Qualification.AwardingOrganisation));

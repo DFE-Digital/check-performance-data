@@ -114,7 +114,7 @@ public sealed class JourneyControllerResultSearchTests
             .Returns((JourneyNavigation?)null);
         _results.GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>())
             .Returns([BusStuds, French]);
-        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+        _qualificationReference.GetLookupAsync(QualificationReferenceSet.Post16, Arg.Any<CancellationToken>())
             .Returns(QualificationReferenceLookup.Parse(QualificationReferenceJson));
         _requestService.FindDuplicateResultsEnquiryAsync(
                 Arg.Any<Guid>(), Arg.Any<RequestState>(), Arg.Any<EnquirySubject>(), Arg.Any<CancellationToken>())
@@ -156,6 +156,26 @@ public sealed class JourneyControllerResultSearchTests
             QuestionHistory = ["select-student-single", "select-result"]
         };
         tweak?.Invoke(state);
+        _session.SetRequestState(WindowId, state);
+        return state;
+    }
+
+    private RequestState ReadyKs4AutumnJourney()
+    {
+        _flowService.GetConfigAsync(WhatToChange.IncorrectGrade, CheckingWindowType.KS4Autumn).Returns(Flow);
+        var state = new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.IncorrectGrade,
+            CheckingWindow = new CheckingWindowDto
+            {
+                Title = "Key Stage 4 Autumn", KeyStage = KeyStages.KS4,
+                CheckingWindowType = CheckingWindowType.KS4Autumn,
+                StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+            },
+            SelectedPupilId = Guid.NewGuid().ToString(),
+            SelectedPupil = Pupil(),
+            QuestionHistory = ["select-pupil-single", "select-result"]
+        };
         _session.SetRequestState(WindowId, state);
         return state;
     }
@@ -248,6 +268,44 @@ public sealed class JourneyControllerResultSearchTests
         Assert.Equal("Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Business", qualification.QualificationTitle);
         Assert.Equal("Pearson", qualification.AwardingOrganisation);
         Assert.Equal(13, qualification.Grades.Count);
+    }
+
+    [Fact]
+    public async Task Post_on_a_ks4_autumn_window_takes_the_qualification_of_the_result_from_the_ks4_list()
+    {
+        ReadyKs4AutumnJourney();
+        _qualificationReference.GetLookupAsync(QualificationReferenceSet.Ks4, Arg.Any<CancellationToken>())
+            .Returns(QualificationReferenceLookup.Parse("""
+                {
+                  "6037116X": {
+                    "qan": "6037116X",
+                    "qualificationTitle": "From the KS4 list",
+                    "awardingOrganisation": "Pearson",
+                    "grades": ["1", "2", "3"],
+                    "syllabusCodes": []
+                  }
+                }
+                """));
+
+        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey);
+
+        var qualification = _session.GetRequestState(WindowId).SelectedResultQualification;
+        Assert.NotNull(qualification);
+        Assert.Equal("From the KS4 list", qualification.QualificationTitle);
+    }
+
+    [Fact]
+    public async Task Post_on_a_ks4_autumn_window_falls_back_to_the_16_19_list()
+    {
+        ReadyKs4AutumnJourney();
+        _qualificationReference.GetLookupAsync(QualificationReferenceSet.Ks4, Arg.Any<CancellationToken>())
+            .Returns(QualificationReferenceLookup.Empty);
+
+        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey);
+
+        var qualification = _session.GetRequestState(WindowId).SelectedResultQualification;
+        Assert.NotNull(qualification);
+        Assert.Equal("Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Business", qualification.QualificationTitle);
     }
 
     [Fact]

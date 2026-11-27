@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
 /// <summary>
-/// The parsed QualList qualification reference document (AB#297848): a QAN-keyed map of
+/// A parsed qualification reference document (AB#297848): a QAN-keyed map of
 /// <see cref="QualificationReference"/>. Lookups are case-insensitive and trimmed because a QAN can
 /// end in a letter (<c>6037116X</c>) and arrives from a supplier export whose casing and padding are
 /// not guaranteed.

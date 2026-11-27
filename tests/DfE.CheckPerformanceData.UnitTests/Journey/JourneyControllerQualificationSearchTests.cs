@@ -95,7 +95,7 @@ public sealed class JourneyControllerQualificationSearchTests
         _flowService.GetPage(Flow, "qualification-details").Returns(DetailsPage);
         _flowService.GetNavigationGuard(Arg.Any<QuestionFlowConfig>(), Arg.Any<RequestState>(), Arg.Any<string>())
             .Returns((JourneyNavigation?)null);
-        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+        _qualificationReference.GetLookupAsync(QualificationReferenceSet.Post16, Arg.Any<CancellationToken>())
             .Returns(QualificationReferenceLookup.Parse(Sample));
         _requestService.FindDuplicateResultsEnquiryAsync(
                 Arg.Any<Guid>(), Arg.Any<RequestState>(), Arg.Any<EnquirySubject>(), Arg.Any<CancellationToken>())
@@ -116,6 +116,13 @@ public sealed class JourneyControllerQualificationSearchTests
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
     }
+
+    private const string Ks4Sample = """
+        {
+          "60147891": { "qan": "60147891", "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in English Literature",
+                        "awardingOrganisation": "Pearson", "grades": ["1","2","3"], "syllabusCodes": [] }
+        }
+        """;
 
     private static PupilDto Pupil() => new()
     {
@@ -143,6 +150,28 @@ public sealed class JourneyControllerQualificationSearchTests
         return state;
     }
 
+    private RequestState ReadyKs4AutumnJourney()
+    {
+        _flowService.GetConfigAsync(WhatToChange.MissingQualification, CheckingWindowType.KS4Autumn).Returns(Flow);
+        _qualificationReference.GetLookupAsync(QualificationReferenceSet.Ks4, Arg.Any<CancellationToken>())
+            .Returns(QualificationReferenceLookup.Parse(Ks4Sample));
+        var state = new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.MissingQualification,
+            CheckingWindow = new CheckingWindowDto
+            {
+                Title = "Key Stage 4 Autumn", KeyStage = KeyStages.KS4,
+                CheckingWindowType = CheckingWindowType.KS4Autumn,
+                StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+            },
+            SelectedPupilId = Guid.NewGuid().ToString(),
+            SelectedPupil = Pupil(),
+            QuestionHistory = ["select-pupil-single", "select-qualification"]
+        };
+        _session.SetRequestState(WindowId, state);
+        return state;
+    }
+
     // ── GET ──────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -156,6 +185,39 @@ public sealed class JourneyControllerQualificationSearchTests
         var model = Assert.IsType<QualificationSearchViewModel>(view.Model);
         Assert.Equal(["Active IQ", "AQA"], model.AwardingOrganisations);
         Assert.Equal(CypmdId, model.CypmdId);
+    }
+
+    [Fact]
+    public async Task Get_on_a_ks4_autumn_window_lists_the_ks4_qualifications()
+    {
+        ReadyKs4AutumnJourney();
+
+        var view = Assert.IsType<ViewResult>(await _sut.QualificationSearchPage(WindowId, "select-qualification"));
+
+        var model = Assert.IsType<QualificationSearchViewModel>(view.Model);
+        Assert.Equal(["Pearson"], model.AwardingOrganisations);
+    }
+
+    [Fact]
+    public async Task Post_on_a_ks4_autumn_window_stores_a_qualification_of_the_ks4_list()
+    {
+        ReadyKs4AutumnJourney();
+
+        await _sut.QualificationSearchPost(WindowId, "select-qualification", "Pearson", "60147891");
+
+        Assert.Equal("60147891", _session.GetRequestState(WindowId).SelectedQualification?.Qan);
+    }
+
+    [Fact]
+    public async Task Post_on_a_ks4_autumn_window_refuses_a_qualification_that_only_the_16_19_list_holds()
+    {
+        ReadyKs4AutumnJourney();
+
+        var result = await _sut.QualificationSearchPost(WindowId, "select-qualification", "AQA", "60146084");
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(_sut.ModelState.IsValid);
+        Assert.Null(_session.GetRequestState(WindowId).SelectedQualification);
     }
 
     [Fact]

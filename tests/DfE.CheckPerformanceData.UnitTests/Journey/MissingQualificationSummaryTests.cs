@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -9,6 +11,7 @@ public class MissingQualificationSummaryTests
     {
         DfeNumber = "860/4070",
         KeyStageLabel = "16 to 19",
+        LearnerNoun = LearnerNoun.For(CheckingWindowType.Post16),
         StudentName = "Billy B",
         IsCohortWide = isCohortWide,
         CohortCount = isCohortWide ? "10" : null,
@@ -92,6 +95,35 @@ public class MissingQualificationSummaryTests
         Assert.Equal(expected, lines[index].Value);
         Assert.False(lines[index].HasChange);
     }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, "Name of student", "Name of a student in cohort", "Number of students in affected cohort")]
+    [InlineData(CheckingWindowType.KS4Autumn, "Name of pupil", "Name of a pupil in cohort", "Number of pupils in affected cohort")]
+    public void The_learner_rows_use_the_noun_of_the_window(
+        CheckingWindowType windowType, string single, string example, string count)
+    {
+        var noun = LearnerNoun.For(windowType);
+
+        var singleKeys = Summary(noun, isCohortWide: false).Lines.Select(l => l.Key).ToList();
+        var cohortKeys = Summary(noun, isCohortWide: true).Lines.Select(l => l.Key).ToList();
+
+        Assert.Contains(single, singleKeys);
+        Assert.Contains(example, cohortKeys);
+        Assert.Contains(count, cohortKeys);
+    }
+
+    private static MissingQualificationSummary Summary(LearnerNoun noun, bool isCohortWide) => new()
+    {
+        LearnerNoun = noun,
+        DfeNumber = "8604070",
+        KeyStageLabel = "Key stage 4",
+        StudentName = "Alice Smith",
+        IsCohortWide = isCohortWide,
+        CohortCount = "3",
+        QualificationPageId = "select-qualification",
+        DetailsPageId = "qualification-details",
+        AdditionalInformationPageId = "additional-info"
+    };
 
     [Fact]
     public void No_graded_exam_answer_leaves_the_row_out()

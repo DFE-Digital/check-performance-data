@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
@@ -15,6 +16,8 @@ public sealed class QualificationSearchViewModel
 
     public string PupilName { get; set; } = string.Empty;
     public string? CypmdId { get; set; }
+
+    public LearnerNoun LearnerNoun { get; set; } = LearnerNoun.Pupil;
 
     /// <summary>
     /// The page heading with <c>{pupilName}</c> substituted, or null when the flow config gives the

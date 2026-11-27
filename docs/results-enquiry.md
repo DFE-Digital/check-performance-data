@@ -5,8 +5,8 @@ through to a reference number on screen and by email. Three journeys share the e
 submission path: incorrect grade (AB#296648, documented first below), missing qualification
 (AB#297848) and result does not belong to student (AB#298704), each with its own section.
 
-KS4 Autumn has two of the three journeys, incorrect grade and result does not belong to pupil. See
-[KS4 Autumn](#ks4-autumn).
+KS4 Autumn has all three journeys: incorrect grade, missing qualification and result does not belong
+to pupil. See [KS4 Autumn](#ks4-autumn).
 
 Related tickets: AB#296999 (results data), AB#297004 (student selection), AB#297130 (grade reference
 data), AB#297013, AB#297848 (missing qualification), AB#298704 (result does not belong to student).
@@ -38,9 +38,8 @@ The Check your pupil data page's "What would you like to do?" radios gain a thir
 an issue with an exam result**, routed to `ResultIssueController`. Each window with an open results
 enquiry exercise has the option (16-19 and KS4 Autumn). The issue page renders all three Figma
 options — *Incorrect grade*, *Missing qualification* and *Result does not belong to student* (*pupil*
-on a KS4 Autumn window) — each routed to its own flow. On KS4 Autumn, Missing qualification has no
-flow yet (see [KS4 Autumn](#ks4-autumn)). A posted value matching none of them (forged or otherwise
-unknown) is rejected as unanswered rather than starting a journey with no flow behind it.
+on a KS4 Autumn window) — each routed to its own flow. A posted value matching none of them (forged
+or otherwise unknown) is rejected as unanswered rather than starting a journey with no flow behind it.
 
 After the pupil-data exercise closes (AB#298317) the same chooser is reached from the Yes/No question
 Check your pupil data asks in that state; the seeded window `7D3F0B21-…` is in that state locally.
@@ -229,13 +228,15 @@ emit them that way (`TolerantStringJsonConverter`).
 A result is identified by a **composite key** `QAN|SESSION|SOURCE`, not by QAN — a student can hold the
 same qualification across sessions and across source files.
 
-### Grade scale, qualification title and AO — the 16-19 qualification reference
+### Grade scale, qualification title and AO — the qualification reference
 
 Since AB#301903 the incorrect-grade journey has no reference data of its own. When the result-search
-page resolves the picked result, `ResultSearchPost` also looks its QAN up in the QualList 16-19
-qualification reference (`IQualificationReferenceClient.GetLookupAsync`, the cached document the
-missing-qualification journey already uses) and stores the `QualificationReference` in session as
-`RequestState.SelectedResultQualification`. From there:
+page resolves the picked result, `ResultSearchPost` also looks its QAN up in the qualification
+reference documents of the window (`HeldResultQualifications.FindHeldResultAsync`, which reads the
+cached documents that `QualificationReferenceSets.ForHeldResult` names, in order) and stores the
+`QualificationReference` in session as `RequestState.SelectedResultQualification`. See
+[Qualification reference](#qualification-reference--iqualificationreferenceclient) for the
+documents. From there:
 
 - the "Incorrect grade details" page and the check-answers summary show the reference's
   **qualification title** and an **Awarding Organisation (AO) name** row;
@@ -318,7 +319,7 @@ Server-authoritative, in this order (`JourneyValidationService.ValidateGradeSele
    `{file label} already has grade {grade} for this result. Select a different grade`
    (`JourneyValidationService.RevisedGradeAlreadyHeldMessage`). When two files hold the grade, the
    message names the first in the student's results order.
-5. QAN absent from the 16-19 qualification reference → the picker is empty, the page says
+5. QAN absent from each qualification reference of the window → the picker is empty, the page says
    `We cannot list grades for this qualification yet`, a warning was logged when the result was chosen,
    and validation can never pass. Any later journey page or the summary re-resolves a qualification
    that is still `null` if the reference has since caught up; the heal logs nothing on a repeat miss,
@@ -587,13 +588,23 @@ deliberate:
 
 ### Qualification reference — `IQualificationReferenceClient`
 
-Container `rules-config`, blob `qualification-reference.json`, beside `rules.json` — same
-seed-if-missing (`If-None-Match: *`), same 5-minute cache, same empty-lookup degrade on a missing
-blob. Since AB#301903 this is the only reference document the results-enquiry journeys read: the
-incorrect-grade journey resolves its picked result's QAN against it too (see "Grade scale,
-qualification title and AO" above).
+There are two reference documents in the `rules-config` container, beside `rules.json`:
+`qualification-reference.json` (16-19) and `qualification-reference-ks4.json` (key stage 4).
+`QualificationReferenceSet` names them (`Post16`, `Ks4`), and
+`ResultsEnquiryBlobPaths.QualificationReferenceBlobNameFor` gives the blob name of each. Each has the
+same seed-if-missing rule (`If-None-Match: *`), its own 5-minute cache entry, and the same
+empty-lookup degrade on a missing blob. Each has a bundled copy in `Web/Data/QualificationReference/`
+with the same name, and web startup uploads a copy when its blob is absent.
 
-Seeded from `src/DfE.CheckPerformanceData.Web/Data/QualificationReference/qualification-reference.json`,
+Which document a journey reads depends on the window type:
+
+- `QualificationReferenceSets.ForSelection` gives the document of the Missing qualification dropdowns:
+  the key stage 4 document on a KS4 Autumn window, the 16-19 document on each other window.
+- `QualificationReferenceSets.ForHeldResult` gives the documents that describe a held result: on a
+  KS4 Autumn window the key stage 4 document first, then the 16-19 document; on each other window the
+  16-19 document. `FindHeldResultAsync` gives the first entry.
+
+The 16-19 document is seeded from `src/DfE.CheckPerformanceData.Web/Data/QualificationReference/qualification-reference.json`,
 generated by `scripts/Convert-QualListToReference.ps1` merging two supplier exports:
 
 - **QualList.xlsx** — 974 QANs across 25 awarding organisations, with grades per QAN. Grade order is
@@ -609,14 +620,32 @@ of the challenge line are omitted to match. The Figma summary's "Syllabus code: 
 "NA / not applicable" fallback may be intended; that is a spec decision, not implemented here.
 Regenerate the seed via the script when a fuller SyllabusCodes export arrives.
 
-QualList's "Included in KS4" column is ignored — no ticket instructs filtering the AO/QAN dropdowns
-by it, so all 974 QANs are offered.
+The 16-19 document does not change. It still ignores its "Included in KS4" column, so all 974 QANs
+are offered.
+
+The key stage 4 document comes from the sheet named `KS4` of "Dynamic form QAN list 2026 v1" (309
+qualifications, 12 awarding organisations) and from the rows of "CYPMD Syllabus Codes 2026 Final"
+where the `KS4` column is 1 (60 qualifications have a syllabus code). 203 of the 309 are not in the
+16-19 document. The script writes it with `-KeyStage KS4 -QualListSheet KS4`. With no `-KeyStage` it
+writes the 16-19 file as before. The two example commands are in the help text of the script:
+
+```
+pwsh scripts/Convert-QualListToReference.ps1 `
+    -QualList '<folder>\QualList.xlsx' `
+    -SyllabusCodes '<folder>\SyllabusCodes.xlsx'
+
+pwsh scripts/Convert-QualListToReference.ps1 -KeyStage KS4 -QualListSheet KS4 `
+    -QualList '<folder>\Dynamic form QAN list 2026 v1.xlsx' `
+    -SyllabusCodes '<folder>\CYPMD Syllabus Codes 2026 Final.xlsx'
+```
+
+The script refuses a sheet that is the list of the other key stage, and it finds each column by its header.
 
 ### Qualification search — AO then QAN, resolved server-side
 
 `QualificationSearchPage`/`QualificationSearchPost` mirror `ResultSearchPage`/`ResultSearchPost`: the
 posted AO and QAN are a claim, not a fact. The server re-resolves the QAN against the reference
-lookup and rejects it (fails closed, exactly as an unresolvable result key does) unless it also
+lookup of the window and rejects it (fails closed, exactly as an unresolvable result key does) unless it also
 belongs to the posted AO — the client-side JS cascade that narrows the QAN `<select>` to the chosen
 AO is presentation only, and a tampered pair must not record an AO the qualification does not belong
 to. The QAN `<select>` renders every option grouped by `<optgroup>` per AO, so the page works with
@@ -635,7 +664,7 @@ field.
 Both enquiry journeys' grade pickers get their scale without a blob call on the page: the
 missing-qualification picker (`q-missing-grade`, `QuestionType.GradeSelect`) reuses the existing
 `GradeSelect` engine machinery, but its scale comes from `QualificationReference.
-ToGradeReference()` — the QAN's grades from the QualList entry already resolved at qualification
+ToGradeReference()` — the QAN's grades from the qualification reference entry already resolved at qualification
 selection. Every grade is offered as a "pass" grade (the QualList export has no pass/fail split, and
 the missing grade is the user's claim, not a ranked correction against a held result), and the
 must-differ rule does not apply — there is no current grade to differ from.
@@ -745,16 +774,13 @@ is added to the map.
 ## KS4 Autumn
 
 Epic #903. The KS4 Autumn results enquiry works as the 16-19 one does, with the differences below.
-#901 added the two journeys that have a result search.
+#901 added the two journeys that have a result search. #900 added Missing qualification.
 
 | Journey | Flow file | State |
 |---|---|---|
 | Incorrect grade | `IncorrectGrade_KS4Autumn.json` | Built (#901) |
 | Result does not belong to pupil | `ResultDoesNotBelong_KS4Autumn.json` | Built (#901) |
-| Missing qualification | none | Not built (#900) |
-
-Until #900 adds its flow file, the issue page still offers Missing qualification on a KS4 Autumn
-window. `ResultIssueController` finds no flow for it and returns the school to Check your pupil data.
+| Missing qualification | `MissingQualification_KS4Autumn.json` | Built (#900) |
 
 Each KS4 Autumn flow file has the pages, page types, question ids, roles and option values of its
 16-19 file. The differences are:
@@ -765,10 +791,16 @@ Each KS4 Autumn flow file has the pages, page types, question ids, roles and opt
 - **The cohort count.** The question sets `formatFailure`, because the `WholeNumber` validator's own
   message says "students" (see `docs/question-flows.md`).
 
+In `MissingQualification_KS4Autumn.json`, neither pupil search page sets `requireResults`, as on 16-19,
+and for the same reason. The award date rule is the 16-19 rule: not in the future, and on or after
+1 September 2023.
+
 The code differences, all from the window type:
 
 - **The learner noun.** The issue page, the result search empty state, the grade details page, the
-  summary rows and the pupil search no-match text take "student" or "pupil" from `LearnerNoun`.
+  summary rows and the pupil search no-match text take "student" or "pupil" from `LearnerNoun`. The
+  Missing qualification pages take "Student name" or "Pupil name", and the three summary row labels,
+  from `LearnerNoun`.
   `EnquiryTypeLabels` names the enquiry types, so the third type is "Result does not belong to pupil"
   on the issue page, on the summary and in the stored description (`Results enquiry - Result does not
   belong to pupil`). The Results Enquiries tab shows the name, and the Zendesk ticket subject shows
@@ -776,6 +808,10 @@ The code differences, all from the window type:
 - **The results file.** A KS4 Autumn school sees the tag, for example "File: KS4_MAIN" (see
   [The results files over the year](#the-results-files-over-the-year)).
 - **The reference.** `CYPMD_KS4_RE_{7 hex}`.
+- **The qualification reference.** A KS4 Autumn school selects a missing qualification from the key
+  stage 4 document. The qualification of a held result comes from the key stage 4 document first, and
+  then from the 16-19 document. See
+  [Qualification reference](#qualification-reference--iqualificationreferenceclient).
 - **Graded exam.** The summary and the ticket state it (#899). See
   [The enquiry ticket (#859)](#the-enquiry-ticket-859).
 
@@ -785,14 +821,12 @@ INCLUDED)`. A pupil from the not-included data ends `NOT INCLUDED)`. This is the
 `UPN` in place of `ULN`. The other KS4 Autumn journeys keep the row from #623.
 `PupilSuggestionStyles.For` gives the style for a journey. The page sends it to
 `/pupils/suggestions` as `suggestionStyle`, and `PupilSuggestionFormat.Label` writes the row. A
-Missing qualification page gets the same row when #900 adds its flow file.
+Missing qualification page gets the same row.
 
 Not changed for KS4 Autumn:
 
 - The result page is the same plain dropdown. It lists each result the pupil holds in the live
   release. A user cannot type part of a subject or a QAN to search.
-- The qualification title, the awarding organisation and the grade scale come from the 16-19
-  qualification reference. #900 gives KS4 Autumn its own reference file.
 - The pupil search error says "Enter the name of …", as on 16-19. #902 asks for an error that tells
   the user to select a pupil.
 - The late results guidance starts with the 16-19 words. A content designer changes them for this
@@ -807,7 +841,7 @@ Decided by the lead developer on 25 Nov 2026:
 
 - The result page stays a dropdown with no type-ahead.
 - The KS4 learner noun is "pupil", in the inset on the result page too.
-- The issue page keeps Missing qualification before #900.
+- The issue page kept Missing qualification before #900 added its flow.
 - No rule reads the calendar to choose the files.
 - KS4 June shows file labels, not tags.
 - Main results is one file.

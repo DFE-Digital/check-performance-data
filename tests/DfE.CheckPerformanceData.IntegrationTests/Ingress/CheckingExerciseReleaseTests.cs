@@ -1,11 +1,14 @@
 using System.Security.Cryptography;
 using System.Text;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.WindowManagement.SampleData;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
+using DfE.CheckPerformanceData.Infrastructure.Ingress.SampleData;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -59,7 +62,48 @@ public sealed class CheckingExerciseReleaseTests(AzuriteFixture azurite) : IAsyn
 
     private const string Header = "CYPMD_ID,QAN,SESSION,GRADE,LAESTAB\n";
 
-    private static string Csv(string grade) => Header + $"500001,60181576,S2024,{grade},8604070\n";
+    private static string Csv(string grade, string laestab = "8604070") => Header + CsvRow(grade, laestab);
+
+    private static string CsvRow(string grade, string laestab) =>
+        $"500001,60181576,S2024,{grade},{laestab}\n";
+
+    // #905: the schema of the schools test names the test generator for the sample school.
+    private const string SampleSchema = """
+    {
+      "type": "object",
+      "x-ingress": { "sample": "test-results" },
+      "properties": {
+        "CYPMD_ID":  { "type": ["string", "null"] },
+        "QAN":       { "type": ["string", "null"] },
+        "SESSION":   { "type": ["string", "null"] },
+        "GRADE":     { "type": ["string", "null"] },
+        "SOURCE":    { "type": "string" },
+        "INCLUDED":  { "type": "boolean" },
+        "INCLUDABLE": { "type": "boolean" }
+      }
+    }
+    """;
+
+    // The sample school enters the file with its slash, as some supplier files write it.
+    private const string ThreeSchoolCsv =
+        "CYPMD_ID,QAN,SESSION,GRADE,LAESTAB\n" +
+        "500001,60181576,S2024,5,8604070\n" +
+        "500002,60181577,S2024,7,8604071\n" +
+        "500003,60181578,S2024,9,933/4290\n";
+
+    // #905: stands in for a real generator when a test schema names one.
+    private sealed class TestResultsGenerator : ISampleDataGenerator
+    {
+        public string Name => "test-results";
+
+        public IEnumerable<IReadOnlyDictionary<string, string>> Rows(SampleSchool school, SampleSchemaShape schema) =>
+        [
+            new Dictionary<string, string>
+            {
+                ["CYPMD_ID"] = "500001", ["QAN"] = "60181576", ["SESSION"] = "S2024", ["GRADE"] = "9"
+            }
+        ];
+    }
 
     public async Task InitializeAsync()
     {
@@ -125,33 +169,34 @@ public sealed class CheckingExerciseReleaseTests(AzuriteFixture azurite) : IAsyn
     /// What the admin screens do: upload a file into each slot, under a path that includes the
     /// file's checksum, and point the slot at it. Both slots are replaced together.
     /// </summary>
-    private async Task UploadAsync(string includedCsv, string nonIncludedCsv)
+    private async Task UploadAsync(string includedCsv, string nonIncludedCsv, string schema = Schema)
     {
         var container = _blobs.GetBlobContainerClient(_windowId.ToString());
         await using var ctx = CreateContext();
         foreach (var (datasetId, csv) in new[] { (_includedId, includedCsv), (_nonIncludedId, nonIncludedCsv) })
         {
             var csvPath = CheckingExerciseBlobPaths.DefinitionFile(_exerciseId, datasetId, Checksum(csv), "results.csv");
-            var schemaPath = CheckingExerciseBlobPaths.DefinitionFile(_exerciseId, datasetId, Checksum(Schema), "results.json");
+            var schemaPath = CheckingExerciseBlobPaths.DefinitionFile(_exerciseId, datasetId, Checksum(schema), "results.json");
             await container.GetBlobClient(csvPath).UploadAsync(BinaryData.FromString(csv), overwrite: true);
-            await container.GetBlobClient(schemaPath).UploadAsync(BinaryData.FromString(Schema), overwrite: true);
+            await container.GetBlobClient(schemaPath).UploadAsync(BinaryData.FromString(schema), overwrite: true);
 
             var dataset = await ctx.CheckingWindowDatasets.SingleAsync(d => d.Id == datasetId);
             dataset.IngressFile = csvPath;
             dataset.IngressFileChecksum = Checksum(csv);
             dataset.SchemaFile = schemaPath;
-            dataset.SchemaFileChecksum = Checksum(Schema);
+            dataset.SchemaFileChecksum = Checksum(schema);
         }
         await ctx.SaveChangesAsync();
     }
 
-    private async Task<ValidationProgress> RunAsync()
+    private async Task<ValidationProgress> RunAsync(ISampleDataGenerators? generators = null)
     {
         await using var ctx = CreateContext();
         var ingress = new CheckingExerciseIngress(
             new CheckingExerciseDefinitionRepository(ctx, new WindowRepository(ctx)),
             new CsvSchemaFileProcessor(NullLogger<CsvSchemaFileProcessor>.Instance,
-                new Dictionary<string, BlobServiceClient> { ["app"] = _blobs }, new DfE.CheckPerformanceData.Infrastructure.Ingress.SampleData.SampleDataGenerators([])),
+                new Dictionary<string, BlobServiceClient> { ["app"] = _blobs },
+                generators ?? new SampleDataGenerators([])),
             TimeProvider.System, new SampleSchoolRepository(ctx));
 
         ValidationProgress? last = null;
@@ -355,5 +400,104 @@ public sealed class CheckingExerciseReleaseTests(AzuriteFixture azurite) : IAsyn
             _exerciseId, CheckingDataType.Results, "8604070", release)).ExistsAsync()).Value);
         Assert.False((await container.GetBlobClient(CheckingExerciseBlobPaths.DatasetBlobName(
             _exerciseId, release, _includedId, "8604070")).ExistsAsync()).Value);
+    }
+
+    [Fact]
+    public async Task A_clean_run_records_the_schools_It_Wrote_on_the_release()
+    {
+        // #905: T008 - the release's WrittenLaestabs contains the schools the run wrote output for,
+        // including the sample school whose rows the run replaces with generated ones.
+        await using (var ctx = CreateContext())
+        {
+            ctx.CheckingWindowSampleSchools.Add(new CheckingWindowSampleSchool
+            {
+                CheckingWindowId = _windowId,
+                Laestab = "9334290",
+                Urn = "123456",
+                AddedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                AddedBy = "admin@example.gov.uk"
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        await UploadAsync(ThreeSchoolCsv, ThreeSchoolCsv, SampleSchema);
+        Assert.False((await RunAsync(new SampleDataGenerators([new TestResultsGenerator()]))).IsError);
+
+        var exercise = await LoadExerciseAsync();
+        var release = exercise.Releases.Single(r => r.Number == 1);
+        Assert.Equal(["8604070", "8604071", "9334290"], release.WrittenLaestabs);
+        Assert.Contains("9334290", release.SampleLaestabs);
+
+        // SC-001: the list matches the release's per-school output files: 0 missing, 0 extra.
+        var container = _blobs.GetBlobContainerClient(_windowId.ToString());
+        var prefix = CheckingExerciseBlobPaths.ReleaseDataPrefix(_exerciseId, release.Id);
+        var written = new List<string>();
+        await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, default))
+            written.Add(blob.Name.Split('/').Last().Split('_')[0]);
+        Assert.Equal(release.WrittenLaestabs, written.Order());
+    }
+
+    [Fact]
+    public async Task A_clean_run_leaves_no_list_entry_for_a_row_without_a_school()
+    {
+        // #905: FR-003 - a row whose LAESTAB is empty is not a school. The run still finishes
+        // clean, and the list holds only real schools.
+        const string csv = ThreeSchoolCsv + "500004,60181579,S2024,2,\n";
+        await UploadAsync(csv, Csv("4"));
+        Assert.False((await RunAsync()).IsError);
+
+        var exercise = await LoadExerciseAsync();
+        var release = exercise.Releases.Single(r => r.Number == 1);
+        Assert.Equal(["8604070", "8604071", "9334290"], release.WrittenLaestabs);
+
+        // The run wrote output for the value-less row's group, as it does today. The group is not
+        // a school, so it has no entry in the list.
+        var container = _blobs.GetBlobContainerClient(_windowId.ToString());
+        var prefix = CheckingExerciseBlobPaths.ReleaseDataPrefix(_exerciseId, release.Id);
+        var written = new List<string>();
+        await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, default))
+            written.Add(blob.Name.Split('/').Last());
+        Assert.Contains("_results.json", written);
+    }
+
+    [Fact]
+    public async Task A_later_run_does_not_change_the_earlier_release_list()
+    {
+        // #905: T009 - a second run creates a new release; the first keeps its own list.
+        await UploadAsync(Csv("5"), Csv("4"));
+        Assert.False((await RunAsync()).IsError);
+
+        var exercise = await LoadExerciseAsync();
+        var first = exercise.Releases.Single(r => r.Number == 1);
+        Assert.Equal(["8604070"], first.WrittenLaestabs);
+
+        // Run with a different school.
+        await UploadAsync(Csv("7", "8604071"), Csv("6", "8604072"));
+        Assert.False((await RunAsync()).IsError);
+
+        exercise = await LoadExerciseAsync();
+        Assert.Equal(2, exercise.Releases.Count);
+        Assert.Equal(["8604070"], exercise.Releases.Single(r => r.Number == 1).WrittenLaestabs);
+        Assert.Equal(["8604071", "8604072"], exercise.Releases.Single(r => r.Number == 2).WrittenLaestabs);
+    }
+
+    [Fact]
+    public async Task A_failed_run_creates_no_release_and_records_no_list()
+    {
+        // #905: T010 - a run that fails (no LAESTAB column) publishes nothing.
+        await UploadAsync(Csv("5"), Csv("4"));
+        Assert.False((await RunAsync()).IsError);
+
+        var exercise = await LoadExerciseAsync();
+        Assert.Single(exercise.Releases);
+        Assert.NotNull(exercise.Releases[0].WrittenLaestabs);
+
+        // No LAESTAB column: the run cannot split by school and fails.
+        const string noLaestabCsv = "CYPMD_ID,QAN,SESSION,GRADE\n500001,60181576,S2024,9\n";
+        await UploadAsync(noLaestabCsv, Csv("6"));
+        Assert.True((await RunAsync()).IsError);
+
+        exercise = await LoadExerciseAsync();
+        Assert.Single(exercise.Releases);
     }
 }

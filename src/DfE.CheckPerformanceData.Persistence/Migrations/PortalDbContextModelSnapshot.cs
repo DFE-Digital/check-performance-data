@@ -851,6 +851,12 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("text[]")
                         .HasDefaultValueSql("'{}'::text[]");
 
+                    b.PrimitiveCollection<List<string>>("WrittenLaestabs")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasDefaultValueSql("'{}'::text[]");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CheckingExerciseId", "Number")

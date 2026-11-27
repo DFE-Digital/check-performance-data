@@ -96,6 +96,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 PublishedBy = r.PublishedBy,
                                 FilesWritten = r.FilesWritten,
                                 SampleLaestabs = r.SampleLaestabs,
+                                WrittenLaestabs = r.WrittenLaestabs,
                                 Files = r.Files
                                     .OrderBy(f => f.SortOrder)
                                     .Select(f => new CheckingExerciseReleaseFileDto
@@ -211,6 +212,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 PublishedBy = r.PublishedBy,
                                 FilesWritten = r.FilesWritten,
                                 SampleLaestabs = r.SampleLaestabs,
+                                WrittenLaestabs = r.WrittenLaestabs,
                                 Files = r.Files
                                     .OrderBy(f => f.SortOrder)
                                     .Select(f => new CheckingExerciseReleaseFileDto
@@ -598,6 +600,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                             PublishedBy = r.PublishedBy,
                             FilesWritten = r.FilesWritten,
                             SampleLaestabs = r.SampleLaestabs,
+                            WrittenLaestabs = r.WrittenLaestabs,
                             Files = r.Files
                                 .OrderBy(f => f.SortOrder)
                                 .Select(f => new CheckingExerciseReleaseFileDto

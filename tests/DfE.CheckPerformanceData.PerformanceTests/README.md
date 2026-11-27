@@ -554,7 +554,7 @@ Failure messages contain the URL, the HTTP status, the expected heading or redir
 
 ## `lib/release-lookup.ts`
 
-Finds the pupil and results files for each window before any journey runs. `setup()` calls `resolveWindowBlobs` for each window it loads.
+Finds the pupil and results files for each window the selected journeys use, before any journey runs. A run of KS4 journeys does not read KS2 files. `setup()` calls `resolveWindowBlobs` for each of those windows.
 
 The lookup reads the admin storage browser for the window's container. It walks `exercises/`, then each `releases/` folder, then each `data/` folder. It takes the file with the latest Last modified time for each required file name. It fails when:
 
@@ -1035,13 +1035,15 @@ Recheck the pool after a new release is published.
 
 ## KS2 pupil pool
 
-The KS2 journeys pick pupils from school 8604070, which has 37 included pupils in the seeded data. A pupil is picked by `iteration % 37`. A journey is picked by `iteration % 36` under the default mix.
+The KS2 journeys pick pupils from school 8604070. The seeded data has 37 included pupils. Each iteration picks a pupil by `iteration % 37`, and picks a journey by `iteration % 36` under the default mix.
 
-Two iterations can pick the same KS2 pupil when they overlap. The app allows one submitted request per pupil, window and school, so the second request can fail. With the default equal weights, the first clash is iterations 15 and 52.
+The app's conflict check matches a submitted request on window, pupil and school. It does not check the reason or the time. Two iterations in one run that pick the same KS2 pupil therefore conflict. With the default equal weights, the first clash is iterations 15 and 52.
 
+- The run does not check for clashes. Setup does not stop a run that has one.
 - Keep `CONCURRENT_ITERATIONS` at 52 or less. This limit comes from the arithmetic. It was not checked in a live run.
 - The limit changes with `JOURNEY_WEIGHTS`. Recalculate it if the weights change.
 - Load runs have the same risk. It applies when two KS2 iterations overlap in time, which depends on journey duration and arrival rate.
+- The limit applies within one run. Each journey withdraws its submitted request at the end (`cleanupRequest`), so a later run does not reuse a pupil. If a withdrawal fails, the request stays submitted and can clash with a later run.
 
 ## Workload distribution
 

@@ -3,8 +3,10 @@ import type {
 } from "../types/pupil.ts";
 
 /*
- * Removals and merges need an included pupil. The
- * INCLUDED stamp sets the inclusion code (see mapKs2Record).
+ * For KS2 and 16 to 19 only. Their mappers set INCLUDED
+ * (see mapKs2Record and mapPost16Record). 16 to 19 searches
+ * offer every student, but removals and merges need an
+ * included student. KS4 uses its own rule (ks4/shared.ts).
  */
 export function isIncluded(
     pupil: Pupil

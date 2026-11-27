@@ -114,14 +114,6 @@ export function startAmendment(
         );
 
     if (!profile.whatToChangeHeading) {
-        if (whatToChangePage.status !== 302) {
-            throw new Error(
-                `${windowId} auto-starts its journey, ` +
-                `so What to change must redirect. ` +
-                `Got status ${whatToChangePage.status}`
-            );
-        }
-
         return {
             location:
                 checkRedirect(

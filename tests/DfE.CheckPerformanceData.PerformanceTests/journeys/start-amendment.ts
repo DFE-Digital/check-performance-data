@@ -34,6 +34,11 @@ import type {
  * GET  What To Change
  * POST Amendment Type
  *
+ * A profile with no whatToChangeHeading is a window that
+ * auto-starts its only change type (KS2). Its What To
+ * Change GET must redirect to the journey. The POST is
+ * then skipped. Any other profile must return the page.
+ *
  * Returns the first configured page
  * of the selected journey.
  */
@@ -107,6 +112,18 @@ export function startAmendment(
                     amendmentType,
             }
         );
+
+    if (!profile.whatToChangeHeading) {
+        return {
+            location:
+                checkRedirect(
+                    whatToChangePage,
+                    "/Journey/"
+                ),
+
+            amendmentType,
+        };
+    }
 
     checkPage(
         whatToChangePage,

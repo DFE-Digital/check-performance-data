@@ -12,6 +12,19 @@ import type {
  * wording from KS4.
  */
 export const WINDOW_PROFILES: Record<WindowKey, WindowProfile> = {
+    ks2: {
+        key: "ks2",
+
+        windowId:
+            "b4f61c83-2d7a-4e95-8c30-6a1e9f5b2d48",
+
+        pupilFile:
+            "8604070_pupils.json",
+
+        checkPupilDataHeading:
+            "Check your pupil data",
+    },
+
     ks4: {
         key: "ks4",
 

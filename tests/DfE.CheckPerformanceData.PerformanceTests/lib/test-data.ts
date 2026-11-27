@@ -75,6 +75,24 @@ function mapKs4Record(
     };
 }
 
+/*
+ * KS2 uses the same record and label as KS4. Its P_INCL
+ * codes are not the inclusion filter, so the INCLUDED
+ * stamp sets the inclusion code instead.
+ */
+function mapKs2Record(
+    record: Ks4PupilRecord
+): Pupil {
+    return {
+        ...mapKs4Record(record),
+
+        inclusionCode:
+            record.INCLUDED
+                ? "INCLUDED"
+                : "NOT INCLUDED",
+    };
+}
+
 function mapPost16Record(
     record: Post16PupilRecord
 ): Pupil {
@@ -219,7 +237,9 @@ export function loadPupils(
     const pupils: Pupil[] =
         key === "post16"
             ? (JSON.parse(body) as Post16PupilRecord[]).map(mapPost16Record)
-            : (JSON.parse(body) as Ks4PupilRecord[]).map(mapKs4Record);
+            : key === "ks2"
+              ? (JSON.parse(body) as Ks4PupilRecord[]).map(mapKs2Record)
+              : (JSON.parse(body) as Ks4PupilRecord[]).map(mapKs4Record);
 
     if (!blobs.resultsBlob) {
         return pupils;

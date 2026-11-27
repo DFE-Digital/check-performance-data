@@ -115,7 +115,7 @@ export const options = {
 };
 
 interface TestData {
-    pupilsByWindow: Record<WindowKey, Pupil[]>;
+    pupilsByWindow: Partial<Record<WindowKey, Pupil[]>>;
     runId: string;
 }
 
@@ -149,41 +149,34 @@ export function setup(): TestData {
         "admin"
     );
 
-    const pupilsByWindow: Record<WindowKey, Pupil[]> = {
-        ks4:
+    const pupilsByWindow: Partial<Record<WindowKey, Pupil[]>> = {};
+
+    /*
+     * Only the windows the selected journeys use. A run
+     * that avoids KS2 does not need KS2 pupil data.
+     */
+    for (const key of workload.windows) {
+        const pupils =
             loadPupils(
                 BASE_URL,
-                "ks4",
+                key,
                 resolveWindowBlobs(
                     BASE_URL,
-                    WINDOW_PROFILES.ks4
+                    WINDOW_PROFILES[key]
                 )
-            ),
-
-        post16:
-            loadPupils(
-                BASE_URL,
-                "post16",
-                resolveWindowBlobs(
-                    BASE_URL,
-                    WINDOW_PROFILES.post16
-                )
-            ),
-    };
-
-    for (const key of Object.keys(pupilsByWindow) as WindowKey[]) {
-        const count =
-            pupilsByWindow[key].length;
+            );
 
         console.log(
-            `Loaded ${count} pupils for ${key}`
+            `Loaded ${pupils.length} pupils for ${key}`
         );
 
-        if (count === 0) {
+        if (pupils.length === 0) {
             throw new Error(
                 `No pupils were returned for ${key}`
             );
         }
+
+        pupilsByWindow[key] = pupils;
     }
 
     return {
@@ -262,6 +255,12 @@ export default function (
          */
         const windowPupils =
             data.pupilsByWindow[profile.key];
+
+        if (!windowPupils) {
+            throw new Error(
+                `No pupils were loaded for ${profile.key}`
+            );
+        }
 
         const pupils =
             config.pupilFilter

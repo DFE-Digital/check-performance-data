@@ -12,6 +12,10 @@ import type {
     JourneyConfig,
 } from "../types/journey-config.ts";
 
+import type {
+    WindowKey,
+} from "../types/window.ts";
+
 import {
     BASE_URL,
 } from "./config.ts";
@@ -23,6 +27,7 @@ import {
     isAddPupil,
     isResultsEnquiry,
     parseJourneyWeights,
+    windowOf,
 } from "./journey-selection.ts";
 
 /*
@@ -91,6 +96,9 @@ export interface Workload {
     profile: ProfileName;
 
     pauseSeconds: number;
+
+    /* Windows the run uses. setup() loads pupils only for these. */
+    windows: WindowKey[];
 
     options: Options;
 
@@ -459,6 +467,15 @@ function sameDuration(actual: unknown, expected: unknown): boolean {
 }
 
 /**
+ * Returns the distinct windows of the given journeys.
+ */
+function windowsOf(
+    journeys: JourneyConfig[]
+): WindowKey[] {
+    return [...new Set(journeys.map(windowOf))];
+}
+
+/**
  * Builds a fixed profile: smoke, regression or single.
  * Each iteration runs the journey at its index, once.
  */
@@ -494,6 +511,8 @@ function fixedWorkload(
         profile,
 
         pauseSeconds: 1,
+
+        windows: windowsOf(journeys),
 
         options,
 
@@ -565,6 +584,7 @@ function sequentialWorkload(): Workload {
     return {
         profile: "sequential",
         pauseSeconds,
+        windows: windowsOf(schedule),
         options: {
             scenarios: expectedScenarios as unknown as NonNullable<Options["scenarios"]>,
             thresholds: thresholdsFor(iterations),
@@ -637,6 +657,7 @@ function concurrentWorkload(): Workload {
     return {
         profile: "concurrent",
         pauseSeconds: 1,
+        windows: windowsOf(schedule),
         options: {
             scenarios: expectedScenarios as unknown as NonNullable<Options["scenarios"]>,
             thresholds: thresholdsFor(iterations),
@@ -755,6 +776,8 @@ function loadWorkload(): Workload {
         profile: "load",
 
         pauseSeconds: 1,
+
+        windows: windowsOf(schedule),
 
         options,
 

@@ -306,3 +306,16 @@ If this file is wrong or out of date, fix it in the same pull request.
 
 - Branch off `main`. Name the branch `{issue-number}-{short-description}`.
 - Use short, sentence-case commit subjects.
+
+<!-- BEGIN token-budget compact-backups -->
+
+## Token Budget — backup guard
+
+Files ending in `.full.md` inside `specs/` and `.specify/memory/`
+(e.g. `spec.full.md`, `plan.full.md`) are pre-compaction backups created
+by `/speckit.token-budget.compact`. **Do not read them.** They contain the
+full uncompacted content; loading them cancels the token savings compaction
+achieved. To revert an artifact to its original state, run
+`/speckit.token-budget.restore` instead.
+
+<!-- END token-budget compact-backups -->

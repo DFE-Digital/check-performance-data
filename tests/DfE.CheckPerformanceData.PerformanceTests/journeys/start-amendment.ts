@@ -34,9 +34,10 @@ import type {
  * GET  What To Change
  * POST Amendment Type
  *
- * A window that auto-starts its only change type
- * (for example KS2) redirects the What To Change GET
- * to the first journey page. The POST is then skipped.
+ * A profile with no whatToChangeHeading is a window that
+ * auto-starts its only change type (KS2). Its What To
+ * Change GET must redirect to the journey. The POST is
+ * then skipped. Any other profile must return the page.
  *
  * Returns the first configured page
  * of the selected journey.
@@ -112,7 +113,15 @@ export function startAmendment(
             }
         );
 
-    if (whatToChangePage.status === 302) {
+    if (!profile.whatToChangeHeading) {
+        if (whatToChangePage.status !== 302) {
+            throw new Error(
+                `${windowId} auto-starts its journey, ` +
+                `so What to change must redirect. ` +
+                `Got status ${whatToChangePage.status}`
+            );
+        }
+
         return {
             location:
                 checkRedirect(
@@ -122,13 +131,6 @@ export function startAmendment(
 
             amendmentType,
         };
-    }
-
-    if (!profile.whatToChangeHeading) {
-        throw new Error(
-            `${windowId} shows a What to change page ` +
-            `but its profile has no heading`
-        );
     }
 
     checkPage(

@@ -70,9 +70,6 @@ function transactionPrefix(
  * GET /Journey/{windowId}/page/{pageId}
  *   -> /Journey/{windowId}/pupil-search/{pageId}
  *
- * A location that is already /pupil-search/{pageId}
- * (auto-started journeys) is opened without a redirect.
- *
  * GET /Journey/{windowId}/pupil-search/{pageId}
  *   -> 200 with the configured heading
  */
@@ -86,17 +83,7 @@ export function openPupilSearch({
     const prefix =
         transactionPrefix(amendmentType);
 
-    /*
-     * A window that auto-starts its journey (KS2) already
-     * returns the pupil-search location from startAmendment.
-     */
-    const atPupilSearch =
-        location.includes(
-            `/pupil-search/${config.pageId}`
-        );
-
     if (
-        !atPupilSearch &&
         !location.includes(
             `/page/${config.pageId}`
         )
@@ -112,29 +99,24 @@ export function openPupilSearch({
      * JourneyController.Page dispatches a page whose
      * type is PupilSearch to the pupil-search endpoint.
      */
-    let searchLocation =
-        location;
+    const dispatcher =
+        getPage(
+            baseUrl,
+            location,
+            {
+                transaction:
+                    `${prefix}-pupil-search-dispatcher`,
 
-    if (!atPupilSearch) {
-        const dispatcher =
-            getPage(
-                baseUrl,
-                location,
-                {
-                    transaction:
-                        `${prefix}-pupil-search-dispatcher`,
+                amendment_type:
+                    amendmentType,
+            }
+        );
 
-                    amendment_type:
-                        amendmentType,
-                }
-            );
-
-        searchLocation =
-            checkRedirect(
-                dispatcher,
-                `/pupil-search/${config.pageId}`
-            );
-    }
+    const searchLocation =
+        checkRedirect(
+            dispatcher,
+            `/pupil-search/${config.pageId}`
+        );
 
     const searchPage =
         getPage(

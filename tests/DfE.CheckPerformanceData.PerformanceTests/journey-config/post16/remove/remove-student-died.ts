@@ -4,7 +4,7 @@ import type {
 
 import {
     isIncluded,
-} from "../shared.ts";
+} from "../../../lib/pupil-inclusion.ts";
 
 export const post16RemoveStudentDied = {
     id: "post16-remove-student-died",

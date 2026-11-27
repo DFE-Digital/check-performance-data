@@ -167,6 +167,9 @@ DfE.CheckPerformanceData.PerformanceTests/
 │   └── evidence-upload.pdf
 ├── journey-config/
 │   ├── registry.ts
+│   ├── ks2/
+│   │   └── remove/
+│   │       └── *.ts
 │   ├── ks4/
 │   │   ├── add/
 │   │   │   └── add-pupil.ts
@@ -177,7 +180,6 @@ DfE.CheckPerformanceData.PerformanceTests/
 │   │   └── remove/
 │   │       └── *.ts
 │   └── post16/
-│       ├── shared.ts
 │       ├── merge/
 │       │   └── merge-duplicate-students.ts
 │       ├── remove/
@@ -406,9 +408,9 @@ ks2-remove-pupil-died
 ks2-remove-social-care-involvement
 ```
 
-The KS2 journeys are configured in `journey-config/ks2/remove/`. They use the `ks2` window profile and the shared `isIncluded` pupil filter, which reads the `INCLUDED` stamp. The Confirm journey is not included.
+The KS2 journeys are configured in `journey-config/ks2/remove/`. They use the `ks2` window profile and the shared `isIncluded` pupil filter in `lib/pupil-inclusion.ts`, which reads the `INCLUDED` stamp. The Confirm journey is not included.
 
-KS2 has one change type, so the What to change page redirects straight to pupil search. `tests/journey.ts` follows that redirect (see `journeys/start-amendment.ts`).
+KS2 has one change type. Its What to change page redirects to the first journey page, which then redirects to pupil search. The `ks2` profile has no `whatToChangeHeading`, so `startAmendment` requires that redirect and skips the What to change POST (see `journeys/start-amendment.ts`).
 
 ## KS4 journeys
 
@@ -529,7 +531,7 @@ A configuration without an explicit `window` uses KS4.
 16 to 19 journeys use `isIncluded` from:
 
 ```text
-journey-config/post16/shared.ts
+lib/pupil-inclusion.ts
 ```
 
 to select included students.
@@ -795,6 +797,8 @@ k6 run -e PROFILE=concurrent -e RUN_ID=concurrent-01 -e CONCURRENT_ITERATIONS=10
 
 Each VU runs one journey from the weighted schedule. The profile uses the default mix or `JOURNEY_WEIGHTS`, as the load and sequential profiles do. Add Pupil is in the default mix, so the count cannot exceed 17,576 per run ID.
 
+With the default mix, KS2 journeys can share a pupil if `CONCURRENT_ITERATIONS` is 53 or more. Keep it at 52 or less. See [KS2 pupil pool](#ks2-pupil-pool).
+
 This profile starts journeys together, but it does not guarantee their submit requests happen at the exact same time. It applies concurrency to full journeys.
 
 ---
@@ -854,7 +858,7 @@ Current correctness thresholds include:
 
 For smoke and single profiles, `N` is `1`.
 
-For the regression profile, `N` is `25`.
+For the regression profile, `N` is `36`.
 
 For sequential and concurrent profiles, `N` is the configured journey count.
 
@@ -903,7 +907,7 @@ Regression runs all registered journeys exactly once and sequentially.
 Current expected journey count:
 
 ```text
-25
+36
 ```
 
 Regression generates a run ID when `RUN_ID` is unset. Set `RUN_ID` to reuse one.
@@ -1028,6 +1032,16 @@ Use appropriate non-production environments for executions that write test data.
 The Results Enquiry pupil/result pool is read from the results file of the newest release in the post16 window's storage, so it follows that release.
 
 Recheck the pool after a new release is published.
+
+## KS2 pupil pool
+
+The KS2 journeys pick pupils from school 8604070, which has 37 included pupils in the seeded data. A pupil is picked by `iteration % 37`. A journey is picked by `iteration % 36` under the default mix.
+
+Two iterations can pick the same KS2 pupil when they overlap. The app allows one submitted request per pupil, window and school, so the second request can fail. With the default equal weights, the first clash is iterations 15 and 52.
+
+- Keep `CONCURRENT_ITERATIONS` at 52 or less. This limit comes from the arithmetic. It was not checked in a live run.
+- The limit changes with `JOURNEY_WEIGHTS`. Recalculate it if the weights change.
+- Load runs have the same risk. It applies when two KS2 iterations overlap in time, which depends on journey duration and arrival rate.
 
 ## Workload distribution
 

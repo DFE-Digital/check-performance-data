@@ -2,7 +2,7 @@ import type {
     JourneyConfig,
 } from "../../../types/journey-config.ts";
 
-import { isIncluded } from "../shared.ts";
+import { isIncluded } from "../../../lib/pupil-inclusion.ts";
 
 export const removeKs2ElectiveHomeEducation = {
     id: "ks2-remove-elective-home-education",
